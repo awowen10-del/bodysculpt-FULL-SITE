@@ -308,10 +308,20 @@ export default async (req) => {
     }
 
     // Save the editable recurring defaults list.
+    // v63: whitelist the additive per-task fields (id/repeat/time/link) so they persist.
+    // id makes "recurring:<id>" placement refs stable across reloads; repeat/time drive the
+    // weekday-repeat feature; link is the optional task URL. Unknown fields still dropped.
     if (Array.isArray(body.recurringDefaults)) {
       const clean = body.recurringDefaults
         .filter((t) => t && typeof t.title === "string")
-        .map((t) => ({ title: t.title, owner: t.owner || "" }));
+        .map((t) => {
+          const d = { title: t.title, owner: t.owner || "" };
+          if (typeof t.id === "string" && t.id) d.id = t.id;
+          if (t.repeat === "weekdays" || t.repeat === "weekly") d.repeat = t.repeat;
+          if (typeof t.time === "string" && t.time) d.time = t.time;
+          if (typeof t.link === "string" && /^https?:\/\//i.test(t.link)) d.link = t.link;
+          return d;
+        });
       await store.set(RECURRING_DEFAULTS_KEY, JSON.stringify(clean));
       return Response.json({ ok:true, defaults: clean });
     }
