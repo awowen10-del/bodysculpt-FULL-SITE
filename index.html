@@ -503,17 +503,16 @@
      project/blue buffer language and the green/amber/red status colours. */
   .wp-rec-row{border-left:3px solid rgba(79,163,184,.5);padding-left:9px;background:rgba(79,163,184,.045);border-radius:0 6px 6px 0;}
   .wp-cellchip.wp-recur{border-left:3px solid rgba(79,163,184,.65);background:rgba(79,163,184,.10);}
-  .wp-rec-wd{background:transparent;border:1px solid var(--line);color:var(--ink-faint);border-radius:5px;
-    padding:2px 7px;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.3px;
-    cursor:pointer;font-family:inherit;white-space:nowrap;flex:none;}
-  .wp-rec-wd:hover{border-color:rgba(79,163,184,.6);color:#7fc4d6;}
-  .wp-rec-wd.on{color:#7fc4d6;border-color:rgba(79,163,184,.6);background:rgba(79,163,184,.14);}
+  /* v64: recurrence editor day-checkbox pills in the place popup */
+  .wp-popup-days{display:flex;gap:4px;margin-bottom:9px;flex-wrap:wrap;}
+  .wp-day-tick{display:flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;color:var(--ink-dim);
+    background:var(--navy-2);border:1px solid var(--line);border-radius:6px;padding:4px 7px;cursor:pointer;user-select:none;}
+  .wp-day-tick input{margin:0;width:12px;height:12px;cursor:pointer;accent-color:#4fa3b8;}
+  .wp-day-tick.on{color:#7fc4d6;border-color:rgba(79,163,184,.6);background:rgba(79,163,184,.14);}
   .wp-rec-linkbtn{background:transparent;border:none;font-size:11px;cursor:pointer;padding:0 2px;opacity:.4;flex:none;}
   .wp-rec-linkbtn:hover{opacity:1;}
   .wp-rec-link{color:#7fc4d6;text-decoration:none;font-size:13px;font-weight:800;padding:0 3px;flex:none;line-height:1;}
   .wp-rec-link:hover{color:#a9dbe8;}
-  .wp-popup-fixedday{flex:1;background:var(--navy);color:#7fc4d6;border:1px solid rgba(79,163,184,.5);
-    border-radius:7px;padding:6px 8px;font-size:12px;font-weight:700;text-align:center;white-space:nowrap;}
   /* PROJECT / BUFFER — draggable rows */
   .wp-drag-row{display:flex;align-items:center;gap:7px;padding:4px 2px;}
   .wp-drag-handle{color:var(--ink-faint);cursor:grab;font-size:14px;line-height:1;user-select:none;}
@@ -854,7 +853,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v63 · recurring-weekday-colour-link</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v64 · recurrence-days-and-slot</span>
   </footer>
 </div>
 
@@ -1299,7 +1298,9 @@ function goToCurrentWeek(){
 /* ===================== WEEKLY PLAN (spreadsheet-style) ===================== */
 const WP_STORE = "/.netlify/functions/kpi-store";
 const WP_TIME_ROWS = [["6-9","6 – 9"],["10-12","9 – 11.30"],["1-3","12 – 3"],["5-8","5 – 8"],["notes","Notes"]];
-const WP_DAYS = [["mon","Mon"],["tue","Tue"],["wed","Wed"],["thu","Thu"],["fri","Fri"],["sat","Sat"]];
+// v64: Sunday restored as a grid column — recurrence day-checkboxes cover the full week,
+// so a task ticked for Sun must have a real cell to land in.
+const WP_DAYS = [["mon","Mon"],["tue","Tue"],["wed","Wed"],["thu","Thu"],["fri","Fri"],["sat","Sat"],["sun","Sun"]];
 let wpPlan = null;
 let wpDefaults = null;      // recurring master list (array of {title}) = the saved defaults
 let wpWeekEnding = null;
@@ -1346,8 +1347,15 @@ async function wpLoadDefaults(){
         const it = { id: d.id || wpUid(), title: String(d.title) };
         if(!d.id) minted = true;
         if(typeof d.owner === "string" && d.owner) it.owner = d.owner;
-        // v63: additive per-task fields. Absent repeat = weekly (existing behaviour, never converted).
-        if(d.repeat === "weekdays") it.repeat = "weekdays";
+        // v64: additive per-task fields. days = the recurrence (any combination of week
+        // days at one time slot); absent days = the task's original single-day behaviour.
+        // Existing tasks are never auto-converted — days only appears once the user sets it.
+        if(Array.isArray(d.days)){
+          const ds = d.days.filter(x=>WP_DAYS.some(w=>w[0]===x));
+          if(ds.length) it.days = ds;
+        } else if(d.repeat === "weekdays"){
+          it.days = ["mon","tue","wed","thu","fri"]; // legacy v63 shape → mapped forward
+        }
         if(typeof d.time === "string" && d.time) it.time = d.time;
         if(typeof d.link === "string" && d.link) it.link = d.link;
         return it;
@@ -1362,10 +1370,10 @@ async function wpLoadDefaults(){
   return wpDefaults;
 }
 async function wpSaveDefaults(){
-  // v63: round-trip id + repeat/time/link (and stop wiping owner) — the store whitelists these.
+  // v64: round-trip id + days/time/link (and never wipe owner) — the store whitelists these.
   const list = (wpDefaults||[]).filter(d=>d.title && d.title.trim()).map(d=>{
     const out = { id: d.id, title: d.title.trim(), owner: d.owner || "" };
-    if(d.repeat === "weekdays") out.repeat = "weekdays";
+    if(Array.isArray(d.days) && d.days.length) out.days = d.days;
     if(d.time) out.time = d.time;
     if(d.link) out.link = d.link;
     return out;
@@ -1386,11 +1394,19 @@ function wpResolveRef(ref){
   if(source === "recurring") return (wpDefaults||[]).find(x=>x.id===id) || null;
   return null;
 }
-// v63: weekday-repeat helpers. A recurring task with repeat:"weekdays" occupies the same
-// time row Mon–Fri (weekend always excluded); everything else stays weekly (one slot).
-const WP_WEEKDAYS = ["mon","tue","wed","thu","fri"];
-function wpIsWeekdays(it){ return !!(it && it.repeat === "weekdays"); }
-// All grid keys currently holding a ref (a weekdays task legitimately sits in 5 cells).
+// v64: recurrence helpers. A recurring task repeats on its chosen set of days (item.days,
+// any combination Mon–Sun) at one chosen time slot (item.time, an existing preset row).
+// Absent days = the task's original single-slot behaviour.
+function wpRecurDays(it){ return (it && Array.isArray(it.days) && it.days.length) ? it.days : null; }
+function wpMultiDay(it){ const d = wpRecurDays(it); return !!(d && d.length > 1); }
+// Compact label for a day set: "Daily", "Mon–Fri", or "Mon Wed Fri" (kept in week order).
+function wpDaysLabel(days){
+  const ds = WP_DAYS.map(d=>d[0]).filter(k=>days.includes(k));
+  if(ds.length===7) return "Daily";
+  if(ds.length===5 && ["mon","tue","wed","thu","fri"].every(k=>ds.includes(k))) return "Mon–Fri";
+  return ds.map(k=>(WP_DAYS.find(d=>d[0]===k)||[])[1]||k).join(" ");
+}
+// All grid keys currently holding a ref (a multi-day task legitimately sits in several cells).
 function wpPlacementsOf(ref){
   const P = wpPlan && wpPlan.placements || {};
   return Object.keys(P).filter(k=>(P[k]||[]).includes(ref));
@@ -1430,19 +1446,19 @@ function wpRecDone(id, set, day){
 function wpIsDone(source, item, day){
   if(!item) return false;
   if(source !== "recurring") return !!item.done;
-  if(wpIsWeekdays(item)){
+  if(wpMultiDay(item)){
     if(day) return wpRecDone(item.id, undefined, day);
-    // no specific day (the Recurring box row): done once every weekday is ticked
-    return WP_WEEKDAYS.every(d=>wpRecDone(item.id, undefined, d));
+    // no specific day (the Recurring box row): done once every selected day is ticked
+    return wpRecurDays(item).every(d=>wpRecDone(item.id, undefined, d));
   }
-  return wpRecDone(item.id);
+  return wpRecDone(item.id); // single-day / weekly tasks keep the plain-id key
 }
 function wpSetDone(source, item, val, day){
   if(!item) return;
   if(source !== "recurring"){ item.done = !!val; return; }
-  if(wpIsWeekdays(item)){
+  if(wpMultiDay(item)){
     if(day) wpRecDone(item.id, val, day);
-    else WP_WEEKDAYS.forEach(d=>wpRecDone(item.id, val, d)); // whole-task tick = all weekdays
+    else wpRecurDays(item).forEach(d=>wpRecDone(item.id, val, d)); // whole-task tick = all its days
     return;
   }
   wpRecDone(item.id, val);
@@ -1613,12 +1629,13 @@ function wpPlacementOf(ref){
 }
 function wpPlacedLabel(ref){
   const keys = wpPlacementsOf(ref); if(!keys.length) return "";
-  // v63: a weekdays recurring task sits in 5 cells at one time row — label it as such
+  // v64: a multi-day recurring task sits in several cells at one time row — label the set
   const [source] = ref.split(":");
   const item = source==="recurring" ? wpResolveRef(ref) : null;
   const [time,day] = keys[0].split(":");
   const tl = (WP_TIME_ROWS.find(t=>t[0]===time)||[])[1] || time;
-  if(item && wpIsWeekdays(item)) return "Mon–Fri "+tl;
+  const days = item ? wpRecurDays(item) : null;
+  if(days && days.length>1) return wpDaysLabel(days)+" · "+tl;
   const dl = (WP_DAYS.find(d=>d[0]===day)||[])[1] || day;
   return dl+" "+tl;
 }
@@ -1629,7 +1646,6 @@ function wpRecurRow(it){
   const ref = wpItemRef("recurring", it.id);
   const placed = wpPlacedLabel(ref);
   const done = wpIsDone("recurring", it);
-  const wd = wpIsWeekdays(it);
   // v63: link renders as a small ↗ ONLY when it validates as a real http(s) URL
   const linkHref = wpValidUrl(it.link || "");
   const linkOut = linkHref
@@ -1638,7 +1654,6 @@ function wpRecurRow(it){
   return `<div class="wp-txt-row wp-rec-row" data-rec-id="${it.id}">
     <span class="wp-txt-name${done?" wp-done":""}" onclick="wpOpenPopup('recurring','${it.id}',this)">${wpEsc(it.title)}</span>
     ${linkOut}
-    <button class="wp-rec-wd${wd?" on":""}" title="${wd?"Repeats Mon–Fri at the same time — click for weekly":"Click to repeat Mon–Fri at the same time"}" onclick="wpToggleRepeat('${it.id}')">Weekdays</button>
     <button class="wp-rec-linkbtn" title="${linkHref?"Edit link":"Add link"}" onclick="wpEditRecurLink('${it.id}')">🔗</button>
     ${placed?`<span class="wp-txt-tag" onclick="wpOpenPopup('recurring','${it.id}',this)">${placed}</span>`:""}
     <button class="wp-txt-del" title="Remove" onclick="wpRemoveRecurring('${it.id}')">✕</button>
@@ -2008,41 +2023,36 @@ async function wpRemoveRecurring(id){
   const item = wpDefaults[i];
   if(!confirm(`Remove "${item.title}" from your recurring list?`)) return;
   const ref = wpItemRef("recurring", id);
-  wpRemoveRefEverywhere(ref); // v63: a weekdays task sits in 5 cells — clear them all
+  wpRemoveRefEverywhere(ref); // v64: a multi-day task sits in several cells — clear them all
   wpDefaults.splice(i,1);
   await wpSaveDefaults();
   renderWeeklyPlan();
 }
-// v63: flip a recurring task between weekly (one slot) and weekdays (Mon–Fri, same time).
-// Existing tasks are never auto-converted — this only runs on an explicit click.
-async function wpToggleRepeat(id){
+// v64: THE recurrence writer. Sets a task's day set + time slot and syncs the real
+// placement refs — "recurring:<id>" goes into "<slot>:<day>" for every ticked day, so the
+// grid, drag/remove, done-state and the v62 rollover all see genuine placements.
+// Empty day set = recurrence off (days field removed, task unplaced) — the task itself,
+// its done history and every other placement are untouched.
+async function wpSetRecurrence(id, days, time){
   await wpLoadDefaults();
   const it = (wpDefaults||[]).find(x=>x.id===id);
   if(!it || !wpPlan) return;
   wpSyncFromDom();
   const ref = wpItemRef("recurring", id);
-  const keys = wpPlacementsOf(ref);
-  const addTo = (key)=>{
-    wpPlan.placements[key] = wpPlan.placements[key] || [];
-    if(!wpPlan.placements[key].includes(ref)) wpPlan.placements[key].push(ref);
-  };
-  if(wpIsWeekdays(it)){
-    // → weekly: collapse to a single slot (Monday at its time) if it was placed
-    delete it.repeat;
-    if(keys.length){
-      const time = it.time || keys[0].split(":")[0];
-      wpRemoveRefEverywhere(ref);
-      addTo(time+":mon");
-    }
+  const valid = WP_DAYS.map(d=>d[0]);
+  const ds = valid.filter(d=>(Array.isArray(days)?days:[]).includes(d)); // week order, validated
+  wpRemoveRefEverywhere(ref);
+  if(typeof time === "string" && WP_TIME_ROWS.some(t=>t[0]===time)) it.time = time;
+  if(ds.length){
+    it.days = ds;
+    const slot = it.time || "6-9";
+    ds.forEach(d=>{
+      const key = slot+":"+d;
+      wpPlan.placements[key] = wpPlan.placements[key] || [];
+      if(!wpPlan.placements[key].includes(ref)) wpPlan.placements[key].push(ref);
+    });
   } else {
-    // → weekdays: spread across Mon–Fri at its current slot's time (or remembered time)
-    it.repeat = "weekdays";
-    const time = keys.length ? keys[0].split(":")[0] : it.time;
-    if(time){
-      it.time = time;
-      wpRemoveRefEverywhere(ref);
-      WP_WEEKDAYS.forEach(d=>addTo(time+":"+d));
-    }
+    delete it.days; // back to the original single-day behaviour, currently unplaced
   }
   await wpSaveDefaults();
   await wpSaveSection("timeBlocks");
@@ -2067,24 +2077,26 @@ async function wpEditRecurLink(id){
 
 // ---- placement (per week; lives in wpPlan.placements) ----
 // core placement: put a ref into time:day, moving it if already placed.
-// v63: a weekdays recurring task always occupies the SAME time row Mon–Fri —
-// wherever it's dropped (even Saturday), it lands on every weekday at that time.
+// v64: a recurring task with a day set always keeps the SAME time row on every one of its
+// days — dragging it anywhere on the grid changes the slot for the whole set (the drop
+// day is ignored; days come from the recurrence editor's checkboxes).
 async function wpPlaceRefAt(ref, time, day){
   wpSyncFromDom();
   const [source] = ref.split(":");
   const item = wpResolveRef(ref);
-  wpRemoveRefEverywhere(ref); // clears the old slot(s) — single or Mon–Fri
+  wpRemoveRefEverywhere(ref); // clears the old slot(s) — single or the whole day set
   const addTo = (key)=>{
     wpPlan.placements[key] = wpPlan.placements[key] || [];
     if(!wpPlan.placements[key].includes(ref)) wpPlan.placements[key].push(ref);
   };
-  if(source==="recurring" && item && wpIsWeekdays(item)){
-    WP_WEEKDAYS.forEach(d=>addTo(time+":"+d));
+  const days = (source==="recurring" && item) ? wpRecurDays(item) : null;
+  if(days){
+    days.forEach(d=>addTo(time+":"+d));
   } else {
     addTo(time+":"+day);
   }
-  // remember a recurring task's time on the shared default so weekday-toggling
-  // and next weeks know "the same time each day"
+  // remember a recurring task's slot on the shared default so the recurrence
+  // editor and next weeks know "the same time each day"
   if(source==="recurring" && item && item.time !== time){ item.time = time; await wpSaveDefaults(); }
   await wpSaveSection("timeBlocks");
   renderWeeklyPlan();
@@ -2104,22 +2116,29 @@ function wpOpenPopup(source, id, anchor){
   wpClosePopup();
   const ref = wpItemRef(source, id);
   const item = wpResolveRef(ref);
-  const wd = source==="recurring" && wpIsWeekdays(item); // v63: weekday task = time only
-  const cur = wpPlacementsOf(ref)[0] || null; // representative "time:day" or null
-  const curTime = cur? cur.split(":")[0] : ((item && item.time) || "6-9");
-  const curDay  = cur? cur.split(":")[1] : "mon";
-  const dayOpts = WP_DAYS.map(([k,l])=>`<option value="${k}"${k===curDay?" selected":""}>${l}</option>`).join("");
-  const timeOpts = WP_TIME_ROWS.map(([k,l])=>`<option value="${k}"${k===curTime?" selected":""}>${l}</option>`).join("");
+  const keys = wpPlacementsOf(ref);
+  const curTime = keys.length ? keys[0].split(":")[0] : ((item && item.time) || "6-9");
+  // v64: recurrence editor — tick any combination of days; the task repeats on those days
+  // at one time slot. Pre-tick from the task's day set, else its current placement(s).
+  const placedDays = keys.map(k=>k.split(":")[1]);
+  const ticked = (item && wpRecurDays(item)) || placedDays;
+  const dayTicks = WP_DAYS.map(([k,l])=>{
+    const on = ticked.includes(k);
+    return `<label class="wp-day-tick${on?" on":""}"><input type="checkbox" id="wppop-day-${k}"${on?" checked":""}
+      onchange="this.parentElement.classList.toggle('on',this.checked)">${l}</label>`;
+  }).join("");
+  // slot dropdown = the planner's real preset time rows (the Notes row isn't a time slot)
+  const timeOpts = WP_TIME_ROWS.filter(([k])=>k!=="notes").map(([k,l])=>`<option value="${k}"${k===curTime?" selected":""}>${l}</option>`).join("");
   const pop = document.createElement("div");
   pop.id = "wpPopup"; pop.className = "wp-popup";
-  pop.innerHTML = `<div class="wp-popup-h">Place in time block</div>
+  pop.innerHTML = `<div class="wp-popup-h">Repeats on — same slot each day</div>
+    <div class="wp-popup-days">${dayTicks}</div>
     <div class="wp-popup-row">
-      ${wd?`<span class="wp-popup-fixedday" title="Weekday task — repeats Mon–Fri">Mon – Fri</span>`:`<select id="wppop-day">${dayOpts}</select>`}
       <select id="wppop-time">${timeOpts}</select>
     </div>
     <div class="wp-popup-actions">
-      <button class="wp-popup-place" onclick="wpPopupPlace('${source}','${id}')">${cur?"Move here":"Place"}</button>
-      ${cur?`<button class="wp-popup-remove" onclick="wpUnplaceItem('${source}','${id}')">Remove from grid</button>`:""}
+      <button class="wp-popup-place" onclick="wpPopupApply('${id}')">${keys.length?"Update":"Place"}</button>
+      ${keys.length?`<button class="wp-popup-remove" onclick="wpUnplaceItem('${source}','${id}')">Remove from grid</button>`:""}
     </div>`;
   document.body.appendChild(pop);
   // position near the anchor
@@ -2131,13 +2150,16 @@ function wpOpenPopup(source, id, anchor){
   if(pr.right > window.innerWidth-8) pop.style.left = (window.scrollX + window.innerWidth - pr.width - 8) + "px";
   setTimeout(()=>document.addEventListener("click", wpPopupOutside, true), 0);
 }
-async function wpPopupPlace(source, id){
-  // v63: weekday tasks have no day select (fixed Mon–Fri); wpPlaceRefAt ignores day for them
-  const dayEl = document.getElementById("wppop-day");
-  const day = dayEl ? dayEl.value : "mon";
-  const time = document.getElementById("wppop-time").value;
+// v64: read the editor's ticked days + chosen slot and apply them as real placements.
+async function wpPopupApply(id){
+  const days = WP_DAYS.map(([k])=>k).filter(k=>{
+    const el = document.getElementById("wppop-day-"+k);
+    return !!(el && el.checked);
+  });
+  const timeEl = document.getElementById("wppop-time");
+  const time = timeEl ? timeEl.value : "6-9";
   wpClosePopup();
-  await wpPlaceRefAt(wpItemRef(source,id), time, day);
+  await wpSetRecurrence(id, days, time);
 }
 
 // ---- project/buffer: drag and drop onto a grid cell ----

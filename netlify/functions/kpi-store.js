@@ -308,16 +308,22 @@ export default async (req) => {
     }
 
     // Save the editable recurring defaults list.
-    // v63: whitelist the additive per-task fields (id/repeat/time/link) so they persist.
-    // id makes "recurring:<id>" placement refs stable across reloads; repeat/time drive the
-    // weekday-repeat feature; link is the optional task URL. Unknown fields still dropped.
+    // v63/v64: whitelist the additive per-task fields (id/days/time/link, plus the legacy
+    // v63 repeat flag) so they persist. id makes "recurring:<id>" placement refs stable
+    // across reloads; days = the recurrence day set (any combination mon..sun) and time =
+    // its preset slot row; link is the optional task URL. Unknown fields still dropped.
     if (Array.isArray(body.recurringDefaults)) {
+      const VALID_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
       const clean = body.recurringDefaults
         .filter((t) => t && typeof t.title === "string")
         .map((t) => {
           const d = { title: t.title, owner: t.owner || "" };
           if (typeof t.id === "string" && t.id) d.id = t.id;
-          if (t.repeat === "weekdays" || t.repeat === "weekly") d.repeat = t.repeat;
+          if (Array.isArray(t.days)) {
+            const days = t.days.filter((x) => VALID_DAYS.includes(x));
+            if (days.length) d.days = days;
+          }
+          if (t.repeat === "weekdays" || t.repeat === "weekly") d.repeat = t.repeat; // legacy v63
           if (typeof t.time === "string" && t.time) d.time = t.time;
           if (typeof t.link === "string" && /^https?:\/\//i.test(t.link)) d.link = t.link;
           return d;
