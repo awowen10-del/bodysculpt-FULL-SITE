@@ -1,0 +1,1644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<title>Bodysculpt Monthly Report</title>
+<style>
+  :root{
+    --navy:#0f1b2d; --navy-2:#16273f; --card:#1b2c45; --card-2:#203552;
+    --line:#2c405e; --ink:#eaf0f8; --ink-dim:#9fb1c7; --ink-faint:#6b7f99;
+    --orange:#e8732a; --orange-soft:#f0935a;
+    --green:#3fbf7f; --amber:#e8a93a; --red:#e25555;
+    --radius:16px; --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{background:var(--navy);color:var(--ink);}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;line-height:1.4;padding:0 16px 64px;max-width:1080px;margin:0 auto;}
+  a{color:inherit;}
+  h1{font-size:20px;font-weight:700;letter-spacing:-.2px;}
+  .sub{font-size:12px;color:var(--ink-dim);margin-top:2px;}
+  header{padding:18px 0 8px;}
+  .htop{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:center;gap:12px;}
+  .mark{width:46px;height:46px;border-radius:12px;overflow:hidden;flex:0 0 auto;
+    border:1px solid var(--line);background:#000;}
+  .monthpick{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-dim);}
+  .periodbar{display:flex;align-items:center;gap:10px;margin-top:12px;background:var(--navy-2);
+    border:1px solid var(--line);border-radius:12px;padding:8px 10px;}
+  .pb-arrow{background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:8px;
+    width:38px;height:36px;font-size:16px;font-weight:800;cursor:pointer;flex:0 0 auto;}
+  .pb-arrow:hover:not(:disabled){border-color:var(--orange);color:var(--orange-soft);}
+  .pb-arrow:disabled{opacity:.35;cursor:not-allowed;}
+  .pb-label{flex:1;text-align:center;font-size:15px;font-weight:800;color:#fff;letter-spacing:-.2px;}
+  .pb-jump{background:var(--card);border:1px solid var(--line);color:var(--ink-dim);border-radius:8px;
+    padding:8px 13px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;flex:0 0 auto;}
+  .pb-jump:hover{border-color:var(--orange);color:var(--ink);}
+  .monthpick select{font-family:inherit;background:var(--card);color:var(--ink);border:1px solid var(--line);
+    border-radius:10px;padding:8px 10px;font-size:13px;font-weight:600;}
+  .topnav{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;background:var(--navy-2);
+    border:1px solid var(--line);border-radius:14px;padding:6px;}
+  .topnav a{flex:1;min-width:120px;text-align:center;text-decoration:none;font-size:14px;font-weight:700;
+    color:var(--ink-dim);padding:12px 14px;border-radius:10px;letter-spacing:.2px;
+    display:flex;align-items:center;justify-content:center;gap:7px;}
+  .topnav a:hover{color:var(--ink);background:var(--card);}
+  .topnav a.active{background:var(--orange);color:#fff;}
+  .topnav a .ico{font-size:13px;opacity:.85;}
+  .viewtoggle{display:flex;gap:6px;background:var(--navy-2);border:1px solid var(--line);
+    border-radius:12px;padding:5px;margin-top:16px;overflow-x:auto;}
+  .vt{flex:1;min-width:74px;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink-dim);
+    background:transparent;border:0;border-radius:8px;padding:9px 8px;cursor:pointer;white-space:nowrap;}
+  .vt.active{background:var(--orange);color:#fff;}
+  .actionbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px;}
+  .abtn{font-family:inherit;font-size:13px;font-weight:600;color:var(--ink);background:var(--card);
+    border:1px solid var(--line);border-radius:10px;padding:9px 14px;cursor:pointer;}
+  .abtn:hover{border-color:var(--orange);}
+  .abtn.ghost{background:transparent;color:var(--ink-dim);}
+  .abtn.primary{background:var(--orange);border-color:var(--orange);color:#fff;}
+  .msg{font-size:12px;color:var(--ink-faint);}
+  section{margin-top:18px;}
+  .view[hidden]{display:none;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;box-shadow:var(--shadow);}
+  .card + .card{margin-top:14px;}
+  .ctitle{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--ink-faint);
+    font-weight:700;margin-bottom:12px;}
+  .ctitle-white{color:var(--ink);}
+  .home-head{margin-top:18px;}
+  .home-head .rule-pill{display:inline-block;margin-top:4px;}
+  .hsec{margin-top:22px;}
+  .hsec-title{font-size:15px;font-weight:800;letter-spacing:-.2px;color:#fff;margin-bottom:12px;}
+  /* Growth: tiles left, chart right */
+  .gpair{display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:18px;align-items:start;
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);}
+  .gpair-chart{min-width:0;}
+  .ytiles{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+  .ycell{background:var(--navy-2);border:1px solid var(--line);border-radius:8px;padding:7px 6px;text-align:center;}
+  .ycell .ym{font-size:8.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint);font-weight:700;}
+  .ycell .yv{font-size:14px;font-weight:800;margin-top:2px;letter-spacing:-.3px;}
+  .ycell .yd{font-size:9px;font-weight:600;margin-top:1px;}
+  .ycell.cur{border-color:var(--orange);}
+  @media (max-width:760px){
+    .gpair{grid-template-columns:1fr;}
+  }
+  /* scoreboard */
+  .scoreboard{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:16px;}
+  .score{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;}
+  .score .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);font-weight:700;}
+  .score .val{font-size:28px;font-weight:800;letter-spacing:-.5px;margin-top:6px;}
+  .score .delta{font-size:12px;font-weight:600;margin-top:4px;}
+  .up{color:var(--green);} .down{color:var(--red);} .flat{color:var(--ink-faint);}
+  /* glance tiles */
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;}
+  .tile{background:var(--navy-2);border:1px solid var(--line);border-radius:12px;padding:12px;}
+  .tile .lbl{font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-dim);font-weight:700;}
+  .tile .val{font-size:21px;font-weight:800;margin-top:5px;color:#fff;}
+  .tile .sub{font-size:11px;color:var(--ink-dim);margin-top:2px;}
+  .tile .tdelta{font-size:11px;font-weight:700;margin-top:5px;display:inline-block;}
+  .tile .tdelta.up{color:var(--green);}
+  .tile .tdelta.down{color:var(--red);}
+  .tile .tdelta.flat{color:var(--ink-faint);font-weight:600;}
+  /* entry grid */
+  .entry{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-top:16px;}
+  .entry-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .entry-close{background:transparent;border:0;color:var(--ink-faint);font-size:18px;cursor:pointer;font-family:inherit;}
+  .egrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
+  .egrid.cols3{grid-template-columns:repeat(auto-fit,minmax(130px,1fr));}
+  label.f{display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--ink-dim);font-weight:600;}
+  label.f input{font-family:inherit;background:var(--navy-2);color:var(--ink);border:1px solid var(--line);
+    border-radius:10px;padding:10px;font-size:15px;}
+  label.f input:focus{outline:none;border-color:var(--orange);}
+  label.f.over input{border-color:var(--amber);}
+  label.f.calc{color:var(--ink-faint);}
+  label.f.calc input{background:var(--navy);border-style:dashed;color:var(--orange-soft);font-weight:700;cursor:default;}
+  .calc-tag{display:inline-block;font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;
+    color:var(--orange-soft);background:rgba(232,115,42,.14);border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:1px;}
+  .calc-hint{font-size:9.5px;color:var(--ink-faint);font-weight:600;margin-top:1px;}
+  .esub{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);font-weight:700;margin:16px 0 8px;}
+  .esub-total{font-size:14px;font-weight:800;color:var(--orange-soft);margin:12px 0 4px;}
+  .erow-actions{display:flex;gap:10px;align-items:center;margin-top:16px;flex-wrap:wrap;}
+  .save{font-family:inherit;background:var(--orange);border:0;color:#fff;font-weight:700;font-size:14px;
+    border-radius:10px;padding:11px 18px;cursor:pointer;}
+  .ghostbtn{font-family:inherit;background:transparent;border:1px solid var(--line);color:var(--ink-dim);
+    font-weight:600;font-size:13px;border-radius:10px;padding:10px 14px;cursor:pointer;}
+  /* tables */
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:12px;}
+  table{border-collapse:collapse;width:100%;font-size:12px;white-space:nowrap;}
+  th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line);}
+  th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--card);font-weight:600;z-index:1;}
+  thead th{position:sticky;top:0;background:var(--navy-2);color:var(--ink-dim);font-weight:700;
+    text-transform:uppercase;letter-spacing:.4px;font-size:10px;}
+  tbody tr:hover td{background:var(--card-2);}
+  /* expense comparison table — readability pass */
+  .cmp-table{border-collapse:separate;border-spacing:0;}
+  .cmp-table th, .cmp-table td{font-variant-numeric:tabular-nums;}
+  .cmp-table thead th{font-size:10px;padding:10px 14px;background:transparent;border-bottom:1px solid var(--line);}
+  .cmp-table thead th:not(:first-child){text-align:right;}
+  .cmp-table td{padding:11px 14px;border-bottom:1px solid rgba(44,64,94,.45);font-size:13px;}
+  .cmp-table td:not(:first-child){text-align:right;}
+  .cmp-table td:first-child{color:var(--ink);font-weight:600;font-size:12px;}
+  .cmp-table tbody tr:nth-child(even) td{background:rgba(255,255,255,.015);}
+  .cmp-table tbody tr:hover td{background:rgba(255,255,255,.04);}
+  /* past months: quiet reference, value only */
+  .cmp-table .past{color:var(--ink-faint);font-weight:400;}
+  /* current month: the anchor */
+  .cmp-table thead th.cur-col{color:var(--orange-soft);font-weight:700;
+    background:rgba(232,115,42,.10);border-bottom:2px solid var(--orange);}
+  .cmp-table td.cur-col{background:rgba(232,115,42,.08);color:var(--ink);font-weight:700;font-size:14px;
+    border-left:1px solid rgba(232,115,42,.25);border-right:1px solid rgba(232,115,42,.25);}
+  .cmp-table tbody tr:nth-child(even) td.cur-col{background:rgba(232,115,42,.11);}
+  .cmp-table tbody tr:hover td.cur-col{background:rgba(232,115,42,.15);}
+  /* the single delta lives only in the current column */
+  .vsdelta{display:inline-block;font-size:10px;font-weight:700;margin-left:7px;
+    padding:1px 5px;border-radius:5px;vertical-align:1px;}
+  .vsdelta.up{color:var(--red);background:rgba(226,85,85,.12);}
+  .vsdelta.down{color:var(--green);background:rgba(63,191,127,.12);}
+  .vsdelta.flat{color:var(--ink-faint);background:transparent;}
+  .vsdelta.vd-good{color:var(--green);background:rgba(63,191,127,.12);}
+  .vsdelta.vd-bad{color:var(--red);background:rgba(226,85,85,.12);}
+  .vsdelta.vd-flat{color:var(--ink-faint);background:transparent;}
+  .cmp-table .sect-row td{background:var(--navy-2);color:var(--ink-faint);text-transform:uppercase;
+    letter-spacing:.5px;font-size:10px;font-weight:700;padding:8px 14px;}
+  /* total row */
+  .cmp-table .totrow td{border-top:2px solid var(--line);border-bottom:none;
+    background:var(--navy-2);font-weight:800;font-size:14px;padding-top:14px;padding-bottom:14px;}
+  .cmp-table .totrow td:first-child{color:var(--ink);text-transform:uppercase;letter-spacing:.5px;font-size:11px;}
+  .cmp-table .totrow td.cur-col{background:rgba(232,115,42,.16);}
+  /* charts */
+  .chart-wrap{width:100%;overflow:hidden;}
+  svg{display:block;width:100%;height:auto;}
+  .legend{display:flex;gap:16px;font-size:11px;color:var(--ink-dim);margin-bottom:8px;flex-wrap:wrap;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .swatch{width:12px;height:12px;border-radius:3px;display:inline-block;}
+  /* retention tiles */
+  .ret-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;}
+  .ret{background:var(--navy-2);border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center;}
+  .ret .m{font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);font-weight:700;}
+  .ret .p{font-size:18px;font-weight:800;margin-top:3px;}
+  .ret .d{font-size:10px;font-weight:600;margin-top:2px;}
+  /* AI mentor */
+  .mentor-ai{margin:16px 0 4px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--card);}
+  .mentor-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;}
+  .mentor-title{display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px;}
+  .mentor-dot{width:9px;height:9px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 4px rgba(232,115,42,.18);}
+  .mentor-verdict{font-size:13px;color:var(--ink-dim);padding:0 16px 16px;line-height:1.6;white-space:pre-wrap;}
+  .mentor-body{padding:0 16px 16px;border-top:1px solid var(--line);}
+  .mentor-body[hidden]{display:none;}
+  .mentor-text{font-size:13px;line-height:1.7;white-space:pre-wrap;color:var(--ink);margin-top:14px;}
+  .chev{color:var(--ink-faint);font-size:13px;}
+  .loading{font-size:12px;color:var(--ink-faint);font-style:italic;}
+  .empty{font-size:13px;color:var(--ink-dim);text-align:center;padding:28px 16px;line-height:1.6;}
+  .note{font-size:11px;color:var(--ink-faint);margin-top:10px;line-height:1.5;}
+  .rule-pill{display:inline-block;font-size:10px;color:var(--ink-faint);background:var(--navy-2);
+    border:1px solid var(--line);border-radius:999px;padding:4px 9px;margin-top:8px;}
+  @media (max-width:520px){
+    .score .val{font-size:24px;}
+    h1{font-size:18px;}
+  }
+  /* ===== MONTHLY PLAN ===== */
+  .mp-saved{font-size:12px;color:var(--ink-faint);}
+  .mp-saved.ok{color:#43c088;}
+  .mp-loading{font-size:13px;color:var(--ink-dim);font-style:italic;padding:20px 0;}
+  .mp-box{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:16px;}
+  .mp-box-h{background:var(--navy-2);border-bottom:1px solid var(--line);padding:10px 14px;
+    font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--orange-soft);
+    display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .mp-box-h .mp-hint{font-size:10px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink-faint);}
+  .mp-sec-save{display:flex;align-items:center;gap:9px;}
+  .mp-ssave{background:var(--orange);color:#fff;border:none;border-radius:7px;padding:5px 12px;
+    font-family:inherit;font-size:11px;font-weight:800;text-transform:none;letter-spacing:0;cursor:pointer;}
+  .mp-ssave:hover{background:var(--orange-soft);}
+  .mp-ssave:disabled{opacity:.5;cursor:wait;}
+  .mp-ssaved{font-size:10.5px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink-faint);}
+  .mp-ssaved.ok{color:#43c088;}
+  .mp-box-body{padding:14px;}
+  .mp-rock{display:flex;align-items:flex-start;gap:10px;padding:9px 11px;background:var(--navy);
+    border:1px solid var(--line);border-radius:9px;margin-bottom:8px;}
+  .mp-rock:last-child{margin-bottom:0;}
+  .mp-rock-num{width:20px;height:20px;flex:none;border-radius:5px;background:rgba(232,115,42,.16);
+    color:var(--orange-soft);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:1px;}
+  .mp-rock-body{flex:1;}
+  .mp-rock-title{font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.4;}
+  .mp-rock-meta{font-size:11px;color:var(--ink-faint);margin-top:2px;}
+  .mp-rocks-empty{font-size:12.5px;color:var(--ink-faint);line-height:1.6;}
+  .mp-rocks-empty a{color:var(--orange-soft);cursor:pointer;text-decoration:underline;}
+  .mp-item{background:var(--card-2);border:1px solid var(--line);border-radius:10px;padding:11px;margin-bottom:9px;}
+  .mp-item-top{display:flex;align-items:center;gap:8px;margin-bottom:9px;}
+  .mp-item-top input.mp-title{flex:1;font-weight:600;}
+  .mp-chk{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-dim);font-weight:700;white-space:nowrap;cursor:pointer;}
+  .mp-chk input{width:15px;height:15px;accent-color:var(--orange);cursor:pointer;}
+  .mp-item.done{opacity:.6;}
+  .mp-item.done input.mp-title{text-decoration:line-through;}
+  .mp-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .mp-f{display:flex;flex-direction:column;gap:3px;}
+  .mp-f label{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint);font-weight:700;}
+  #mpBody input, #mpBody select, #mpBody textarea{background:var(--navy);color:var(--ink);border:1px solid var(--line);
+    border-radius:7px;padding:7px 9px;font-family:inherit;font-size:12.5px;width:100%;}
+  #mpBody textarea{resize:vertical;min-height:44px;line-height:1.5;}
+  #mpBody input:focus,#mpBody select:focus,#mpBody textarea:focus{outline:none;border-color:var(--orange);}
+  .mp-del{background:transparent;border:1px solid var(--line);color:var(--ink-faint);border-radius:6px;
+    padding:3px 8px;font-size:10.5px;font-weight:700;cursor:pointer;white-space:nowrap;}
+  .mp-del:hover{border-color:#e0574f;color:#e0574f;}
+  .mp-add{background:var(--card-2);border:1px dashed var(--line);color:var(--ink-dim);border-radius:9px;
+    padding:9px;width:100%;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;margin-top:2px;}
+  .mp-add:hover{border-color:var(--orange);color:var(--ink);}
+  .mp-prio-actions{margin-top:8px;display:flex;justify-content:flex-end;}
+  .mp-week-btn{background:transparent;border:1px solid var(--line);color:var(--ink-dim);border-radius:7px;
+    padding:5px 11px;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;}
+  .mp-week-btn:hover{border-color:var(--orange);color:var(--orange-soft);}
+  .mp-linktag{font-size:10px;font-weight:700;color:var(--orange-soft);background:rgba(232,115,42,.12);
+    border-radius:5px;padding:2px 7px;}
+  .mp-review-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media(max-width:820px){ .mp-fields,.mp-review-grid{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<!-- build v60 · monthly-to-weekly -->
+<header>
+  <div class="htop">
+    <div class="brand">
+      <div class="mark"><img src="data:image/png;base64,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" alt="Bodysculpt" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;"></div>
+      <div><h1>Bodysculpt Monthly Report</h1><div class="sub">Warrington · monthly performance</div></div>
+    </div>
+    <div class="monthpick"><span>Month</span><select id="monthSel"></select></div>
+  </div>
+  <nav class="topnav">
+    <!-- EDIT THIS: point to your actual Bodysculpt HQ launcher URL -->
+    <a href="https://bodysculptdashboard.netlify.app"><span class="ico">←</span> Bodysculpt HQ</a>
+    <a href="/index.html">Weekly Dashboard</a>
+    <a href="/monthly.html" class="active">Monthly Report</a>
+    <a href="/quarterly.html">Quarterly Review</a>
+  </nav>
+  <div class="viewtoggle" id="tabBar">
+    <button class="vt" data-view="plan">Monthly Plan</button>
+    <button class="vt active" data-view="home">KPIs</button>
+    <button class="vt" data-view="money">Expenses</button>
+    <button class="vt" data-view="growth">Growth</button>
+  </div>
+  <div class="periodbar">
+    <button class="pb-arrow" id="pbPrev" title="Previous month">←</button>
+    <div class="pb-label" id="pbLabel"></div>
+    <button class="pb-arrow" id="pbNext" title="Next month">→</button>
+    <button class="pb-jump" id="pbCurrent">Current month</button>
+  </div>
+</header>
+
+<div id="loadState" class="empty">Loading monthly data…</div>
+
+<!-- ============ HOME ============ -->
+<div class="view" id="view-home" hidden>
+  <div class="home-head">
+    <div class="ctitle ctitle-white">Dashboard — <span id="homeMonthLabel"></span></div>
+    <div class="actionbar" style="margin-top:8px;">
+      <button class="abtn primary" id="editHomeBtn">Edit this month's figures</button>
+      <button class="abtn" id="homeViewToggle">See table</button>
+      <span class="msg" id="homeSavedMsg"></span>
+    </div>
+  </div>
+
+  <div class="mentor-ai" id="mentorAi">
+    <div class="mentor-head" id="mentorHead">
+      <div class="mentor-title"><span class="mentor-dot"></span> AI Monthly Review</div>
+      <span class="chev" id="mentorChev">▸</span>
+    </div>
+    <div class="mentor-verdict" id="mentorVerdict">Open the month's board review for a calm read on where you stand.</div>
+    <div class="mentor-body" id="mentorBody" hidden>
+      <div class="mentor-text" id="mentorText"></div>
+      <div class="actionbar">
+        <button class="abtn primary" id="mentorRun">Run monthly review</button>
+        <span class="msg" id="mentorMsg"></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="homeTiles">
+    <section class="hsec">
+      <h2 class="hsec-title">Revenue</h2>
+      <div class="tiles" id="homeRevenue"></div>
+    </section>
+    <section class="hsec">
+      <h2 class="hsec-title">Back End</h2>
+      <div class="tiles" id="homeBackEnd"></div>
+    </section>
+    <section class="hsec">
+      <h2 class="hsec-title">Front End</h2>
+      <div class="tiles" id="homeFrontEnd"></div>
+    </section>
+    <section class="hsec">
+      <h2 class="hsec-title">Retention</h2>
+      <div class="tiles" id="homeRetention"></div>
+    </section>
+  </div>
+
+  <div id="homeTableWrap" hidden>
+    <section class="hsec">
+      <h2 class="hsec-title">All KPIs — month by month</h2>
+      <div class="tbl-wrap"><table id="homeTable" class="cmp-table"><thead></thead><tbody></tbody></table></div>
+      <div class="note">Previous months shown for reference; the highlighted column is the selected month. Change vs the month before is coloured by what's good for each metric — e.g. retention up is <span style="color:var(--green)">green</span>, cancellations up is <span style="color:var(--red)">red</span>.</div>
+    </section>
+  </div>
+</div>
+
+<!-- ============ EXPENSES ============ -->
+<div class="view" id="view-money" hidden>
+  <section class="hsec">
+    <div class="ctitle ctitle-white">Expenses — <span id="moneyMonthLabel"></span></div>
+    <div class="tiles" id="expHeadTiles"></div>
+  </section>
+  <section class="hsec">
+    <h2 class="hsec-title">Breakdown — month by month</h2>
+    <div class="tbl-wrap"><table id="expTable" class="cmp-table"><thead></thead><tbody></tbody></table></div>
+    <div class="note">Previous months are shown for reference; the highlighted column is the month you've selected. Its change vs the month before shows as <span style="color:var(--red)">red (spent more)</span> or <span style="color:var(--green)">green (saved)</span>.</div>
+  </section>
+  <section class="hsec">
+    <h2 class="hsec-title">Owner</h2>
+    <div class="tiles" id="expOwnerTiles"></div>
+    <div class="actionbar">
+      <button class="abtn primary" id="editMoneyBtn">Edit figures</button>
+      <span class="msg" id="moneySavedMsg"></span>
+    </div>
+  </section>
+
+  <div class="entry" id="moneyPanel" hidden>
+    <div class="entry-h"><strong>Enter figures — <span id="moneyPanelLabel"></span></strong>
+      <button class="entry-close" id="moneyClose">✕</button></div>
+
+    <div class="esub">Revenue <span style="text-transform:none;font-weight:600;color:var(--ink-faint);">— Charged, Banked &amp; Avg Transaction Price calculate automatically</span></div>
+    <div class="egrid">
+      <label class="f">Recurring Revenue (£)<input type="number" step="0.01" id="m_recurringRev" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Trial Revenue (£)<input type="number" step="0.01" id="m_trialRev" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Other Revenue (£)<input type="number" step="0.01" id="m_otherRev" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Processing Fees (£)<input type="number" step="0.01" id="m_processingFees" inputmode="decimal" placeholder="0"></label>
+      <label class="f calc">Charged Revenue (£) <span class="calc-tag">auto</span><input type="text" id="m_charged" readonly tabindex="-1" placeholder="—"></label>
+      <label class="f calc">Banked Revenue (£) <span class="calc-tag">auto</span><input type="text" id="m_banked" readonly tabindex="-1" placeholder="—"></label>
+      <label class="f calc">Avg Transaction Price (£) <span class="calc-tag">auto</span><input type="text" id="m_atp" readonly tabindex="-1" placeholder="—"></label>
+    </div>
+
+    <div class="esub">Members &amp; growth <span style="text-transform:none;font-weight:600;color:var(--ink-faint);">— Net Gain &amp; Total Members calculate automatically</span></div>
+    <div class="egrid">
+      <label class="f">New Members (sign-ups)<input type="number" step="1" id="m_signups" inputmode="numeric" placeholder="0"></label>
+      <label class="f">Cancellations<input type="number" step="1" id="m_cancellations" inputmode="numeric" placeholder="0"></label>
+      <label class="f">Recurring Members <span class="calc-tag">rolls forward</span><input type="number" step="1" id="m_recurring" inputmode="numeric" placeholder="auto"><span class="calc-hint" id="recurringHint"></span></label>
+      <label class="f">Paused Members<input type="number" step="1" id="m_paused" inputmode="numeric" placeholder="0"></label>
+    </div>
+
+    <div class="esub">Acquisition <span style="text-transform:none;font-weight:600;color:var(--ink-faint);">— CPA, Lead-to-Sale &amp; Conversion calculate automatically</span></div>
+    <div class="egrid">
+      <label class="f">Ad Spend (£)<input type="number" step="0.01" id="m_adSpend" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Leads<input type="number" step="1" id="m_leads" inputmode="numeric" placeholder="0"></label>
+      <label class="f">Trial Sales<input type="number" step="1" id="m_trialSales" inputmode="numeric" placeholder="0"></label>
+    </div>
+
+    <div class="esub">Expense lines <span style="text-transform:none;font-weight:600;color:var(--ink-faint);">— these add up to Expense Total automatically</span></div>
+    <div class="egrid">
+      <label class="f">Staff Net (£)<input type="number" step="0.01" id="m_staffNet" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Pensions (£)<input type="number" step="0.01" id="m_pensions" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Rent (£)<input type="number" step="0.01" id="m_rent" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Accounting (£)<input type="number" step="0.01" id="m_accounting" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Software (£)<input type="number" step="0.01" id="m_software" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Marketing (£)<input type="number" step="0.01" id="m_marketing" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Cleaning (£)<input type="number" step="0.01" id="m_cleaning" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Lease or Loan (£)<input type="number" step="0.01" id="m_lease" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Bills (and Insurance) (£)<input type="number" step="0.01" id="m_bills" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Website (£)<input type="number" step="0.01" id="m_website" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Retail (£)<input type="number" step="0.01" id="m_retail" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Other (£)<input type="number" step="0.01" id="m_otherExp" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Travel (£)<input type="number" step="0.01" id="m_travel" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Mentorship (£)<input type="number" step="0.01" id="m_mentorship" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Charges (£)<input type="number" step="0.01" id="m_charges" inputmode="decimal" placeholder="0"></label>
+    </div>
+    <div class="esub-total" id="expTotalLive">Expense Total: £0</div>
+
+    <div class="esub">Tax &amp; owner</div>
+    <div class="egrid">
+      <label class="f">Tax Paid (£)<input type="number" step="0.01" id="m_taxPaid" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Profit (£)<input type="number" step="0.01" id="m_profit" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Owners Pay (£)<input type="number" step="0.01" id="m_ownersPay" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Neil Payment Saved (£)<input type="number" step="0.01" id="m_neil" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Tax Saved (£)<input type="number" step="0.01" id="m_taxSaved" inputmode="decimal" placeholder="0"></label>
+    </div>
+
+    <div class="erow-actions">
+      <button class="save" id="moneySave">Save figures</button>
+      <button class="ghostbtn" id="moneyCancel">Cancel</button>
+      <span class="msg" id="moneyMsg"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ============ GROWTH ============ -->
+<div class="view" id="view-growth" hidden>
+  <div class="home-head">
+    <div class="ctitle ctitle-white">Year overview — <span id="growthYearLabel"></span></div>
+    <div class="rule-pill">Full-year performance trends</div>
+  </div>
+
+  <section class="hsec gpair">
+    <div class="gpair-tiles">
+      <h2 class="hsec-title">Revenue</h2>
+      <div class="ytiles" id="ytRevenue"></div>
+    </div>
+    <div class="gpair-chart">
+      <h2 class="hsec-title">Revenue Growth</h2>
+      <div class="chart-wrap" id="chartRevenue"></div>
+    </div>
+  </section>
+
+  <section class="hsec gpair">
+    <div class="gpair-tiles">
+      <h2 class="hsec-title">Members</h2>
+      <div class="ytiles" id="ytMembers"></div>
+    </div>
+    <div class="gpair-chart">
+      <h2 class="hsec-title">Members Growth</h2>
+      <div class="chart-wrap" id="chartMembers"></div>
+    </div>
+  </section>
+
+  <section class="hsec gpair">
+    <div class="gpair-tiles">
+      <h2 class="hsec-title">Lead to Sale %</h2>
+      <div class="ytiles" id="ytLeadSale"></div>
+    </div>
+    <div class="gpair-chart">
+      <h2 class="hsec-title">Leads and Sales</h2>
+      <div class="legend"><span><i class="swatch" style="background:var(--ink-dim)"></i>Leads</span><span><i class="swatch" style="background:var(--orange)"></i>Trial sales</span></div>
+      <div class="chart-wrap" id="chartLeads"></div>
+    </div>
+  </section>
+
+  <section class="hsec gpair">
+    <div class="gpair-tiles">
+      <h2 class="hsec-title">Retention %</h2>
+      <div class="ytiles" id="ytRetention"></div>
+    </div>
+    <div class="gpair-chart">
+      <h2 class="hsec-title">Sign-Ups and Cancellations</h2>
+      <div class="legend"><span><i class="swatch" style="background:var(--ink-dim)"></i>Sign-ups</span><span><i class="swatch" style="background:var(--orange)"></i>Cancellations</span></div>
+      <div class="chart-wrap" id="chartSignups"></div>
+    </div>
+  </section>
+</div>
+
+<!-- MONTHLY PLAN VIEW -->
+<div class="view" id="view-plan" hidden>
+  <div class="home-head">
+    <div>
+      <div class="ctitle ctitle-white">Monthly Plan — <span id="mpMonthLabel"></span></div>
+      <div class="rule-pill">Turn this quarter's Rocks into this month's focus</div>
+    </div>
+    <div class="mp-saved" id="mpSavedMsg"></div>
+  </div>
+  <div id="mpBody"><div class="mp-loading">Loading this month's plan…</div></div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   Bodysculpt Monthly Report
+   - Reads weekly data from the shared kpi-store (GET) to DERIVE flow/ratio metrics.
+   - Reads/writes monthly records (GET ?monthly=1 / POST {month}) for MANUAL fields + overrides.
+   - Week -> month assignment: a week belongs to the month of its Saturday weekEnding date.
+   ============================================================ */
+
+const STORE = "/.netlify/functions/kpi-store";
+const MENTOR = "/.netlify/functions/mentor-ai";
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTHS_LONG = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+// 15 expense lines that auto-sum into Expense Total.
+const EXPENSE_LINES = [
+  ["staffNet","Staff Net"],["pensions","Pensions"],["rent","Rent"],["accounting","Accounting"],
+  ["software","Software"],["marketing","Marketing"],["cleaning","Cleaning"],["lease","Lease or Loan"],
+  ["bills","Bills (and Insurance)"],["website","Website"],["retail","Retail"],["otherExp","Other"],
+  ["travel","Travel"],["mentorship","Mentorship"],["charges","Charges"]
+];
+function expenseTotal(ym){ return computed(ym, "expenseTotal"); }
+
+// ---- state ----
+let MONTHREC = {};   // ym -> saved monthly record (all typed values), keyed "YYYY-MM"
+let YMS = [];        // rolling-12 list of ym strings, oldest -> newest
+let curYm = null;
+
+// ---- helpers ----
+const n = v => (typeof v === "number" && isFinite(v)) ? v : 0;
+const isNum = v => typeof v === "number" && isFinite(v);
+const ymOf = we => (typeof we === "string" && we.length >= 7) ? we.slice(0,7) : null; // Saturday end-date
+function ymParts(ym){
+  if(typeof ym !== "string" || !/^\d{4}-\d{2}$/.test(ym)) return {y:NaN, m:0};
+  const [y,m] = ym.split("-").map(Number); return {y, m:m-1};
+}
+function ymLabel(ym){ const {y,m} = ymParts(ym); return isNum(y) ? (MONTHS_LONG[m] + " " + y) : "—"; }
+function ymShort(ym){ const {y,m} = ymParts(ym); return isNum(y) ? (MONTHS[m] + " " + String(y).slice(2)) : "—"; }
+function prevYm(ym){ let {y,m} = ymParts(ym); if(!isNum(y)) return null; m--; if(m<0){m=11;y--;} return y + "-" + String(m+1).padStart(2,"0"); }
+function gbp(v){ if(!isNum(v)) return "—"; return "£" + Math.round(v).toLocaleString("en-GB"); }
+function gbp2(v){ if(!isNum(v)) return "—"; return "£" + v.toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function pct(v){ if(!isNum(v)) return "—"; return Math.round(v*100) + "%"; }
+function num(v){ if(!isNum(v)) return "—"; return v.toLocaleString("en-GB"); }
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+// ---- build the current calendar year, Jan–Dec ----
+function buildYms(){
+  const y = new Date().getFullYear();
+  const list = [];
+  for(let m=1;m<=12;m++){ list.push(y + "-" + String(m).padStart(2,"0")); }
+  return list;
+}
+
+// ---- FULLY MANUAL MODEL ----
+// Every metric is typed into the month record. A handful of fields are COMPUTED
+// from other typed fields on the same record (never from weekly data):
+//   netGain      = signups - cancellations
+//   expenseTotal = sum of the 15 expense lines
+//   totalMembers = recurring + paused
+//   conversion   = signups / trialSales
+//   leadToSale   = trialSales / leads
+//   cpa          = adSpend / trialSales
+//   retention    = 1 - cancellations / recurring
+//   cancellationPct = cancellations / recurring
+const COMPUTED = ["netGain","expenseTotal","totalMembers","conversion","leadToSale","cpa","retention","cancellationPct",
+                  "charged","banked","atp","recurring"];
+
+// raw typed value off the record (null if not entered)
+function man(ym, field){
+  const rec = MONTHREC[ym] || {};
+  const v = rec[field];
+  return isNum(v) ? v : null;
+}
+
+// the month immediately before ym in the YMS list (or null)
+function prevYmOf(ym){
+  const i = YMS.indexOf(ym);
+  return i > 0 ? YMS[i-1] : null;
+}
+
+// effective recurring for a month: a manual override wins; otherwise the rolling calc
+// (prev month's effective recurring + this month's signups - cancellations).
+// This is what NEXT month builds on, so a manual correction propagates forward.
+function effectiveRecurring(ym){
+  const manual = man(ym, "recurring");
+  if(isNum(manual)) return manual;              // manual override is the source of truth
+  const prev = prevYmOf(ym);
+  const base = prev ? effectiveRecurring(prev) : null;
+  if(!isNum(base)) return null;                 // no baseline to roll from yet
+  const s = man(ym, "signups"), c = man(ym, "cancellations");
+  return base + n(s) - n(c);
+}
+
+// computed value from typed inputs; returns number or null
+function computed(ym, field){
+  const g = f => man(ym, f);
+  switch(field){
+    case "charged": {
+      // Charged = Recurring Rev + Trial Rev + Other Rev
+      const r=g("recurringRev"), t=g("trialRev"), o=g("otherRev");
+      if(!isNum(r) && !isNum(t) && !isNum(o)) return null;
+      return n(r) + n(t) + n(o);
+    }
+    case "banked": {
+      // Banked = Charged - Processing Fees
+      const ch = computed(ym, "charged");
+      if(!isNum(ch)) return null;
+      const f = g("processingFees");
+      return ch - n(f);
+    }
+    case "atp": {
+      // Average Transaction Price = Charged / Recurring Members
+      const ch = computed(ym, "charged");
+      const r = effectiveRecurring(ym);
+      return (isNum(ch) && isNum(r) && r>0) ? ch/r : null;
+    }
+    case "recurring": return effectiveRecurring(ym);
+    case "netGain": {
+      const s=g("signups"), c=g("cancellations");
+      if(!isNum(s) && !isNum(c)) return null;
+      return n(s) - n(c);
+    }
+    case "expenseTotal": {
+      let any=false, sum=0;
+      for(const [k] of EXPENSE_LINES){ const v=g(k); if(isNum(v)){ sum+=v; any=true; } }
+      return any ? sum : null;
+    }
+    case "totalMembers": {
+      const r=computed(ym,"recurring"), p=g("paused");
+      if(!isNum(r)) return null;
+      return r + (isNum(p)?p:0);
+    }
+    case "conversion": { const s=g("signups"), t=g("trialSales"); return (isNum(t)&&t>0&&isNum(s)) ? s/t : null; }
+    case "leadToSale": { const t=g("trialSales"), l=g("leads"); return (isNum(l)&&l>0&&isNum(t)) ? t/l : null; }
+    case "cpa": { const a=g("adSpend"), t=g("trialSales"); return (isNum(t)&&t>0&&isNum(a)) ? a/t : null; }
+    case "retention": { const c=g("cancellations"), r=computed(ym,"recurring"); return (isNum(r)&&r>0&&isNum(c)) ? 1-(c/r) : null; }
+    case "cancellationPct": { const c=g("cancellations"), r=computed(ym,"recurring"); return (isNum(r)&&r>0&&isNum(c)) ? c/r : null; }
+  }
+  return null;
+}
+
+// unified accessor used by all renderers. {value, source}
+// source is "computed" for derived-from-typed fields, "manual" for typed, "none" if absent.
+function eff(ym, field){
+  if(!ym) return { value:null, source:"none" };
+  if(COMPUTED.includes(field)){
+    const v = computed(ym, field);
+    return { value: isNum(v)?v:null, source: isNum(v)?"computed":"none" };
+  }
+  const v = man(ym, field);
+  return { value: isNum(v)?v:null, source: isNum(v)?"manual":"none" };
+}
+
+// ---- DATA LOAD (monthly only; no weekly read) ----
+async function loadAll(){
+  try{
+    const mRes = await fetch(STORE + "?monthly=1").then(r=>r.json()).catch(()=>({months:[]}));
+    MONTHREC = {};
+    (Array.isArray(mRes.months) ? mRes.months : []).forEach(m => { if(m && m.ym) MONTHREC[m.ym] = m; });
+  }catch(e){
+    MONTHREC = {};
+    console.warn("Load failed", e);
+  }
+  YMS = buildYms();
+  const now = new Date();
+  const thisMonth = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2,"0");
+  // Preference order: in-memory selection → saved browser preference → current month → latest.
+  let saved = null;
+  try { saved = localStorage.getItem("bodysculpt:selectedMonth"); } catch(e) {}
+  curYm = (curYm && YMS.includes(curYm)) ? curYm
+        : (saved && YMS.includes(saved)) ? saved
+        : (YMS.includes(thisMonth) ? thisMonth : YMS[YMS.length-1]);
+}
+
+async function saveMonth(rec){
+  const res = await fetch(STORE, {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ month: rec })
+  });
+  if(!res.ok) throw new Error("save failed " + res.status);
+  const data = await res.json();
+  (data.months||[]).forEach(m => { if(m && m.ym) MONTHREC[m.ym] = m; });
+  return data;
+}
+
+// ===================== RENDER =====================
+function tile(lbl, valHtml, sub){
+  return `<div class="tile"><div class="lbl">${esc(lbl)}</div><div class="val">${valHtml}</div>${sub?`<div class="sub">${sub}</div>`:""}</div>`;
+}
+function badge(source){
+  // no badges in the fully-manual model — values speak for themselves
+  return "";
+}
+function deltaHtml(cur, prev, fmt, invert){
+  if(!isNum(cur)||!isNum(prev)){ return `<div class="delta flat">—</div>`; }
+  const diff = cur - prev;
+  if(Math.abs(diff) < 1e-9) return `<div class="delta flat">no change</div>`;
+  let good = diff > 0; if(invert) good = !good;
+  const arrow = diff > 0 ? "↑" : "↓";
+  const cls = good ? "up" : "down";
+  const shown = fmt ? fmt(Math.abs(diff)) : Math.abs(diff);
+  return `<div class="delta ${cls}">${arrow} ${shown}</div>`;
+}
+function scoreCard(lbl, valHtml, cur, prev, fmt, invert){
+  return `<div class="score"><div class="lbl">${esc(lbl)}</div><div class="val">${valHtml}</div>${deltaHtml(cur,prev,fmt,invert)}</div>`;
+}
+
+// tile helpers. tMan is a plain typed value formatted for display.
+function tEff(ym, field, fmt){
+  const e = eff(ym, field);
+  const v = isNum(e.value) ? fmt(e.value) : "—";
+  return v + badge(e.source);
+}
+function tMan(ym, field, fmt){
+  const v = man(ym, field);
+  return isNum(v) ? fmt(v) : "—";
+}
+// Total Members = Recurring + Paused (computed from typed values). {value, source}
+function totalMembers(ym){
+  const v = computed(ym, "totalMembers");
+  return { value: isNum(v)?v:null, source: isNum(v)?"computed":"none" };
+}
+
+// vs-last-month delta for a Home tile, coloured by whether the move is good.
+// dir: "upGood" (↑ green), "upBad" (↑ red), "neutral" (grey, no judgement).
+// getVal(ym) -> number|null. fmt formats the absolute change.
+function tileDelta(ym, getVal, fmt, dir){
+  const cur = getVal(ym);
+  const p = prevYm(ym);
+  const prev = p ? getVal(p) : null;
+  if(!isNum(cur) || !isNum(prev)) return "";                 // need both months
+  const diff = cur - prev;
+  if(Math.abs(diff) < (fmt===pct ? 0.0005 : 0.5))            // suppress trivial
+    return `<div class="tdelta flat">no change</div>`;
+  const arrow = diff > 0 ? "↑" : "↓";
+  let cls;
+  if(dir === "neutral") cls = "flat";
+  else if(dir === "upBad") cls = diff > 0 ? "down" : "up";   // up is bad -> red on rise
+  else cls = diff > 0 ? "up" : "down";                       // upGood -> green on rise
+  return `<div class="tdelta ${cls}">${arrow} ${fmt(Math.abs(diff))} vs last mo</div>`;
+}
+
+// One Home tile: label, value (computed/manual via accessor), and directional delta.
+// accessor(ym) -> {value, source}. fmt formats value & delta. dir per above.
+function metricTile(label, ym, accessor, fmt, dir){
+  const e = accessor(ym);
+  const valHtml = (isNum(e.value) ? fmt(e.value) : "—") + badge(e.source);
+  const delta = tileDelta(ym, y=>accessor(y).value, fmt, dir);
+  return `<div class="tile"><div class="lbl">${esc(label)}</div><div class="val">${valHtml}</div>${delta}</div>`;
+}
+// accessors
+const aMan = field => ym => { const v=man(ym,field); return {value:isNum(v)?v:null, source:"manual"}; };
+const aEff = field => ym => eff(ym, field);
+
+// Single source of truth for Home KPIs: [section, label, accessor, fmt, direction]
+function homeKpiSpec(){
+  return [
+    ["Revenue","Charged Revenue",   aEff("charged"),      gbp, "upGood"],
+    ["Revenue","Recurring Revenue", aMan("recurringRev"), gbp, "upGood"],
+    ["Revenue","Trial Revenue",     aMan("trialRev"),     gbp, "upGood"],
+    ["Revenue","Other Revenue",     aMan("otherRev"),     gbp, "upGood"],
+    ["Revenue","Banked Revenue",    aEff("banked"),       gbp, "upGood"],
+    ["Back End","New Members",           aEff("signups"),    num, "upGood"],
+    ["Back End","Membership Conversion", aEff("conversion"), pct, "upGood"],
+    ["Back End","Recurring Members",     aEff("recurring"),  num, "upGood"],
+    ["Back End","Paused Members",        aEff("paused"),     num, "neutral"],
+    ["Back End","Total Members",         totalMembers,       num, "upGood"],
+    ["Back End","Net Gain",              aEff("netGain"),    v=>(v>0?"+":"")+num(v), "upGood"],
+    ["Front End","Ad Spend",             aEff("adSpend"),    gbp,  "neutral"],
+    ["Front End","Leads",                aEff("leads"),      num,  "upGood"],
+    ["Front End","Trial Sales",          aEff("trialSales"), num,  "upGood"],
+    ["Front End","Lead to Sale Rate",    aEff("leadToSale"), pct,  "upGood"],
+    ["Front End","Cost Per Acquisition", aEff("cpa"),        gbp2, "upBad"],
+    ["Front End","Avg Transaction Price",aEff("atp"),        gbp,  "upGood"],
+    ["Retention","Cancellations",  aEff("cancellations"),  num, "upBad"],
+    ["Retention","Retention %",    aEff("retention"),      pct, "upGood"],
+    ["Retention","Cancellation %", aEff("cancellationPct"),pct, "upBad"],
+  ];
+}
+
+function renderHome(){
+  const ym = curYm;
+  document.getElementById("homeMonthLabel").textContent = ymLabel(ym);
+  const spec = homeKpiSpec();
+  const sect = name => spec.filter(r=>r[0]===name)
+    .map(([,label,acc,fmt,dir]) => metricTile(label, ym, acc, fmt, dir)).join("");
+  document.getElementById("homeRevenue").innerHTML   = sect("Revenue");
+  document.getElementById("homeBackEnd").innerHTML   = sect("Back End");
+  document.getElementById("homeFrontEnd").innerHTML  = sect("Front End");
+  document.getElementById("homeRetention").innerHTML = sect("Retention");
+
+  // keep the table in sync if it's the visible view
+  if(homeShowsTable) renderHomeTable(ym);
+}
+
+// month-by-month table of ALL Home KPIs, same look as the Expenses table.
+// Past months = quiet reference; current column = value + directional delta.
+function renderHomeTable(selYm){
+  const thead = document.querySelector("#homeTable thead");
+  const tbody = document.querySelector("#homeTable tbody");
+  const selIdx = YMS.indexOf(selYm);
+  const cols = YMS.slice(0, selIdx >= 0 ? selIdx + 1 : YMS.length);
+  if(!cols.length){ thead.innerHTML=""; tbody.innerHTML=""; return; }
+
+  thead.innerHTML = "<tr><th>Metric</th>" +
+    cols.map(ym=>`<th class="${ym===selYm?"cur-col":"past"}">${esc(ymShort(ym))}</th>`).join("") + "</tr>";
+
+  const spec = homeKpiSpec();
+  let lastSection = "";
+  let rows = "";
+  spec.forEach(([section,label,acc,fmt,dir])=>{
+    if(section !== lastSection){
+      rows += `<tr class="sect-row"><td>${esc(section)}</td>${cols.map(()=>"<td></td>").join("")}</tr>`;
+      lastSection = section;
+    }
+    const cells = cols.map(ym=>{
+      const v = acc(ym).value;
+      const cls = ym===selYm ? "cur-col" : "past";
+      if(!isNum(v)) return `<td class="${cls}">—</td>`;
+      let d = "";
+      if(ym===selYm){
+        const p = prevYm(ym);
+        const pv = p ? acc(p).value : null;
+        if(isNum(pv)){
+          const diff = v - pv;
+          const trivial = (fmt===pct) ? Math.abs(diff) < 0.0005 : Math.abs(diff) < 0.5;
+          if(!trivial){
+            const arrow = diff>0?"↑":"↓";
+            let dc;
+            if(dir==="neutral") dc = "vd-flat";
+            else {
+              const isGood = (dir==="upBad") ? (diff<0) : (diff>0);
+              dc = isGood ? "vd-good" : "vd-bad";
+            }
+            d = ` <span class="vsdelta ${dc}">${arrow} ${fmt(Math.abs(diff))}</span>`;
+          }
+        }
+      }
+      return `<td class="${cls}">${fmt(v)}${d}</td>`;
+    }).join("");
+    rows += `<tr><td>${esc(label)}</td>${cells}</tr>`;
+  });
+  tbody.innerHTML = rows;
+}
+
+function renderMoney(){
+  const ym = curYm;
+  document.getElementById("moneyMonthLabel").textContent = ymLabel(ym);
+
+  // Head: Expense Total (computed) + Tax Paid
+  const expTotal = expenseTotal(ym);
+  document.getElementById("expHeadTiles").innerHTML =
+    tile("Expense Total", (isNum(expTotal)?gbp(expTotal):"—")) +
+    tile("Tax Paid", tMan(ym,"taxPaid", gbp));
+
+  // Breakdown: month-by-month comparison table
+  renderExpenseTable(ym);
+
+  // Owner: Owners Pay, Neil Payment Saved, Tax Saved
+  document.getElementById("expOwnerTiles").innerHTML =
+    tile("Owners Pay", tMan(ym,"ownersPay", gbp)) +
+    tile("Neil Payment Saved", tMan(ym,"neil", gbp)) +
+    tile("Tax Saved", tMan(ym,"taxSaved", gbp));
+}
+
+// Month-by-month expense comparison. Rows = expense lines (+ total). Columns = Jan..current.
+// Past months show value only (quiet reference). The current month shows value + ONE delta vs
+// the prior month: red if higher (spent more), green if lower (saved). No delta on £0-vs-£0.
+function renderExpenseTable(selYm){
+  const thead = document.querySelector("#expTable thead");
+  const tbody = document.querySelector("#expTable tbody");
+  const selIdx = YMS.indexOf(selYm);
+  const cols = YMS.slice(0, selIdx >= 0 ? selIdx + 1 : YMS.length);
+  if(!cols.length){ thead.innerHTML=""; tbody.innerHTML=""; return; }
+
+  thead.innerHTML = "<tr><th>Expense</th>" +
+    cols.map(ym=>`<th class="${ym===selYm?"cur-col":"past"}">${esc(ymShort(ym))}</th>`).join("") + "</tr>";
+
+  // delta html for the current column only
+  const deltaFor = (ym, valNow, getter) => {
+    const pi = YMS.indexOf(ym) - 1;
+    if(pi < 0) return "";
+    const pv = getter(YMS[pi]);
+    if(!isNum(pv) || !isNum(valNow)) return "";
+    const diff = valNow - pv;
+    if(Math.abs(diff) < 0.5) return "";                 // suppress trivial / £0 changes
+    const cls = diff > 0 ? "up" : "down";
+    const arrow = diff > 0 ? "↑" : "↓";
+    return ` <span class="vsdelta ${cls}">${arrow} ${gbp(Math.abs(diff))}</span>`;
+  };
+
+  const lineCell = (ym, k) => {
+    const v = man(ym, k);
+    const cls = ym===selYm ? "cur-col" : "past";
+    if(!isNum(v)) return `<td class="${cls}">—</td>`;
+    const d = ym===selYm ? deltaFor(ym, v, yy=>man(yy,k)) : "";
+    return `<td class="${cls}">${gbp(v)}${d}</td>`;
+  };
+
+  let rows = EXPENSE_LINES.map(([k,label]) =>
+    `<tr><td>${esc(label)}</td>${cols.map(ym=>lineCell(ym,k)).join("")}</tr>`
+  ).join("");
+
+  const totCell = ym => {
+    const v = expenseTotal(ym);
+    const cls = ym===selYm ? "cur-col" : "past";
+    if(!isNum(v)) return `<td class="${cls}">—</td>`;
+    const d = ym===selYm ? deltaFor(ym, v, expenseTotal) : "";
+    return `<td class="${cls}">${gbp(v)}${d}</td>`;
+  };
+  rows += `<tr class="totrow"><td>Expense Total</td>${cols.map(totCell).join("")}</tr>`;
+
+  tbody.innerHTML = rows;
+}
+
+// ===================== CHARTS (hand-rolled SVG, no library) =====================
+const C = { ink:"#eaf0f8", dim:"#9fb1c7", faint:"#6b7f99", line:"#2c405e", orange:"#e8732a", grid:"#22344e" };
+
+// shared frame: returns {W,H,padL,padR,padT,padB,plotW,plotH,x,y}
+function frame(count, maxV){
+  const W=700, H=300, padL=44, padR=14, padT=18, padB=34;
+  const plotW=W-padL-padR, plotH=H-padT-padB;
+  const x = i => count<=1 ? padL+plotW/2 : padL + (plotW*i)/(count-1);
+  const bandW = plotW/Math.max(count,1);
+  const y = v => padT + plotH - (maxV>0 ? (plotH*v)/maxV : 0);
+  return {W,H,padL,padR,padT,padB,plotW,plotH,x,y,bandW};
+}
+function axisY(f, maxV){
+  let s=""; const ticks=4;
+  for(let t=0;t<=ticks;t++){
+    const v = (maxV*t)/ticks, yy = f.y(v);
+    s += `<line x1="${f.padL}" y1="${yy.toFixed(1)}" x2="${f.W-f.padR}" y2="${yy.toFixed(1)}" stroke="${C.grid}" stroke-width="1"/>`;
+    s += `<text x="${f.padL-8}" y="${(yy+3).toFixed(1)}" fill="${C.faint}" font-size="10" text-anchor="end">${Math.round(v)}</text>`;
+  }
+  return s;
+}
+function labelsX(f, labels){
+  let s="";
+  labels.forEach((lb,i)=>{
+    const xx = f.x(i);
+    s += `<text x="${xx.toFixed(1)}" y="${f.H-f.padB+16}" fill="${C.faint}" font-size="10" text-anchor="middle">${esc(lb)}</text>`;
+  });
+  return s;
+}
+function svgWrap(inner, f){
+  return `<svg viewBox="0 0 ${f.W} ${f.H}" role="img" preserveAspectRatio="xMidYMid meet">${inner}</svg>`;
+}
+
+function lineChart(elId, series, labels, opts){
+  opts = opts || {};
+  const fmtLabel = opts.money ? (v=>gbp(v)) : (v=>Math.round(v).toLocaleString("en-GB"));
+  const vals = series.filter(isNum);
+  if(!vals.length){ document.getElementById(elId).innerHTML = svgWrap(labelsX(frame(series.length,10),labels), frame(series.length,10)); return; }
+  const maxV = Math.max(10, ...vals) * 1.12;
+  const f = frame(series.length, maxV);
+  let pts = [], dots="", lbls="";
+  series.forEach((v,i)=>{
+    if(!isNum(v)) return;
+    const xx=f.x(i), yy=f.y(v);
+    pts.push(`${xx.toFixed(1)},${yy.toFixed(1)}`);
+    dots += `<circle cx="${xx.toFixed(1)}" cy="${yy.toFixed(1)}" r="3.5" fill="${C.orange}"/>`;
+    lbls += `<text x="${xx.toFixed(1)}" y="${(yy-9).toFixed(1)}" fill="${C.ink}" font-size="9.5" font-weight="700" text-anchor="middle">${esc(fmtLabel(v))}</text>`;
+  });
+  // linear trend line (least-squares) over the points that have values
+  let trend="";
+  if(opts.trend){
+    const idx=[], yv=[];
+    series.forEach((v,i)=>{ if(isNum(v)){ idx.push(i); yv.push(v); } });
+    if(idx.length>=2){
+      const nn=idx.length;
+      const sx=idx.reduce((a,b)=>a+b,0), sy=yv.reduce((a,b)=>a+b,0);
+      const sxx=idx.reduce((a,b)=>a+b*b,0), sxy=idx.reduce((a,b,k)=>a+b*yv[k],0);
+      const denom=(nn*sxx - sx*sx);
+      if(denom!==0){
+        const m=(nn*sxy - sx*sy)/denom, b=(sy - m*sx)/nn;
+        const i0=idx[0], i1=idx[idx.length-1];
+        const x0=f.x(i0), y0=f.y(Math.max(0,m*i0+b));
+        const x1=f.x(i1), y1=f.y(Math.max(0,m*i1+b));
+        trend = `<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" stroke="${C.faint}" stroke-width="2" opacity="0.5"/>`;
+      }
+    }
+  }
+  const path = pts.length ? `<polyline points="${pts.join(" ")}" fill="none" stroke="${C.orange}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>` : "";
+  const inner = axisY(f,maxV) + trend + path + dots + lbls + labelsX(f,labels);
+  document.getElementById(elId).innerHTML = svgWrap(inner,f);
+}
+
+function groupedBars(elId, seriesA, seriesB, labels){
+  const all = [...seriesA, ...seriesB].filter(isNum);
+  const maxV = Math.max(5, ...all) * 1.15;
+  const f = frame(labels.length, maxV);
+  const groupW = f.bandW*0.6, barW = groupW/2;
+  let bars="", lbls="";
+  labels.forEach((lb,i)=>{
+    const cx = f.padL + f.bandW*i + f.bandW/2;
+    const a = n(seriesA[i]), b = n(seriesB[i]);
+    const ay=f.y(a), by=f.y(b), base=f.padT+f.plotH;
+    bars += `<rect x="${(cx-barW-1).toFixed(1)}" y="${ay.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0,base-ay).toFixed(1)}" fill="${C.dim}" rx="2"/>`;
+    bars += `<rect x="${(cx+1).toFixed(1)}" y="${by.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0,base-by).toFixed(1)}" fill="${C.orange}" rx="2"/>`;
+    if(a>0) lbls += `<text x="${(cx-barW/2-1).toFixed(1)}" y="${(ay-4).toFixed(1)}" fill="${C.dim}" font-size="9" font-weight="700" text-anchor="middle">${Math.round(a)}</text>`;
+    if(b>0) lbls += `<text x="${(cx+barW/2+1).toFixed(1)}" y="${(by-4).toFixed(1)}" fill="${C.orange}" font-size="9" font-weight="700" text-anchor="middle">${Math.round(b)}</text>`;
+  });
+  // x labels centered on bands
+  let xl="";
+  labels.forEach((lb,i)=>{
+    const cx = f.padL + f.bandW*i + f.bandW/2;
+    xl += `<text x="${cx.toFixed(1)}" y="${f.H-f.padB+16}" fill="${C.faint}" font-size="10" text-anchor="middle">${esc(lb)}</text>`;
+  });
+  const inner = axisY(f,maxV) + bars + lbls + xl;
+  document.getElementById(elId).innerHTML = svgWrap(inner,f);
+}
+
+// Jan–Dec ym list for the year that the selected month falls in.
+function yearYms(ym){
+  const {y} = ymParts(ym);
+  if(!isNum(y)) return [];
+  return MONTHS.map((_,i)=> y + "-" + String(i+1).padStart(2,"0"));
+}
+// Excel-style % delta vs previous month. Returns html.
+// pctMode=true -> values are 0..1 ratios, delta shown in percentage POINTS like the sheet.
+function yDelta(cur, prev, pctMode){
+  if(!isNum(cur)) return `<div class="yd flat">&nbsp;</div>`;
+  if(!isNum(prev)) return `<div class="yd flat">&nbsp;</div>`; // no prior month at all
+  let diff, label;
+  if(pctMode){
+    diff = (cur - prev) * 100;                 // percentage points
+    label = (diff>0?"↑":diff<0?"↓":"") + Math.abs(Math.round(diff)) + "%";
+  } else {
+    if(prev === 0){
+      // matches the sheet: growth from a zero base shows as no meaningful %; drop to 0 shows -100%
+      if(cur === 0) return `<div class="yd flat">0%</div>`;
+      return `<div class="yd up">↑ —</div>`;
+    }
+    diff = ((cur - prev) / Math.abs(prev)) * 100;
+    label = (diff>0?"↑":diff<0?"↓":"") + Math.abs(Math.round(diff*100)/100) + "%";
+  }
+  const cls = diff>0 ? "up" : diff<0 ? "down" : "flat";
+  if(Math.abs(diff) < 1e-9) return `<div class="yd flat">0%</div>`;
+  return `<div class="yd ${cls}">${label}</div>`;
+}
+// Render a 12-tile year grid into elId. getVal(ym)->{value,source}; fmt formats the value.
+function yearTiles(elId, yms, getVal, fmt, pctMode){
+  let html="";
+  yms.forEach(y=>{
+    const cur = getVal(y), prev = getVal(prevYm(y));
+    const v = isNum(cur.value) ? fmt(cur.value) : "—";
+    const b = (cur.source==="computed") ? badge(cur.source) : "";
+    const isCur = (y===curYm);
+    html += `<div class="ycell${isCur?" cur":""}"><div class="ym">${esc(MONTHS[ymParts(y).m])}</div>`
+          + `<div class="yv">${v}${b}</div>${yDelta(cur.value, prev.value, pctMode)}</div>`;
+  });
+  document.getElementById(elId).innerHTML = html;
+}
+
+function renderGrowth(){
+  const yms = yearYms(curYm);
+  const {y} = ymParts(curYm);
+  document.getElementById("growthYearLabel").textContent = isNum(y) ? y : "—";
+  const labels = MONTHS; // Jan..Dec
+
+  // accessors
+  const getBanked = ym => { const v=man(ym,"banked"); return { value:isNum(v)?v:null, source:isNum(v)?"manual":"none" }; };
+  const getMembers = ym => totalMembers(ym);
+  const getLeadSale = ym => eff(ym,"leadToSale");
+  const getRetention = ym => eff(ym,"retention");
+
+  // 1. REVENUE (Banked) — tiles + line chart w/ trend
+  yearTiles("ytRevenue", yms, getBanked, gbp, false);
+  lineChart("chartRevenue", yms.map(y=>getBanked(y).value), labels, {trend:true, money:true});
+
+  // 2. MEMBERS (Total) — tiles + line chart w/ trend
+  yearTiles("ytMembers", yms, getMembers, num, false);
+  lineChart("chartMembers", yms.map(y=>getMembers(y).value), labels, {trend:true});
+
+  // 3. LEAD TO SALE % — tiles + leads/sales grouped bars
+  yearTiles("ytLeadSale", yms, getLeadSale, pct, true);
+  groupedBars("chartLeads",
+    yms.map(y=>{const e=eff(y,"leads");return isNum(e.value)?e.value:0;}),
+    yms.map(y=>{const e=eff(y,"trialSales");return isNum(e.value)?e.value:0;}), labels);
+
+  // 4. RETENTION % — tiles + signups/cancellations grouped bars
+  yearTiles("ytRetention", yms, getRetention, pct, true);
+  groupedBars("chartSignups",
+    yms.map(y=>{const e=eff(y,"signups");return isNum(e.value)?e.value:0;}),
+    yms.map(y=>{const e=eff(y,"cancellations");return isNum(e.value)?e.value:0;}), labels);
+}
+
+// ===================== TABLE (rolling 12) =====================
+
+// ===================== VIEW SWITCHING =====================
+let curView = "home";
+let homeShowsTable = false;
+function renderCurrent(){
+  if(curView==="home") renderHome();
+  else if(curView==="money") renderMoney();
+  else if(curView==="growth") renderGrowth();
+  else if(curView==="plan") renderMonthlyPlan();
+}
+function showView(v){
+  curView=v;
+  document.querySelectorAll(".view").forEach(el=>el.hidden = (el.id !== "view-"+v));
+  document.querySelectorAll(".vt").forEach(b=>b.classList.toggle("active", b.dataset.view===v));
+  renderCurrent();
+}
+function rebuildMonthSel(){
+  const sel = document.getElementById("monthSel");
+  sel.innerHTML = YMS.map(y=>`<option value="${y}">${esc(ymLabel(y))}</option>`).join("");
+  sel.value = curYm;
+}
+
+// ===================== EXPENSES / FIGURES ENTRY =====================
+// Manual fields = revenue + ATP + 15 expense lines + tax/owner. Expense Total is NOT
+// stored — it's computed from the 15 lines on render via expenseTotal().
+// Saved (manual) fields only. Charged, Banked and ATP are COMPUTED — never saved as manual.
+const MONEY_FIELDS = ["recurringRev","trialRev","otherRev","processingFees",
+  "signups","cancellations","recurring","paused","adSpend","leads","trialSales",
+  "staffNet","pensions","rent","accounting","software","marketing","cleaning","lease",
+  "bills","website","retail","otherExp","travel","mentorship","charges",
+  "taxPaid","profit","ownersPay","neil","taxSaved"];
+const MONEY_INPUTS = {
+  recurringRev:"m_recurringRev",trialRev:"m_trialRev",otherRev:"m_otherRev",processingFees:"m_processingFees",
+  signups:"m_signups",cancellations:"m_cancellations",recurring:"m_recurring",paused:"m_paused",
+  adSpend:"m_adSpend",leads:"m_leads",trialSales:"m_trialSales",
+  staffNet:"m_staffNet",pensions:"m_pensions",rent:"m_rent",accounting:"m_accounting",software:"m_software",
+  marketing:"m_marketing",cleaning:"m_cleaning",lease:"m_lease",bills:"m_bills",website:"m_website",
+  retail:"m_retail",otherExp:"m_otherExp",travel:"m_travel",mentorship:"m_mentorship",charges:"m_charges",
+  taxPaid:"m_taxPaid",profit:"m_profit",ownersPay:"m_ownersPay",neil:"m_neil",taxSaved:"m_taxSaved"
+};
+
+// live recompute of the LOCKED revenue fields (Charged, Banked, ATP) + the recurring hint,
+// driven by what's currently typed in the entry panel (before save).
+function updateLiveCalcFields(){
+  const numOf = id => { const raw = document.getElementById(id).value; const v = Number(raw); return (raw!=="" && isFinite(v)) ? v : 0; };
+  const recRev = numOf("m_recurringRev"), trialRev = numOf("m_trialRev"), otherRev = numOf("m_otherRev");
+  const fees = numOf("m_processingFees");
+  const charged = recRev + trialRev + otherRev;
+  const banked = charged - fees;
+
+  // effective recurring for THIS month, using the typed override if present, else the rolling calc
+  const rawRec = document.getElementById("m_recurring").value;
+  let effRec;
+  if(rawRec !== "" && isFinite(Number(rawRec))){ effRec = Number(rawRec); }
+  else {
+    const prev = prevYmOf(curYm);
+    const base = prev ? effectiveRecurring(prev) : null;
+    const s = Number(document.getElementById("m_signups").value) || 0;
+    const c = Number(document.getElementById("m_cancellations").value) || 0;
+    effRec = isNum(base) ? base + s - c : null;
+  }
+  const atp = (charged>0 && isNum(effRec) && effRec>0) ? charged/effRec : null;
+
+  document.getElementById("m_charged").value = charged ? gbp(charged) : "—";
+  document.getElementById("m_banked").value = (recRev||trialRev||otherRev||fees) ? gbp(banked) : "—";
+  document.getElementById("m_atp").value = isNum(atp) ? gbp(atp) : "—";
+
+  // recurring hint: show the rolling suggestion when no manual override is typed
+  const hint = document.getElementById("recurringHint");
+  if(hint){
+    if(rawRec !== ""){ hint.textContent = "manual override"; }
+    else if(isNum(effRec)){ hint.textContent = "auto: " + num(effRec) + " (last month + sign-ups − cancellations)"; }
+    else { hint.textContent = "enter a starting figure"; }
+  }
+}
+
+// live recompute of the expense total inside the entry panel as you type the 15 lines
+function updateLiveExpenseTotal(){
+  let sum = 0;
+  for(const [k] of EXPENSE_LINES){
+    const raw = document.getElementById(MONEY_INPUTS[k]).value;
+    const v = Number(raw);
+    if(raw !== "" && isFinite(v)) sum += v;
+  }
+  document.getElementById("expTotalLive").textContent = "Expense Total: " + gbp(sum);
+}
+
+function openMoney(){
+  document.getElementById("moneyPanelLabel").textContent = ymLabel(curYm);
+  const rec = MONTHREC[curYm] || {};
+  MONEY_FIELDS.forEach(f=>{
+    const el = document.getElementById(MONEY_INPUTS[f]);
+    el.value = isNum(rec[f]) ? rec[f] : "";
+  });
+  updateLiveExpenseTotal();
+  updateLiveCalcFields();
+  document.getElementById("moneyPanel").hidden = false;
+  document.getElementById("moneyMsg").textContent = "";
+  document.getElementById("moneyPanel").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+function closeMoney(){ document.getElementById("moneyPanel").hidden = true; }
+
+async function saveMoney(){
+  const msg = document.getElementById("moneyMsg");
+  msg.textContent = "Saving…";
+  const rec = Object.assign({}, MONTHREC[curYm] || {}, { ym: curYm });
+  MONEY_FIELDS.forEach(f=>{
+    const raw = document.getElementById(MONEY_INPUTS[f]).value;
+    if(raw === "" || raw === null){ delete rec[f]; }
+    else { const v = Number(raw); rec[f] = isFinite(v) ? v : 0; }
+  });
+  // Write the record into MONTHREC first so the computed() functions below see the new inputs.
+  MONTHREC[curYm] = rec;
+  // Persist COMPUTED revenue as snapshots so other pages (quarterly roll-up) keep working.
+  // These are derived from the manual inputs above, never typed directly.
+  const chargedC = computed(curYm, "charged");
+  const bankedC  = computed(curYm, "banked");
+  const atpC     = computed(curYm, "atp");
+  const recurringC = computed(curYm, "recurring");
+  if(isNum(chargedC)) rec.charged = Math.round(chargedC*100)/100; else delete rec.charged;
+  if(isNum(bankedC))  rec.banked  = Math.round(bankedC*100)/100;  else delete rec.banked;
+  if(isNum(atpC))     rec.atp     = Math.round(atpC*100)/100;     else delete rec.atp;
+  // store the effective recurring snapshot too, but ONLY when the user didn't type an
+  // explicit value (MONEY_FIELDS already saved a typed override). This keeps quarterly's
+  // member snapshot correct for months where recurring was rolled rather than typed.
+  const typedRecurring = document.getElementById("m_recurring").value;
+  if(typedRecurring === "" && isNum(recurringC)) rec.recurring = recurringC;
+  // drop any legacy stored field no longer used
+  delete rec.expense;
+  try{
+    await saveMonth(rec);
+    msg.textContent = "Saved ✓";
+    closeMoney();
+    document.getElementById("moneySavedMsg").textContent = "Saved ✓";
+    setTimeout(()=>document.getElementById("moneySavedMsg").textContent="", 2500);
+    renderCurrent();
+  }catch(e){
+    msg.textContent = "Save failed — check connection and try again.";
+  }
+}
+
+// ===================== AI MONTHLY REVIEW =====================
+function buildMentorPrompt(){
+  const ym=curYm, p=prevYm(ym);
+  const g = f => { const e=eff(ym,f); return isNum(e.value)?e.value:null; };
+  const gp = f => { const e=eff(p,f); return isNum(e.value)?e.value:null; };
+  const data = {
+    month: ymLabel(ym), prevMonth: ymLabel(p),
+    current: {
+      bankedRevenue: g("banked"), profit: man(ym,"profit"),
+      chargedRevenue: g("charged"), expenseTotal: expenseTotal(ym),
+      signups: g("signups"), cancellations: g("cancellations"), netGain: g("netGain"),
+      members: g("recurring"), retentionPct: isNum(g("retention"))?Math.round(g("retention")*100):null,
+      leads: g("leads"), trialSales: g("trialSales"),
+      adSpend: g("adSpend"), costPerAcquisition: g("cpa")
+    },
+    previous: {
+      bankedRevenue: gp("banked"), profit: man(p,"profit"),
+      signups: gp("signups"), cancellations: gp("cancellations"), netGain: gp("netGain"),
+      members: gp("recurring"), retentionPct: isNum(gp("retention"))?Math.round(gp("retention")*100):null,
+      leads: gp("leads"), trialSales: gp("trialSales"), adSpend: gp("adSpend")
+    }
+  };
+  return [
+    "You are the board advisor for Bodysculpt Warrington, a small-group personal training gym in Warrington, UK owned by Ash.",
+    "This is the MONTHLY board review. Give a calm, direct, operator-level read of the month — no hype, no fluff, plain British English.",
+    "Some figures may be null because that data hasn't been entered yet — don't invent numbers, just note what's missing if it matters.",
+    "Structure your answer as: (1) one-line verdict on the month, (2) what went well, (3) what to watch, (4) the single most important action for next month.",
+    "Keep it tight — a few short paragraphs. Money is in GBP.",
+    "Here is the data as JSON:",
+    JSON.stringify(data, null, 2)
+  ].join("\n");
+}
+async function runMentor(){
+  const btn=document.getElementById("mentorRun"), msg=document.getElementById("mentorMsg"),
+        out=document.getElementById("mentorText"), verdict=document.getElementById("mentorVerdict");
+  btn.disabled=true; msg.textContent=""; out.innerHTML=`<span class="loading">Reviewing the month…</span>`;
+  try{
+    const res = await fetch(MENTOR, {method:"POST",headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ prompt: buildMentorPrompt() })});
+    const bodyText = await res.text();
+    let data = null;
+    try{ data = bodyText ? JSON.parse(bodyText) : null; }
+    catch(parseErr){
+      out.textContent = res.status===404
+        ? "The AI function isn't found (404) — it may not be deployed."
+        : (res.status>=500
+            ? "The AI function errored ("+res.status+") — check ANTHROPIC_API_KEY is set in Netlify."
+            : "The AI service returned an unexpected response ("+res.status+").");
+      btn.disabled=false; return;
+    }
+    if(data && data.error){ out.textContent = "Couldn't run the review: " + data.error; }
+    else {
+      const text = (data && data.text||"").trim();
+      out.textContent = text || "No response.";
+      const firstLine = text.split("\n").find(l=>l.trim());
+      if(firstLine) verdict.textContent = firstLine.replace(/^\(?1\)?[\.\:\)]?\s*/,"").trim();
+    }
+  }catch(e){ out.textContent = "Couldn't reach the AI review service."; }
+  btn.disabled=false;
+}
+
+// ===================== BOOT =====================
+// Central month setter — keeps dropdown, period bar and render in sync.
+function setMonth(ym){
+  if(!YMS.includes(ym)) return;
+  curYm = ym;
+  try { localStorage.setItem("bodysculpt:selectedMonth", curYm); } catch(err) {}
+  const sel = document.getElementById("monthSel"); if(sel) sel.value = curYm;
+  updatePeriodBar();
+  renderCurrent();
+}
+function updatePeriodBar(){
+  const i = YMS.indexOf(curYm);
+  const lbl = document.getElementById("pbLabel");
+  const prev = document.getElementById("pbPrev");
+  const next = document.getElementById("pbNext");
+  if(lbl) lbl.textContent = ymLabel(curYm);
+  if(prev) prev.disabled = (i <= 0);
+  if(next) next.disabled = (i >= YMS.length-1);
+}
+function wire(){
+  document.getElementById("tabBar").addEventListener("click", e=>{
+    const b = e.target.closest(".vt"); if(!b) return; showView(b.dataset.view);
+  });
+  document.getElementById("monthSel").addEventListener("change", e=>{ setMonth(e.target.value); });
+  document.getElementById("pbPrev").addEventListener("click", ()=>{
+    const i = YMS.indexOf(curYm); if(i>0) setMonth(YMS[i-1]);
+  });
+  document.getElementById("pbNext").addEventListener("click", ()=>{
+    const i = YMS.indexOf(curYm); if(i<YMS.length-1) setMonth(YMS[i+1]);
+  });
+  document.getElementById("pbCurrent").addEventListener("click", ()=>{
+    const now = new Date();
+    const thisMonth = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2,"0");
+    setMonth(YMS.includes(thisMonth) ? thisMonth : YMS[YMS.length-1]);
+  });
+  document.getElementById("editMoneyBtn").addEventListener("click", openMoney);
+  document.getElementById("editHomeBtn").addEventListener("click", ()=>{ showView("money"); openMoney(); });
+  document.getElementById("homeViewToggle").addEventListener("click", ()=>{
+    homeShowsTable = !homeShowsTable;
+    document.getElementById("homeTiles").hidden = homeShowsTable;
+    document.getElementById("homeTableWrap").hidden = !homeShowsTable;
+    document.getElementById("homeViewToggle").textContent = homeShowsTable ? "See tiles" : "See table";
+    if(homeShowsTable) renderHomeTable(curYm);
+  });
+  document.getElementById("moneyClose").addEventListener("click", closeMoney);
+  document.getElementById("moneyCancel").addEventListener("click", closeMoney);
+  document.getElementById("moneySave").addEventListener("click", saveMoney);
+  document.getElementById("mentorHead").addEventListener("click", ()=>{
+    const body=document.getElementById("mentorBody"), chev=document.getElementById("mentorChev");
+    body.hidden=!body.hidden; chev.textContent = body.hidden ? "▸":"▾";
+  });
+  document.getElementById("mentorRun").addEventListener("click", runMentor);
+  // live expense-total recompute as the 15 lines are typed
+  EXPENSE_LINES.forEach(([k])=>{
+    const el = document.getElementById(MONEY_INPUTS[k]);
+    if(el) el.addEventListener("input", updateLiveExpenseTotal);
+  });
+  // live recompute of the locked Charged/Banked/ATP fields + recurring hint as revenue
+  // and member inputs are typed
+  ["m_recurringRev","m_trialRev","m_otherRev","m_processingFees","m_recurring","m_signups","m_cancellations"].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.addEventListener("input", updateLiveCalcFields);
+  });
+}
+
+// ===================== ONE-TIME SEED (Jan–Jun 2026 from the sheet) =====================
+// Figures taken directly from the 2026 Numbers spreadsheet. Flow/snapshot/manual fields only;
+// ratios + Net Gain + Total Members + Expense Total calculate from these on render.
+// Only writes a month with no saved record yet (won't clobber anything you've typed).
+const SEED_2026 = [
+  {ym:"2026-01", charged:15532, recurringRev:14777, trialRev:755, otherRev:0, banked:15238, atp:107.12, processingFees:294,
+   signups:1, cancellations:3, recurring:136, paused:1, adSpend:0, leads:2, trialSales:9,
+   taxPaid:6645.45, staffNet:5083.61, pensions:323.46, rent:4020, accounting:520.2, software:787.23,
+   marketing:28, cleaning:59.62, lease:1016.68, bills:851.49, website:21, retail:185.43, otherExp:264.08,
+   travel:512.24, mentorship:443.6, charges:26.56, ownersPay:2353.6, neil:1330.89, taxSaved:4247},
+  {ym:"2026-02", charged:17048, recurringRev:15925, trialRev:1123, otherRev:0, banked:16758, atp:115.19, processingFees:290,
+   signups:14, cancellations:10, recurring:140, paused:1, adSpend:394, leads:41, trialSales:8,
+   taxPaid:1128.34, staffNet:5083.61, pensions:323.46, rent:2010, accounting:1040.4, software:742.06,
+   marketing:28, cleaning:0, lease:1139.09, bills:505.67, website:21, retail:19.59, otherExp:288.75,
+   travel:473.1, mentorship:464.11, charges:26.4, ownersPay:2427.6, neil:601.11, taxSaved:-153.25},
+  {ym:"2026-03", charged:18838, recurringRev:16243, trialRev:2595, otherRev:0, banked:18528, atp:122.32, processingFees:310,
+   signups:3, cancellations:2, recurring:141, paused:1, adSpend:181.52, leads:30, trialSales:13,
+   taxPaid:2560, staffNet:5084, pensions:323.46, rent:2010, accounting:526.1, software:777.91,
+   marketing:655.97, cleaning:123.17, lease:1091.65, bills:476.69, website:25.5, retail:425.74, otherExp:676.15,
+   travel:450.71, mentorship:437.72, charges:25.66, ownersPay:2425, neil:997.32, taxSaved:2714},
+  {ym:"2026-04", charged:0, recurringRev:0, trialRev:0, otherRev:575.5, banked:0, atp:0,
+   signups:13, cancellations:1, recurring:153, paused:2, adSpend:942.57, leads:113, trialSales:14,
+   taxPaid:5711, staffNet:6295, pensions:323.46, rent:2218.38, accounting:610.2, software:925.95,
+   marketing:561.31, cleaning:65.23, lease:1630.85, bills:316.52, website:0, retail:617.63, otherExp:273.61,
+   travel:191.32, mentorship:187.1, charges:26.67, ownersPay:3312, neil:1000, taxSaved:4159},
+  {ym:"2026-05", charged:0, recurringRev:0, trialRev:0, otherRev:911.5, banked:0, atp:0,
+   signups:5, cancellations:0, recurring:158, paused:3, adSpend:605.07, leads:54, trialSales:6,
+   taxPaid:260, staffNet:6075, pensions:379.34, rent:2237.52, accounting:521.79, software:880.51,
+   marketing:591.63, cleaning:75.32, lease:1031.61, bills:322.2, website:21, retail:935.14, otherExp:95.95,
+   travel:310.78, mentorship:150, charges:26.92, ownersPay:2689, neil:999.67, taxSaved:3396.3},
+  {ym:"2026-06", charged:0, recurringRev:0, trialRev:0, otherRev:0, banked:0, atp:0,
+   signups:0, cancellations:0, recurring:0, paused:0, adSpend:107.95, leads:1, trialSales:6,
+   taxPaid:0, staffNet:6548.21, pensions:357.06, rent:2010, accounting:534.65, software:988.52,
+   marketing:1040.49, cleaning:0, lease:1975.49, bills:533.73, website:21, retail:993.37, otherExp:76.94,
+   travel:71.53, mentorship:187.93, charges:29.77, ownersPay:0, neil:0, taxSaved:0}
+];
+async function runSeed(){
+  const el = document.getElementById("loadState");
+  el.hidden = false;
+  el.textContent = "Seeding Jan–Jun…";
+  try{
+    const res = await fetch(STORE, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ monthsBulk: SEED_2026, overwrite: true })
+    });
+    const data = await res.json();
+    if(data.ok){
+      (data.months||[]).forEach(m => { if(m && m.ym) MONTHREC[m.ym] = m; });
+      el.textContent = `Seed complete — ${data.written} month(s) written. Remove ?seed=YES from the URL and reload.`;
+    } else {
+      el.textContent = "Seed failed: " + (data.error || "unknown error") + ". Check the function deployed.";
+    }
+  }catch(e){
+    el.textContent = "Seed failed to reach the store. Confirm netlify/functions/kpi-store.js deployed.";
+  }
+}
+
+async function boot(){
+  wire();
+  await loadAll();
+  rebuildMonthSel();
+  updatePeriodBar();
+  document.getElementById("loadState").hidden = true;
+  const params = new URLSearchParams(location.search);
+  if(params.get("seed") === "YES"){
+    await runSeed();
+    await loadAll();
+    rebuildMonthSel();
+  }
+  showView("home");
+}
+/* ===================== MONTHLY PLAN (cascade middle layer) ===================== */
+let mpPlan = null;
+let mpRocks = [];
+let mpQuarterTag = null;
+let mpYm = null;
+
+function mpQid(){ return "f"+Math.random().toString(36).slice(2,9); }
+function mpFmtTime(iso){ if(!iso) return ""; try{ const d=new Date(iso); return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}); }catch(e){ return ""; } }
+
+async function renderMonthlyPlan(){
+  const ym = curYm;
+  if(!ym){ document.getElementById("mpBody").innerHTML = `<div class="mp-loading">No month selected.</div>`; return; }
+  mpYm = ym;
+  document.getElementById("mpMonthLabel").textContent = ymLabel(ym);
+  document.getElementById("mpSavedMsg").textContent = "";
+  document.getElementById("mpBody").innerHTML = `<div class="mp-loading">Loading this month's plan…</div>`;
+  let data = null;
+  try{ data = await fetch(STORE + "?monthlyplan=" + encodeURIComponent(ym)).then(x=>x.json()); }catch(e){ data = null; }
+  const plan = (data && data.plan) || { ym, focus:[], priorities:[], notes:"", review:{wins:"",notDone:"",carryForward:"",blockers:""}, lastUpdated:"" };
+  plan.focus = plan.focus || [];
+  plan.priorities = plan.priorities || [];
+  plan.notes = plan.notes || "";
+  plan.review = plan.review || {wins:"",notDone:"",carryForward:"",blockers:""};
+  mpPlan = plan;
+  mpRocks = (data && data.rocks) || [];
+  mpQuarterTag = (data && data.quarterTag) || "";
+  drawMonthlyPlan();
+}
+
+function mpRockOptions(sel){
+  return [`<option value="">— not linked —</option>`]
+    .concat(mpRocks.map((r,i)=>`<option value="${i}"${String(sel)===String(i)?" selected":""}>Rock ${i+1}: ${esc((r.title||"").slice(0,42))}</option>`)).join("");
+}
+
+function mpSyncFromDom(){
+  if(!mpPlan) return;
+  const body = document.getElementById("mpBody");
+  if(!body) return;
+  const focus = [];
+  body.querySelectorAll('[data-focus]').forEach(el=>{
+    focus.push({
+      id: el.getAttribute("data-focus"),
+      title: (el.querySelector('[data-ff="title"]')||{}).value || "",
+      rockRef: (el.querySelector('[data-ff="rockRef"]')||{}).value || "",
+      notes: (el.querySelector('[data-ff="notes"]')||{}).value || "",
+      done: (el.querySelector('[data-ff="done"]')||{}).checked || false
+    });
+  });
+  mpPlan.focus = focus;
+  const pr = [];
+  body.querySelectorAll('[data-prio]').forEach(el=>{
+    pr.push({
+      id: el.getAttribute("data-pid") || ("mprj-"+Math.random().toString(36).slice(2,9)),
+      title: (el.querySelector('[data-pf="title"]')||{}).value || "",
+      owner: (el.querySelector('[data-pf="owner"]')||{}).value || "",
+      status: (el.querySelector('[data-pf="status"]')||{}).value || "Not Started",
+      notes: (el.querySelector('[data-pf="notes"]')||{}).value || ""
+    });
+  });
+  mpPlan.priorities = pr;
+  const notesEl = body.querySelector('[data-field="mpnotes"]');
+  if(notesEl) mpPlan.notes = notesEl.value;
+  ["wins","notDone","carryForward","blockers"].forEach(f=>{
+    const el = body.querySelector(`[data-mpreview="${f}"]`);
+    if(el) mpPlan.review[f] = el.value;
+  });
+}
+
+const MP_OWNERS = ["","Ash","Dan","Grace","Gaz","Nina","Chris","Sophie","Jamie"];
+const MP_STATUS = ["Not Started","In Progress","Done","Carried Forward"];
+
+function mpSaveHeader(title, sectionKey, hint){
+  return `<div class="mp-box-h"><span>${title}${hint?` <span class="mp-hint">${hint}</span>`:""}</span>
+    <span class="mp-sec-save">
+      <span class="mp-ssaved" id="mpmsg-${sectionKey}"></span>
+      <button class="mp-ssave" id="mpbtn-${sectionKey}" onclick="mpSaveSection('${sectionKey}')">Save</button>
+    </span></div>`;
+}
+
+function drawMonthlyPlan(){
+  const p = mpPlan;
+
+  let rocksHtml;
+  if(mpRocks.length){
+    rocksHtml = mpRocks.map((r,i)=>`<div class="mp-rock">
+      <div class="mp-rock-num">${i+1}</div>
+      <div class="mp-rock-body">
+        <div class="mp-rock-title">${esc(r.title||"(untitled rock)")}</div>
+        <div class="mp-rock-meta">${r.owner?("Owner: "+esc(r.owner)):""}${r.owner&&r.status?" · ":""}${r.status?esc(r.status):""}${r.successMeasure?" · "+esc(r.successMeasure):""}</div>
+      </div>
+    </div>`).join("");
+  } else {
+    rocksHtml = `<div class="mp-rocks-empty">No Rocks set for ${esc(mpQuarterTag||"this quarter")} yet.
+      Set them in the <a onclick="mpGoToQuarterly()">Quarterly plan</a>, and they'll appear here as your anchor.</div>`;
+  }
+  const rocksBox = `<div class="mp-box">
+    <div class="mp-box-h"><span>This Quarter's Rocks <span class="mp-hint">${esc(mpQuarterTag||"")} · from Quarterly</span></span></div>
+    <div class="mp-box-body">${rocksHtml}</div>
+  </div>`;
+
+  const focusRows = p.focus.length ? p.focus.map(it=>{
+    const linked = (it.rockRef!==""&&it.rockRef!=null&&mpRocks[Number(it.rockRef)]);
+    return `<div class="mp-item${it.done?" done":""}" data-focus="${it.id||mpQid()}">
+      <div class="mp-item-top">
+        <input class="mp-title" data-ff="title" value="${esc(it.title||"")}" placeholder="This month's focus…">
+        ${linked?`<span class="mp-linktag">↳ Rock ${Number(it.rockRef)+1}</span>`:""}
+        <label class="mp-chk"><input type="checkbox" data-ff="done"${it.done?" checked":""} onchange="mpToggleFocus(this)">Done</label>
+        <button class="mp-del" onclick="mpRemoveFocus(this)">✕</button>
+      </div>
+      <div class="mp-fields">
+        <div class="mp-f"><label>Supports which Rock?</label><select data-ff="rockRef" onchange="mpQuickSave()">${mpRockOptions(it.rockRef)}</select></div>
+        <div class="mp-f"><label>Notes</label><input data-ff="notes" value="${esc(it.notes||"")}" placeholder="Optional"></div>
+      </div>
+    </div>`;
+  }).join("") : `<div class="mp-rocks-empty">What are the 1–3 things this month that move the Rocks forward?</div>`;
+  const focusBox = `<div class="mp-box">
+    ${mpSaveHeader("This Month's Focus","focus","link each to a Rock")}
+    <div class="mp-box-body">${focusRows}<button class="mp-add" onclick="mpAddFocus()">+ Add focus item</button></div>
+  </div>`;
+
+  const prRows = p.priorities.length ? p.priorities.map(it=>{
+      if(!it.id) it.id = "mprj-"+Math.random().toString(36).slice(2,9);
+      return `<div class="mp-item" data-prio data-pid="${esc(it.id)}">
+      <div class="mp-item-top">
+        <input class="mp-title" data-pf="title" value="${esc(it.title||"")}" placeholder="Priority / project">
+        <button class="mp-del" onclick="mpRemovePrio(this)">✕</button>
+      </div>
+      <div class="mp-fields">
+        <div class="mp-f"><label>Owner</label><select data-pf="owner">${MP_OWNERS.map(o=>`<option${o===(it.owner||"")?" selected":""}>${o||"—"}</option>`).join("")}</select></div>
+        <div class="mp-f"><label>Status</label><select data-pf="status">${MP_STATUS.map(s=>`<option${s===(it.status||"Not Started")?" selected":""}>${s}</option>`).join("")}</select></div>
+      </div>
+      <div class="mp-f" style="margin-top:8px"><label>Notes</label><input data-pf="notes" value="${esc(it.notes||"")}" placeholder="Optional"></div>
+      <div class="mp-prio-actions"><button class="mp-week-btn" onclick="mpPushProjectToWeek('${esc(it.id)}')">→ Weekly action</button></div>
+    </div>`;
+    }).join("") : `<div class="mp-rocks-empty">Key projects or priorities for the month.</div>`;
+  const prioBox = `<div class="mp-box">
+    ${mpSaveHeader("Priorities & Projects","priorities","")}
+    <div class="mp-box-body">${prRows}<button class="mp-add" onclick="mpAddPrio()">+ Add priority</button></div>
+  </div>`;
+
+  const notesBox = `<div class="mp-box">
+    ${mpSaveHeader("Notes & Issues","notes","")}
+    <div class="mp-box-body"><textarea data-field="mpnotes" style="min-height:120px" placeholder="Observations, issues, things to watch this month…">${esc(p.notes||"")}</textarea></div>
+  </div>`;
+
+  const r = p.review;
+  const reviewBox = `<div class="mp-box">
+    ${mpSaveHeader("Month-End Review","review","")}
+    <div class="mp-box-body"><div class="mp-review-grid">
+      <div class="mp-f"><label>What moved / wins</label><textarea data-mpreview="wins">${esc(r.wins||"")}</textarea></div>
+      <div class="mp-f"><label>What didn't move</label><textarea data-mpreview="notDone">${esc(r.notDone||"")}</textarea></div>
+      <div class="mp-f"><label>Carry into next month</label><textarea data-mpreview="carryForward">${esc(r.carryForward||"")}</textarea></div>
+      <div class="mp-f"><label>Issues / blockers</label><textarea data-mpreview="blockers">${esc(r.blockers||"")}</textarea></div>
+    </div></div>
+  </div>`;
+
+  document.getElementById("mpBody").innerHTML = rocksBox + focusBox + prioBox + notesBox + reviewBox;
+
+  if(p.lastUpdated){
+    const m = document.getElementById("mpSavedMsg");
+    m.textContent = "Last saved " + mpFmtTime(p.lastUpdated); m.className = "mp-saved";
+  }
+}
+
+function mpGoToQuarterly(){ location.href = "quarterly.html"; }
+function mpAddFocus(){ mpSyncFromDom(); mpPlan.focus.push({id:mpQid(),title:"",rockRef:"",notes:"",done:false}); drawMonthlyPlan(); }
+function mpRemoveFocus(btn){ mpSyncFromDom(); const el=btn.closest("[data-focus]"); const id=el.getAttribute("data-focus"); mpPlan.focus=mpPlan.focus.filter(f=>(f.id||"")!==id); drawMonthlyPlan(); }
+function mpToggleFocus(cb){ const el=cb.closest(".mp-item"); if(el) el.classList.toggle("done", cb.checked); }
+function mpAddPrio(){ mpSyncFromDom(); mpPlan.priorities.push({title:"",owner:"",status:"Not Started",notes:""}); drawMonthlyPlan(); }
+// v60: push a monthly project down into a week's plan as a Project task (one-way). Mirrors the
+// quarterly→weekly cascade: pick a week, write into that week's projectItems, block duplicates.
+async function mpPushProjectToWeek(projectId){
+  mpSyncFromDom();
+  const proj = (mpPlan.priorities||[]).find(p=>p.id===projectId);
+  if(!proj){ window.alert("Save the project first, then push it to a week."); return; }
+  if(!proj.title || !proj.title.trim()){ window.alert("Give the project a title before pushing it to a week."); return; }
+  const week = window.prompt("Push this project into a week as a Project task.\nEnter the week-ending date (YYYY-MM-DD):", (mpYm||"")+"-07");
+  if(!week) return;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(week)){ window.alert("Please use YYYY-MM-DD."); return; }
+  const linkId = "monthly:"+(mpYm||"")+":"+projectId+":"+week;
+  try{
+    const r = await fetch(STORE + "?weeklyplan=" + encodeURIComponent(week)).then(x=>x.json());
+    const plan = (r && r.plan) ? r.plan : { weekEnding:week };
+    plan.projectItems = Array.isArray(plan.projectItems) ? plan.projectItems : [];
+    if(plan.projectItems.some(m=>m && m.linkId===linkId)){ window.alert("Already linked to that week."); return; }
+    plan.projectItems.push({ id:"wk-"+Math.random().toString(36).slice(2,9), linkId,
+      title: proj.title, source:"monthly-project", sourceYm: mpYm||"", sourceProjectId: projectId,
+      owner: proj.owner||"", status:"Not Started" });
+    const w = await fetch(STORE, { method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ weeklyPlan: { weekEnding:week, projectItems: plan.projectItems } }) }).then(x=>x.json());
+    if(w && w.ok) window.alert("Added to week ending "+week+" as a Project task.");
+    else window.alert("Save failed — please retry.");
+  }catch(e){ window.alert("Save failed: "+e.message); }
+}
+function mpRemovePrio(btn){ mpSyncFromDom(); const rows=[...document.querySelectorAll('[data-prio]')]; const i=rows.indexOf(btn.closest('[data-prio]')); if(i>=0){ mpPlan.priorities.splice(i,1); drawMonthlyPlan(); } }
+function mpQuickSave(){ mpSyncFromDom(); drawMonthlyPlan(); }
+
+const MP_SECTION_FIELDS = { focus:["focus"], priorities:["priorities"], notes:["notes"], review:["review"] };
+async function mpSaveSection(sectionKey){
+  if(!mpPlan || !mpYm) return;
+  mpSyncFromDom();
+  const btn = document.getElementById("mpbtn-"+sectionKey);
+  const msg = document.getElementById("mpmsg-"+sectionKey);
+  if(btn){ btn.disabled = true; btn.textContent = "Saving…"; }
+  const patch = { ym: mpYm };
+  (MP_SECTION_FIELDS[sectionKey]||[]).forEach(f=>{ patch[f] = mpPlan[f]; });
+  try{
+    const r = await fetch(STORE, {method:"POST",headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ monthlyPlan: patch })}).then(x=>x.json());
+    if(r && r.ok){
+      if(r.plan && r.plan.lastUpdated) mpPlan.lastUpdated = r.plan.lastUpdated;
+      if(msg){ msg.textContent = "Saved " + mpFmtTime(mpPlan.lastUpdated); msg.className = "mp-ssaved ok"; }
+    } else if(msg){ msg.textContent = "Save failed"; msg.className = "mp-ssaved"; }
+  }catch(e){ if(msg){ msg.textContent = "Couldn't reach store"; msg.className = "mp-ssaved"; } }
+  finally{ if(btn){ btn.disabled = false; btn.textContent = "Save"; } }
+}
+
+boot();
+</script>
+</body>
+</html>
