@@ -515,6 +515,9 @@
   .wp-rec-linkbtn:hover{opacity:1;}
   .wp-rec-link{color:#7fc4d6;text-decoration:none;font-size:13px;font-weight:800;padding:0 3px;flex:none;line-height:1;}
   .wp-rec-link:hover{color:#a9dbe8;}
+  /* v66: the same ↗ on placed grid chips — flex:none keeps it from squeezing the
+     single-line title beyond its normal ellipsis truncation */
+  .wp-cellchip .wp-chip-link{font-size:11px;padding:0 1px;}
   /* PROJECT / BUFFER — draggable rows */
   .wp-drag-row{display:flex;align-items:center;gap:7px;padding:4px 2px;}
   .wp-drag-handle{color:var(--ink-faint);cursor:grab;font-size:14px;line-height:1;user-select:none;}
@@ -855,7 +858,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v65 · wider-calendar</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v66 · grid-chip-link</span>
   </footer>
 </div>
 
@@ -1730,11 +1733,18 @@ function renderWeeklyPlan(){
         // v63: recurring chips tick per-day for weekday tasks, and carry the teal accent
         const done = wpIsDone(source, item, dk);
         const recCls = source==="recurring" ? " wp-recur" : "";
+        // v66: same link affordance as the list row — ↗ only when wpValidUrl passes.
+        // (An <a> inside a <label> is excluded from label activation, so clicking it
+        // follows the link without toggling the done checkbox.)
+        const linkHref = source==="recurring" ? wpValidUrl(item.link || "") : null;
+        const linkOut = linkHref
+          ? `<a class="wp-rec-link wp-chip-link" href="${wpEsc(linkHref)}" target="_blank" rel="noopener noreferrer" title="${wpEsc(linkHref)}" onclick="event.stopPropagation()">↗</a>`
+          : "";
         return `<label class="wp-cellchip${done?" wp-done":""}${recCls}" draggable="true" title="${wpEsc(item.title)}"
             ondragstart="wpChipDragStart(event,'${ref}')" ondragend="wpDragEnd(event)">
           <span class="wp-chip-grip" aria-hidden="true">⠿</span>
           <input type="checkbox" ${done?"checked":""} onchange="wpToggleDoneRef('${ref}',this.checked,'${dk}')">
-          <span class="wp-chip-title">${wpEsc(item.title)}</span></label>`;
+          <span class="wp-chip-title">${wpEsc(item.title)}</span>${linkOut}</label>`;
       }).join("");
       const txt = (p.timeBlocks[rk]&&p.timeBlocks[rk][dk])||"";
       return `<td class="wp-daycell" ondragover="wpCellDragOver(event)" ondragleave="wpCellDragLeave(event)" ondrop="wpCellDrop(event,'${rk}','${dk}')"><div class="wp-cellwrap">${chips?`<div class="wp-cellchips">${chips}</div>`:""}<textarea data-tb="${key}" onblur="wpSaveSection('timeBlocks')">${wpEsc(txt)}</textarea></div></td>`;

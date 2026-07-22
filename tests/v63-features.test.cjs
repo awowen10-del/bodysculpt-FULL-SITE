@@ -35,6 +35,32 @@ const WEEK = "2026-03-16"; // a Monday inside NAV_WEEKS
     assert.ok(!noLink.includes("<a "), "no link renders no anchor");
   }
 
+  // ---------- 1b (v66): placed grid chips carry the same link affordance ----------
+  {
+    const defaults = [
+      { id: "r1", title: "Standup", link: "https://example.com/x" },
+      { id: "r2", title: "Scorecard" }, // no link
+    ];
+    const { ctx } = await boot({ defaults, plans: { [WEEK]: null } });
+    await ctx.loadWeeklyPlan(WEEK);
+    await ctx.wpPlaceRefAt("recurring:r1", "6-9", "mon");
+    await ctx.wpPlaceRefAt("recurring:r2", "6-9", "tue");
+    const html = ctx.document.getElementById("wpBody").innerHTML;
+
+    // r1's chip renders the ↗ with the same validated href + safe attributes
+    const chipLinks = html.split('class="wp-rec-link wp-chip-link"').length - 1;
+    assert.strictEqual(chipLinks, 1, "exactly one chip link — only the linked task's chip");
+    const chipAnchor = html.slice(html.indexOf('wp-chip-link'));
+    assert.ok(chipAnchor.includes('href="https://example.com/x"'), "chip href is the validated URL");
+    assert.ok(chipAnchor.slice(0, 200).includes('target="_blank"'), "chip link opens in new tab");
+    assert.ok(chipAnchor.slice(0, 200).includes('rel="noopener noreferrer"'), "chip link noopener noreferrer");
+
+    // r2's chip (no link) renders no anchor: its cell markup contains none
+    const r2Cell = html.split('data-tb="6-9:tue"')[0].slice(-600); // chip markup precedes its cell textarea
+    assert.ok(r2Cell.includes("Scorecard"), "sanity: looking at r2's cell");
+    assert.ok(!r2Cell.includes("wp-chip-link"), "chip without link renders no ↗");
+  }
+
   // ---------- 2: legacy v63 repeat:"weekdays" maps to days Mon–Fri, same done keys ----------
   {
     const defaults = [{ id: "r1", title: "Standup", repeat: "weekdays", time: "6-9" }];
