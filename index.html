@@ -572,6 +572,8 @@
   .wp-day-tick.on{color:#7fc4d6;border-color:rgba(79,163,184,.6);background:rgba(79,163,184,.14);}
   .wp-rec-linkbtn{background:transparent;border:none;font-size:11px;cursor:pointer;padding:0 2px;opacity:.4;flex:none;}
   .wp-rec-linkbtn:hover{opacity:1;}
+  .wp-rec-sched{font-size:13px;}                 /* v77: the 📅 schedule button on a recurring row */
+  .wp-rec-name{font-size:13px;}                  /* v77: inline-editable recurring title (shares .wp-drag-name) */
   .wp-rec-link{color:#7fc4d6;text-decoration:none;font-size:13px;font-weight:800;padding:0 3px;flex:none;line-height:1;}
   .wp-rec-link:hover{color:#a9dbe8;}
   /* v66: the same ↗ on placed grid chips — flex:none keeps it from squeezing the
@@ -987,7 +989,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v75 · recurring-tabs</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v77 · edit-recurring-title</span>
   </footer>
 </div>
 
@@ -1903,15 +1905,21 @@ function wpRecurRow(it){
   const ref = wpItemRef("recurring", it.id);
   const placed = wpPlacedLabel(ref);
   const done = wpIsDone("recurring", it);
+  const sched = !!wpRecurDays(it);
   // v63: link renders as a small ↗ ONLY when it validates as a real http(s) URL
   const linkHref = wpValidUrl(it.link || "");
   const linkOut = linkHref
     ? `<a class="wp-rec-link" href="${wpEsc(linkHref)}" target="_blank" rel="noopener noreferrer" title="${wpEsc(linkHref)}" onclick="event.stopPropagation()">↗</a>`
     : "";
+  // v77: the title is now editable inline (same behaviour + save shape as Project/Buffer/
+  // Training) — the id is untouched, so placements/schedule/done-state/link all survive a
+  // rename. Scheduling moves to a 📅 button (the name used to open the popup on click).
   return `<div class="wp-txt-row wp-rec-row" data-rec-id="${it.id}">
-    <span class="wp-txt-name${done?" wp-done":""}" onclick="wpOpenPopup('recurring','${it.id}',this)">${wpEsc(it.title)}</span>
+    <input class="wp-drag-name wp-rec-name${done?" wp-done":""}" data-item-title="recurring:${it.id}" value="${wpEsc(it.title)}" placeholder="Recurring task"
+      onkeydown="wpItemKey(event)" onblur="wpDefaultTitleBlur('recurring','${it.id}')">
     ${linkOut}
     <button class="wp-rec-linkbtn" title="${linkHref?"Edit link":"Add link"}" onclick="wpEditRecurLink('${it.id}')">🔗</button>
+    <button class="wp-rec-linkbtn wp-rec-sched" title="${sched?"Edit schedule":"Schedule — days + slot"}" onclick="wpOpenPopup('recurring','${it.id}',this)">📅</button>
     ${placed?`<span class="wp-txt-tag" onclick="wpOpenPopup('recurring','${it.id}',this)">${placed}</span>`:""}
     <button class="wp-txt-del" title="Remove" onclick="wpRemoveRecurring('${it.id}')">✕</button>
   </div>`;
@@ -1969,7 +1977,7 @@ function wpTrainRow(it){
     <span class="wp-drag-handle" title="Drag onto a time block">⠿</span>
     <span class="wp-train-emoji" aria-hidden="true">${wpTrainingEmoji(it)}</span>
     <input class="wp-drag-name${done?" wp-done":""}" data-item-title="training:${it.id}" value="${wpEsc(it.title)}" placeholder="Training"
-      onkeydown="wpItemKey(event)" onblur="wpTrainingBlur()">
+      onkeydown="wpItemKey(event)" onblur="wpDefaultTitleBlur('training','${it.id}')">
     ${placed?`<span class="wp-txt-tag wp-train-tag" onclick="wpOpenPopup('training','${it.id}',this)">${placed}</span>`:""}
     <button class="wp-rec-linkbtn wp-train-sched" title="${sched?"Edit schedule":"Schedule — days + slot"}" onclick="wpOpenPopup('training','${it.id}',this)">📅</button>
     <button class="wp-txt-del" title="Remove" onclick="wpRemoveTraining('${it.id}')">✕</button>
@@ -2491,6 +2499,40 @@ async function wpItemBlur(source){
   // only rebuild the DOM if we actually dropped a row (avoids interrupting a follow-on click)
   if(removed) renderWeeklyPlan();
 }
+// v77: shared inline-title commit for the two shared-defaults lists (Recurring + Training).
+// Reuses the same click-to-edit / Enter-to-blur / Escape behaviour as Project/Buffer, but
+// saves through the DEFAULTS path (wpSaveDefaults / wpSaveTraining). The item's id is never
+// touched, so a rename preserves every grid placement, the days+slot schedule, done-state
+// and link. Empty title: a never-named row (fresh "+ Add") is dropped; an EXISTING task
+// reverts to its previous title rather than being blanked. Re-renders on a real change so
+// the new title shows on the card, the grid chips and (via re-open) the Today modal — and
+// so a Training item re-runs its title-derived emoji detection.
+async function wpDefaultTitleBlur(source, id){
+  const arr = source==="training" ? (wpTraining||[]) : (wpDefaults||[]);
+  const it = arr.find(x=>x.id===id);
+  const inp = document.querySelector(`[data-item-title="${source}:${id}"]`);
+  if(!it || !inp) return;
+  const old = String(it.title||"");
+  wpSyncFromDom(); // capture any other in-progress edits so the re-render can't drop them
+  const next = String(inp.value||"").trim().replace(/^[-•]\s*/,"");
+  if(!next){
+    if(!old.trim()){
+      // never-named row (a fresh "+ Add" that was left blank) → cancel it
+      const i = arr.findIndex(x=>x.id===id);
+      if(i>=0){ wpRemoveRefEverywhere(wpItemRef(source, id)); arr.splice(i,1); }
+      if(source==="training"){ await wpSaveTraining(); }
+      else { await wpSaveDefaults(); await wpSaveSection("timeBlocks"); }
+    } else {
+      it.title = old; // existing task cleared → revert, never persist a blank
+    }
+    renderWeeklyPlan();
+    return;
+  }
+  if(next === old) return;             // unchanged — leave the DOM as-is, no save/re-render
+  it.title = next;
+  if(source==="training") await wpSaveTraining(); else await wpSaveDefaults();
+  renderWeeklyPlan();
+}
 async function wpRemoveItem(source, id){
   wpSyncFromDom();
   const arr = source==="project" ? wpPlan.projectItems : wpPlan.bufferItems;
@@ -2656,20 +2698,8 @@ async function wpAddTraining(){
   const inp = document.querySelector(`[data-item-title="training:${it.id}"]`);
   if(inp) inp.focus();
 }
-// Blur on a training input: sync titles, drop blank rows (unplacing them), save the list.
-async function wpTrainingBlur(){
-  wpSyncFromDom();
-  let removed=false;
-  for(let i=(wpTraining||[]).length-1;i>=0;i--){
-    if(!String(wpTraining[i].title||"").trim()){
-      wpRemoveRefEverywhere(wpItemRef("training", wpTraining[i].id));
-      wpTraining.splice(i,1);
-      removed=true;
-    }
-  }
-  await wpSaveTraining();
-  if(removed) renderWeeklyPlan();
-}
+// v77: training inline-title editing now routes through the shared wpDefaultTitleBlur
+// (was wpTrainingBlur) so renames update the card, grid chips and re-detect the emoji.
 async function wpRemoveTraining(id){
   await wpLoadTraining();
   const i = (wpTraining||[]).findIndex(x=>x.id===id);
