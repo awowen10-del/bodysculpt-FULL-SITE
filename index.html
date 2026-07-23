@@ -457,11 +457,15 @@
   @media(max-width:820px){ .wp-top{grid-template-columns:1fr;} }
   .wp-left-col{display:flex;flex-direction:column;gap:16px;}
   .wp-left-col .wp-box{margin-bottom:0;}
-  /* v72: Buffer + Training side by side — two equal columns, top-aligned so differing
-     item counts don't stretch either card, and the row is only as tall as the taller of
-     the two (not their sum), keeping the calendar as high up the page as before. */
-  .wp-side-row{display:flex;gap:16px;align-items:flex-start;}
+  /* v72/v79: Buffer + Training side by side — two equal columns. v79: stretch both cards to
+     the SAME height (the taller of the two) so the shorter one no longer leaves a dead gap;
+     the row height is still just the taller card (not the sum), so the calendar stays put. */
+  .wp-side-row{display:flex;gap:16px;align-items:stretch;}
   .wp-side-row>.wp-box{flex:1 1 0;min-width:0;margin-bottom:0;}
+  /* Inside a stretched card the item list fills the free space so the "+ Add …" row pins to
+     the BOTTOM (room-to-grow above, not a dead gap). Only the list container grows — its rows
+     keep their natural height — because the list div is a plain block, not a flex parent. */
+  .wp-side-row .wp-box-body>:first-child{flex:1 1 auto;min-height:0;}
   @media(max-width:620px){ .wp-side-row{flex-direction:column;} }
   .wp-right-col{display:flex;}
   .wp-right-col .wp-notes-panel{flex:1;margin-bottom:0;}
@@ -1013,7 +1017,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v78 · weekly-review-checklist</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v79 · equal-height-cards</span>
   </footer>
 </div>
 
