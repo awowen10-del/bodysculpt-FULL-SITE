@@ -51,50 +51,44 @@ const TODAY = ALL_DAYS[NOW.getUTCDay()];
   assert.strictEqual(ctx.wpDetectTrainingEmoji("Swim then jog"), "🏊", "swim (higher priority) beats jog");
   assert.strictEqual(ctx.wpDetectTrainingEmoji("Bike then run"), "🚴", "cycle beats run");
 
-  /* ---------- 4: a manual override beats auto-detection ---------- */
-  assert.strictEqual(ctx.wpTrainingEmoji({ title: "Gym", emoji: "🏃" }), "🏃", "override 🏃 wins over auto 🏋️");
-  assert.strictEqual(ctx.wpTrainingEmoji({ title: "Morning run", emoji: "🧘" }), "🧘", "override 🧘 wins over auto 🏃");
-  // an override outside the known set is ignored (falls back to auto) — no arbitrary string reaches the DOM
-  assert.strictEqual(ctx.wpTrainingEmoji({ title: "Gym", emoji: "💣" }), "🏋️", "invalid override ignored → auto");
-  assert.strictEqual(ctx.wpTrainingEmoji({ title: "Gym", emoji: "<img src=x>" }), "🏋️", "injection-y override ignored → auto");
+  /* ---------- 4: the emoji is detection-only; any stored override is harmlessly ignored ---------- */
+  // v76 removed the manual override. A stray `emoji` field on stored data must NOT change
+  // the rendered emoji — it's always auto-detected from the title.
+  assert.strictEqual(ctx.wpTrainingEmoji({ title: "Gym", emoji: "🏃" }), "🏋️", "stored override ignored → auto 🏋️");
+  assert.strictEqual(ctx.wpTrainingEmoji({ title: "Morning run", emoji: "🧘" }), "🏃", "stored override ignored → auto 🏃");
+  assert.strictEqual(ctx.wpTrainingEmoji({ title: "Swim", emoji: "<img src=x>" }), "🏊", "junk override ignored → auto 🏊");
+  assert.strictEqual(typeof ctx.wpSetTrainingEmoji, "undefined", "the override setter is gone");
 
-  /* ---------- 5: items WITHOUT an override re-detect as the title changes ---------- */
+  /* ---------- 5: the emoji re-detects as the title changes (no pinning) ---------- */
   {
     const item = { title: "Gym" };
     assert.strictEqual(ctx.wpTrainingEmoji(item), "🏋️", "starts 🏋️");
-    item.title = "Swim 1k"; // rename, no override
+    item.title = "Swim 1k";
     assert.strictEqual(ctx.wpTrainingEmoji(item), "🏊", "re-detects 🏊 after rename");
     item.title = "Evening cycle";
     assert.strictEqual(ctx.wpTrainingEmoji(item), "🚴", "re-detects 🚴 after another rename");
-    // once overridden it stops following the title…
+    // even a leftover stored emoji field never pins it
     item.emoji = "🚶";
-    assert.strictEqual(ctx.wpTrainingEmoji(item), "🚶", "override pins the emoji regardless of title");
-    // …and clearing the override resumes auto-detection
-    delete item.emoji;
-    assert.strictEqual(ctx.wpTrainingEmoji(item), "🚴", "clearing the override resumes auto-detect");
+    assert.strictEqual(ctx.wpTrainingEmoji(item), "🚴", "leftover stored emoji does not pin — still auto");
   }
 
-  /* ---------- 6: the same emoji renders in card row, grid chip AND Today modal ---------- */
+  /* ---------- 6: the same auto emoji renders in card row, grid chip AND Today modal ---------- */
   {
-    // auto-detected (a run) placed today, plus an overridden item in the card
     const training = [
-      { id: "t1", title: "Morning run", days: [TODAY], time: "6-9" }, // auto → 🏃, placed today
-      { id: "t2", title: "Gym", emoji: "🧘" },                        // override → 🧘, unplaced
+      { id: "t1", title: "Morning run", days: [TODAY], time: "6-9" }, // 🏃, placed today
+      { id: "t2", title: "Leg day" },                                 // 🏋️, unplaced
     ];
     const plans = { [TODAY_WEEK]: { weekEnding: TODAY_WEEK, placements: { ["6-9:" + TODAY]: ["training:t1"] } } };
     const { ctx: c2 } = await boot({ training, plans });
     await c2.loadWeeklyPlan(TODAY_WEEK);
 
     const body = c2.document.getElementById("wpBody").innerHTML;
-    // card rows: the auto item's picker shows the detected 🏃 (v74: no "auto" word — the
-    // auto option's label is just the emoji, selected); the overridden item shows 🧘 selected
-    assert.ok(body.includes("wp-train-emoji-sel"), "training rows carry the light emoji picker");
-    assert.ok(body.includes(`<option value="" selected title="Auto-detect from title">🏃</option>`), "auto item's picker shows the detected 🏃 with no visible 'auto' word");
-    assert.ok(!body.includes("🏃 auto") && !body.includes(">🏃 auto<"), "the word 'auto' is not rendered in the control");
-    assert.ok(body.includes(`<option value="🧘" selected>🧘</option>`), "overridden item's picker has 🧘 selected");
+    // v76: card row shows a plain, fixed-width emoji span — no picker/select/chevron
+    assert.ok(!body.includes("wp-train-emoji-sel") && !body.includes("<select") && !body.includes("wpSetTrainingEmoji"), "the emoji override control is gone");
+    assert.ok(body.includes(`<span class="wp-train-emoji" aria-hidden="true">🏃</span>`), "run row shows the static 🏃 emoji");
+    assert.ok(body.includes(`<span class="wp-train-emoji" aria-hidden="true">🏋️</span>`), "gym row shows the static 🏋️ emoji");
     // grid chip for the placed run shows 🏃 (not the old hardcoded 🏋️)
-    const chipRun = body.split(`wpToggleDoneRef('training:t1'`)[0].slice(-400);
-    assert.ok(body.includes(`🏃 Morning run`) || chipRun.includes("🏃"), "grid chip leads with 🏃");
+    assert.ok(body.includes(`🏃 Morning run`), "grid chip leads with 🏃");
     assert.ok(!body.includes("🏋️ Morning run"), "the run chip is not the default barbell");
 
     // Today modal: same chip, same 🏃 via the shared renderer
@@ -104,30 +98,29 @@ const TODAY = ALL_DAYS[NOW.getUTCDay()];
     assert.ok(modal.includes("wp-train"), "…keeping the green training accent");
     c2.wpCloseToday();
 
-    // and the resolver is the single source everywhere: flip t1 to an override and every
-    // surface follows after a re-render
-    c2.__wpState.training.find((t) => t.id === "t1").emoji = "🚴";
+    // one resolver everywhere: rename t1 and every surface follows after a re-render
+    c2.__wpState.training.find((t) => t.id === "t1").title = "Pool swim";
     c2.renderWeeklyPlan();
     const body2 = c2.document.getElementById("wpBody").innerHTML;
-    assert.ok(body2.includes(`🚴 Morning run`), "grid chip follows the override to 🚴");
+    assert.ok(body2.includes(`🏊 Pool swim`), "grid chip follows the retitle to 🏊");
+    assert.ok(body2.includes(`<span class="wp-train-emoji" aria-hidden="true">🏊</span>`), "card row follows the retitle to 🏊");
     c2.wpOpenToday();
-    assert.ok(c2.document.getElementById("wpTodayBody").innerHTML.includes(`🚴 Morning run`), "modal chip follows the override to 🚴");
+    assert.ok(c2.document.getElementById("wpTodayBody").innerHTML.includes(`🏊 Pool swim`), "modal chip follows the retitle to 🏊");
     c2.wpCloseToday();
   }
 
-  /* ---------- 7: override persists through the training save path ---------- */
+  /* ---------- 7: the emoji field is never written back to the store ---------- */
   {
-    const training = [{ id: "t1", title: "Gym" }];
+    const training = [{ id: "t1", title: "Gym", emoji: "🏊" }]; // legacy stored override
     const { ctx: c3, posts } = await boot({ training, plans: { [TODAY_WEEK]: { weekEnding: TODAY_WEEK, placements: {} } } });
     await c3.loadWeeklyPlan(TODAY_WEEK);
-    await c3.wpSetTrainingEmoji("t1", "🏊");
-    assert.strictEqual(c3.__wpState.training.find((t) => t.id === "t1").emoji, "🏊", "override set on the item");
+    // the loaded item doesn't even carry the field anymore
+    assert.ok(!("emoji" in c3.__wpState.training.find((t) => t.id === "t1")), "load drops the legacy emoji field");
+    // and a natural save (e.g. renaming) never re-emits it
+    await c3.wpSaveTraining();
     const post = posts.filter((p) => Array.isArray(p.body.trainingDefaults)).pop();
     assert.ok(post, "training list saved");
-    assert.strictEqual(post.body.trainingDefaults.find((t) => t.id === "t1").emoji, "🏊", "override round-trips to the store");
-    // clearing it via the "auto" option removes the field
-    await c3.wpSetTrainingEmoji("t1", "");
-    assert.ok(!("emoji" in c3.__wpState.training.find((t) => t.id === "t1")), "auto option clears the override field");
+    assert.ok(!("emoji" in post.body.trainingDefaults.find((t) => t.id === "t1")), "no emoji field written back to the store");
   }
 
   console.log("v73-training-emojis.test: all assertions passed");

@@ -347,9 +347,8 @@ export default async (req) => {
     // can never touch the recurring defaults key, and vice versa.
     if (Array.isArray(body.trainingDefaults)) {
       const VALID_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-      // v73: manual training-emoji override — only the known choice set is persisted, so a
-      // tampered value can never reach the DOM (client also re-guards on render).
-      const VALID_TRAIN_EMOJI = ["🏃", "🏋️", "🏊", "🚴", "🚶", "🧘"];
+      // v76: the training emoji is auto-detected client-side (the manual override was
+      // removed), so no `emoji` field is persisted anymore — any legacy value just drops.
       const clean = body.trainingDefaults
         .filter((t) => t && typeof t.title === "string")
         .map((t) => {
@@ -361,7 +360,6 @@ export default async (req) => {
           }
           if (typeof t.time === "string" && t.time) d.time = t.time;
           if (typeof t.link === "string" && /^https?:\/\//i.test(t.link)) d.link = t.link;
-          if (typeof t.emoji === "string" && VALID_TRAIN_EMOJI.includes(t.emoji)) d.emoji = t.emoji;
           return d;
         });
       await store.set(TRAINING_DEFAULTS_KEY, JSON.stringify(clean));
