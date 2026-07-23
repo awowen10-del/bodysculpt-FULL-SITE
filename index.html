@@ -646,6 +646,30 @@
   .wp-review-grid textarea{background:var(--navy);color:var(--ink);border:1px solid var(--line);border-radius:8px;
     padding:9px 11px;font-family:inherit;font-size:13px;line-height:1.6;width:100%;resize:vertical;min-height:70px;}
   .wp-review-grid textarea:focus{outline:none;border-color:var(--orange);}
+  /* v78: weekly close-out ritual — a quiet, compact numbered checklist above the review
+     fields. Ticked rows read as done (muted + struck) so the remaining steps stand out. */
+  .wp-rc{margin-bottom:14px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;
+    background:linear-gradient(180deg,rgba(232,115,42,.05),rgba(232,115,42,.015));}
+  .wp-rc-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
+  .wp-rc-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--orange-soft);}
+  .wp-rc-progress{font-size:11px;font-weight:800;color:var(--ink-dim);font-variant-numeric:tabular-nums;
+    background:var(--navy-2);border:1px solid var(--line);border-radius:20px;padding:2px 9px;flex:none;}
+  .wp-rc-list{list-style:none;margin:0;padding:0;counter-reset:none;display:flex;flex-direction:column;gap:2px;}
+  .wp-rc-item{border-radius:7px;}
+  .wp-rc-label{display:flex;align-items:center;gap:9px;padding:5px 4px;cursor:pointer;font-size:13px;
+    color:var(--ink);line-height:1.4;}
+  .wp-rc-num{flex:none;width:18px;height:18px;border-radius:50%;background:var(--navy-2);border:1px solid var(--line);
+    color:var(--ink-faint);font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center;
+    font-variant-numeric:tabular-nums;}
+  .wp-rc-label input{appearance:none;-webkit-appearance:none;flex:none;width:16px;height:16px;margin:0;
+    border:1.5px solid var(--ink-faint);border-radius:5px;background:transparent;cursor:pointer;position:relative;transition:all .12s;}
+  .wp-rc-label input:hover{border-color:var(--orange);}
+  .wp-rc-label input:checked{background:var(--orange);border-color:var(--orange);}
+  .wp-rc-label input:checked::after{content:"✓";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    color:#fff;font-size:11px;font-weight:900;line-height:1;}
+  .wp-rc-text{flex:1;min-width:0;}
+  .wp-rc-item.done .wp-rc-text{text-decoration:line-through;color:var(--ink-faint);}
+  .wp-rc-item.done .wp-rc-num{background:rgba(63,191,127,.14);border-color:rgba(63,191,127,.4);color:var(--green);}
   /* Finish week + carry tray */
   .wp-finish-row{display:flex;align-items:center;gap:14px;margin-top:16px;padding-top:16px;border-top:1px solid var(--line);flex-wrap:wrap;}
   .wp-finish-btn{background:var(--orange);color:#fff;border:none;border-radius:9px;padding:11px 20px;
@@ -989,7 +1013,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v77 · edit-recurring-title</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v78 · weekly-review-checklist</span>
   </footer>
 </div>
 
@@ -1630,6 +1654,19 @@ function wpRecurTab(it){
 // Remembered for the session. Default to Weekly, where the seed tasks (unscheduled) and any
 // newly-added task land, so the card isn't empty on first open.
 let wpRecurTabSel = "weekly";
+
+// v78: the End-of-Week Review ritual — an ordered checklist worked through each week to close
+// out and set up the next. Ticks are stored per-week in wpPlan.reviewChecklist keyed by `id`
+// (stable, so reordering/relabelling this array never mis-maps saved state). EDIT / REORDER
+// here; the rendered numbering follows this array order.
+const WP_REVIEW_CHECKLIST = [
+  { id:"training",   label:"Training sessions diarised + checked in with coach" },
+  { id:"food",       label:"Intentions around food set" },
+  { id:"priorities", label:"Business + personal priorities planned" },
+  { id:"reflect",    label:"Reflect on last week" },
+  { id:"todo",       label:"To-do list written" },
+  { id:"motivation", label:"Consume something motivational or educational" },
+];
 // Compact label for a day set: "Daily", "Mon–Fri", or "Mon Wed Fri" (kept in week order).
 function wpDaysLabel(days){
   const ds = WP_DAYS.map(d=>d[0]).filter(k=>days.includes(k));
@@ -1766,6 +1803,9 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
     recurringDone: plan.recurringDone || {}, // per-week done for recurring items (by id)
     trainingDone: plan.trainingDone || {},   // v71: per-week done for training items — separate map, same key shapes
     review: plan.review || {wins:"",notDone:"",carryForward:"",blockers:""},
+    // v78: per-week review-ritual ticks, keyed by WP_REVIEW_CHECKLIST id. Coerced to a plain
+    // {id:true} map so a fresh week (no field) starts empty/unticked and old weeks keep theirs.
+    reviewChecklist: (plan.reviewChecklist && typeof plan.reviewChecklist === "object" && !Array.isArray(plan.reviewChecklist)) ? plan.reviewChecklist : {},
     carryItems: Array.isArray(plan.carryItems) ? plan.carryItems.filter(x=>x&&x.title&&(x.source==="project"||x.source==="buffer")).map(x=>({id:x.id||wpUid(),title:String(x.title),source:x.source})) : [],
     lastUpdated: plan.lastUpdated || ""
   };
@@ -2374,9 +2414,30 @@ function renderWeeklyPlan(){
       <div class="wp-carry-label">Carrying forward to next week</div>
       ${carryChips || `<div class="wp-carry-empty">Drag Project or Buffer tasks here to carry them into next week.</div>`}
     </div>`;
+  // v78: the ordered close-out ritual, above the review fields (some steps are done by
+  // filling those in). Numbered + tickable; ticked reads as done; progress shown at the top.
+  const rc = wpPlan.reviewChecklist || {};
+  const rcDone = WP_REVIEW_CHECKLIST.reduce((n,it)=>n+(rc[it.id]?1:0),0);
+  const rcRows = WP_REVIEW_CHECKLIST.map((it,i)=>{
+    const on = !!rc[it.id];
+    return `<li class="wp-rc-item${on?" done":""}">
+      <label class="wp-rc-label">
+        <span class="wp-rc-num">${i+1}</span>
+        <input type="checkbox" ${on?"checked":""} onchange="wpToggleReviewChecklist('${it.id}')">
+        <span class="wp-rc-text">${wpEsc(it.label)}</span>
+      </label>
+    </li>`;
+  }).join("");
+  const checklistBox = `<div class="wp-rc">
+    <div class="wp-rc-head"><span class="wp-rc-title">Weekly close-out ritual</span>
+      <span class="wp-rc-progress">${rcDone} of ${WP_REVIEW_CHECKLIST.length}</span></div>
+    <ol class="wp-rc-list">${rcRows}</ol>
+  </div>`;
+
   const reviewBox = `<div class="wp-box">
     ${wpBoxHeader("End-of-Week Review","review")}
     <div class="wp-box-body">
+      ${checklistBox}
       <div class="wp-review-grid">
         <div class="wp-f"><label>Wins this week</label><textarea data-review="wins" onblur="wpSaveSection('review')">${wpEsc(r.wins)}</textarea></div>
         <div class="wp-f"><label>What didn't get done?</label><textarea data-review="notDone" onblur="wpSaveSection('review')">${wpEsc(r.notDone)}</textarea></div>
@@ -2414,7 +2475,7 @@ const WP_SECTION_FIELDS = {
   foodNotes: ["foodNotes"],   // v71: Intentions tab — its own field, own section, never bundled with notes
   buffer: ["bufferItems","placements","recurringDone","trainingDone"],
   timeBlocks: ["timeBlocks","placements","recurringDone","trainingDone"],
-  review: ["review"],
+  review: ["review","reviewChecklist"],   // v78: the ritual checklist saves on the review path
   carry: ["carryItems","projectItems","bufferItems","placements"]
 };
 async function wpSaveSection(sectionKey){
@@ -2432,6 +2493,18 @@ async function wpSaveSection(sectionKey){
       if(msg){ msg.textContent = "Saved " + wpFmtTime(wpPlan.lastUpdated); msg.className = "wp-ssaved ok"; }
     } else if(msg){ msg.textContent = "Save failed"; msg.className = "wp-ssaved"; }
   }catch(e){ if(msg){ msg.textContent = "Couldn't reach store"; msg.className = "wp-ssaved"; } }
+}
+
+// v78: toggle one review-ritual item. Flips the per-week tick (keyed by the item id), saves
+// through the existing review path, and re-renders so the "N of 6" progress + struck-through
+// styling update. Only ever touches wpPlan.reviewChecklist — existing review fields untouched.
+function wpToggleReviewChecklist(id){
+  if(!wpPlan || !WP_REVIEW_CHECKLIST.some(it=>it.id===id)) return;
+  wpPlan.reviewChecklist = wpPlan.reviewChecklist || {};
+  if(wpPlan.reviewChecklist[id]) delete wpPlan.reviewChecklist[id];
+  else wpPlan.reviewChecklist[id] = true;
+  renderWeeklyPlan();
+  return wpSaveSection("review");
 }
 
 // ---- project/buffer per-week items ----

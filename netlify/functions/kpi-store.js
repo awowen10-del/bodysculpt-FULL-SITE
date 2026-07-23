@@ -312,7 +312,21 @@ export default async (req) => {
       }
       const key = weeklyPlanKeyOf(date);
       const existing = (await store.get(key, { type: "json" })) || defaultWeeklyPlan(date);
-      const merged = { ...existing, ...body.weeklyPlan, lastUpdated: new Date().toISOString() };
+      const incoming = { ...body.weeklyPlan };
+      // v78: whitelist the review checklist — a small { id: true } map of ticked ritual
+      // steps. Keep only string keys with a truthy value, cap the size, and store as plain
+      // booleans, so nothing unexpected can ride in on this additive field.
+      if ("reviewChecklist" in incoming) {
+        const raw = incoming.reviewChecklist;
+        const clean = {};
+        if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+          for (const k of Object.keys(raw).slice(0, 24)) {
+            if (typeof k === "string" && k.length <= 40 && raw[k]) clean[k] = true;
+          }
+        }
+        incoming.reviewChecklist = clean;
+      }
+      const merged = { ...existing, ...incoming, lastUpdated: new Date().toISOString() };
       await store.set(key, JSON.stringify(merged));
       return Response.json({ ok:true, plan: merged });
     }
