@@ -704,6 +704,11 @@
     border-radius:8px;padding:5px 12px;font-family:inherit;font-size:11px;font-weight:800;
     text-transform:uppercase;letter-spacing:.6px;cursor:pointer;flex:none;}
   .wp-today-btn:hover{background:var(--orange);border-color:var(--orange);color:#fff;}
+  /* v81: "Copy week" — same quiet chip as the Today button, sits in the review header */
+  .wp-copyweek-btn{background:rgba(232,115,42,.12);border:1px solid rgba(232,115,42,.45);color:var(--orange-soft);
+    border-radius:8px;padding:5px 12px;font-family:inherit;font-size:11px;font-weight:800;
+    text-transform:uppercase;letter-spacing:.6px;cursor:pointer;flex:none;}
+  .wp-copyweek-btn:hover{background:var(--orange);border-color:var(--orange);color:#fff;}
   .wp-today-overlay{position:fixed;inset:0;z-index:10000;display:flex;align-items:flex-start;justify-content:center;
     padding:6vh 16px 40px;overflow-y:auto;background:rgba(8,14,24,.62);
     -webkit-backdrop-filter:blur(7px);backdrop-filter:blur(7px);
@@ -1055,7 +1060,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v80 · daily-checkin</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v81 · copy-week</span>
   </footer>
 </div>
 
@@ -1709,6 +1714,7 @@ const WP_REVIEW_CHECKLIST = [
   { id:"reflect",    label:"Reflect on last week" },
   { id:"todo",       label:"To-do list written" },
   { id:"motivation", label:"Consume something motivational or educational" },
+  { id:"copyai",     label:"Copy the week and run it past AI for feedback" },
 ];
 // Compact label for a day set: "Daily", "Mon–Fri", or "Mon Wed Fri" (kept in week order).
 function wpDaysLabel(days){
@@ -2394,6 +2400,126 @@ async function wpNotesCopy(field){
   }
 }
 
+/* ===== v81: COPY WEEK — the whole week as clean, AI-readable plain text ===== */
+// Reuses wpNotesToPlainText (rich HTML → "- " bullets / "[ ]" checkboxes / line breaks) and
+// the existing copyText clipboard helper. No markup, no raw ids/keys — reads like a tidy,
+// human-written weekly summary. Empty sections and empty days are skipped entirely.
+function wpWkPlain(v){ return wpNotesToPlainText(typeof v === "string" ? v : "").trim(); }
+function wpWeekDates(monday){
+  const out = [];
+  const base = new Date(monday + "T00:00:00Z");
+  if(isNaN(base.getTime())) return out;
+  for(let i=0;i<7;i++){ const d = new Date(base.getTime()); d.setUTCDate(d.getUTCDate()+i); out.push(d.toISOString().slice(0,10)); }
+  return out;
+}
+function wpFmtLongDate(iso){
+  try{ return new Date(iso+"T00:00:00Z").toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}); }
+  catch(e){ return iso; }
+}
+function wpBuildWeekText(){
+  const p = wpPlan; if(!p) return "";
+  const wk = wpWeekEnding || p.weekEnding || "";
+  const days = wpWeekDates(wk);                 // 7 UTC dates, Mon..Sun
+  const dayLabels = WP_DAYS.map(d=>d[1]);       // Mon..Sun, aligned to days[]
+  const sections = [];
+  sections.push("WEEKLY SUMMARY\nWeek beginning " + (wk ? wpFmtLongDate(wk) : "(unknown)"));
+
+  // --- Daily check-ins (skip days with no meaningful entry) ---
+  const ck = [];
+  days.forEach((date,i)=>{
+    const e = wpCheckins && wpCheckins[date]; if(!e) return;
+    const mind=wpWkPlain(e.mind), grat=wpWkPlain(e.gratitude), one=wpWkPlain(e.oneThing), note=wpWkPlain(e.doneNote);
+    const hasDone = e.oneThingDone===true || e.oneThingDone===false;
+    if(!mind && !grat && !one && !note && !hasDone) return;
+    const b = [ (dayLabels[i]||"") + " " + wpFmtLongDate(date) + ":" ];
+    if(mind) b.push("  On my mind: " + mind);
+    if(grat) b.push("  Grateful for: " + grat);
+    if(one)  b.push("  One thing: " + one);
+    if(hasDone) b.push("  Did the one thing: " + (e.oneThingDone ? "Yes" : "No") + (note ? " — " + note : ""));
+    ck.push(b.join("\n"));
+  });
+  if(ck.length) sections.push("DAILY CHECK-INS\n" + ck.join("\n\n"));
+
+  // --- Tasks (real done-state) + a per-category stats line ---
+  const cats = [
+    { label:"Recurring", items:(wpDefaults||[]), source:"recurring" },
+    { label:"Project",   items:(p.projectItems||[]), source:"project" },
+    { label:"Buffer",    items:(p.bufferItems||[]), source:"buffer" },
+    { label:"Training",  items:(wpTraining||[]), source:"training" },
+  ];
+  const taskBlocks = [], statBits = [];
+  cats.forEach(cat=>{
+    const lines = []; let done = 0, total = 0;
+    (cat.items||[]).forEach(it=>{
+      const title = String(it.title||"").trim(); if(!title) return;
+      total++;
+      const ds = wpIsDefaultsSource(cat.source) ? wpRecurDays(it) : null;
+      if(ds && ds.length > 1){
+        // multi-day recurring/training → per-day done (recurringDone/trainingDone "<id>:<day>")
+        const per = WP_DAYS.filter(([k])=>ds.includes(k)).map(([k,l])=>l + " " + (wpIsDone(cat.source,it,k) ? "[x]" : "[ ]"));
+        if(wpIsDone(cat.source, it)) done++;   // "complete" = every scheduled day ticked
+        lines.push("  " + title + ": " + per.join(", "));
+      } else {
+        const d = wpIsDone(cat.source, it, (ds && ds[0]));
+        if(d) done++;
+        lines.push("  " + (d ? "[x]" : "[ ]") + " " + title);
+      }
+    });
+    if(total){ taskBlocks.push(cat.label + ":\n" + lines.join("\n")); statBits.push(cat.label + " " + done + "/" + total); }
+  });
+  if(taskBlocks.length){
+    let s = "TASKS\n" + taskBlocks.join("\n\n");
+    s += "\n\nStats (done/planned): " + statBits.join(", ");
+    sections.push(s);
+  }
+
+  // --- Time blocks (what was scheduled where; resolve refs to titles, skip empty slots) ---
+  const tb = [];
+  WP_DAYS.forEach(([dk,dl])=>{
+    const slots = [];
+    WP_TIME_ROWS.filter(([rk])=>rk!=="notes").forEach(([rk,rl])=>{
+      const refs = ((p.placements||{})[rk+":"+dk]||[]).map(r=>{ const it=wpResolveRef(r); return it ? String(it.title||"").trim() : ""; }).filter(Boolean);
+      const txt = (((p.timeBlocks||{})[rk]||{})[dk]||"").trim();
+      const parts = []; if(refs.length) parts.push(refs.join(", ")); if(txt) parts.push(txt);
+      if(parts.length) slots.push("  " + rl + ": " + parts.join(" — "));
+    });
+    if(slots.length) tb.push(dl + ":\n" + slots.join("\n"));
+  });
+  if(tb.length) sections.push("TIME BLOCKS\n" + tb.join("\n\n"));
+
+  // --- Notes / Brain Dump + Intentions Around Food ---
+  const notes = [];
+  const brain = wpWkPlain(p.notes); if(brain) notes.push("Notes / Brain Dump:\n" + brain);
+  const food  = wpWkPlain(p.foodNotes); if(food) notes.push("Intentions Around Food:\n" + food);
+  if(notes.length) sections.push("NOTES\n" + notes.join("\n\n"));
+
+  // --- End-of-week review: checklist + wins / not done / blockers ---
+  const rv = p.review || {};
+  const rc = p.reviewChecklist || {};
+  const review = [];
+  if(WP_REVIEW_CHECKLIST.some(it=>rc[it.id])){
+    review.push("Close-out ritual:\n" + WP_REVIEW_CHECKLIST.map(it=>"  " + (rc[it.id] ? "[x]" : "[ ]") + " " + it.label).join("\n"));
+  }
+  const wins = wpWkPlain(rv.wins);   if(wins) review.push("Wins this week:\n" + wins);
+  const nd   = wpWkPlain(rv.notDone); if(nd)  review.push("What didn't get done:\n" + nd);
+  const bl   = wpWkPlain(rv.blockers); if(bl) review.push("Issues / blockers:\n" + bl);
+  if(review.length) sections.push("END-OF-WEEK REVIEW\n" + review.join("\n\n"));
+
+  return sections.join("\n\n") + "\n";
+}
+// Copy the whole week to the clipboard, flashing "Copied ✓" in the review header.
+async function wpCopyWeek(){
+  if(!wpPlan) return;
+  wpSyncFromDom();   // capture on-screen edits (notes tabs, review fields, grid) first
+  const ok = await copyText(wpBuildWeekText());
+  const msg = document.getElementById("wpmsg-copyweek");
+  if(msg){
+    msg.textContent = ok ? "Copied ✓" : "Copy failed";
+    msg.className = "wp-ssaved ok";
+    setTimeout(()=>{ if(msg.textContent==="Copied ✓"||msg.textContent==="Copy failed") msg.textContent=""; }, 2000);
+  }
+}
+
 function renderWeeklyPlan(){
   const p = wpPlan;
 
@@ -2481,7 +2607,7 @@ function renderWeeklyPlan(){
   </div>`;
 
   const reviewBox = `<div class="wp-box">
-    ${wpBoxHeader("End-of-Week Review","review")}
+    ${wpBoxHeader("End-of-Week Review","review",`<span class="wp-ssaved" id="wpmsg-copyweek"></span><button type="button" class="wp-copyweek-btn" title="Copy the whole week as plain text (paste into an AI chat for feedback)" onclick="wpCopyWeek()">Copy week</button>`)}
     <div class="wp-box-body">
       ${checklistBox}
       <div class="wp-review-grid">

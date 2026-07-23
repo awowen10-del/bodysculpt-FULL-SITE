@@ -1,7 +1,7 @@
 // v78 harness — the End-of-Week Review close-out ritual checklist. Asserts all six items
 // render in the exact order, above the review fields; that ticks are stored per-week (keyed
 // by item id), persist through the review save path, don't leak between weeks, and that a
-// fresh week starts unticked; that the "N of 6" progress is correct; and that the existing
+// fresh week starts unticked; that the "N of 7" progress is correct; and that the existing
 // review content (Wins / What didn't get done / Issues) is unaffected.
 const assert = require("assert");
 const { boot } = require("./lib/env.cjs");
@@ -9,7 +9,7 @@ const { boot } = require("./lib/env.cjs");
 const WEEK = "2026-03-16"; // a Monday inside NAV_WEEKS
 const NEXT = "2026-03-23";
 
-// The six steps, in the exact required order.
+// The seven steps, in the exact required order (v81 added the AI-feedback step).
 const EXPECTED = [
   "Training sessions diarised + checked in with coach",
   "Intentions around food set",
@@ -17,8 +17,9 @@ const EXPECTED = [
   "Reflect on last week",
   "To-do list written",
   "Consume something motivational or educational",
+  "Copy the week and run it past AI for feedback",
 ];
-const IDS = ["training", "food", "priorities", "reflect", "todo", "motivation"];
+const IDS = ["training", "food", "priorities", "reflect", "todo", "motivation", "copyai"];
 
 // vm-realm objects/arrays fail deepStrictEqual's prototype check — normalise via JSON.
 const plain = (o) => JSON.parse(JSON.stringify(o));
@@ -55,13 +56,13 @@ const checklistSaves = (posts) => posts.filter((p) => p.body.weeklyPlan && "revi
     assert.ok(body.indexOf("Weekly close-out ritual") < body.indexOf("What didn't get done?"), "…and above the rest of the review grid");
   }
 
-  /* ---------- 2: a fresh week starts unticked, progress 0 of 6 ---------- */
+  /* ---------- 2: a fresh week starts unticked, progress 0 of 7 ---------- */
   {
     const { ctx } = await boot({ plans: { [WEEK]: { weekEnding: WEEK, placements: {} } } });
     await ctx.loadWeeklyPlan(WEEK);
     assert.strictEqual(Object.keys(ctx.__wpState.plan.reviewChecklist).length, 0, "fresh week: empty checklist map");
     const body = ctx.document.getElementById("wpBody").innerHTML;
-    assert.ok(body.includes(`<span class="wp-rc-progress">0 of 6</span>`), "fresh week shows 0 of 6");
+    assert.ok(body.includes(`<span class="wp-rc-progress">0 of 7</span>`), "fresh week shows 0 of 7");
     assert.ok(!body.includes(`class="wp-rc-item done"`), "no ritual item is pre-ticked/struck");
   }
 
@@ -79,7 +80,7 @@ const checklistSaves = (posts) => posts.filter((p) => p.body.weeklyPlan && "revi
 
     assert.deepStrictEqual(plain(st.plan.reviewChecklist), { training: true, priorities: true, todo: true }, "ticked ids stored on the per-week map");
     const body = ctx.document.getElementById("wpBody").innerHTML;
-    assert.ok(body.includes(`<span class="wp-rc-progress">3 of 6</span>`), "progress shows 3 of 6");
+    assert.ok(body.includes(`<span class="wp-rc-progress">3 of 7</span>`), "progress shows 3 of 7");
     assert.ok(body.includes(`class="wp-rc-item done"`), "ticked items carry the done (struck) class");
 
     // saved through the REVIEW path, carrying both review + reviewChecklist, and nothing unrelated
@@ -93,7 +94,7 @@ const checklistSaves = (posts) => posts.filter((p) => p.body.weeklyPlan && "revi
     await ctx.wpToggleReviewChecklist("training");
     assert.deepStrictEqual(plain(st.plan.reviewChecklist), { priorities: true, todo: true }, "un-ticking removes the id");
     assert.strictEqual(st.plan.review.wins, "shipped v78", "review fields never touched by the checklist");
-    assert.ok(ctx.document.getElementById("wpBody").innerHTML.includes(`<span class="wp-rc-progress">2 of 6</span>`), "progress back to 2 of 6");
+    assert.ok(ctx.document.getElementById("wpBody").innerHTML.includes(`<span class="wp-rc-progress">2 of 7</span>`), "progress back to 2 of 7");
   }
 
   /* ---------- 4: ticks are per-week — they don't leak, and each week keeps its own ---------- */
@@ -106,24 +107,24 @@ const checklistSaves = (posts) => posts.filter((p) => p.body.weeklyPlan && "revi
     });
     await ctx.loadWeeklyPlan(WEEK);
     assert.deepStrictEqual(plain(ctx.__wpState.plan.reviewChecklist), { training: true, food: true }, "this week loads its own saved ticks");
-    assert.ok(ctx.document.getElementById("wpBody").innerHTML.includes(`<span class="wp-rc-progress">2 of 6</span>`), "this week: 2 of 6");
+    assert.ok(ctx.document.getElementById("wpBody").innerHTML.includes(`<span class="wp-rc-progress">2 of 7</span>`), "this week: 2 of 7");
 
     // move to next week → starts fresh/unticked
     await ctx.loadWeeklyPlan(NEXT);
     assert.strictEqual(Object.keys(ctx.__wpState.plan.reviewChecklist).length, 0, "next week starts with no ticks (no leak)");
-    assert.ok(ctx.document.getElementById("wpBody").innerHTML.includes(`<span class="wp-rc-progress">0 of 6</span>`), "next week: 0 of 6");
+    assert.ok(ctx.document.getElementById("wpBody").innerHTML.includes(`<span class="wp-rc-progress">0 of 7</span>`), "next week: 0 of 7");
 
     // go back → last week's state is preserved
     await ctx.loadWeeklyPlan(WEEK);
     assert.deepStrictEqual(plain(ctx.__wpState.plan.reviewChecklist), { training: true, food: true }, "returning to the week restores its ticks");
   }
 
-  /* ---------- 5: an all-ticked week reports 6 of 6 ---------- */
+  /* ---------- 5: an all-ticked week reports 7 of 7 ---------- */
   {
     const full = Object.fromEntries(IDS.map((id) => [id, true]));
     const { ctx } = await boot({ plans: { [WEEK]: { weekEnding: WEEK, placements: {}, reviewChecklist: full } } });
     await ctx.loadWeeklyPlan(WEEK);
-    assert.ok(ctx.document.getElementById("wpBody").innerHTML.includes(`<span class="wp-rc-progress">6 of 6</span>`), "all ticked → 6 of 6");
+    assert.ok(ctx.document.getElementById("wpBody").innerHTML.includes(`<span class="wp-rc-progress">7 of 7</span>`), "all ticked → 7 of 7");
   }
 
   /* ---------- 6: a bogus/legacy checklist shape is coerced to empty, never crashes ---------- */
@@ -131,7 +132,7 @@ const checklistSaves = (posts) => posts.filter((p) => p.body.weeklyPlan && "revi
     const { ctx } = await boot({ plans: { [WEEK]: { weekEnding: WEEK, placements: {}, reviewChecklist: ["not", "an", "object"] } } });
     await ctx.loadWeeklyPlan(WEEK);
     assert.strictEqual(Object.keys(ctx.__wpState.plan.reviewChecklist).length, 0, "array/garbage checklist coerced to an empty map");
-    assert.ok(ctx.document.getElementById("wpBody").innerHTML.includes(`<span class="wp-rc-progress">0 of 6</span>`), "…and shows 0 of 6");
+    assert.ok(ctx.document.getElementById("wpBody").innerHTML.includes(`<span class="wp-rc-progress">0 of 7</span>`), "…and shows 0 of 7");
   }
 
   console.log("v78-weekly-review-checklist.test: all assertions passed");
