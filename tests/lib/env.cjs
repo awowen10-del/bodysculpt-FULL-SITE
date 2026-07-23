@@ -102,6 +102,9 @@ async function boot(opts = {}) {
     confirm: () => true,
     setTimeout,
     clearTimeout,
+    // v68 focus timer: unref'd so a still-armed interval never holds a test process open
+    setInterval: (fn, ms) => { const h = setInterval(fn, ms); if (h && h.unref) h.unref(); return h; },
+    clearInterval,
     requestAnimationFrame: () => 0,
     cancelAnimationFrame() {},
     URL,
@@ -117,7 +120,8 @@ async function boot(opts = {}) {
     " get plan(){ return wpPlan; }, set plan(v){ wpPlan = v; }," +
     " get defaults(){ return wpDefaults; }, set defaults(v){ wpDefaults = v; }," +
     " get weekEnding(){ return wpWeekEnding; }," +
-    " get navWeeks(){ return NAV_WEEKS; }" +
+    " get navWeeks(){ return NAV_WEEKS; }," +
+    " get timer(){ return wpTimer; }, set timer(v){ wpTimer = v; }" +
     " };";
   vm.runInContext(code, sandbox, { filename: "index-inline-script.js" });
 

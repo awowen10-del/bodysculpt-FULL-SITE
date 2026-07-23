@@ -644,6 +644,30 @@
   .wp-today-offweek{display:flex;flex-direction:column;gap:6px;padding:6px 2px;font-size:13.5px;line-height:1.5;}
   .wp-today-offweek strong{color:var(--amber);}
   .wp-today-offweek span{font-size:12.5px;color:var(--ink-dim);}
+  /* ===== v68: focus timer inside the Today modal ===== */
+  .wp-today-timer{border:1px solid var(--line);border-radius:10px;background:var(--navy-2);padding:10px 12px;}
+  .wp-timer-boxdone{border-color:rgba(63,191,127,.5);background:rgba(63,191,127,.07);}
+  .wp-timer-idle{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .wp-timer-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--orange-soft);margin-right:auto;}
+  .wp-timer-preset{background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:8px;
+    padding:6px 12px;font-family:inherit;font-size:12px;font-weight:800;cursor:pointer;}
+  .wp-timer-preset:hover{border-color:var(--orange);color:var(--orange-soft);}
+  .wp-timer-run{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .wp-timer-clock{font-size:30px;font-weight:800;letter-spacing:1px;color:#fff;line-height:1;
+    font-variant-numeric:tabular-nums;}
+  .wp-timer-paused .wp-timer-clock{color:var(--ink-faint);}
+  .wp-timer-done .wp-timer-clock{color:var(--green);}
+  .wp-timer-meta{font-size:11px;color:var(--ink-dim);font-weight:700;margin-right:auto;}
+  .wp-timer-donemsg{font-size:12.5px;font-weight:700;color:var(--green);margin-right:auto;}
+  .wp-timer-ctl{background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:8px;
+    padding:6px 12px;font-family:inherit;font-size:11.5px;font-weight:800;cursor:pointer;}
+  .wp-timer-ctl:hover{border-color:var(--orange);color:var(--orange-soft);}
+  .wp-timer-go{background:var(--orange);border-color:var(--orange);color:#fff;}
+  .wp-timer-go:hover{background:var(--orange-soft);border-color:var(--orange-soft);color:#fff;}
+  /* running/finished indicator inside the Today header button */
+  .wp-today-btn-timer{margin-left:7px;padding-left:7px;border-left:1px solid rgba(232,115,42,.5);
+    font-variant-numeric:tabular-nums;}
+  .wp-today-btn-timer:empty{display:none;}
 </style>
 </head>
 <body>
@@ -896,7 +920,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v67 · today-view</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v68 · focus-timer</span>
   </footer>
 </div>
 
@@ -1817,7 +1841,7 @@ function renderWeeklyPlan(){
     return `<tr class="${notesRow}"><td class="wp-rowlabel">${rlbl}</td>${cells}</tr>`;
   }).join("");
   const gridBox = `<div class="wp-box wp-grid-box">
-    ${wpBoxHeader("Time Blocks","timeBlocks",`<button class="wp-today-btn" title="Focus on just today" onclick="wpOpenToday()">Today</button>`)}
+    ${wpBoxHeader("Time Blocks","timeBlocks",`<button class="wp-today-btn" title="Focus on just today" onclick="wpOpenToday()">Today<span class="wp-today-btn-timer" id="wpTodayBtnTimer">${wpEsc(wpTimerBadgeText())}</span></button>`)}
     <div class="wp-box-body"><div class="wp-grid-wrap"><table class="wp-grid"><thead>${gridHead}</thead><tbody>${gridBody}</tbody></table></div></div>
   </div>`;
 
@@ -2334,7 +2358,7 @@ function wpRenderTodayBody(){
   if(t.weekMonday !== wpWeekEnding){
     let wkLbl = wpWeekEnding || "";
     try{ wkLbl = new Date(wpWeekEnding+"T00:00:00Z").toLocaleDateString("en-GB",{day:"numeric",month:"long"}); }catch(e){}
-    body.innerHTML = `<div class="wp-today-offweek">
+    body.innerHTML = wpTimerHtml() + `<div class="wp-today-offweek">
       <strong>Today isn't in the week you're viewing.</strong>
       <span>You're on the week starting ${wpEsc(wkLbl)}. Use "Current week" in the week bar, then open Today again.</span>
     </div>`;
@@ -2355,7 +2379,7 @@ function wpRenderTodayBody(){
     <label>Notes — this week</label>
     <textarea id="wpTodayNotes" onblur="wpTodaySaveNotes()" placeholder="Things to think about, ideas for next week, observations, stuff to discuss with the team…">${wpEsc(wpPlan.notes)}</textarea>
   </div>`;
-  body.innerHTML = rows + notes;
+  body.innerHTML = wpTimerHtml() + rows + notes;
 }
 
 function wpOpenToday(){
@@ -2404,6 +2428,136 @@ async function wpTodayToggleDone(ref, checked, day){
 }
 
 document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && wpTodayOpen) wpCloseToday(); });
+
+/* ===================== v68: FOCUS TIMER ===================== */
+// Module-level state, deliberately OUTSIDE the modal's render: closing/reopening the
+// Today modal redraws the timer box from this object, never rebuilds or resets it.
+// Remaining time is always DERIVED from timestamps (endAt while running, a frozen
+// pausedRemaining while paused) — never a decremented counter — so a reopened modal
+// recalculates correctly instead of drifting. Page-level only; doesn't survive reload.
+//   running:  { durationMin, endAt: ms-epoch, pausedRemaining: null, finished: false }
+//   paused:   { durationMin, endAt: null, pausedRemaining: ms, finished: false }
+//   finished: { durationMin, ..., finished: true }   null = idle (presets shown)
+let wpTimer = null;
+let wpTimerTick = null;   // the one 500ms interval, live only while running
+
+function wpTimerRemainingMs(){
+  if(!wpTimer || wpTimer.finished) return 0;
+  if(wpTimer.pausedRemaining != null) return wpTimer.pausedRemaining;
+  return Math.max(0, wpTimer.endAt - Date.now());
+}
+function wpTimerFmt(ms){
+  const s = Math.ceil(ms/1000);
+  return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0");
+}
+function wpStartTimer(min){
+  wpTimer = { durationMin:min, endAt: Date.now() + min*60000, pausedRemaining:null, finished:false };
+  wpTimerEnsureTick();
+  wpTimerRefresh();
+}
+function wpPauseTimer(){
+  if(!wpTimer || wpTimer.finished || wpTimer.pausedRemaining != null) return;
+  wpTimer.pausedRemaining = Math.max(0, wpTimer.endAt - Date.now());   // freeze what's left
+  wpTimer.endAt = null;
+  if(wpTimerTick){ clearInterval(wpTimerTick); wpTimerTick = null; }   // nothing moves while paused
+  wpTimerRefresh();
+}
+function wpResumeTimer(){
+  if(!wpTimer || wpTimer.finished || wpTimer.pausedRemaining == null) return;
+  wpTimer.endAt = Date.now() + wpTimer.pausedRemaining;                // resume from the frozen point
+  wpTimer.pausedRemaining = null;
+  wpTimerEnsureTick();
+  wpTimerRefresh();
+}
+function wpResetTimer(){
+  wpTimer = null;
+  if(wpTimerTick){ clearInterval(wpTimerTick); wpTimerTick = null; }
+  wpTimerRefresh();
+}
+function wpTimerEnsureTick(){
+  if(!wpTimerTick) wpTimerTick = setInterval(wpTimerOnTick, 500);
+}
+// Each tick only patches the clock text + header badge — it never re-renders the modal
+// body, so notes typing / chip state are untouched. Runs whether the modal is open or not.
+function wpTimerOnTick(){
+  if(!wpTimer || wpTimer.finished || wpTimer.pausedRemaining != null){
+    if(wpTimerTick){ clearInterval(wpTimerTick); wpTimerTick = null; }
+    return;
+  }
+  if(wpTimer.endAt - Date.now() <= 0){
+    wpTimer.finished = true;
+    if(wpTimerTick){ clearInterval(wpTimerTick); wpTimerTick = null; }
+    wpTimerChime();
+    wpTimerRefresh();   // green done state — shown now, or on next open if the modal is closed
+    return;
+  }
+  const clock = document.getElementById("wpTimerClock");
+  if(clock) clock.textContent = wpTimerFmt(wpTimerRemainingMs());
+  wpTimerBadgeRefresh();
+}
+function wpTimerBoxCls(){ return "wp-today-timer" + (wpTimer && wpTimer.finished ? " wp-timer-boxdone" : ""); }
+function wpTimerHtml(){ return `<div class="${wpTimerBoxCls()}" id="wpTimerBox">${wpTimerInnerHtml()}</div>`; }
+function wpTimerInnerHtml(){
+  if(!wpTimer){
+    return `<div class="wp-timer-idle">
+      <span class="wp-timer-label">Focus timer</span>
+      ${[30,60,90,120].map(m=>`<button class="wp-timer-preset" onclick="wpStartTimer(${m})">${m}m</button>`).join("")}
+    </div>`;
+  }
+  if(wpTimer.finished){
+    return `<div class="wp-timer-run wp-timer-done">
+      <span class="wp-timer-clock">0:00</span>
+      <span class="wp-timer-donemsg">Time's up — nice focus block.</span>
+      <button class="wp-timer-ctl" onclick="wpResetTimer()">Reset</button>
+    </div>`;
+  }
+  const paused = wpTimer.pausedRemaining != null;
+  return `<div class="wp-timer-run${paused?" wp-timer-paused":""}">
+    <span class="wp-timer-clock" id="wpTimerClock">${wpTimerFmt(wpTimerRemainingMs())}</span>
+    <span class="wp-timer-meta">${wpTimer.durationMin}m block${paused?" · paused":""}</span>
+    ${paused
+      ? `<button class="wp-timer-ctl wp-timer-go" onclick="wpResumeTimer()">Resume</button>`
+      : `<button class="wp-timer-ctl" onclick="wpPauseTimer()">Pause</button>`}
+    <button class="wp-timer-ctl" onclick="wpResetTimer()">Reset</button>
+  </div>`;
+}
+// State transitions redraw just the timer box (if the modal markup exists) + the badge.
+function wpTimerRefresh(){
+  const box = document.getElementById("wpTimerBox");
+  if(box){ box.className = wpTimerBoxCls(); box.innerHTML = wpTimerInnerHtml(); }
+  wpTimerBadgeRefresh();
+}
+// Small indicator on the Today header button: remaining time while running/paused, ✓ when done.
+function wpTimerBadgeText(){
+  if(!wpTimer) return "";
+  if(wpTimer.finished) return "✓";
+  return wpTimerFmt(wpTimerRemainingMs());
+}
+function wpTimerBadgeRefresh(){
+  const el = document.getElementById("wpTodayBtnTimer");
+  if(el) el.textContent = wpTimerBadgeText();
+}
+// Short two-note chime — obvious but not obnoxious, never blocking, silently skipped
+// if Web Audio is unavailable or the context can't start.
+function wpTimerChime(){
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return;
+    const ac = new AC();
+    if(ac.state === "suspended" && ac.resume) ac.resume();
+    const g = ac.createGain();
+    g.connect(ac.destination);
+    g.gain.setValueAtTime(0.0001, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.12, ac.currentTime + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 1.1);
+    [[880,0],[1174.66,0.22]].forEach(([f,dt])=>{
+      const o = ac.createOscillator();
+      o.type = "sine"; o.frequency.value = f; o.connect(g);
+      o.start(ac.currentTime + dt); o.stop(ac.currentTime + 1.2);
+    });
+    setTimeout(()=>{ try{ ac.close(); }catch(e){} }, 1600);
+  }catch(e){}
+}
 
 (async function(){
   // load saved targets first (if any) so flags use the latest
