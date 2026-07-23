@@ -45,6 +45,7 @@ async function boot(opts = {}) {
   const plans = opts.plans || {};
   const defaults = opts.defaults || [];
   const training = opts.training || []; // v71: personal training list (separate collection)
+  const checkins = Object.assign({}, opts.checkins || {}); // v80: daily check-in map (mutable, so save→reload round-trips)
   const posts = [];
   const els = new Map();
 
@@ -99,9 +100,16 @@ async function boot(opts = {}) {
       if (Array.isArray(body.trainingDefaults)) {
         return reply({ ok: true, defaults: body.trainingDefaults });
       }
+      if (body.checkin && body.checkin.date) {
+        // mirror kpi-store: merge into the date-keyed map, stamp updatedAt, echo the entry
+        const entry = { ...body.checkin, updatedAt: "2026-01-01T00:00:00.000Z" };
+        checkins[body.checkin.date] = entry;
+        return reply({ ok: true, checkin: entry });
+      }
       return reply({ ok: true });
     }
     if (u.includes("trainingdefaults=1")) return reply({ defaults: training });
+    if (u.includes("checkins=1")) return reply({ checkins });
     if (u.includes("recurringdefaults=1")) return reply({ defaults });
     if (u.includes("weeklyplan=")) {
       const date = decodeURIComponent(u.split("weeklyplan=")[1]);
@@ -152,6 +160,7 @@ async function boot(opts = {}) {
     " get plan(){ return wpPlan; }, set plan(v){ wpPlan = v; }," +
     " get defaults(){ return wpDefaults; }, set defaults(v){ wpDefaults = v; }," +
     " get training(){ return wpTraining; }, set training(v){ wpTraining = v; }," +
+    " get checkins(){ return wpCheckins; }, set checkins(v){ wpCheckins = v; }," +
     " get weekEnding(){ return wpWeekEnding; }," +
     " get navWeeks(){ return NAV_WEEKS; }," +
     " get timer(){ return wpTimer; }, set timer(v){ wpTimer = v; }" +

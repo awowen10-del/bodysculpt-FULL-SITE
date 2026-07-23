@@ -736,6 +736,44 @@
   .wp-today-offweek{display:flex;flex-direction:column;gap:6px;padding:6px 2px;font-size:13.5px;line-height:1.5;}
   .wp-today-offweek strong{color:var(--amber);}
   .wp-today-offweek span{font-size:12.5px;color:var(--ink-dim);}
+  /* ===== v80: daily check-in — leads the modal; quiet navy/orange, not a heavy form ===== */
+  .wp-ck{border:1px solid var(--line);border-radius:12px;padding:12px 13px;margin-bottom:12px;
+    background:linear-gradient(180deg,rgba(232,115,42,.06),rgba(232,115,42,.015));}
+  .wp-ck-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--orange-soft);}
+  .wp-ck-head{margin-bottom:9px;}
+  .wp-ck-q{display:flex;flex-direction:column;gap:4px;margin-bottom:9px;}
+  .wp-ck-q label{font-size:11.5px;font-weight:700;color:var(--ink);}
+  .wp-ck-ed{background:var(--navy);border:1px solid var(--line);border-radius:8px;padding:8px 10px;
+    font-size:13px;line-height:1.55;min-height:44px;}
+  .wp-ck-ed:focus{outline:none;border-color:var(--orange);}
+  .wp-ck-note{min-height:34px;margin-top:6px;}
+  .wp-ck-actions{display:flex;align-items:center;gap:12px;margin-top:4px;}
+  .wp-ck-start{background:var(--orange);border:none;color:#fff;border-radius:9px;padding:9px 16px;
+    font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer;}
+  .wp-ck-start:hover{background:var(--orange-soft);}
+  .wp-ck-skip{background:transparent;border:none;color:var(--ink-faint);font-family:inherit;font-size:12px;
+    font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
+  .wp-ck-skip:hover{color:var(--ink-dim);}
+  /* summary (post check-in) */
+  .wp-ck-sum-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;}
+  .wp-ck-edit{background:transparent;border:1px solid var(--line);color:var(--ink-dim);border-radius:7px;
+    padding:3px 10px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;}
+  .wp-ck-edit:hover{border-color:var(--orange);color:var(--orange-soft);}
+  .wp-ck-onething{font-size:14.5px;font-weight:700;color:#fff;line-height:1.4;}
+  .wp-ck-onething .wp-ck-empty{font-weight:600;color:var(--ink-faint);font-style:italic;}
+  .wp-ck-done-tag{display:inline-block;margin-left:8px;font-size:10.5px;font-weight:800;border-radius:20px;
+    padding:2px 9px;vertical-align:middle;}
+  .wp-ck-done-tag.yes{color:var(--green);background:rgba(63,191,127,.14);}
+  .wp-ck-done-tag.no{color:var(--amber);background:rgba(232,169,58,.14);}
+  /* evening: did you do the one thing? */
+  .wp-ck-evening{margin-top:11px;padding-top:10px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:6px;}
+  .wp-ck-evening label{font-size:11.5px;font-weight:700;color:var(--ink);}
+  .wp-ck-yesno{display:flex;gap:7px;}
+  .wp-ck-yn{background:var(--navy-2);border:1px solid var(--line);color:var(--ink-dim);border-radius:8px;
+    padding:5px 15px;font-family:inherit;font-size:12px;font-weight:800;cursor:pointer;}
+  .wp-ck-yn:hover{border-color:var(--orange);color:var(--ink);}
+  .wp-ck-yes.on{background:rgba(63,191,127,.16);border-color:rgba(63,191,127,.5);color:var(--green);}
+  .wp-ck-no.on{background:rgba(232,169,58,.16);border-color:rgba(232,169,58,.5);color:var(--amber);}
   /* ===== v68: focus timer inside the Today modal ===== */
   .wp-today-timer{border:1px solid var(--line);border-radius:10px;background:var(--navy-2);padding:10px 12px;}
   .wp-timer-boxdone{border-color:rgba(63,191,127,.5);background:rgba(63,191,127,.07);}
@@ -1017,7 +1055,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v79 · equal-height-cards</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v80 · daily-checkin</span>
   </footer>
 </div>
 
@@ -1504,6 +1542,7 @@ let wpTraining = null;      // v71: personal training list — SEPARATE collecti
 let wpWeekEnding = null;
 let wpMonthFocus = null;   // this month's focus items (read-only anchor from Monthly)
 let wpMonthProjects = { ym:"", projects:[] };  // v61: this month's projects, for the weekly picker
+let wpCheckins = null;     // v80: daily check-in history — a map { "YYYY-MM-DD": entry }, loaded once
 
 function wpEsc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 function wpFmtTime(iso){ if(!iso) return ""; try{ const d=new Date(iso); return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}); }catch(e){ return ""; } }
@@ -1746,6 +1785,7 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
   document.getElementById("wpBody").innerHTML = `<div class="wp-loading">Loading this week's plan…</div>`;
   await wpLoadDefaults();
   await wpLoadTraining();   // v71: personal training list (separate collection)
+  await wpLoadCheckins();   // v80: daily check-in history (date-keyed, independent of the week)
   let plan = null;
   if(preloadedPlan){
     // Caller supplied the just-written plan (e.g. after Finish Week) — use it directly
@@ -2278,7 +2318,9 @@ document.addEventListener("click", (e)=>{
   if(on) t.setAttribute("checked",""); else t.removeAttribute("checked");
   t.checked = on;
   // v71: route the save to whichever notes field this editor edits (modal = weekly notes)
+  // v80: check-in editors (id prefix "wpCk") save through the check-in path instead.
   if(ed.id === "wpTodayNotes") wpTodaySaveNotes();
+  else if(ed.id && ed.id.indexOf("wpCk") === 0) wpCheckinSaveFromEditors();
   else wpSaveSection((ed.getAttribute && ed.getAttribute("data-field")) === "foodNotes" ? "foodNotes" : "notes");
 });
 
@@ -3014,6 +3056,7 @@ function wpTodayInfo(){
   const now = new Date();
   return {
     dayKey: WP_DAY_OF[now.getUTCDay()],
+    date: now.toISOString().slice(0,10),   // v80: YYYY-MM-DD key for the daily check-in (same UTC basis as dayKey)
     weekMonday: mondayOf(now).toISOString().slice(0,10),
     label: now.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})
   };
@@ -3026,11 +3069,14 @@ function wpRenderTodayBody(){
   const t = wpTodayInfo();
   const dateEl = document.getElementById("wpTodayDate");
   if(dateEl) dateEl.textContent = t.label;
+  // v80: the daily check-in leads the modal (before the day's content), for TODAY's date —
+  // independent of which week is being viewed, so it shows even in the off-week case.
+  const checkinBlock = wpCheckinBlockHtml(t.date);
   // Today outside the viewed week → say so clearly, never a confusing empty day.
   if(t.weekMonday !== wpWeekEnding){
     let wkLbl = wpWeekEnding || "";
     try{ wkLbl = new Date(wpWeekEnding+"T00:00:00Z").toLocaleDateString("en-GB",{day:"numeric",month:"long"}); }catch(e){}
-    body.innerHTML = wpTimerHtml() + `<div class="wp-today-offweek">
+    body.innerHTML = checkinBlock + wpTimerHtml() + `<div class="wp-today-offweek">
       <strong>Today isn't in the week you're viewing.</strong>
       <span>You're on the week starting ${wpEsc(wkLbl)}. Use "Current week" in the week bar, then open Today again.</span>
     </div>`;
@@ -3055,7 +3101,7 @@ function wpRenderTodayBody(){
       <div class="wp-notes-editor" id="wpTodayNotes" contenteditable="true" data-ph="Things to think about, ideas for next week, observations, stuff to discuss with the team…" onblur="wpTodaySaveNotes()" onkeydown="wpNotesKeydown(event)">${wpNotesToEditorHtml(wpPlan.notes)}</div>
     </div>
   </div>`;
-  body.innerHTML = wpTimerHtml() + rows + notes;
+  body.innerHTML = checkinBlock + wpTimerHtml() + rows + notes;
 }
 
 function wpOpenToday(){
@@ -3108,6 +3154,150 @@ async function wpTodayToggleDone(ref, checked, day){
 }
 
 document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && wpTodayOpen) wpCloseToday(); });
+
+/* ===================== v80: DAILY CHECK-IN ===================== */
+// A per-date morning ritual that leads the Today modal: three questions (brain dump →
+// gratitude → the one thing), prominent but skippable — the day's tasks always render below,
+// so access is never hard-blocked. Once started or skipped for the date it collapses to a
+// compact summary (the one thing) with an Edit affordance. From mid-afternoon a fourth
+// "Did you do the one thing?" field surfaces to close the loop. Free-text fields reuse the
+// v70/v71 rich editor + sanitiser (wpNotesToEditorHtml/wpNotesFromEditor), auto-saving on
+// blur exactly like notes. Stored per date in its own blob ("daily-checkins"), additive —
+// it never touches the weekly plan, tasks, notes or done-state. The clean, consistent per-day
+// shape { date, mind, gratitude, oneThing, oneThingDone, doneNote, dismissed, updatedAt } is
+// the input for a future AI advisor (see wpCheckinList).
+const WP_CHECKIN_EVENING_HOUR = 14;   // from ~mid-afternoon the "did you do it" field appears
+// The three morning fields, in the required order (dump → gratitude → focus).
+const WP_CHECKIN_FIELDS = [
+  { key:"mind",      edId:"wpCkMind",      label:"What's on your mind today?",                    ph:"Brain dump — clear the head…" },
+  { key:"gratitude", edId:"wpCkGratitude", label:"What are you grateful for?",                     ph:"A line or two…" },
+  { key:"oneThing",  edId:"wpCkOneThing",  label:"If you only complete one thing today, what is it?", ph:"The one thing…" },
+];
+
+async function wpLoadCheckins(){
+  if(wpCheckins != null) return wpCheckins;
+  try{
+    const r = await fetch(WP_STORE + "?checkins=1").then(x=>x.json());
+    wpCheckins = (r && r.checkins && typeof r.checkins === "object") ? r.checkins : {};
+  }catch(e){ wpCheckins = {}; }
+  return wpCheckins;
+}
+// Normalise one date's stored entry to the clean shape (safe defaults for a fresh/absent day).
+function wpCheckinEntry(date){
+  const e = (wpCheckins && wpCheckins[date]) || null;
+  const str = (v)=> (typeof v === "string") ? v : "";
+  return {
+    date,
+    mind: str(e && e.mind),
+    gratitude: str(e && e.gratitude),
+    oneThing: str(e && e.oneThing),
+    oneThingDone: (e && (e.oneThingDone === true || e.oneThingDone === false)) ? e.oneThingDone : null,
+    doneNote: str(e && e.doneNote),
+    dismissed: !!(e && e.dismissed),
+    updatedAt: str(e && e.updatedAt)
+  };
+}
+// All entries as a chronological list — the shape a future AI advisor consumes.
+function wpCheckinList(){
+  const m = wpCheckins || {};
+  return Object.keys(m).sort().map(d=>wpCheckinEntry(d));
+}
+function wpCheckinIsEvening(){
+  try{ return new Date().getHours() >= WP_CHECKIN_EVENING_HOUR; }catch(e){ return false; }
+}
+// Merge a patch into a date's entry and persist through the check-in store path.
+async function wpCheckinSave(date, patch){
+  await wpLoadCheckins();
+  const next = Object.assign({}, wpCheckinEntry(date), patch, { date });
+  wpCheckins[date] = next;
+  try{
+    const r = await fetch(WP_STORE, {method:"POST",headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ checkin: next })}).then(x=>x.json());
+    if(r && r.checkin) wpCheckins[date] = r.checkin;   // server stamps updatedAt / re-cleans
+  }catch(e){}
+  return wpCheckins[date];
+}
+// Read the on-screen editors → sanitised HTML → save if anything changed (blur autosave,
+// same pattern as notes; never re-renders, so typing isn't interrupted). Only reads the
+// fields ACTUALLY on screen — the three morning fields when the form is open (not dismissed),
+// the note when the evening field is showing — so a summary-view save never wipes an answer.
+function wpCheckinReadEditors(){
+  const t = wpTodayInfo();
+  const entry = wpCheckinEntry(t.date);
+  const patch = {};
+  if(!entry.dismissed){
+    WP_CHECKIN_FIELDS.forEach(f=>{ const el = document.getElementById(f.edId); if(el && typeof el.innerHTML === "string") patch[f.key] = wpNotesFromEditor(el); });
+  }
+  if(wpCheckinIsEvening()){
+    const noteEl = document.getElementById("wpCkDoneNote");
+    if(noteEl && typeof noteEl.innerHTML === "string") patch.doneNote = wpNotesFromEditor(noteEl);
+  }
+  return patch;
+}
+async function wpCheckinSaveFromEditors(){
+  const t = wpTodayInfo();
+  const patch = wpCheckinReadEditors();
+  const cur = wpCheckinEntry(t.date);
+  if(Object.keys(patch).every(k=>patch[k] === cur[k])) return;   // nothing changed — skip the write
+  await wpCheckinSave(t.date, patch);
+}
+// "Start the day" → capture answers + dismiss the questions. "Skip" → dismiss only.
+async function wpCheckinStart(){ const t=wpTodayInfo(); await wpCheckinSaveFromEditors(); await wpCheckinSave(t.date,{dismissed:true}); wpRenderTodayBody(); }
+async function wpCheckinSkip(){  const t=wpTodayInfo(); await wpCheckinSave(t.date,{dismissed:true}); wpRenderTodayBody(); }
+async function wpCheckinEdit(){  const t=wpTodayInfo(); await wpCheckinSave(t.date,{dismissed:false}); wpRenderTodayBody(); }
+// Evening close-the-loop yes/no. Independent field — saves oneThingDone (and any note),
+// never touches the three morning answers beyond capturing an in-progress edit.
+async function wpCheckinSetDone(val){ const t=wpTodayInfo(); await wpCheckinSaveFromEditors(); await wpCheckinSave(t.date,{oneThingDone: (val===true||val===false)?val:null}); wpRenderTodayBody(); }
+
+// One rich-editor field (no per-field toolbar — kept quiet; still full sanitise + ⌘B/I/U).
+function wpCheckinFieldHtml(f, value){
+  return `<div class="wp-ck-q">
+    <label>${f.label}</label>
+    <div class="wp-notes-editor wp-ck-ed" id="${f.edId}" contenteditable="true" data-ph="${f.ph}" onblur="wpCheckinSaveFromEditors()" onkeydown="wpNotesKeydown(event)">${wpNotesToEditorHtml(value)}</div>
+  </div>`;
+}
+// The evening "did you do the one thing?" field (yes/no + optional note).
+function wpCheckinEveningHtml(entry){
+  const yes = entry.oneThingDone === true, no = entry.oneThingDone === false;
+  return `<div class="wp-ck-evening">
+    <label>Did you do the one thing?</label>
+    <div class="wp-ck-yesno">
+      <button type="button" class="wp-ck-yn wp-ck-yes${yes?" on":""}" onclick="wpCheckinSetDone(true)">Yes</button>
+      <button type="button" class="wp-ck-yn wp-ck-no${no?" on":""}" onclick="wpCheckinSetDone(false)">No</button>
+    </div>
+    <div class="wp-notes-editor wp-ck-ed wp-ck-note" id="wpCkDoneNote" contenteditable="true" data-ph="Optional note…" onblur="wpCheckinSaveFromEditors()" onkeydown="wpNotesKeydown(event)">${wpNotesToEditorHtml(entry.doneNote)}</div>
+  </div>`;
+}
+// The block that leads the modal: the questions form (fresh/editing) or the compact summary.
+function wpCheckinBlockHtml(date){
+  const entry = wpCheckinEntry(date);
+  const evening = wpCheckinIsEvening();
+  if(!entry.dismissed){
+    // Questions view — prominent, but the day's content still renders below (never blocked).
+    const fields = WP_CHECKIN_FIELDS.map(f=>wpCheckinFieldHtml(f, entry[f.key])).join("");
+    return `<div class="wp-ck wp-ck-form">
+      <div class="wp-ck-head"><span class="wp-ck-title">Daily check-in</span></div>
+      ${fields}
+      ${evening ? wpCheckinEveningHtml(entry) : ""}
+      <div class="wp-ck-actions">
+        <button type="button" class="wp-ck-start" onclick="wpCheckinStart()">Start the day →</button>
+        <button type="button" class="wp-ck-skip" onclick="wpCheckinSkip()">Skip to today</button>
+      </div>
+    </div>`;
+  }
+  // Summary view — compact, one-thing forward, with an Edit affordance and (evening) the loop-closer.
+  const oneThing = entry.oneThing ? wpNotesToEditorHtml(entry.oneThing) : `<span class="wp-ck-empty">— not set</span>`;
+  const doneTag = entry.oneThingDone === true ? `<span class="wp-ck-done-tag yes">Done ✓</span>`
+                : entry.oneThingDone === false ? `<span class="wp-ck-done-tag no">Not done</span>` : "";
+  return `<div class="wp-ck wp-ck-summary">
+    <div class="wp-ck-sum-head">
+      <span class="wp-ck-title">One thing today</span>
+      <button type="button" class="wp-ck-edit" onclick="wpCheckinEdit()">Edit</button>
+    </div>
+    <div class="wp-ck-onething">${oneThing}${doneTag}</div>
+    ${evening ? wpCheckinEveningHtml(entry) : ""}
+  </div>`;
+}
 
 /* ===================== v68: FOCUS TIMER ===================== */
 // Module-level state, deliberately OUTSIDE the modal's render: closing/reopening the

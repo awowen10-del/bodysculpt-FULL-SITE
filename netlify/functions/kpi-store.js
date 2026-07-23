@@ -50,6 +50,24 @@ const RECURRING_DEFAULTS_KEY = "weekly-recurring-defaults";
 // v71: personal Training list — its OWN key, fully separate from the business
 // recurring defaults. Same per-item shape (id/title/days/time/link), no seed list.
 const TRAINING_DEFAULTS_KEY = "weekly-training-defaults";
+// v80: daily check-in history — a single blob holding a map { "YYYY-MM-DD": entry }, so every
+// day's answers accumulate and are trivially retrievable as a list for a future AI advisor.
+const DAILY_CHECKINS_KEY = "daily-checkins";
+// Whitelist + coerce one check-in entry to the clean, consistent shape. Free-text fields hold
+// client-sanitised rich-text HTML (re-sanitised again on render), capped here defensively.
+function cleanCheckin(raw) {
+  const str = (v) => (typeof v === "string" ? v.slice(0, 20000) : "");
+  return {
+    date: str(raw.date).slice(0, 10),
+    mind: str(raw.mind),
+    gratitude: str(raw.gratitude),
+    oneThing: str(raw.oneThing),
+    oneThingDone: (raw.oneThingDone === true || raw.oneThingDone === false) ? raw.oneThingDone : null,
+    doneNote: str(raw.doneNote),
+    dismissed: !!raw.dismissed,
+    updatedAt: new Date().toISOString(),
+  };
+}
 function weeklyPlanKeyOf(date) { return WEEKLY_PLAN_PREFIX + date; }
 function validWeekDate(d) { return typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d); }
 function defaultRecurringDefaults() {
@@ -199,6 +217,13 @@ export default async (req) => {
   if (req.method === "GET" && url.searchParams.get("trainingdefaults") === "1") {
     const defaults = (await store.get(TRAINING_DEFAULTS_KEY, { type: "json" })) || [];
     return Response.json({ defaults });
+  }
+
+  // v80 Daily check-ins: GET ?checkins=1 returns the whole date-keyed map (empty when none).
+  // The client reads today's entry from it and keeps past days for the future AI advisor.
+  if (req.method === "GET" && url.searchParams.get("checkins") === "1") {
+    const checkins = (await store.get(DAILY_CHECKINS_KEY, { type: "json" })) || {};
+    return Response.json({ checkins });
   }
 
   // Monthly Plan: GET ?monthlyplan=YYYY-MM → { plan, quarterTag, rocks }
@@ -378,6 +403,19 @@ export default async (req) => {
         });
       await store.set(TRAINING_DEFAULTS_KEY, JSON.stringify(clean));
       return Response.json({ ok:true, defaults: clean });
+    }
+
+    // v80: save one day's check-in. Merges into the date-keyed map (never rewrites other
+    // days), stamps updatedAt, and returns the stored entry. Additive — isolated from the
+    // weekly plan and every other key.
+    if (body.checkin && body.checkin.date) {
+      const date = body.checkin.date;
+      if (!validWeekDate(date)) return new Response("Bad checkin.date (expected YYYY-MM-DD)", { status: 400 });
+      const map = (await store.get(DAILY_CHECKINS_KEY, { type: "json" })) || {};
+      const entry = cleanCheckin(body.checkin);
+      map[date] = entry;
+      await store.set(DAILY_CHECKINS_KEY, JSON.stringify(map));
+      return Response.json({ ok:true, checkin: entry });
     }
 
     // Save one quarter's Thinking Time record under "qtt-YYYY-QN". Merges over existing
