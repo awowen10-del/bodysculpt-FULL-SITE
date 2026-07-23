@@ -44,12 +44,32 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function boot(opts = {}) {
   const plans = opts.plans || {};
   const defaults = opts.defaults || [];
+  const training = opts.training || []; // v71: personal training list (separate collection)
   const posts = [];
   const els = new Map();
 
+  // v71: the two weekly notes editors are addressed by wpSyncFromDom via
+  // body.querySelector('[data-field="notes"|"foodNotes"]'). The stub DOM has no real
+  // tree, so map those selectors to the editor elements the test has explicitly created
+  // (via getElementById). Anything not created → null, exactly as before, so no test
+  // that never touches these editors is affected.
+  const FIELD_TO_ID = { notes: "wpWeekNotesEd", foodNotes: "wpWeekFoodEd" };
+  function resolveSelector(sel) {
+    const m = /\[data-field="([^"]+)"\]/.exec(String(sel || ""));
+    if (m) {
+      const id = FIELD_TO_ID[m[1]];
+      if (id && els.has(id)) return els.get(id);
+    }
+    return null;
+  }
+
   const doc = {
     getElementById(id) {
-      if (!els.has(id)) els.set(id, fakeElement(id));
+      if (!els.has(id)) {
+        const el = fakeElement(id);
+        if (id === "wpBody") el.querySelector = resolveSelector;
+        els.set(id, el);
+      }
       return els.get(id);
     },
     querySelector() { return null; },
@@ -76,8 +96,12 @@ async function boot(opts = {}) {
       if (Array.isArray(body.recurringDefaults)) {
         return reply({ ok: true, defaults: body.recurringDefaults });
       }
+      if (Array.isArray(body.trainingDefaults)) {
+        return reply({ ok: true, defaults: body.trainingDefaults });
+      }
       return reply({ ok: true });
     }
+    if (u.includes("trainingdefaults=1")) return reply({ defaults: training });
     if (u.includes("recurringdefaults=1")) return reply({ defaults });
     if (u.includes("weeklyplan=")) {
       const date = decodeURIComponent(u.split("weeklyplan=")[1]);
@@ -127,6 +151,7 @@ async function boot(opts = {}) {
     "\n;globalThis.__wpState = {" +
     " get plan(){ return wpPlan; }, set plan(v){ wpPlan = v; }," +
     " get defaults(){ return wpDefaults; }, set defaults(v){ wpDefaults = v; }," +
+    " get training(){ return wpTraining; }, set training(v){ wpTraining = v; }," +
     " get weekEnding(){ return wpWeekEnding; }," +
     " get navWeeks(){ return NAV_WEEKS; }," +
     " get timer(){ return wpTimer; }, set timer(v){ wpTimer = v; }" +

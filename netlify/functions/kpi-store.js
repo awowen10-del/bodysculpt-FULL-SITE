@@ -47,6 +47,9 @@ function defaultPlanning(year, quarter) {
 // their own key so a new week can pre-fill recurring tasks without retyping.
 const WEEKLY_PLAN_PREFIX = "weekly-plan-"; // + "YYYY-MM-DD"
 const RECURRING_DEFAULTS_KEY = "weekly-recurring-defaults";
+// v71: personal Training list — its OWN key, fully separate from the business
+// recurring defaults. Same per-item shape (id/title/days/time/link), no seed list.
+const TRAINING_DEFAULTS_KEY = "weekly-training-defaults";
 function weeklyPlanKeyOf(date) { return WEEKLY_PLAN_PREFIX + date; }
 function validWeekDate(d) { return typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d); }
 function defaultRecurringDefaults() {
@@ -191,6 +194,13 @@ export default async (req) => {
     return Response.json({ defaults });
   }
 
+  // v71 Training list: GET ?trainingdefaults=1 returns the personal training items
+  // (empty when never saved — no seed list, unlike recurring).
+  if (req.method === "GET" && url.searchParams.get("trainingdefaults") === "1") {
+    const defaults = (await store.get(TRAINING_DEFAULTS_KEY, { type: "json" })) || [];
+    return Response.json({ defaults });
+  }
+
   // Monthly Plan: GET ?monthlyplan=YYYY-MM → { plan, quarterTag, rocks }
   if (req.method === "GET" && url.searchParams.get("monthlyplan")) {
     const ym = url.searchParams.get("monthlyplan");
@@ -329,6 +339,28 @@ export default async (req) => {
           return d;
         });
       await store.set(RECURRING_DEFAULTS_KEY, JSON.stringify(clean));
+      return Response.json({ ok:true, defaults: clean });
+    }
+
+    // v71: save the personal Training list — its own key, the same whitelist discipline
+    // as recurringDefaults (id/title/days/time/link; unknown fields dropped). Writes here
+    // can never touch the recurring defaults key, and vice versa.
+    if (Array.isArray(body.trainingDefaults)) {
+      const VALID_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+      const clean = body.trainingDefaults
+        .filter((t) => t && typeof t.title === "string")
+        .map((t) => {
+          const d = { title: t.title };
+          if (typeof t.id === "string" && t.id) d.id = t.id;
+          if (Array.isArray(t.days)) {
+            const days = t.days.filter((x) => VALID_DAYS.includes(x));
+            if (days.length) d.days = days;
+          }
+          if (typeof t.time === "string" && t.time) d.time = t.time;
+          if (typeof t.link === "string" && /^https?:\/\//i.test(t.link)) d.link = t.link;
+          return d;
+        });
+      await store.set(TRAINING_DEFAULTS_KEY, JSON.stringify(clean));
       return Response.json({ ok:true, defaults: clean });
     }
 

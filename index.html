@@ -482,6 +482,15 @@
     transform:translate(-50%,-50%);color:#fff;font-size:10px;font-weight:900;line-height:1;}
   .wp-note-todo{margin:2px 0;}
   .wp-note-todo:has(input:checked){text-decoration:line-through;opacity:.6;}
+  /* ===== v71: Notes card tabs (Brain Dump / Intentions Around Food) + per-tab copy ===== */
+  .wp-notes-tabs{display:flex;gap:4px;flex-wrap:wrap;}
+  .wp-ntab{background:transparent;border:1px solid transparent;color:var(--ink-faint);border-radius:7px;
+    padding:4px 10px;font-family:inherit;font-size:11px;font-weight:800;text-transform:uppercase;
+    letter-spacing:.5px;cursor:pointer;line-height:1.2;}
+  .wp-ntab:hover{color:var(--ink-dim);border-color:var(--line);}
+  .wp-ntab.active{color:var(--orange-soft);border-color:rgba(232,115,42,.45);background:rgba(232,115,42,.10);}
+  .wp-tab-hidden{display:none!important;}
+  .wp-nt-copy{width:auto;padding:0 8px;margin-left:auto;font-size:11px;}
   .wp-project textarea{min-height:78px;}
   /* done = strike-through in the box */
   .wp-done{ text-decoration:line-through; opacity:.55; }
@@ -526,6 +535,13 @@
      project/blue buffer language and the green/amber/red status colours. */
   .wp-rec-row{border-left:3px solid rgba(79,163,184,.5);padding-left:9px;background:rgba(79,163,184,.045);border-radius:0 6px 6px 0;}
   .wp-cellchip.wp-recur{border-left:3px solid rgba(79,163,184,.65);background:rgba(79,163,184,.10);}
+  /* v71: personal Training carries a quiet green accent + 🏋️ — same left-border/tint
+     language as recurring's teal, distinct from it and from the orange/blue task colours.
+     Done-state (line-through/opacity) and the v63 ↗ link render exactly as elsewhere. */
+  .wp-train-row{border-left:3px solid rgba(63,191,127,.5);padding-left:9px;background:rgba(63,191,127,.045);border-radius:0 6px 6px 0;}
+  .wp-cellchip.wp-train{border-left:3px solid rgba(63,191,127,.6);background:rgba(63,191,127,.09);}
+  .wp-train-emoji{font-size:12px;line-height:1;flex:none;}
+  .wp-txt-tag.wp-train-tag{color:var(--green);background:rgba(63,191,127,.12);}
   /* v64: recurrence editor day-checkbox pills in the place popup */
   .wp-popup-days{display:flex;gap:4px;margin-bottom:9px;flex-wrap:wrap;}
   .wp-day-tick{display:flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;color:var(--ink-dim);
@@ -945,7 +961,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v70 · rich-notes</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v71 · training-and-notes-tabs</span>
   </footer>
 </div>
 
@@ -1409,6 +1425,8 @@ const WP_TIME_ROWS = [["6-9","6 – 9"],["10-12","9 – 11.30"],["1-3","12 – 3
 const WP_DAYS = [["mon","Mon"],["tue","Tue"],["wed","Wed"],["thu","Thu"],["fri","Fri"],["sat","Sat"],["sun","Sun"]];
 let wpPlan = null;
 let wpDefaults = null;      // recurring master list (array of {title}) = the saved defaults
+let wpTraining = null;      // v71: personal training list — SEPARATE collection ("weekly-training-defaults"),
+                            // same days+slot engine as recurring, never mixed into wpDefaults
 let wpWeekEnding = null;
 let wpMonthFocus = null;   // this month's focus items (read-only anchor from Monthly)
 let wpMonthProjects = { ym:"", projects:[] };  // v61: this month's projects, for the weekly picker
@@ -1490,14 +1508,57 @@ async function wpSaveDefaults(){
   }catch(e){}
 }
 
-// Every placeable item has a stable ref: source ("project"|"buffer"|"recurring") + id.
+// v71: the personal Training collection — its own blob key, its own list, but the SAME
+// days+slot machinery as recurring (wpSetRecurrence/wpPlaceRefAt take a source). No
+// legacy shapes to migrate (new in v71), so the loader is a lean version of
+// wpLoadDefaults with the same per-item normalisation (validated days, time, link).
+async function wpLoadTraining(){
+  if(wpTraining != null) return wpTraining;
+  try{
+    const r = await fetch(WP_STORE + "?trainingdefaults=1").then(x=>x.json());
+    const arr = Array.isArray(r.defaults) ? r.defaults : [];
+    wpTraining = arr.map(d=>{
+      if(!(d && d.title)) return null;
+      const it = { id: d.id || wpUid(), title: String(d.title) };
+      if(Array.isArray(d.days)){
+        const ds = d.days.filter(x=>WP_DAYS.some(w=>w[0]===x));
+        if(ds.length) it.days = ds;
+      }
+      if(typeof d.time === "string" && d.time) it.time = d.time;
+      if(typeof d.link === "string" && d.link) it.link = d.link;
+      return it;
+    }).filter(Boolean);
+  }catch(e){ wpTraining = []; }
+  return wpTraining;
+}
+async function wpSaveTraining(){
+  const list = (wpTraining||[]).filter(d=>d.title && d.title.trim()).map(d=>{
+    const out = { id: d.id, title: d.title.trim() };
+    if(Array.isArray(d.days) && d.days.length) out.days = d.days;
+    if(d.time) out.time = d.time;
+    if(d.link) out.link = d.link;
+    return out;
+  });
+  try{
+    await fetch(WP_STORE, {method:"POST",headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ trainingDefaults: list })});
+  }catch(e){}
+}
+
+// Every placeable item has a stable ref: source ("project"|"buffer"|"recurring"|"training") + id.
 function wpItemRef(source, id){ return source + ":" + id; }
-// Resolve a ref to its item object (project/buffer from the plan, recurring from defaults).
+// v71: the two shared-defaults sources behave identically in the scheduling/done engine —
+// only their collections (and accent colours) differ.
+function wpIsDefaultsSource(source){ return source === "recurring" || source === "training"; }
+function wpDefaultsOf(source){ return source === "training" ? wpTraining : wpDefaults; }
+// Resolve a ref to its item object (project/buffer from the plan, recurring/training from
+// their own defaults collections).
 function wpResolveRef(ref){
   const [source, id] = ref.split(":");
   if(source === "project") return (wpPlan.projectItems||[]).find(x=>x.id===id) || null;
   if(source === "buffer")  return (wpPlan.bufferItems||[]).find(x=>x.id===id) || null;
   if(source === "recurring") return (wpDefaults||[]).find(x=>x.id===id) || null;
+  if(source === "training")  return (wpTraining||[]).find(x=>x.id===id) || null;
   return null;
 }
 // v64: recurrence helpers. A recurring task repeats on its chosen set of days (item.days,
@@ -1542,32 +1603,35 @@ function wpValidUrl(u){
 // Per-week done-state for recurring items lives on the plan, since recurring items
 // themselves are shared defaults. Weekly tasks keep their original plain-id key;
 // v63 weekday tasks are done per-day under "<id>:<day>" — existing keys are never
-// converted, rewritten or deleted.
-function wpRecDone(id, set, day){
-  wpPlan.recurringDone = wpPlan.recurringDone || {};
+// converted, rewritten or deleted. v71: training uses the SAME key shapes in its OWN
+// per-week map (wpPlan.trainingDone) — the recurringDone map is never touched by it.
+function wpRecDone(id, set, day, source){
+  const map = (source === "training")
+    ? (wpPlan.trainingDone = wpPlan.trainingDone || {})
+    : (wpPlan.recurringDone = wpPlan.recurringDone || {});
   const key = day ? id + ":" + day : id;
-  if(set===undefined) return !!wpPlan.recurringDone[key];
-  wpPlan.recurringDone[key] = !!set; return set;
+  if(set===undefined) return !!map[key];
+  map[key] = !!set; return set;
 }
 function wpIsDone(source, item, day){
   if(!item) return false;
-  if(source !== "recurring") return !!item.done;
+  if(!wpIsDefaultsSource(source)) return !!item.done;
   if(wpMultiDay(item)){
-    if(day) return wpRecDone(item.id, undefined, day);
-    // no specific day (the Recurring box row): done once every selected day is ticked
-    return wpRecurDays(item).every(d=>wpRecDone(item.id, undefined, d));
+    if(day) return wpRecDone(item.id, undefined, day, source);
+    // no specific day (the card row): done once every selected day is ticked
+    return wpRecurDays(item).every(d=>wpRecDone(item.id, undefined, d, source));
   }
-  return wpRecDone(item.id); // single-day / weekly tasks keep the plain-id key
+  return wpRecDone(item.id, undefined, undefined, source); // single-day / weekly tasks keep the plain-id key
 }
 function wpSetDone(source, item, val, day){
   if(!item) return;
-  if(source !== "recurring"){ item.done = !!val; return; }
+  if(!wpIsDefaultsSource(source)){ item.done = !!val; return; }
   if(wpMultiDay(item)){
-    if(day) wpRecDone(item.id, val, day);
-    else wpRecurDays(item).forEach(d=>wpRecDone(item.id, val, d)); // whole-task tick = all its days
+    if(day) wpRecDone(item.id, val, day, source);
+    else wpRecurDays(item).forEach(d=>wpRecDone(item.id, val, d, source)); // whole-task tick = all its days
     return;
   }
-  wpRecDone(item.id, val);
+  wpRecDone(item.id, val, undefined, source);
 }
 
 async function loadWeeklyPlan(explicitWeek, preloadedPlan){
@@ -1576,6 +1640,7 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
   wpWeekEnding = wk;
   document.getElementById("wpBody").innerHTML = `<div class="wp-loading">Loading this week's plan…</div>`;
   await wpLoadDefaults();
+  await wpLoadTraining();   // v71: personal training list (separate collection)
   let plan = null;
   if(preloadedPlan){
     // Caller supplied the just-written plan (e.g. after Finish Week) — use it directly
@@ -1631,9 +1696,11 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
     projectItems: wpToItems(plan.projectItems != null ? plan.projectItems : (plan.project != null ? plan.project : plan.projects)),
     bufferItems:  wpToItems(plan.bufferItems  != null ? plan.bufferItems  : plan.buffer),
     notes: typeof plan.notes === "string" ? plan.notes : "",
+    foodNotes: typeof plan.foodNotes === "string" ? plan.foodNotes : "", // v71: Intentions Around Food tab — its own field, never shares notes
     timeBlocks: tb,                          // free text per cell (string)
     placements: cleanPlacements,             // { "time:day": [ ref, ... ] }
     recurringDone: plan.recurringDone || {}, // per-week done for recurring items (by id)
+    trainingDone: plan.trainingDone || {},   // v71: per-week done for training items — separate map, same key shapes
     review: plan.review || {wins:"",notDone:"",carryForward:"",blockers:""},
     carryItems: Array.isArray(plan.carryItems) ? plan.carryItems.filter(x=>x&&x.title&&(x.source==="project"||x.source==="buffer")).map(x=>({id:x.id||wpUid(),title:String(x.title),source:x.source})) : [],
     lastUpdated: plan.lastUpdated || ""
@@ -1652,42 +1719,53 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
 async function wpSeedRecurringPlacements(wk){
   if(!wpPlan) return;
   wpPlan.placements = wpPlan.placements || {};
-  // Does THIS week already have any recurring placement? If so, respect it — do nothing.
-  const hasOwnRecurring = Object.keys(wpPlan.placements).some(key =>
-    (wpPlan.placements[key]||[]).some(ref => String(ref).indexOf("recurring:")===0));
-  if(hasOwnRecurring) return;
   // Find this week's index. NAV_WEEKS holds Mondays and wk is a Monday, so this should match.
   const idxHere = NAV_WEEKS.indexOf(wk);
   if(idxHere < 0) return; // unknown position — don't risk seeding from an unrelated week
-  const validRecurIds = new Set((wpDefaults||[]).map(d=>d.id));
+  // v71: training joins the rollover through the same engine — one pass per ref prefix,
+  // each independent (a week that scheduled its own recurring can still seed training).
+  // Recurring keeps its exact v62 behaviour; training seeds ONLY scheduled items (a days
+  // set) — one-off training is hand-placed and must never auto-appear in a fresh week.
+  const sources = [
+    { prefix: "recurring:", valid: new Set((wpDefaults||[]).map(d=>d.id)) },
+    { prefix: "training:",  valid: new Set((wpTraining||[]).filter(d=>Array.isArray(d.days)&&d.days.length).map(d=>d.id)) }
+  ].filter(src =>
+    // Does THIS week already have any placement with this prefix? If so, respect it.
+    !Object.keys(wpPlan.placements).some(key =>
+      (wpPlan.placements[key]||[]).some(ref => String(ref).indexOf(src.prefix)===0)));
+  if(!sources.length) return;
   const MAX_BACK = 8;
-  for(let step=1; step<=MAX_BACK; step++){
-    const pIdx = idxHere - step;
-    if(pIdx < 0) break;
-    const pWk = NAV_WEEKS[pIdx];
-    if(!pWk || pWk===wk) continue;
-    let prev = null;
-    try{ const r = await fetch(WP_STORE + "?weeklyplan=" + encodeURIComponent(pWk)).then(x=>x.json()); prev = r && r.plan; }catch(e){ prev = null; }
-    if(!prev || !prev.placements) continue;
-    // Collect recurring placements from that week (only for tasks that still exist).
-    const seeded = {};
-    let found = false;
-    Object.keys(prev.placements).forEach(key=>{
-      const recurRefs = (prev.placements[key]||[]).filter(ref=>{
-        if(String(ref).indexOf("recurring:")!==0) return false;
-        const id = String(ref).slice("recurring:".length);
-        return validRecurIds.has(id);      // skip deleted recurring tasks
+  const fetched = {}; // previous-week plans, fetched once and shared across both passes
+  for(const src of sources){
+    for(let step=1; step<=MAX_BACK; step++){
+      const pIdx = idxHere - step;
+      if(pIdx < 0) break;
+      const pWk = NAV_WEEKS[pIdx];
+      if(!pWk || pWk===wk) continue;
+      if(!(pWk in fetched)){
+        try{ const r = await fetch(WP_STORE + "?weeklyplan=" + encodeURIComponent(pWk)).then(x=>x.json()); fetched[pWk] = r && r.plan; }catch(e){ fetched[pWk] = null; }
+      }
+      const prev = fetched[pWk];
+      if(!prev || !prev.placements) continue;
+      // Collect this prefix's placements from that week (only for tasks that still qualify).
+      const seeded = {};
+      let found = false;
+      Object.keys(prev.placements).forEach(key=>{
+        const refs = (prev.placements[key]||[]).filter(ref=>{
+          if(String(ref).indexOf(src.prefix)!==0) return false;
+          return src.valid.has(String(ref).slice(src.prefix.length)); // skip deleted / unscheduled tasks
+        });
+        if(refs.length){ seeded[key] = refs.slice(); found = true; }
       });
-      if(recurRefs.length){ seeded[key] = recurRefs.slice(); found = true; }
-    });
-    if(found){
-      // Merge seeded recurring placements into this week (without disturbing anything else).
-      Object.keys(seeded).forEach(key=>{
-        wpPlan.placements[key] = (wpPlan.placements[key]||[]).concat(
-          seeded[key].filter(ref => (wpPlan.placements[key]||[]).indexOf(ref)<0)
-        );
-      });
-      return; // seeded from the nearest week that had them
+      if(found){
+        // Merge seeded placements into this week (without disturbing anything else).
+        Object.keys(seeded).forEach(key=>{
+          wpPlan.placements[key] = (wpPlan.placements[key]||[]).concat(
+            seeded[key].filter(ref => (wpPlan.placements[key]||[]).indexOf(ref)<0)
+          );
+        });
+        break; // this prefix seeded from the nearest week that had it
+      }
     }
   }
 }
@@ -1696,13 +1774,19 @@ function wpSyncFromDom(){
   if(!wpPlan) return;
   const body = document.getElementById("wpBody");
   if(!body) return;
-  // project/buffer item titles (editable inline)
+  // project/buffer item titles (editable inline); v71: training titles too (they live
+  // in wpTraining, not the plan — captured here so no in-progress edit is ever lost,
+  // persisted only by the training save path)
   ["project","buffer"].forEach(src=>{
     const arr = src==="project" ? wpPlan.projectItems : wpPlan.bufferItems;
     (arr||[]).forEach(it=>{
       const inp = body.querySelector(`[data-item-title="${src}:${it.id}"]`);
       if(inp) it.title = inp.value;
     });
+  });
+  (wpTraining||[]).forEach(it=>{
+    const inp = body.querySelector(`[data-item-title="training:${it.id}"]`);
+    if(inp) it.title = inp.value;
   });
   // free-text grid cells
   WP_TIME_ROWS.forEach(([rk])=>{
@@ -1711,9 +1795,12 @@ function wpSyncFromDom(){
       if(cell){ wpPlan.timeBlocks[rk] = wpPlan.timeBlocks[rk] || {}; wpPlan.timeBlocks[rk][dk] = cell.value; }
     });
   });
-  // notes + review (v70: notes is a contenteditable div — serialise + sanitise)
-  const notesEl = body.querySelector('[data-field="notes"]');
-  if(notesEl) wpPlan.notes = wpNotesFromEditor(notesEl);
+  // notes + review (v70: notes is a contenteditable div — serialise + sanitise;
+  // v71: both tabs, each into its own field)
+  ["notes","foodNotes"].forEach(f=>{
+    const el = body.querySelector(`[data-field="${f}"]`);
+    if(el) wpPlan[f] = wpNotesFromEditor(el);
+  });
   ["wins","notDone","blockers"].forEach(f=>{
     const el = body.querySelector(`[data-review="${f}"]`);
     if(el) wpPlan.review[f] = el.value;
@@ -1737,9 +1824,9 @@ function wpPlacementOf(ref){
 }
 function wpPlacedLabel(ref){
   const keys = wpPlacementsOf(ref); if(!keys.length) return "";
-  // v64: a multi-day recurring task sits in several cells at one time row — label the set
+  // v64: a multi-day recurring/training task sits in several cells at one time row — label the set
   const [source] = ref.split(":");
-  const item = source==="recurring" ? wpResolveRef(ref) : null;
+  const item = wpIsDefaultsSource(source) ? wpResolveRef(ref) : null;
   const [time,day] = keys[0].split(":");
   const tl = (WP_TIME_ROWS.find(t=>t[0]===time)||[])[1] || time;
   const days = item ? wpRecurDays(item) : null;
@@ -1782,14 +1869,36 @@ function wpDragRow(source, it){
     <button class="wp-txt-del" title="Remove" onclick="wpRemoveItem('${source}','${it.id}')">✕</button>
   </div>`;
 }
+// v71: Training — a buffer-style draggable, editable row with the green accent + 🏋️,
+// plus a 📅 button into the SAME day/slot popup recurring uses. One-off items drag onto
+// the grid; scheduling days in the popup switches them to the shared recurrence engine.
+function wpTrainRow(it){
+  const ref = wpItemRef("training", it.id);
+  const placed = wpPlacedLabel(ref);
+  const done = wpIsDone("training", it);
+  const sched = !!wpRecurDays(it);
+  return `<div class="wp-drag-row wp-train-row${done?" wp-item-done":""}" draggable="true"
+      ondragstart="wpDragStart(event,'training','${it.id}')" ondragend="wpDragEnd(event)">
+    <span class="wp-drag-handle" title="Drag onto a time block">⠿</span>
+    <span class="wp-train-emoji" aria-hidden="true">🏋️</span>
+    <input class="wp-drag-name${done?" wp-done":""}" data-item-title="training:${it.id}" value="${wpEsc(it.title)}" placeholder="Training"
+      onkeydown="wpItemKey(event)" onblur="wpTrainingBlur()">
+    ${placed?`<span class="wp-txt-tag wp-train-tag" onclick="wpOpenPopup('training','${it.id}',this)">${placed}</span>`:""}
+    <button class="wp-rec-linkbtn" title="${sched?"Edit schedule":"Schedule — days + slot"}" onclick="wpOpenPopup('training','${it.id}',this)">📅</button>
+    <button class="wp-txt-del" title="Remove" onclick="wpRemoveTraining('${it.id}')">✕</button>
+  </div>`;
+}
 function wpItemRow(source, it, i){
-  return (source==="recurring") ? wpRecurRow(it) : wpDragRow(source, it);
+  if(source==="recurring") return wpRecurRow(it);
+  if(source==="training") return wpTrainRow(it);
+  return wpDragRow(source, it);
 }
 
 function wpListBox(title, sectionKey, source, items, addFn, addLabel){
   const rows = items.length ? items.map((it,i)=>wpItemRow(source,it,i)).join("")
     : `<div class="wp-empty">Nothing here yet.</div>`;
-  const header = (sectionKey==="recurring")
+  // recurring/training save through their own defaults path — no per-section saved-msg span
+  const header = (sectionKey==="recurring" || sectionKey==="training")
     ? `<div class="wp-box-h"><span>${title}</span></div>`
     : wpBoxHeader(title, sectionKey);
   // v61: the Projects box also offers a "Pull from Monthly" dropdown next to its add button.
@@ -1811,26 +1920,28 @@ function wpChipHtml(ref, dk, mode){
   const [source] = ref.split(":");
   const item = wpResolveRef(ref);
   if(!item) return "";
-  // v63: recurring chips tick per-day for weekday tasks, and carry the teal accent
+  // v63: recurring chips tick per-day for weekday tasks, and carry the teal accent.
+  // v71: training chips carry the green accent + 🏋️ instead — same everywhere they render.
   const done = wpIsDone(source, item, dk);
-  const recCls = source==="recurring" ? " wp-recur" : "";
+  const recCls = source==="recurring" ? " wp-recur" : (source==="training" ? " wp-train" : "");
+  const emoji = source==="training" ? "🏋️ " : "";
   // v66: same link affordance as the list row — ↗ only when wpValidUrl passes.
   // (An <a> inside a <label> is excluded from label activation, so clicking it
   // follows the link without toggling the done checkbox.)
-  const linkHref = source==="recurring" ? wpValidUrl(item.link || "") : null;
+  const linkHref = wpIsDefaultsSource(source) ? wpValidUrl(item.link || "") : null;
   const linkOut = linkHref
     ? `<a class="wp-rec-link wp-chip-link" href="${wpEsc(linkHref)}" target="_blank" rel="noopener noreferrer" title="${wpEsc(linkHref)}" onclick="event.stopPropagation()">↗</a>`
     : "";
   if(mode==="today"){
     return `<label class="wp-cellchip${done?" wp-done":""}${recCls}" title="${wpEsc(item.title)}">
       <input type="checkbox" ${done?"checked":""} onchange="wpTodayToggleDone('${ref}',this.checked,'${dk}')">
-      <span class="wp-chip-title">${wpEsc(item.title)}</span>${linkOut}</label>`;
+      <span class="wp-chip-title">${emoji}${wpEsc(item.title)}</span>${linkOut}</label>`;
   }
   return `<label class="wp-cellchip${done?" wp-done":""}${recCls}" draggable="true" title="${wpEsc(item.title)}"
       ondragstart="wpChipDragStart(event,'${ref}')" ondragend="wpDragEnd(event)">
     <span class="wp-chip-grip" aria-hidden="true">⠿</span>
     <input type="checkbox" ${done?"checked":""} onchange="wpToggleDoneRef('${ref}',this.checked,'${dk}')">
-    <span class="wp-chip-title">${wpEsc(item.title)}</span>${linkOut}</label>`;
+    <span class="wp-chip-title">${emoji}${wpEsc(item.title)}</span>${linkOut}</label>`;
 }
 
 /* ===== v70: RICH NOTES ===== */
@@ -1943,10 +2054,15 @@ function wpNotesFromEditor(el){
 }
 // Quiet toolbar — same visual family as the other small controls. mousedown is
 // prevented so clicking a button doesn't steal the editor's selection.
-function wpNotesToolbarHtml(edId){
+// v71: copyField (optional) appends a right-aligned copy-as-plain-text control for
+// that notes field — used by the weekly tabs; the Today modal passes none.
+function wpNotesToolbarHtml(edId, copyField){
   const b = (cmd,lbl,title) =>
     `<button type="button" class="wp-nt-btn" title="${title}" onmousedown="event.preventDefault()" onclick="wpNotesCmd('${cmd}','${edId}')">${lbl}</button>`;
-  return `<div class="wp-nt-bar">${b("bold","<b>B</b>","Bold (⌘B)")}${b("italic","<i>I</i>","Italic (⌘I)")}${b("underline","<u>U</u>","Underline (⌘U)")}${b("strike","<s>S</s>","Strikethrough")}${b("bullets","•","Bullet list")}${b("todo","☑","Checkbox")}</div>`;
+  const copyBtn = copyField
+    ? `<button type="button" class="wp-nt-btn wp-nt-copy" title="Copy as plain text" onclick="wpNotesCopy('${copyField}')">⧉ Copy</button>`
+    : "";
+  return `<div class="wp-nt-bar">${b("bold","<b>B</b>","Bold (⌘B)")}${b("italic","<i>I</i>","Italic (⌘I)")}${b("underline","<u>U</u>","Underline (⌘U)")}${b("strike","<s>S</s>","Strikethrough")}${b("bullets","•","Bullet list")}${b("todo","☑","Checkbox")}${copyBtn}</div>`;
 }
 const WP_NOTE_CMDS = { bold:"bold", italic:"italic", underline:"underline", strike:"strikeThrough", bullets:"insertUnorderedList" };
 function wpNotesCmd(cmd, edId){
@@ -1980,8 +2096,80 @@ document.addEventListener("click", (e)=>{
   const on = !t.hasAttribute("checked");
   if(on) t.setAttribute("checked",""); else t.removeAttribute("checked");
   t.checked = on;
-  if(ed.id === "wpTodayNotes") wpTodaySaveNotes(); else wpSaveSection("notes");
+  // v71: route the save to whichever notes field this editor edits (modal = weekly notes)
+  if(ed.id === "wpTodayNotes") wpTodaySaveNotes();
+  else wpSaveSection((ed.getAttribute && ed.getAttribute("data-field")) === "foodNotes" ? "foodNotes" : "notes");
 });
+
+/* ===== v71: NOTES CARD TABS + copy-as-plain-text ===== */
+// Two rich-text fields in one card: "Notes / Brain Dump" (the existing wpPlan.notes,
+// renamed — same data, same save path) and "Intentions Around Food" (wpPlan.foodNotes,
+// additive, its own section save — the two never share a field). One editor
+// implementation (wpNotesEditorBlockHtml) parameterised by field; the last-open tab is
+// remembered for the session in this module-level let.
+let wpNotesTab = "notes";
+const WP_NOTES_TABS = {
+  notes:     { edId:"wpWeekNotesEd", label:"Notes / Brain Dump",
+               ph:"Things to think about, ideas for next week, observations, stuff to discuss with the team…" },
+  foodNotes: { edId:"wpWeekFoodEd",  label:"Intentions Around Food",
+               ph:"What went well? What didn't? Intentions going into the new week…" }
+};
+function wpNotesEditorBlockHtml(field){
+  const t = WP_NOTES_TABS[field];
+  const active = wpNotesTab === field;
+  return `<div class="wp-notes-rich${active?"":" wp-tab-hidden"}" data-notes-block="${field}">
+    ${wpNotesToolbarHtml(t.edId, field)}
+    <div class="wp-notes-editor" id="${t.edId}" data-field="${field}" contenteditable="true" data-ph="${t.ph}" onblur="wpSaveSection('${field}')" onkeydown="wpNotesKeydown(event)">${wpNotesToEditorHtml(wpPlan[field])}</div>
+  </div>`;
+}
+// Switch tabs on the same screen. The outgoing editor is serialised and, if it holds an
+// uncommitted edit, saved through its normal section path BEFORE the swap — nothing is
+// lost. (A tab click also blurs the editor first in the real DOM, which already saves;
+// this is the belt-and-braces pass for anything that skipped blur.)
+function wpNotesSwitchTab(tab){
+  if(!wpPlan || tab === wpNotesTab || !WP_NOTES_TABS[tab]) return;
+  const cur = wpNotesTab;
+  const el = document.getElementById(WP_NOTES_TABS[cur].edId);
+  if(el && typeof el.innerHTML === "string"){
+    const stored = wpNotesFromEditor(el);
+    if(stored !== wpPlan[cur]){ wpPlan[cur] = stored; wpSaveSection(cur); }
+  }
+  wpNotesTab = tab;
+  renderWeeklyPlan();
+}
+// Stored notes value (either format) → clean readable plain text for the clipboard:
+// checkbox lines as "[ ] "/"[x] ", bullets as "- ", block boundaries and <br> as real
+// line breaks (an empty <div><br></div> line stays a blank line), inline tags stripped,
+// entities decoded. Legacy plain-text notes pass straight through.
+function wpNotesToPlainText(stored){
+  const raw = typeof stored === "string" ? stored : "";
+  if(raw.indexOf(WP_NOTES_MARK) !== 0) return raw;
+  let h = wpSanitizeNotesHtml(raw.slice(WP_NOTES_MARK.length));
+  h = h.replace(/<div class="wp-note-todo"><input type="checkbox" checked>/g, "\n[x] ")
+       .replace(/<div class="wp-note-todo"><input type="checkbox">/g, "\n[ ] ")
+       .replace(/<input type="checkbox" checked>/g, "[x] ")
+       .replace(/<input type="checkbox">/g, "[ ] ")
+       .replace(/<li>/g, "\n- ")
+       .replace(/<div><br><\/div>/g, "\n")   // an empty editor line = one blank output line
+       .replace(/<br>/g, "\n")
+       .replace(/<(?:div|p)>/g, "\n")
+       .replace(/<[^>]+>/g, "");             // remaining tags: closes + inline formatting
+  h = h.replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+  return h.replace(/\] +/g, "] ").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").replace(/^\n+|\n+$/g, "");
+}
+// Copy one tab's content as plain text via the existing clipboard helper, flashing
+// "Copied ✓" in that tab's saved-msg span.
+async function wpNotesCopy(field){
+  if(!wpPlan || !WP_NOTES_TABS[field]) return;
+  wpSyncFromDom();   // copy exactly what's on screen, even mid-edit
+  const ok = await copyText(wpNotesToPlainText(wpPlan[field] || ""));
+  const msg = document.getElementById("wpmsg-" + field);
+  if(msg){
+    msg.textContent = ok ? "Copied ✓" : "Copy failed";
+    msg.className = "wp-ssaved ok";
+    setTimeout(()=>{ if(msg.textContent==="Copied ✓"||msg.textContent==="Copy failed") msg.textContent=""; }, 2000);
+  }
+}
 
 function renderWeeklyPlan(){
   const p = wpPlan;
@@ -1989,21 +2177,29 @@ function renderWeeklyPlan(){
   const projectBox = wpListBox("Project","project","project", p.projectItems, "wpAddItem('project')", "+ Add project task");
   const recurringBox = wpListBox("Recurring","recurring","recurring", (wpDefaults||[]), "wpAddRecurring()", "+ Add recurring");
   const bufferBox = wpListBox("Buffer","buffer","buffer", p.bufferItems, "wpAddItem('buffer')", "+ Add buffer task");
+  // v71: personal Training — its own collection and card, never mixed into Recurring
+  const trainingBox = wpListBox("🏋️ Training","training","training", (wpTraining||[]), "wpAddTraining()", "+ Add training");
 
   // v70: rich editor instead of the textarea — same field, same save path. The editor
   // div is written with NO whitespace around its content so :empty (placeholder) works.
+  // v71: the card grows a second tab ("Intentions Around Food", wpPlan.foodNotes) —
+  // same screen position, both editors rendered, the inactive one hidden. Each tab has
+  // its own saved-msg span; only the active tab's is visible.
+  const tabBtn = (f)=>`<button type="button" class="wp-ntab${wpNotesTab===f?" active":""}" data-ntab="${f}" onclick="wpNotesSwitchTab('${f}')">${WP_NOTES_TABS[f].label}</button>`;
   const notesPanel = `<div class="wp-box wp-notes-panel">
-    ${wpBoxHeader("Notes","notes")}
+    <div class="wp-box-h"><span class="wp-notes-tabs">${tabBtn("notes")}${tabBtn("foodNotes")}</span>
+      <span class="wp-sec-save">
+        <span class="wp-ssaved${wpNotesTab==="notes"?"":" wp-tab-hidden"}" id="wpmsg-notes"></span>
+        <span class="wp-ssaved${wpNotesTab==="foodNotes"?"":" wp-tab-hidden"}" id="wpmsg-foodNotes"></span>
+      </span></div>
     <div class="wp-box-body">
-      <div class="wp-notes-rich">
-        ${wpNotesToolbarHtml("wpWeekNotesEd")}
-        <div class="wp-notes-editor" id="wpWeekNotesEd" data-field="notes" contenteditable="true" data-ph="Things to think about, ideas for next week, observations, stuff to discuss with the team…" onblur="wpSaveSection('notes')" onkeydown="wpNotesKeydown(event)">${wpNotesToEditorHtml(p.notes)}</div>
-      </div>
+      ${wpNotesEditorBlockHtml("notes")}
+      ${wpNotesEditorBlockHtml("foodNotes")}
     </div>
   </div>`;
 
   const topRow = `<div class="wp-top">
-    <div class="wp-left-col">${projectBox}${recurringBox}${bufferBox}</div>
+    <div class="wp-left-col">${projectBox}${recurringBox}${bufferBox}${trainingBox}</div>
     <div class="wp-right-col">${notesPanel}</div>
   </div>`;
 
@@ -2073,10 +2269,11 @@ function renderWeeklyPlan(){
 
 // ---- per-section save ----
 const WP_SECTION_FIELDS = {
-  project: ["projectItems","placements","recurringDone"],
+  project: ["projectItems","placements","recurringDone","trainingDone"],
   notes: ["notes"],
-  buffer: ["bufferItems","placements","recurringDone"],
-  timeBlocks: ["timeBlocks","placements","recurringDone"],
+  foodNotes: ["foodNotes"],   // v71: Intentions tab — its own field, own section, never bundled with notes
+  buffer: ["bufferItems","placements","recurringDone","trainingDone"],
+  timeBlocks: ["timeBlocks","placements","recurringDone","trainingDone"],
   review: ["review"],
   carry: ["carryItems","projectItems","bufferItems","placements"]
 };
@@ -2309,17 +2506,63 @@ async function wpRemoveRecurring(id){
   await wpSaveDefaults();
   renderWeeklyPlan();
 }
+
+// ---- v71: training master list — same card mechanics as buffer (inline add/edit) with
+// the recurring-style shared collection underneath. Never touches wpDefaults.
+async function wpAddTraining(){
+  wpSyncFromDom();
+  await wpLoadTraining();
+  wpTraining = wpTraining || [];
+  const it = { id:wpUid(), title:"" };
+  wpTraining.push(it);
+  renderWeeklyPlan();
+  // focus the new empty input so you can type straight away
+  const inp = document.querySelector(`[data-item-title="training:${it.id}"]`);
+  if(inp) inp.focus();
+}
+// Blur on a training input: sync titles, drop blank rows (unplacing them), save the list.
+async function wpTrainingBlur(){
+  wpSyncFromDom();
+  let removed=false;
+  for(let i=(wpTraining||[]).length-1;i>=0;i--){
+    if(!String(wpTraining[i].title||"").trim()){
+      wpRemoveRefEverywhere(wpItemRef("training", wpTraining[i].id));
+      wpTraining.splice(i,1);
+      removed=true;
+    }
+  }
+  await wpSaveTraining();
+  if(removed) renderWeeklyPlan();
+}
+async function wpRemoveTraining(id){
+  await wpLoadTraining();
+  const i = (wpTraining||[]).findIndex(x=>x.id===id);
+  if(i<0) return;
+  const item = wpTraining[i];
+  if(!confirm(`Remove "${item.title}" from Training?`)) return;
+  wpSyncFromDom();
+  const ref = wpItemRef("training", id);
+  const hadPlacements = wpPlacementsOf(ref).length > 0;
+  wpRemoveRefEverywhere(ref); // multi-day sits in several cells — clear them all
+  wpTraining.splice(i,1);
+  await wpSaveTraining();
+  if(hadPlacements) await wpSaveSection("timeBlocks"); // persist the cleared placements
+  renderWeeklyPlan();
+}
 // v64: THE recurrence writer. Sets a task's day set + time slot and syncs the real
-// placement refs — "recurring:<id>" goes into "<slot>:<day>" for every ticked day, so the
+// placement refs — "<source>:<id>" goes into "<slot>:<day>" for every ticked day, so the
 // grid, drag/remove, done-state and the v62 rollover all see genuine placements.
 // Empty day set = recurrence off (days field removed, task unplaced) — the task itself,
 // its done history and every other placement are untouched.
-async function wpSetRecurrence(id, days, time){
-  await wpLoadDefaults();
-  const it = (wpDefaults||[]).find(x=>x.id===id);
+// v71: parameterised by source — training schedules through this SAME engine, only the
+// collection (wpTraining vs wpDefaults) and its save differ. Default stays "recurring".
+async function wpSetRecurrence(id, days, time, source){
+  source = wpIsDefaultsSource(source) ? source : "recurring";
+  if(source==="training") await wpLoadTraining(); else await wpLoadDefaults();
+  const it = (wpDefaultsOf(source)||[]).find(x=>x.id===id);
   if(!it || !wpPlan) return;
   wpSyncFromDom();
-  const ref = wpItemRef("recurring", id);
+  const ref = wpItemRef(source, id);
   const valid = WP_DAYS.map(d=>d[0]);
   const ds = valid.filter(d=>(Array.isArray(days)?days:[]).includes(d)); // week order, validated
   wpRemoveRefEverywhere(ref);
@@ -2333,9 +2576,9 @@ async function wpSetRecurrence(id, days, time){
       if(!wpPlan.placements[key].includes(ref)) wpPlan.placements[key].push(ref);
     });
   } else {
-    delete it.days; // back to the original single-day behaviour, currently unplaced
+    delete it.days; // back to one-off behaviour, currently unplaced
   }
-  await wpSaveDefaults();
+  if(source==="training") await wpSaveTraining(); else await wpSaveDefaults();
   await wpSaveSection("timeBlocks");
   renderWeeklyPlan();
 }
@@ -2370,15 +2613,18 @@ async function wpPlaceRefAt(ref, time, day){
     wpPlan.placements[key] = wpPlan.placements[key] || [];
     if(!wpPlan.placements[key].includes(ref)) wpPlan.placements[key].push(ref);
   };
-  const days = (source==="recurring" && item) ? wpRecurDays(item) : null;
+  const days = (wpIsDefaultsSource(source) && item) ? wpRecurDays(item) : null;
   if(days){
     days.forEach(d=>addTo(time+":"+d));
   } else {
-    addTo(time+":"+day);
+    addTo(time+":"+day);   // one-off (incl. unscheduled training) — buffer-style single cell
   }
-  // remember a recurring task's slot on the shared default so the recurrence
+  // remember a recurring/training task's slot on the shared default so the recurrence
   // editor and next weeks know "the same time each day"
-  if(source==="recurring" && item && item.time !== time){ item.time = time; await wpSaveDefaults(); }
+  if(wpIsDefaultsSource(source) && item && item.time !== time){
+    item.time = time;
+    if(source==="training") await wpSaveTraining(); else await wpSaveDefaults();
+  }
   await wpSaveSection("timeBlocks");
   renderWeeklyPlan();
 }
@@ -2418,7 +2664,7 @@ function wpOpenPopup(source, id, anchor){
       <select id="wppop-time">${timeOpts}</select>
     </div>
     <div class="wp-popup-actions">
-      <button class="wp-popup-place" onclick="wpPopupApply('${id}')">${keys.length?"Update":"Place"}</button>
+      <button class="wp-popup-place" onclick="wpPopupApply('${source}','${id}')">${keys.length?"Update":"Place"}</button>
       ${keys.length?`<button class="wp-popup-remove" onclick="wpUnplaceItem('${source}','${id}')">Remove from grid</button>`:""}
     </div>`;
   document.body.appendChild(pop);
@@ -2432,7 +2678,8 @@ function wpOpenPopup(source, id, anchor){
   setTimeout(()=>document.addEventListener("click", wpPopupOutside, true), 0);
 }
 // v64: read the editor's ticked days + chosen slot and apply them as real placements.
-async function wpPopupApply(id){
+// v71: source-aware — the SAME popup schedules recurring and training.
+async function wpPopupApply(source, id){
   const days = WP_DAYS.map(([k])=>k).filter(k=>{
     const el = document.getElementById("wppop-day-"+k);
     return !!(el && el.checked);
@@ -2440,7 +2687,7 @@ async function wpPopupApply(id){
   const timeEl = document.getElementById("wppop-time");
   const time = timeEl ? timeEl.value : "6-9";
   wpClosePopup();
-  await wpSetRecurrence(id, days, time);
+  await wpSetRecurrence(id, days, time, source);
 }
 
 // ---- project/buffer: drag and drop onto a grid cell ----
@@ -2502,7 +2749,9 @@ async function wpToggleDoneRef(ref, checked, day){
   if(!item) return;
   wpSyncFromDom();
   wpSetDone(source, item, checked, day);
-  const section = (source==="recurring") ? "timeBlocks" : source;
+  // defaults-source ticks live on the plan (recurringDone/trainingDone) — the
+  // timeBlocks section carries both maps
+  const section = wpIsDefaultsSource(source) ? "timeBlocks" : source;
   await wpSaveSection(section);
   renderWeeklyPlan();
 }
