@@ -547,6 +547,11 @@
   .wp-train-row{border-left:3px solid rgba(63,191,127,.5);padding-left:9px;background:rgba(63,191,127,.045);border-radius:0 6px 6px 0;}
   .wp-cellchip.wp-train{border-left:3px solid rgba(63,191,127,.6);background:rgba(63,191,127,.09);}
   .wp-train-emoji{font-size:12px;line-height:1;flex:none;}
+  /* v73: light native emoji picker on the training row — quiet until hovered/focused */
+  .wp-train-emoji-sel{flex:none;background:transparent;border:1px solid transparent;color:var(--ink);
+    font-family:inherit;font-size:13px;line-height:1;padding:2px 3px;border-radius:6px;cursor:pointer;}
+  .wp-train-emoji-sel:hover{border-color:var(--line);}
+  .wp-train-emoji-sel:focus{outline:none;border-color:var(--orange);}
   .wp-txt-tag.wp-train-tag{color:var(--green);background:rgba(63,191,127,.12);}
   /* v64: recurrence editor day-checkbox pills in the place popup */
   .wp-popup-days{display:flex;gap:4px;margin-bottom:9px;flex-wrap:wrap;}
@@ -967,7 +972,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v72 · buffer-training-side-by-side</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v73 · training-emojis</span>
   </footer>
 </div>
 
@@ -1429,6 +1434,28 @@ const WP_TIME_ROWS = [["6-9","6 – 9"],["10-12","9 – 11.30"],["1-3","12 – 3
 // v64: Sunday restored as a grid column — recurrence day-checkboxes cover the full week,
 // so a task ticked for Sun must have a real cell to land in.
 const WP_DAYS = [["mon","Mon"],["tue","Tue"],["wed","Wed"],["thu","Thu"],["fri","Fri"],["sat","Sat"],["sun","Sun"]];
+
+// v73: training-type emoji. Auto-detected from the title unless the item carries a manual
+// override (it.emoji). EDIT THIS MAP to tune. Rules are checked MOST-SPECIFIC-FIRST — the
+// first group that matches wins, so a title hitting two groups takes the stronger signal
+// (e.g. "Swim then jog" → 🏊, not 🏃). `words` match WHOLE space-delimited tokens only, so
+// "Gym run-through" → 🏋️ (never misread as a run); `phrases` allow a space or hyphen
+// between the words; `re` catches distance tokens like 5k / 10km / 3mi. Unmatched → default.
+const WP_TRAIN_EMOJI_DEFAULT = "🏋️";
+const WP_TRAIN_EMOJI_RULES = [
+  { emoji:"🏊", words:["swim","swimming","swims"] },
+  { emoji:"🚴", words:["bike","biking","cycle","cycling","spin","spinning","ride","riding"] },
+  { emoji:"🧘", words:["yoga","stretch","stretching","stretches","mobility"] },
+  { emoji:"🚶", words:["walk","walking","walks","hike","hiking","hikes"] },
+  { emoji:"🏃", words:["run","running","runs","jog","jogging","jogs","marathon","5k","10k","km","mile","miles"],
+    re:[/^\d+(?:\.\d+)?(?:k|km|mi|miles?)$/] },
+  { emoji:"🏋️", words:["gym","lift","lifting","lifts","weights","weight","upper","lower","push","pull","legs","leg"],
+    phrases:[/\bfull[\s-]?body\b/] },
+];
+// The manual-override choices (the distinct emojis above, in a stable order). An override
+// is honoured ONLY if it's one of these — so the string rendered inline is always a
+// known-safe constant, never arbitrary stored text.
+const WP_TRAIN_EMOJI_CHOICES = ["🏃","🏋️","🏊","🚴","🚶","🧘"];
 let wpPlan = null;
 let wpDefaults = null;      // recurring master list (array of {title}) = the saved defaults
 let wpTraining = null;      // v71: personal training list — SEPARATE collection ("weekly-training-defaults"),
@@ -1532,6 +1559,8 @@ async function wpLoadTraining(){
       }
       if(typeof d.time === "string" && d.time) it.time = d.time;
       if(typeof d.link === "string" && d.link) it.link = d.link;
+      // v73: optional manual emoji override — only honoured if it's a known choice
+      if(typeof d.emoji === "string" && WP_TRAIN_EMOJI_CHOICES.indexOf(d.emoji) >= 0) it.emoji = d.emoji;
       return it;
     }).filter(Boolean);
   }catch(e){ wpTraining = []; }
@@ -1543,6 +1572,7 @@ async function wpSaveTraining(){
     if(Array.isArray(d.days) && d.days.length) out.days = d.days;
     if(d.time) out.time = d.time;
     if(d.link) out.link = d.link;
+    if(typeof d.emoji === "string" && WP_TRAIN_EMOJI_CHOICES.indexOf(d.emoji) >= 0) out.emoji = d.emoji; // v73 override
     return out;
   });
   try{
@@ -1875,18 +1905,49 @@ function wpDragRow(source, it){
     <button class="wp-txt-del" title="Remove" onclick="wpRemoveItem('${source}','${it.id}')">✕</button>
   </div>`;
 }
-// v71: Training — a buffer-style draggable, editable row with the green accent + 🏋️,
-// plus a 📅 button into the SAME day/slot popup recurring uses. One-off items drag onto
-// the grid; scheduling days in the popup switches them to the shared recurrence engine.
+// v73: auto-detect a training title's emoji from WP_TRAIN_EMOJI_RULES. Tokenises on
+// whitespace and strips only leading/trailing punctuation (internal hyphens kept, so
+// "run-through" is NOT the token "run"). Returns the first matching rule's emoji, else
+// the default. Pure function of the title — no override applied here.
+function wpDetectTrainingEmoji(title){
+  const t = String(title==null?"":title).toLowerCase();
+  const tokens = t.split(/\s+/).map(w=>w.replace(/^[^a-z0-9]+|[^a-z0-9]+$/g,"")).filter(Boolean);
+  if(!tokens.length) return WP_TRAIN_EMOJI_DEFAULT;
+  const set = new Set(tokens);
+  for(const rule of WP_TRAIN_EMOJI_RULES){
+    if(rule.words && rule.words.some(w=>set.has(w))) return rule.emoji;
+    if(rule.re && rule.re.some(rx=>tokens.some(tok=>rx.test(tok)))) return rule.emoji;
+    if(rule.phrases && rule.phrases.some(rx=>rx.test(t))) return rule.emoji;
+  }
+  return WP_TRAIN_EMOJI_DEFAULT;
+}
+// The emoji actually shown for a training item: a valid manual override wins; otherwise
+// auto-detect (so items without an override re-detect as the title changes). Guarding the
+// override against the known choice set keeps the rendered string a safe constant.
+function wpTrainingEmoji(it){
+  if(it && typeof it.emoji === "string" && WP_TRAIN_EMOJI_CHOICES.indexOf(it.emoji) >= 0) return it.emoji;
+  return wpDetectTrainingEmoji(it && it.title);
+}
+
+// v71: Training — a buffer-style draggable, editable row with the green accent, plus a 📅
+// button into the SAME day/slot popup recurring uses. One-off items drag onto the grid;
+// scheduling days in the popup switches them to the shared recurrence engine.
+// v73: the leading emoji reflects the training type (auto from the title, or a manual
+// override) and is a light native picker — first option "auto" (shows the detected emoji),
+// then the fixed set; picking one sets the override, picking "auto" clears it.
 function wpTrainRow(it){
   const ref = wpItemRef("training", it.id);
   const placed = wpPlacedLabel(ref);
   const done = wpIsDone("training", it);
   const sched = !!wpRecurDays(it);
+  const auto = wpDetectTrainingEmoji(it.title);
+  const hasOv = it && typeof it.emoji === "string" && WP_TRAIN_EMOJI_CHOICES.indexOf(it.emoji) >= 0;
+  const emojiOpts = `<option value=""${hasOv?"":" selected"}>${auto} auto</option>`
+    + WP_TRAIN_EMOJI_CHOICES.map(e=>`<option value="${e}"${hasOv&&it.emoji===e?" selected":""}>${e}</option>`).join("");
   return `<div class="wp-drag-row wp-train-row${done?" wp-item-done":""}" draggable="true"
       ondragstart="wpDragStart(event,'training','${it.id}')" ondragend="wpDragEnd(event)">
     <span class="wp-drag-handle" title="Drag onto a time block">⠿</span>
-    <span class="wp-train-emoji" aria-hidden="true">🏋️</span>
+    <select class="wp-train-emoji-sel" title="Training type — pick an emoji or leave on auto" onchange="wpSetTrainingEmoji('${it.id}',this.value)">${emojiOpts}</select>
     <input class="wp-drag-name${done?" wp-done":""}" data-item-title="training:${it.id}" value="${wpEsc(it.title)}" placeholder="Training"
       onkeydown="wpItemKey(event)" onblur="wpTrainingBlur()">
     ${placed?`<span class="wp-txt-tag wp-train-tag" onclick="wpOpenPopup('training','${it.id}',this)">${placed}</span>`:""}
@@ -1930,7 +1991,9 @@ function wpChipHtml(ref, dk, mode){
   // v71: training chips carry the green accent + 🏋️ instead — same everywhere they render.
   const done = wpIsDone(source, item, dk);
   const recCls = source==="recurring" ? " wp-recur" : (source==="training" ? " wp-train" : "");
-  const emoji = source==="training" ? "🏋️ " : "";
+  // v73: training chips lead with the type emoji (override or auto-detected) — same
+  // resolver as the card row, so it's identical in card, grid and Today modal.
+  const emoji = source==="training" ? (wpTrainingEmoji(item) + " ") : "";
   // v66: same link affordance as the list row — ↗ only when wpValidUrl passes.
   // (An <a> inside a <label> is excluded from label activation, so clicking it
   // follows the link without toggling the done checkbox.)
@@ -2556,6 +2619,19 @@ async function wpRemoveTraining(id){
   wpTraining.splice(i,1);
   await wpSaveTraining();
   if(hadPlacements) await wpSaveSection("timeBlocks"); // persist the cleared placements
+  renderWeeklyPlan();
+}
+// v73: set/clear a training item's manual emoji override. An empty value (the "auto"
+// option) removes the field so the item goes back to auto-detecting from its title.
+// Additive — only ever touches this one item's optional `emoji` field.
+async function wpSetTrainingEmoji(id, emoji){
+  wpSyncFromDom();   // don't lose an in-progress title edit on the re-render
+  await wpLoadTraining();
+  const it = (wpTraining||[]).find(x=>x.id===id);
+  if(!it) return;
+  if(typeof emoji === "string" && WP_TRAIN_EMOJI_CHOICES.indexOf(emoji) >= 0) it.emoji = emoji;
+  else delete it.emoji;
+  await wpSaveTraining();
   renderWeeklyPlan();
 }
 // v64: THE recurrence writer. Sets a task's day set + time slot and syncs the real
