@@ -606,6 +606,44 @@
   .wp-carry-return{background:transparent;border:none;color:var(--ink-faint);font-size:14px;cursor:pointer;
     padding:0 4px;line-height:1;opacity:.6;flex:none;}
   .wp-carry-return:hover{color:var(--orange-soft);opacity:1;}
+  /* ===== v67: TODAY focus modal — read-and-tick view of just today ===== */
+  .wp-today-btn{background:rgba(232,115,42,.12);border:1px solid rgba(232,115,42,.45);color:var(--orange-soft);
+    border-radius:8px;padding:5px 12px;font-family:inherit;font-size:11px;font-weight:800;
+    text-transform:uppercase;letter-spacing:.6px;cursor:pointer;flex:none;}
+  .wp-today-btn:hover{background:var(--orange);border-color:var(--orange);color:#fff;}
+  .wp-today-overlay{position:fixed;inset:0;z-index:10000;display:flex;align-items:flex-start;justify-content:center;
+    padding:6vh 16px 40px;overflow-y:auto;background:rgba(8,14,24,.62);
+    -webkit-backdrop-filter:blur(7px);backdrop-filter:blur(7px);
+    opacity:0;transition:opacity .18s ease;}
+  .wp-today-overlay[hidden]{display:none;}
+  .wp-today-overlay.open{opacity:1;}
+  .wp-today-modal{width:min(560px,100%);background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:0 24px 70px rgba(0,0,0,.6);overflow:hidden;
+    transform:scale(.96) translateY(10px);transition:transform .18s ease;}
+  .wp-today-overlay.open .wp-today-modal{transform:scale(1) translateY(0);}
+  .wp-today-h{background:var(--navy-2);border-bottom:1px solid var(--line);padding:13px 18px;
+    display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  .wp-today-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--orange-soft);}
+  .wp-today-date{font-size:14px;font-weight:800;color:#fff;letter-spacing:-.2px;margin-top:1px;}
+  .wp-today-close{background:transparent;border:1px solid var(--line);color:var(--ink-dim);border-radius:8px;
+    width:30px;height:30px;font-size:13px;font-weight:700;cursor:pointer;flex:none;line-height:1;padding:0;}
+  .wp-today-close:hover{border-color:var(--orange);color:var(--orange-soft);}
+  .wp-today-body{padding:16px 18px;display:flex;flex-direction:column;gap:10px;}
+  .wp-today-row{display:flex;gap:12px;border:1px solid var(--line);border-radius:10px;background:var(--navy);padding:10px 12px;}
+  .wp-today-time{flex:none;width:64px;font-size:12px;font-weight:800;color:var(--orange-soft);padding-top:3px;white-space:nowrap;}
+  .wp-today-slot{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;}
+  .wp-today-slot .wp-cellchips{padding:0;}
+  .wp-today-slot .wp-cellchip{cursor:default;font-size:12.5px;padding:7px 9px;}
+  .wp-today-freetext{font-size:12px;color:var(--ink-dim);white-space:pre-wrap;line-height:1.5;}
+  .wp-today-empty{font-size:12px;color:var(--ink-faint);font-style:italic;padding:2px 0;}
+  .wp-today-notes{display:flex;flex-direction:column;gap:5px;margin-top:4px;}
+  .wp-today-notes label{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint);font-weight:700;}
+  .wp-today-notes textarea{background:var(--navy);color:var(--ink);border:1px solid var(--line);border-radius:8px;
+    padding:10px 12px;font-family:inherit;font-size:13px;line-height:1.6;width:100%;resize:vertical;min-height:90px;}
+  .wp-today-notes textarea:focus{outline:none;border-color:var(--orange);}
+  .wp-today-offweek{display:flex;flex-direction:column;gap:6px;padding:6px 2px;font-size:13.5px;line-height:1.5;}
+  .wp-today-offweek strong{color:var(--amber);}
+  .wp-today-offweek span{font-size:12.5px;color:var(--ink-dim);}
 </style>
 </head>
 <body>
@@ -858,12 +896,26 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v66 · grid-chip-link</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v67 · today-view</span>
   </footer>
 </div>
 
 <!-- hidden textarea used for clipboard copy -->
 <textarea id="copyScratch" style="position:absolute;left:-9999px;top:-9999px;"></textarea>
+
+<!-- v67: TODAY focus modal — just today's time blocks + the weekly notes, read-and-tick -->
+<div id="wpTodayOverlay" class="wp-today-overlay" hidden onclick="if(event.target===this)wpCloseToday()">
+  <div class="wp-today-modal" role="dialog" aria-modal="true" aria-labelledby="wpTodayDate">
+    <div class="wp-today-h">
+      <div>
+        <div class="wp-today-title">Today</div>
+        <div class="wp-today-date" id="wpTodayDate"></div>
+      </div>
+      <button class="wp-today-close" title="Close (Esc)" onclick="wpCloseToday()">✕</button>
+    </div>
+    <div class="wp-today-body" id="wpTodayBody"></div>
+  </div>
+</div>
 
 <script>
 /* ===== CONFIG (defaults — editable in-app, persisted to storage) ===== */
@@ -1619,10 +1671,12 @@ function wpSyncFromDom(){
   });
 }
 
-function wpBoxHeader(title, sectionKey){
+// v67: extraHtml (optional) renders on the right of the header bar, after the saved-msg —
+// used by the Time Blocks header for the "Today" focus button.
+function wpBoxHeader(title, sectionKey, extraHtml){
   return `<div class="wp-box-h"><span>${title}</span>
     <span class="wp-sec-save">
-      <span class="wp-ssaved" id="wpmsg-${sectionKey}"></span>
+      <span class="wp-ssaved" id="wpmsg-${sectionKey}"></span>${extraHtml||""}
     </span></div>`;
 }
 
@@ -1700,6 +1754,36 @@ function wpListBox(title, sectionKey, source, items, addFn, addLabel){
   </div>`;
 }
 
+// v67: shared placed-chip renderer — the weekly grid and the Today modal render the
+// same chip (checkbox, teal recurring accent, ↗ link via wpValidUrl). mode "today"
+// drops the drag affordances and routes the tick through the modal so it can
+// re-render itself; the grid output is unchanged from v66.
+function wpChipHtml(ref, dk, mode){
+  const [source] = ref.split(":");
+  const item = wpResolveRef(ref);
+  if(!item) return "";
+  // v63: recurring chips tick per-day for weekday tasks, and carry the teal accent
+  const done = wpIsDone(source, item, dk);
+  const recCls = source==="recurring" ? " wp-recur" : "";
+  // v66: same link affordance as the list row — ↗ only when wpValidUrl passes.
+  // (An <a> inside a <label> is excluded from label activation, so clicking it
+  // follows the link without toggling the done checkbox.)
+  const linkHref = source==="recurring" ? wpValidUrl(item.link || "") : null;
+  const linkOut = linkHref
+    ? `<a class="wp-rec-link wp-chip-link" href="${wpEsc(linkHref)}" target="_blank" rel="noopener noreferrer" title="${wpEsc(linkHref)}" onclick="event.stopPropagation()">↗</a>`
+    : "";
+  if(mode==="today"){
+    return `<label class="wp-cellchip${done?" wp-done":""}${recCls}" title="${wpEsc(item.title)}">
+      <input type="checkbox" ${done?"checked":""} onchange="wpTodayToggleDone('${ref}',this.checked,'${dk}')">
+      <span class="wp-chip-title">${wpEsc(item.title)}</span>${linkOut}</label>`;
+  }
+  return `<label class="wp-cellchip${done?" wp-done":""}${recCls}" draggable="true" title="${wpEsc(item.title)}"
+      ondragstart="wpChipDragStart(event,'${ref}')" ondragend="wpDragEnd(event)">
+    <span class="wp-chip-grip" aria-hidden="true">⠿</span>
+    <input type="checkbox" ${done?"checked":""} onchange="wpToggleDoneRef('${ref}',this.checked,'${dk}')">
+    <span class="wp-chip-title">${wpEsc(item.title)}</span>${linkOut}</label>`;
+}
+
 function renderWeeklyPlan(){
   const p = wpPlan;
 
@@ -1726,33 +1810,14 @@ function renderWeeklyPlan(){
     const cells = WP_DAYS.map(([dk])=>{
       const key = rk+":"+dk;
       const refs = (p.placements[key]||[]);
-      const chips = refs.map(ref=>{
-        const [source] = ref.split(":");
-        const item = wpResolveRef(ref);
-        if(!item) return "";
-        // v63: recurring chips tick per-day for weekday tasks, and carry the teal accent
-        const done = wpIsDone(source, item, dk);
-        const recCls = source==="recurring" ? " wp-recur" : "";
-        // v66: same link affordance as the list row — ↗ only when wpValidUrl passes.
-        // (An <a> inside a <label> is excluded from label activation, so clicking it
-        // follows the link without toggling the done checkbox.)
-        const linkHref = source==="recurring" ? wpValidUrl(item.link || "") : null;
-        const linkOut = linkHref
-          ? `<a class="wp-rec-link wp-chip-link" href="${wpEsc(linkHref)}" target="_blank" rel="noopener noreferrer" title="${wpEsc(linkHref)}" onclick="event.stopPropagation()">↗</a>`
-          : "";
-        return `<label class="wp-cellchip${done?" wp-done":""}${recCls}" draggable="true" title="${wpEsc(item.title)}"
-            ondragstart="wpChipDragStart(event,'${ref}')" ondragend="wpDragEnd(event)">
-          <span class="wp-chip-grip" aria-hidden="true">⠿</span>
-          <input type="checkbox" ${done?"checked":""} onchange="wpToggleDoneRef('${ref}',this.checked,'${dk}')">
-          <span class="wp-chip-title">${wpEsc(item.title)}</span>${linkOut}</label>`;
-      }).join("");
+      const chips = refs.map(ref=>wpChipHtml(ref, dk)).join("");
       const txt = (p.timeBlocks[rk]&&p.timeBlocks[rk][dk])||"";
       return `<td class="wp-daycell" ondragover="wpCellDragOver(event)" ondragleave="wpCellDragLeave(event)" ondrop="wpCellDrop(event,'${rk}','${dk}')"><div class="wp-cellwrap">${chips?`<div class="wp-cellchips">${chips}</div>`:""}<textarea data-tb="${key}" onblur="wpSaveSection('timeBlocks')">${wpEsc(txt)}</textarea></div></td>`;
     }).join("");
     return `<tr class="${notesRow}"><td class="wp-rowlabel">${rlbl}</td>${cells}</tr>`;
   }).join("");
   const gridBox = `<div class="wp-box wp-grid-box">
-    ${wpBoxHeader("Time Blocks","timeBlocks")}
+    ${wpBoxHeader("Time Blocks","timeBlocks",`<button class="wp-today-btn" title="Focus on just today" onclick="wpOpenToday()">Today</button>`)}
     <div class="wp-box-body"><div class="wp-grid-wrap"><table class="wp-grid"><thead>${gridHead}</thead><tbody>${gridBody}</tbody></table></div></div>
   </div>`;
 
@@ -2237,6 +2302,108 @@ async function wpToggleDoneRef(ref, checked, day){
   await wpSaveSection(section);
   renderWeeklyPlan();
 }
+
+/* ===================== v67: TODAY FOCUS MODAL ===================== */
+// A read-and-tick view of just today: the same preset time rows as a single column,
+// the same chips (via wpChipHtml), and the same weekly Notes field. No drag/drop,
+// no adding, no recurrence editing — everything routes through the existing save
+// paths (wpToggleDoneRef / wpSaveSection), so it writes the same keys as the grid.
+const WP_DAY_OF = ["sun","mon","tue","wed","thu","fri","sat"]; // getUTCDay() index → WP_DAYS key
+let wpTodayOpen = false;
+let wpTodayCloseTimer = null;
+
+// Day key + week Monday derived from the SAME date, using the app's existing week
+// math (mondayOf), so "is today in this week" and "which column is today" always agree.
+function wpTodayInfo(){
+  const now = new Date();
+  return {
+    dayKey: WP_DAY_OF[now.getUTCDay()],
+    weekMonday: mondayOf(now).toISOString().slice(0,10),
+    label: now.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})
+  };
+}
+
+function wpRenderTodayBody(){
+  if(!wpPlan) return;
+  const body = document.getElementById("wpTodayBody");
+  if(!body) return;
+  const t = wpTodayInfo();
+  const dateEl = document.getElementById("wpTodayDate");
+  if(dateEl) dateEl.textContent = t.label;
+  // Today outside the viewed week → say so clearly, never a confusing empty day.
+  if(t.weekMonday !== wpWeekEnding){
+    let wkLbl = wpWeekEnding || "";
+    try{ wkLbl = new Date(wpWeekEnding+"T00:00:00Z").toLocaleDateString("en-GB",{day:"numeric",month:"long"}); }catch(e){}
+    body.innerHTML = `<div class="wp-today-offweek">
+      <strong>Today isn't in the week you're viewing.</strong>
+      <span>You're on the week starting ${wpEsc(wkLbl)}. Use "Current week" in the week bar, then open Today again.</span>
+    </div>`;
+    return;
+  }
+  // The four preset time rows as one vertical column (the grid's Notes row isn't a time slot).
+  const rows = WP_TIME_ROWS.filter(([rk])=>rk!=="notes").map(([rk,rlbl])=>{
+    const refs = (wpPlan.placements[rk+":"+t.dayKey]||[]);
+    const chips = refs.map(ref=>wpChipHtml(ref, t.dayKey, "today")).join("");
+    const txt = (wpPlan.timeBlocks[rk]&&wpPlan.timeBlocks[rk][t.dayKey])||"";
+    const inner = ((chips?`<div class="wp-cellchips">${chips}</div>`:"") +
+      (txt?`<div class="wp-today-freetext">${wpEsc(txt)}</div>`:"")) ||
+      `<div class="wp-today-empty">Nothing planned.</div>`;
+    return `<div class="wp-today-row"><div class="wp-today-time">${rlbl}</div><div class="wp-today-slot">${inner}</div></div>`;
+  }).join("");
+  // The existing WEEKLY notes — same field, same save path, kept in sync with the week view.
+  const notes = `<div class="wp-today-notes">
+    <label>Notes — this week</label>
+    <textarea id="wpTodayNotes" onblur="wpTodaySaveNotes()" placeholder="Things to think about, ideas for next week, observations, stuff to discuss with the team…">${wpEsc(wpPlan.notes)}</textarea>
+  </div>`;
+  body.innerHTML = rows + notes;
+}
+
+function wpOpenToday(){
+  if(!wpPlan) return;
+  const ov = document.getElementById("wpTodayOverlay");
+  if(!ov) return;
+  wpSyncFromDom();          // capture any unsaved grid/notes edits so the modal shows fresh data
+  wpRenderTodayBody();
+  if(wpTodayCloseTimer){ clearTimeout(wpTodayCloseTimer); wpTodayCloseTimer=null; }
+  ov.hidden = false;
+  wpTodayOpen = true;
+  document.body.style.overflow = "hidden";   // the page behind must not scroll
+  // double-rAF so the fade/scale transition runs from the hidden state instead of snapping
+  requestAnimationFrame(()=>requestAnimationFrame(()=>ov.classList.add("open")));
+}
+
+function wpCloseToday(){
+  const ov = document.getElementById("wpTodayOverlay");
+  if(!ov || !wpTodayOpen) return;
+  wpTodaySaveNotes();       // Escape-close doesn't blur the textarea — catch unsaved notes edits
+  wpTodayOpen = false;
+  document.body.style.overflow = "";
+  ov.classList.remove("open");
+  wpTodayCloseTimer = setTimeout(()=>{ ov.hidden = true; wpTodayCloseTimer=null; }, 200);
+}
+
+// One write path for modal notes: wpPlan.notes + the weekly panel's textarea (so
+// wpSyncFromDom can't re-read a stale value), then the normal notes section save —
+// same blob field, same merge as editing notes in the week view.
+function wpTodaySaveNotes(){
+  if(!wpPlan) return;
+  const el = document.getElementById("wpTodayNotes");
+  if(!el || typeof el.value !== "string" || el.value === wpPlan.notes) return;
+  wpPlan.notes = el.value;
+  const wb = document.getElementById("wpBody");
+  const weekEl = wb && wb.querySelector && wb.querySelector('[data-field="notes"]');
+  if(weekEl) weekEl.value = el.value;   // keep the weekly Notes panel in sync without a re-render
+  return wpSaveSection("notes");
+}
+
+// Tick from a modal chip: the REAL done path (same per-day recurringDone keys, same
+// section save, weekly grid re-renders underneath), then refresh the modal itself.
+async function wpTodayToggleDone(ref, checked, day){
+  await wpToggleDoneRef(ref, checked, day);
+  wpRenderTodayBody();
+}
+
+document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && wpTodayOpen) wpCloseToday(); });
 
 (async function(){
   // load saved targets first (if any) so flags use the latest
