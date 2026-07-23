@@ -547,9 +547,12 @@
   .wp-train-row{border-left:3px solid rgba(63,191,127,.5);padding-left:9px;background:rgba(63,191,127,.045);border-radius:0 6px 6px 0;}
   .wp-cellchip.wp-train{border-left:3px solid rgba(63,191,127,.6);background:rgba(63,191,127,.09);}
   .wp-train-emoji{font-size:12px;line-height:1;flex:none;}
-  /* v73: light native emoji picker on the training row — quiet until hovered/focused */
-  .wp-train-emoji-sel{flex:none;background:transparent;border:1px solid transparent;color:var(--ink);
-    font-family:inherit;font-size:13px;line-height:1;padding:2px 3px;border-radius:6px;cursor:pointer;}
+  /* v73/v74: light native emoji picker on the training row — quiet until hovered/focused.
+     Collapsed it shows just one emoji (+ the native chevron); every option is a single
+     emoji, so the control is the SAME narrow width for auto and overridden items alike. */
+  .wp-train-emoji-sel{flex:none;box-sizing:border-box;background:transparent;border:1px solid transparent;
+    color:var(--ink);font-family:inherit;font-size:13px;line-height:1;padding:2px 2px 2px 4px;
+    border-radius:6px;cursor:pointer;text-align:center;}
   .wp-train-emoji-sel:hover{border-color:var(--line);}
   .wp-train-emoji-sel:focus{outline:none;border-color:var(--orange);}
   .wp-txt-tag.wp-train-tag{color:var(--green);background:rgba(63,191,127,.12);}
@@ -972,7 +975,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v73 · training-emojis</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v74 · emoji-control-tidy</span>
   </footer>
 </div>
 
@@ -1933,8 +1936,10 @@ function wpTrainingEmoji(it){
 // button into the SAME day/slot popup recurring uses. One-off items drag onto the grid;
 // scheduling days in the popup switches them to the shared recurrence engine.
 // v73: the leading emoji reflects the training type (auto from the title, or a manual
-// override) and is a light native picker — first option "auto" (shows the detected emoji),
-// then the fixed set; picking one sets the override, picking "auto" clears it.
+// override) and is a light native picker — first option is "auto" (its value is empty and
+// its label is just the detected emoji, so the collapsed control shows a single emoji and
+// stays narrow — v74), then the fixed set; picking one sets the override, picking the auto
+// option clears it. A title tooltip flags which entry is the auto one inside the open list.
 function wpTrainRow(it){
   const ref = wpItemRef("training", it.id);
   const placed = wpPlacedLabel(ref);
@@ -1942,7 +1947,7 @@ function wpTrainRow(it){
   const sched = !!wpRecurDays(it);
   const auto = wpDetectTrainingEmoji(it.title);
   const hasOv = it && typeof it.emoji === "string" && WP_TRAIN_EMOJI_CHOICES.indexOf(it.emoji) >= 0;
-  const emojiOpts = `<option value=""${hasOv?"":" selected"}>${auto} auto</option>`
+  const emojiOpts = `<option value=""${hasOv?"":" selected"} title="Auto-detect from title">${auto}</option>`
     + WP_TRAIN_EMOJI_CHOICES.map(e=>`<option value="${e}"${hasOv&&it.emoji===e?" selected":""}>${e}</option>`).join("");
   return `<div class="wp-drag-row wp-train-row${done?" wp-item-done":""}" draggable="true"
       ondragstart="wpDragStart(event,'training','${it.id}')" ondragend="wpDragEnd(event)">

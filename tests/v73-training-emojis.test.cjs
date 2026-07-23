@@ -86,9 +86,11 @@ const TODAY = ALL_DAYS[NOW.getUTCDay()];
     await c2.loadWeeklyPlan(TODAY_WEEK);
 
     const body = c2.document.getElementById("wpBody").innerHTML;
-    // card rows: the auto item's picker offers "🏃 auto"; the overridden item shows 🧘 selected
+    // card rows: the auto item's picker shows the detected 🏃 (v74: no "auto" word — the
+    // auto option's label is just the emoji, selected); the overridden item shows 🧘 selected
     assert.ok(body.includes("wp-train-emoji-sel"), "training rows carry the light emoji picker");
-    assert.ok(body.includes("🏃 auto"), "auto item's picker advertises the detected 🏃");
+    assert.ok(body.includes(`<option value="" selected title="Auto-detect from title">🏃</option>`), "auto item's picker shows the detected 🏃 with no visible 'auto' word");
+    assert.ok(!body.includes("🏃 auto") && !body.includes(">🏃 auto<"), "the word 'auto' is not rendered in the control");
     assert.ok(body.includes(`<option value="🧘" selected>🧘</option>`), "overridden item's picker has 🧘 selected");
     // grid chip for the placed run shows 🏃 (not the old hardcoded 🏋️)
     const chipRun = body.split(`wpToggleDoneRef('training:t1'`)[0].slice(-400);
