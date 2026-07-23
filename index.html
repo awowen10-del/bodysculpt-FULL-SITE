@@ -497,6 +497,13 @@
   .wp-ntab.active{color:var(--orange-soft);border-color:rgba(232,115,42,.45);background:rgba(232,115,42,.10);}
   .wp-tab-hidden{display:none!important;}
   .wp-nt-copy{width:auto;padding:0 8px;margin-left:auto;font-size:11px;}
+  /* v75: Recurring card tabs — same quiet navy/orange family as the Notes tabs, tuned a
+     touch tighter so four labels + counts fit the card and wrap gracefully if narrow. */
+  .wp-rec-tabs{gap:3px;}
+  .wp-rec-tabs .wp-ntab{padding:4px 8px;letter-spacing:.3px;}
+  .wp-ntab-count{opacity:.55;font-weight:700;margin-left:1px;}
+  .wp-ntab.active .wp-ntab-count{opacity:.8;}
+  .wp-rec-soon{font-size:12.5px;color:var(--ink-faint);font-style:italic;padding:14px 4px;line-height:1.5;}
   .wp-project textarea{min-height:78px;}
   /* done = strike-through in the box */
   .wp-done{ text-decoration:line-through; opacity:.55; }
@@ -980,7 +987,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v76 · training-row-tidy</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v75 · recurring-tabs</span>
   </footer>
 </div>
 
@@ -1605,6 +1612,22 @@ function wpResolveRef(ref){
 // Absent days = the task's original single-slot behaviour.
 function wpRecurDays(it){ return (it && Array.isArray(it.days) && it.days.length) ? it.days : null; }
 function wpMultiDay(it){ const d = wpRecurDays(it); return !!(d && d.length > 1); }
+
+// v75: the Recurring card is split into tabs (Daily · Weekly · Monthly · Quarterly). This
+// is a DISPLAY FILTER on the existing wpDefaults — which tab a task shows under is DERIVED
+// from its existing schedule (it.days), never a stored field. Edit the thresholds here.
+//   daily   — scheduled on all 7 days (Mon–Sun, weekends included)
+//   weekly  — scheduled on 1–6 days (incl. weekday-only Mon–Fri), OR unscheduled/one-off
+//   monthly / quarterly — placeholders for now; nothing derives into them yet.
+const WP_RECUR_TABS = [["daily","Daily"],["weekly","Weekly"],["monthly","Monthly"],["quarterly","Quarterly"]];
+function wpRecurTab(it){
+  const days = wpRecurDays(it);            // day-key array if scheduled, else null
+  if(days && days.length >= 7) return "daily";
+  return "weekly";                         // 1–6 day schedules and unscheduled one-offs
+}
+// Remembered for the session. Default to Weekly, where the seed tasks (unscheduled) and any
+// newly-added task land, so the card isn't empty on first open.
+let wpRecurTabSel = "weekly";
 // Compact label for a day set: "Daily", "Mon–Fri", or "Mon Wed Fri" (kept in week order).
 function wpDaysLabel(days){
   const ds = WP_DAYS.map(d=>d[0]).filter(k=>days.includes(k));
@@ -1958,6 +1981,46 @@ function wpItemRow(source, it, i){
   return wpDragRow(source, it);
 }
 
+// v75: the Recurring card, tabbed. Pure display filter over wpDefaults — tasks, their 📅
+// day/slot editor, teal accent, ↗ link, done-state, drag and rollover are all unchanged;
+// this only chooses which subset of the SAME wpRecurRow()s to show. Counts are shown per
+// tab so you can see where tasks live without clicking. Monthly/Quarterly are placeholders.
+function wpRecurringBox(){
+  const defs = wpDefaults || [];
+  const counts = { daily:0, weekly:0, monthly:0, quarterly:0 };
+  defs.forEach(it=>{ counts[wpRecurTab(it)]++; });
+  const tabBtns = WP_RECUR_TABS.map(([k,l])=>
+    `<button type="button" class="wp-ntab${wpRecurTabSel===k?" active":""}" onclick="wpRecurSwitchTab('${k}')">${l} <span class="wp-ntab-count">${counts[k]}</span></button>`).join("");
+  const isPlaceholder = (wpRecurTabSel==="monthly" || wpRecurTabSel==="quarterly");
+  let bodyInner;
+  if(isPlaceholder){
+    const lbl = wpRecurTabSel==="monthly" ? "Monthly" : "Quarterly";
+    bodyInner = `<div class="wp-rec-soon">${lbl} recurring is coming soon.</div>`;
+  } else {
+    const list = defs.filter(it=>wpRecurTab(it)===wpRecurTabSel);
+    bodyInner = list.length ? list.map(it=>wpRecurRow(it)).join("") : `<div class="wp-empty">Nothing here yet.</div>`;
+  }
+  // The + Add control shows on the real (Daily/Weekly) tabs — a new task derives into
+  // Weekly, and wpAddRecurring switches there so you always see what you just added.
+  const addRow = isPlaceholder ? "" :
+    `<div class="wp-rec-actions"><button class="wp-rec-addbtn" onclick="wpAddRecurring()">+ Add recurring</button></div>`;
+  return `<div class="wp-box">
+    <div class="wp-box-h"><span class="wp-notes-tabs wp-rec-tabs">${tabBtns}</span></div>
+    <div class="wp-box-body">
+      <div>${bodyInner}</div>
+      ${addRow}
+    </div>
+  </div>`;
+}
+// Filter-only tab switch: capture any in-progress DOM edits first (the full card re-renders),
+// then swap the visible subset. No task data is read, written or reordered.
+function wpRecurSwitchTab(tab){
+  if(!WP_RECUR_TABS.some(t=>t[0]===tab) || tab===wpRecurTabSel) return;
+  wpSyncFromDom();
+  wpRecurTabSel = tab;
+  renderWeeklyPlan();
+}
+
 function wpListBox(title, sectionKey, source, items, addFn, addLabel){
   const rows = items.length ? items.map((it,i)=>wpItemRow(source,it,i)).join("")
     : `<div class="wp-empty">Nothing here yet.</div>`;
@@ -2241,7 +2304,7 @@ function renderWeeklyPlan(){
   const p = wpPlan;
 
   const projectBox = wpListBox("Project","project","project", p.projectItems, "wpAddItem('project')", "+ Add project task");
-  const recurringBox = wpListBox("Recurring","recurring","recurring", (wpDefaults||[]), "wpAddRecurring()", "+ Add recurring");
+  const recurringBox = wpRecurringBox();   // v75: tabbed (Daily/Weekly/Monthly/Quarterly) filter over wpDefaults
   const bufferBox = wpListBox("Buffer","buffer","buffer", p.bufferItems, "wpAddItem('buffer')", "+ Add buffer task");
   // v71: personal Training — its own collection and card, never mixed into Recurring
   const trainingBox = wpListBox("🏋️ Training","training","training", (wpTraining||[]), "wpAddTraining()", "+ Add training");
@@ -2559,7 +2622,11 @@ async function wpAddRecurring(){
   if(!t) return;
   await wpLoadDefaults();
   wpDefaults = wpDefaults || [];
-  wpDefaults.push({ id:wpUid(), title: t });
+  const it = { id:wpUid(), title: t };
+  wpDefaults.push(it);
+  // v75: jump to the tab the new task derives into (a fresh, unscheduled task → Weekly) so
+  // it's visible straight after adding, regardless of which tab was active.
+  wpRecurTabSel = wpRecurTab(it);
   await wpSaveDefaults();
   renderWeeklyPlan();
 }
