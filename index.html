@@ -668,6 +668,11 @@
   .wp-today-btn-timer{margin-left:7px;padding-left:7px;border-left:1px solid rgba(232,115,42,.5);
     font-variant-numeric:tabular-nums;}
   .wp-today-btn-timer:empty{display:none;}
+  /* v69: "Dial in" — quiet ghost link-out to the focus playlist, part of the preset cluster */
+  .wp-dialin{display:inline-flex;align-items:center;gap:5px;background:transparent;border:1px dashed var(--line);
+    color:var(--ink-dim);border-radius:8px;padding:6px 11px;font-family:inherit;font-size:11.5px;font-weight:700;
+    text-decoration:none;cursor:pointer;}
+  .wp-dialin:hover{border-color:var(--orange);color:var(--orange-soft);}
 </style>
 </head>
 <body>
@@ -920,7 +925,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v68 · focus-timer</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v69 · dial-in</span>
   </footer>
 </div>
 
@@ -2441,6 +2446,14 @@ document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && wpTodayOpen) 
 let wpTimer = null;
 let wpTimerTick = null;   // the one 500ms interval, live only while running
 
+// v69: "Dial in" — the focus playlist, easy to swap. The app URI is a KNOWN-SAFE
+// hardcoded constant (custom schemes deliberately do NOT pass wpValidUrl — it is
+// not loosened for this); the https fallback runs through the same wpValidUrl
+// path as v63 task links.
+const WP_FOCUS_PLAYLIST_URI = "spotify:playlist:1VKtv1xJtFFkS3OsaFY3WZ";
+const WP_FOCUS_PLAYLIST_URL = "https://open.spotify.com/playlist/1VKtv1xJtFFkS3OsaFY3WZ";
+let wpDialInFallback = false;   // set only by the fallback timer, consumed by the re-click
+
 function wpTimerRemainingMs(){
   if(!wpTimer || wpTimer.finished) return 0;
   if(wpTimer.pausedRemaining != null) return wpTimer.pausedRemaining;
@@ -2502,6 +2515,7 @@ function wpTimerInnerHtml(){
     return `<div class="wp-timer-idle">
       <span class="wp-timer-label">Focus timer</span>
       ${[30,60,90,120].map(m=>`<button class="wp-timer-preset" onclick="wpStartTimer(${m})">${m}m</button>`).join("")}
+      ${wpDialInHtml()}
     </div>`;
   }
   if(wpTimer.finished){
@@ -2537,6 +2551,37 @@ function wpTimerBadgeRefresh(){
   const el = document.getElementById("wpTodayBtnTimer");
   if(el) el.textContent = wpTimerBadgeText();
 }
+// "Dial in" renders as a real validated https anchor (target/_blank + noopener), so
+// the web fallback is plain markup and works even with scripting oddities. Its click
+// handler tries the desktop app first and only lets the anchor fire when the app
+// didn't take it — never both.
+function wpDialInHtml(){
+  const href = wpValidUrl(WP_FOCUS_PLAYLIST_URL);   // same validation path as task links
+  if(!href) return "";
+  return `<a class="wp-dialin" href="${wpEsc(href)}" target="_blank" rel="noopener noreferrer"
+    title="Open the focus playlist in Spotify" onclick="return wpDialIn(this)">♫ Dial in</a>`;
+}
+// App-first with a quiet web fallback: navigate to the spotify: URI (the page itself
+// never leaves), then ~1.2s later re-click the anchor UNLESS the page lost focus or
+// visibility in the meantime — i.e. the desktop app took over. Normal cases open
+// exactly one thing: app installed → app only; not installed → one web-player tab.
+// The re-click happens inside the browser's transient-activation window, so it isn't
+// popup-blocked, and wpDialInFallback lets it through as a plain link follow.
+function wpDialIn(a){
+  if(wpDialInFallback){ wpDialInFallback = false; return true; }   // fallback re-click → follow the https link
+  let taken = false;
+  const cancel = ()=>{ taken = true; };
+  window.addEventListener("blur", cancel);
+  document.addEventListener("visibilitychange", cancel);
+  setTimeout(()=>{
+    window.removeEventListener("blur", cancel);
+    document.removeEventListener("visibilitychange", cancel);
+    if(!taken){ wpDialInFallback = true; a.click(); }
+  }, 1200);
+  try{ window.location.href = WP_FOCUS_PLAYLIST_URI; }catch(e){}
+  return false;   // suppress the tab on this pass — only the fallback path opens it
+}
+
 // Short two-note chime — obvious but not obnoxious, never blocking, silently skipped
 // if Web Audio is unavailable or the context can't start.
 function wpTimerChime(){

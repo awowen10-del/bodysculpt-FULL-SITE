@@ -93,7 +93,15 @@ async function boot(opts = {}) {
 
   const sandbox = {
     document: doc,
-    window: { scrollTo() {}, scrollY: 0, scrollX: 0, innerWidth: 1200, innerHeight: 800 },
+    window: {
+      scrollTo() {}, scrollY: 0, scrollX: 0, innerWidth: 1200, innerHeight: 800,
+      // v69 dial-in: real listener tracking + a writable location, so the
+      // app-URI-then-web-fallback logic can be driven from tests
+      _handlers: {},
+      addEventListener(t, f) { (this._handlers[t] = this._handlers[t] || []).push(f); },
+      removeEventListener(t, f) { const l = this._handlers[t]; if (l) { const i = l.indexOf(f); if (i >= 0) l.splice(i, 1); } },
+      location: { href: "" },
+    },
     localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
     navigator: {},
     fetch: fetchStub,
