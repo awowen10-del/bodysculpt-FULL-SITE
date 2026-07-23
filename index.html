@@ -460,7 +460,28 @@
   .wp-right-col{display:flex;}
   .wp-right-col .wp-notes-panel{flex:1;margin-bottom:0;}
   .wp-right-col .wp-notes-panel .wp-box-body{flex:1;}
-  .wp-right-col .wp-notes-panel textarea{height:100%;min-height:300px;}
+  .wp-right-col .wp-notes-panel .wp-notes-editor{min-height:300px;}
+  /* ===== v70: rich notes — quiet toolbar + contenteditable editor, same visual family as the textareas ===== */
+  .wp-notes-rich{display:flex;flex-direction:column;gap:6px;flex:1;min-height:0;}
+  .wp-nt-bar{display:flex;gap:4px;flex-wrap:wrap;}
+  .wp-nt-btn{background:var(--navy-2);border:1px solid var(--line);color:var(--ink-dim);border-radius:6px;
+    width:26px;height:24px;padding:0;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;line-height:1;}
+  .wp-nt-btn:hover{border-color:var(--orange);color:var(--orange-soft);}
+  .wp-notes-editor{background:var(--navy);color:var(--ink);border:1px solid var(--line);border-radius:8px;
+    padding:10px 12px;font-size:13.5px;line-height:1.7;width:100%;flex:1;min-height:120px;
+    overflow-y:auto;resize:vertical;}
+  .wp-notes-editor:focus{outline:none;border-color:var(--orange);}
+  .wp-notes-editor:empty::before{content:attr(data-ph);color:var(--ink-faint);pointer-events:none;}
+  .wp-notes-editor ul,.wp-notes-editor ol{margin:4px 0;padding-left:22px;}
+  .wp-notes-editor input[type=checkbox]{appearance:none;-webkit-appearance:none;width:14px;height:14px;
+    border:1.5px solid var(--ink-faint);border-radius:4px;background:transparent;cursor:pointer;position:relative;
+    vertical-align:-2px;margin:0 7px 0 0;transition:all .12s;}
+  .wp-notes-editor input[type=checkbox]:hover{border-color:var(--orange);}
+  .wp-notes-editor input[type=checkbox]:checked{background:var(--orange);border-color:var(--orange);}
+  .wp-notes-editor input[type=checkbox]:checked::after{content:"✓";position:absolute;top:50%;left:50%;
+    transform:translate(-50%,-50%);color:#fff;font-size:10px;font-weight:900;line-height:1;}
+  .wp-note-todo{margin:2px 0;}
+  .wp-note-todo:has(input:checked){text-decoration:line-through;opacity:.6;}
   .wp-project textarea{min-height:78px;}
   /* done = strike-through in the box */
   .wp-done{ text-decoration:line-through; opacity:.55; }
@@ -638,9 +659,8 @@
   .wp-today-empty{font-size:12px;color:var(--ink-faint);font-style:italic;padding:2px 0;}
   .wp-today-notes{display:flex;flex-direction:column;gap:5px;margin-top:4px;}
   .wp-today-notes label{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint);font-weight:700;}
-  .wp-today-notes textarea{background:var(--navy);color:var(--ink);border:1px solid var(--line);border-radius:8px;
-    padding:10px 12px;font-family:inherit;font-size:13px;line-height:1.6;width:100%;resize:vertical;min-height:90px;}
-  .wp-today-notes textarea:focus{outline:none;border-color:var(--orange);}
+  /* v70: the modal hosts the same rich notes editor, just a touch smaller */
+  .wp-today-notes .wp-notes-editor{font-size:13px;line-height:1.6;min-height:90px;}
   .wp-today-offweek{display:flex;flex-direction:column;gap:6px;padding:6px 2px;font-size:13.5px;line-height:1.5;}
   .wp-today-offweek strong{color:var(--amber);}
   .wp-today-offweek span{font-size:12.5px;color:var(--ink-dim);}
@@ -925,7 +945,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v69 · dial-in</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v70 · rich-notes</span>
   </footer>
 </div>
 
@@ -1691,9 +1711,9 @@ function wpSyncFromDom(){
       if(cell){ wpPlan.timeBlocks[rk] = wpPlan.timeBlocks[rk] || {}; wpPlan.timeBlocks[rk][dk] = cell.value; }
     });
   });
-  // notes + review
+  // notes + review (v70: notes is a contenteditable div — serialise + sanitise)
   const notesEl = body.querySelector('[data-field="notes"]');
-  if(notesEl) wpPlan.notes = notesEl.value;
+  if(notesEl) wpPlan.notes = wpNotesFromEditor(notesEl);
   ["wins","notDone","blockers"].forEach(f=>{
     const el = body.querySelector(`[data-review="${f}"]`);
     if(el) wpPlan.review[f] = el.value;
@@ -1813,6 +1833,156 @@ function wpChipHtml(ref, dk, mode){
     <span class="wp-chip-title">${wpEsc(item.title)}</span>${linkOut}</label>`;
 }
 
+/* ===== v70: RICH NOTES ===== */
+// The weekly Notes field is a contenteditable editor storing sanitised HTML in the SAME
+// wpPlan.notes string / blob field as before. Rich values carry a marker prefix so old
+// plain-text notes are detected deterministically (no heuristics, no double-convert):
+//   plain (legacy): any string not starting with the marker — rendered escaped, line
+//                   breaks preserved exactly; upgraded to rich on the next notes save.
+//   rich:           WP_NOTES_MARK + html — marker stripped before render, and the
+//                   sanitiser drops all comments, so the marker can never nest or leak.
+const WP_NOTES_MARK = "<!--wp:rich-->";
+// Strict allowlist. No <a> at all, so javascript:/data: hrefs cannot exist in notes —
+// and wpValidUrl stays exactly as-is for the task-link paths.
+const WP_NOTE_TAGS = new Set(["b","strong","i","em","u","s","strike","ul","ol","li","br","p","div","input"]);
+const WP_NOTE_VOID = new Set(["br","input"]);
+// Elements whose CONTENT is dangerous junk rather than prose — skipped wholesale.
+const WP_NOTE_DROP = new Set(["script","style","iframe","object","embed","noscript","svg","math","title","textarea","template","head"]);
+const WP_NOTE_TODO_CLASS = "wp-note-todo";   // the one class the sanitiser lets through (checkbox line)
+
+// Escape a text node, leaving existing entities alone so sanitising is idempotent
+// (a stored "&amp;" must not become "&amp;amp;" on the next pass).
+function wpNoteEscText(t){
+  return String(t).replace(/&(?![a-zA-Z][a-zA-Z0-9]{1,31};|#\d{1,7};|#[xX][0-9a-fA-F]{1,6};)/g,"&amp;")
+    .replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+// Parse a tag's attribute string into {name: value} (names lowercased).
+function wpNoteAttrs(str){
+  const out = {};
+  const re = /([a-zA-Z][\w:.-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g;
+  let m;
+  while((m = re.exec(str))) out[m[1].toLowerCase()] = (m[2]!=null ? m[2] : m[3]!=null ? m[3] : m[4]!=null ? m[4] : "");
+  return out;
+}
+// The sanitiser — runs on BOTH save (wpNotesFromEditor) and render (wpNotesToEditorHtml).
+// Pure string tokenizer (no DOM), so the vm test harness exercises the real thing.
+// Everything outside the allowlist is dropped; every attribute is dropped except the
+// checkbox's type/checked and the checkbox-line class. Output is always balanced.
+function wpSanitizeNotesHtml(html){
+  const s = String(html == null ? "" : html);
+  const out = [];
+  const stack = [];   // open non-void allowlisted tags — closed in order at the end
+  let i = 0;
+  while(i < s.length){
+    const lt = s.indexOf("<", i);
+    if(lt < 0){ out.push(wpNoteEscText(s.slice(i))); break; }
+    if(lt > i) out.push(wpNoteEscText(s.slice(i, lt)));
+    // comments / doctype / processing instructions — skipped entirely
+    if(s.startsWith("<!--", lt)){ const e = s.indexOf("-->", lt+4); i = e < 0 ? s.length : e+3; continue; }
+    if(s[lt+1] === "!" || s[lt+1] === "?"){ const e = s.indexOf(">", lt); i = e < 0 ? s.length : e+1; continue; }
+    const m = /^<\s*(\/?)\s*([a-zA-Z][a-zA-Z0-9-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>/.exec(s.slice(lt));
+    if(!m){ out.push("&lt;"); i = lt+1; continue; }   // stray "<" — just text
+    i = lt + m[0].length;
+    const name = m[2].toLowerCase();
+    if(m[1] === "/"){
+      // emit only if it closes something we actually opened (keeps output balanced;
+      // intermediates like a dangling <li> are auto-closed on the way)
+      const at = stack.lastIndexOf(name);
+      if(at >= 0){ while(stack.length > at) out.push("</" + stack.pop() + ">"); }
+      continue;
+    }
+    if(WP_NOTE_DROP.has(name)){
+      const cm = new RegExp("</\\s*" + name + "\\s*>", "i").exec(s.slice(i));
+      i = cm ? i + cm.index + cm[0].length : s.length;
+      continue;
+    }
+    if(!WP_NOTE_TAGS.has(name)) continue;   // unknown tag dropped; its text content still flows
+    const attrStr = m[3].replace(/\/\s*$/, "");   // tolerate self-closing "<input …/>"
+    if(name === "input"){
+      const at = wpNoteAttrs(attrStr);
+      if(String(at.type||"").trim().toLowerCase() !== "checkbox") continue;   // checkboxes only
+      out.push('<input type="checkbox"' + ("checked" in at ? " checked" : "") + ">");
+      continue;
+    }
+    let keep = "";
+    if(name === "div"){
+      const at = wpNoteAttrs(attrStr);
+      if(String(at["class"]||"").trim() === WP_NOTE_TODO_CLASS) keep = ' class="' + WP_NOTE_TODO_CLASS + '"';
+    }
+    if(WP_NOTE_VOID.has(name)){ out.push("<" + name + ">"); continue; }
+    out.push("<" + name + keep + ">");
+    stack.push(name);
+  }
+  while(stack.length) out.push("</" + stack.pop() + ">");
+  return out.join("");
+}
+// Legacy plain text → editor HTML. FULL escaping (wpEsc) so every character of an old
+// note renders byte-identical, with "\n" → <br> preserving the line structure exactly.
+function wpNotesPlainToHtml(text){
+  return String(text == null ? "" : text).split("\n").map(wpEsc).join("<br>");
+}
+// Stored value (either format) → safe editor HTML. Sanitise-on-render: even a tampered
+// store value goes through the allowlist before touching innerHTML.
+function wpNotesToEditorHtml(notes){
+  const raw = typeof notes === "string" ? notes : "";
+  if(raw.indexOf(WP_NOTES_MARK) === 0) return wpSanitizeNotesHtml(raw.slice(WP_NOTES_MARK.length));
+  return wpNotesPlainToHtml(raw);
+}
+// "Nothing left but empty blocks/whitespace" → store plain "" (blank notes stay blank).
+// A lone unticked checkbox IS content — <input> survives the strip below.
+function wpNotesIsEmptyHtml(h){
+  return String(h).replace(/<br>/g,"")
+    .replace(/<\/?(?:div|p|ul|ol|li|b|i|u|s|em|strong|strike)(?: [^>]*)?>/g,"")
+    .replace(/&nbsp;/g," ").trim() === "";
+}
+// Editor DOM → stored value. Sanitise-on-save: the browser's innerHTML (or anything
+// pasted into the editor) never reaches the store unfiltered.
+function wpNotesFromEditor(el){
+  const clean = wpSanitizeNotesHtml(el && typeof el.innerHTML === "string" ? el.innerHTML : "");
+  return wpNotesIsEmptyHtml(clean) ? "" : WP_NOTES_MARK + clean;
+}
+// Quiet toolbar — same visual family as the other small controls. mousedown is
+// prevented so clicking a button doesn't steal the editor's selection.
+function wpNotesToolbarHtml(edId){
+  const b = (cmd,lbl,title) =>
+    `<button type="button" class="wp-nt-btn" title="${title}" onmousedown="event.preventDefault()" onclick="wpNotesCmd('${cmd}','${edId}')">${lbl}</button>`;
+  return `<div class="wp-nt-bar">${b("bold","<b>B</b>","Bold (⌘B)")}${b("italic","<i>I</i>","Italic (⌘I)")}${b("underline","<u>U</u>","Underline (⌘U)")}${b("strike","<s>S</s>","Strikethrough")}${b("bullets","•","Bullet list")}${b("todo","☑","Checkbox")}</div>`;
+}
+const WP_NOTE_CMDS = { bold:"bold", italic:"italic", underline:"underline", strike:"strikeThrough", bullets:"insertUnorderedList" };
+function wpNotesCmd(cmd, edId){
+  const ed = edId ? document.getElementById(edId) : null;
+  if(ed && document.activeElement !== ed && ed.focus) ed.focus();
+  if(cmd === "todo"){
+    // our own constant markup — and it round-trips the sanitiser unchanged anyway
+    document.execCommand("insertHTML", false, '<div class="' + WP_NOTE_TODO_CLASS + '"><input type="checkbox">&nbsp;</div>');
+    return;
+  }
+  if(WP_NOTE_CMDS[cmd]) document.execCommand(WP_NOTE_CMDS[cmd], false, null);
+}
+// Standard shortcuts inside either notes editor (⌘/Ctrl + B/I/U) — explicit rather
+// than trusting each browser's contenteditable defaults.
+function wpNotesKeydown(e){
+  if(!(e.metaKey || e.ctrlKey) || e.altKey) return;
+  const k = String(e.key || "").toLowerCase();
+  const cmd = k === "b" ? "bold" : k === "i" ? "italic" : k === "u" ? "underline" : null;
+  if(cmd){ e.preventDefault(); document.execCommand(cmd, false, null); }
+}
+// Checkbox ticks inside a notes editor. The tick must land on the ATTRIBUTE (innerHTML
+// serialises attributes, not the live property) and save immediately — a tick is often
+// never followed by a blur. Delegated + scoped to .wp-notes-editor, so the grid/modal
+// chip checkboxes (which have their own onchange path) are untouched.
+document.addEventListener("click", (e)=>{
+  const t = e.target;
+  if(!t || String(t.tagName).toUpperCase() !== "INPUT" || t.type !== "checkbox") return;
+  const ed = t.closest ? t.closest(".wp-notes-editor") : null;
+  if(!ed) return;
+  e.preventDefault();   // we toggle ourselves so attribute and property can't diverge
+  const on = !t.hasAttribute("checked");
+  if(on) t.setAttribute("checked",""); else t.removeAttribute("checked");
+  t.checked = on;
+  if(ed.id === "wpTodayNotes") wpTodaySaveNotes(); else wpSaveSection("notes");
+});
+
 function renderWeeklyPlan(){
   const p = wpPlan;
 
@@ -1820,10 +1990,15 @@ function renderWeeklyPlan(){
   const recurringBox = wpListBox("Recurring","recurring","recurring", (wpDefaults||[]), "wpAddRecurring()", "+ Add recurring");
   const bufferBox = wpListBox("Buffer","buffer","buffer", p.bufferItems, "wpAddItem('buffer')", "+ Add buffer task");
 
+  // v70: rich editor instead of the textarea — same field, same save path. The editor
+  // div is written with NO whitespace around its content so :empty (placeholder) works.
   const notesPanel = `<div class="wp-box wp-notes-panel">
     ${wpBoxHeader("Notes","notes")}
     <div class="wp-box-body">
-      <textarea data-field="notes" onblur="wpSaveSection('notes')" placeholder="Things to think about, ideas for next week, observations, stuff to discuss with the team…">${wpEsc(p.notes)}</textarea>
+      <div class="wp-notes-rich">
+        ${wpNotesToolbarHtml("wpWeekNotesEd")}
+        <div class="wp-notes-editor" id="wpWeekNotesEd" data-field="notes" contenteditable="true" data-ph="Things to think about, ideas for next week, observations, stuff to discuss with the team…" onblur="wpSaveSection('notes')" onkeydown="wpNotesKeydown(event)">${wpNotesToEditorHtml(p.notes)}</div>
+      </div>
     </div>
   </div>`;
 
@@ -2379,10 +2554,14 @@ function wpRenderTodayBody(){
       `<div class="wp-today-empty">Nothing planned.</div>`;
     return `<div class="wp-today-row"><div class="wp-today-time">${rlbl}</div><div class="wp-today-slot">${inner}</div></div>`;
   }).join("");
-  // The existing WEEKLY notes — same field, same save path, kept in sync with the week view.
+  // The existing WEEKLY notes — same field, same save path, kept in sync with the week
+  // view. v70: the same rich editor as the weekly panel (shared toolbar + sanitiser).
   const notes = `<div class="wp-today-notes">
     <label>Notes — this week</label>
-    <textarea id="wpTodayNotes" onblur="wpTodaySaveNotes()" placeholder="Things to think about, ideas for next week, observations, stuff to discuss with the team…">${wpEsc(wpPlan.notes)}</textarea>
+    <div class="wp-notes-rich">
+      ${wpNotesToolbarHtml("wpTodayNotes")}
+      <div class="wp-notes-editor" id="wpTodayNotes" contenteditable="true" data-ph="Things to think about, ideas for next week, observations, stuff to discuss with the team…" onblur="wpTodaySaveNotes()" onkeydown="wpNotesKeydown(event)">${wpNotesToEditorHtml(wpPlan.notes)}</div>
+    </div>
   </div>`;
   body.innerHTML = wpTimerHtml() + rows + notes;
 }
@@ -2411,17 +2590,21 @@ function wpCloseToday(){
   wpTodayCloseTimer = setTimeout(()=>{ ov.hidden = true; wpTodayCloseTimer=null; }, 200);
 }
 
-// One write path for modal notes: wpPlan.notes + the weekly panel's textarea (so
+// One write path for modal notes: wpPlan.notes + the weekly panel's editor (so
 // wpSyncFromDom can't re-read a stale value), then the normal notes section save —
-// same blob field, same merge as editing notes in the week view.
+// same blob field, same merge as editing notes in the week view. v70: serialise the
+// rich editor through the sanitiser; "unchanged" now compares the stored form, so a
+// legacy plain-text note migrates to rich on the first modal save and never re-saves.
 function wpTodaySaveNotes(){
   if(!wpPlan) return;
   const el = document.getElementById("wpTodayNotes");
-  if(!el || typeof el.value !== "string" || el.value === wpPlan.notes) return;
-  wpPlan.notes = el.value;
+  if(!el || typeof el.innerHTML !== "string") return;
+  const stored = wpNotesFromEditor(el);
+  if(stored === wpPlan.notes) return;
+  wpPlan.notes = stored;
   const wb = document.getElementById("wpBody");
   const weekEl = wb && wb.querySelector && wb.querySelector('[data-field="notes"]');
-  if(weekEl) weekEl.value = el.value;   // keep the weekly Notes panel in sync without a re-render
+  if(weekEl) weekEl.innerHTML = wpNotesToEditorHtml(stored);   // keep the weekly Notes panel in sync without a re-render
   return wpSaveSection("notes");
 }
 

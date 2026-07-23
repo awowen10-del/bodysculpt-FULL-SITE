@@ -88,13 +88,16 @@ const NEXT = (() => { const d = new Date(WEEK + "T00:00:00Z"); d.setUTCDate(d.ge
   assert.ok(html.includes(`"checkbox" checked`), "modal re-rendered showing the tick");
 
   // ---------- 3: notes edited in the modal persist to the weekly notes ----------
-  ctx.document.getElementById("wpTodayNotes").value = "edited in the modal";
+  // v70: the modal notes are a contenteditable rich editor — edits land in innerHTML
+  // and persist in the marker-prefixed sanitised-HTML form.
+  const MARK = "<!--wp:rich-->";
+  ctx.document.getElementById("wpTodayNotes").innerHTML = "edited in the modal";
   await ctx.wpTodaySaveNotes();
-  assert.strictEqual(st.plan.notes, "edited in the modal", "wpPlan.notes updated from the modal");
+  assert.strictEqual(st.plan.notes, MARK + "edited in the modal", "wpPlan.notes updated from the modal (rich form)");
   const noteSaves = posts.filter((p) => p.body.weeklyPlan && "notes" in p.body.weeklyPlan);
   const lastNotes = noteSaves[noteSaves.length - 1];
   assert.ok(lastNotes, "notes section save posted");
-  assert.strictEqual(lastNotes.body.weeklyPlan.notes, "edited in the modal", "same weekly notes field written to the store");
+  assert.strictEqual(lastNotes.body.weeklyPlan.notes, MARK + "edited in the modal", "same weekly notes field written to the store");
   assert.strictEqual(lastNotes.body.weeklyPlan.weekEnding, WEEK, "saved against the viewed week");
   // unchanged value → no duplicate save
   const savesBefore = posts.length;
@@ -107,7 +110,7 @@ const NEXT = (() => { const d = new Date(WEEK + "T00:00:00Z"); d.setUTCDate(d.ge
   assert.ok(ctx.document.getElementById("wpBody").innerHTML.includes("edited in the modal"), "weekly Notes panel shows the modal edit");
 
   // ---------- 4: close restores scroll and hides ----------
-  ctx.document.getElementById("wpTodayNotes").value = "edited in the modal"; // fake DOM keeps a detached element — align it so close doesn't re-save
+  ctx.document.getElementById("wpTodayNotes").innerHTML = "edited in the modal"; // fake DOM keeps a detached element — align it so close doesn't re-save
   ctx.wpCloseToday();
   assert.strictEqual(ctx.document.body.style.overflow, "", "page scroll restored on close");
   await new Promise((r) => setTimeout(r, 250));
