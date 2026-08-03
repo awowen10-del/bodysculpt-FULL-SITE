@@ -621,6 +621,37 @@
   .wp-popup-remove{background:transparent;border:1px solid var(--line);color:var(--ink-dim);border-radius:7px;
     padding:6px 10px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;}
   .wp-popup-remove:hover{border-color:var(--red);color:var(--red);}
+  /* v82: the ✕ on a placed grid chip (removes just that cell's occurrence — a scheduled
+     task asks "skip this week / remove entirely" first). Quiet until the chip is hovered. */
+  .wp-chip-del{background:transparent;border:none;color:var(--ink-faint);font-size:11px;line-height:1;
+    cursor:pointer;padding:0 1px;flex:none;opacity:0;transition:opacity .12s,color .12s;}
+  .wp-cellchip:hover .wp-chip-del{opacity:.65;}
+  .wp-chip-del:hover{color:var(--red);opacity:1;}
+  @media (hover:none){ .wp-chip-del{opacity:.55;} }   /* touch: no hover to reveal it */
+  /* v82: the little "this week / whole schedule" question — same navy/orange language as
+     the Today modal, just small and centred. Backdrop or Cancel or Esc = no change. */
+  .wp-ask-overlay{position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;
+    padding:24px 16px;background:rgba(8,14,24,.62);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+    opacity:0;transition:opacity .15s ease;}
+  .wp-ask-overlay.open{opacity:1;}
+  .wp-ask{width:min(400px,100%);background:var(--card);border:1px solid var(--line);border-radius:14px;
+    box-shadow:0 24px 70px rgba(0,0,0,.6);padding:16px 17px 14px;
+    transform:scale(.96) translateY(8px);transition:transform .15s ease;}
+  .wp-ask-overlay.open .wp-ask{transform:scale(1) translateY(0);}
+  .wp-ask-h{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--orange-soft);}
+  .wp-ask-msg{font-size:13px;line-height:1.55;color:var(--ink-dim);margin:7px 0 13px;}
+  .wp-ask-actions{display:flex;flex-direction:column;gap:8px;}
+  .wp-ask-btn{display:flex;flex-direction:column;gap:2px;text-align:left;background:var(--navy-2);
+    border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:10px 12px;
+    font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;transition:border-color .12s,background .12s;}
+  .wp-ask-btn span{font-size:11px;font-weight:600;color:var(--ink-faint);}
+  .wp-ask-btn:hover{border-color:var(--orange);background:rgba(232,115,42,.08);}
+  .wp-ask-btn.primary{border-color:rgba(232,115,42,.5);background:rgba(232,115,42,.10);color:#fff;}
+  .wp-ask-btn.primary:hover{background:var(--orange);border-color:var(--orange);}
+  .wp-ask-btn.danger:hover{border-color:var(--red);background:rgba(214,77,77,.10);}
+  .wp-ask-cancel{margin-top:11px;background:transparent;border:none;color:var(--ink-faint);font-family:inherit;
+    font-size:11.5px;font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:2px;padding:0;}
+  .wp-ask-cancel:hover{color:var(--ink-dim);}
   /* drag-over cell highlight */
   table.wp-grid td.wp-cell-dragover{outline:2px dashed var(--orange);outline-offset:-2px;background:rgba(232,115,42,.08);}
   /* time-block grid: the centrepiece */
@@ -1060,7 +1091,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v81 · copy-week</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v82 · weekly-exceptions</span>
   </footer>
 </div>
 
@@ -1731,6 +1762,119 @@ function wpPlacementsOf(ref){
 function wpRemoveRefEverywhere(ref){
   wpPlacementsOf(ref).forEach(k=>{ wpPlan.placements[k] = (wpPlan.placements[k]||[]).filter(r=>r!==ref); });
 }
+
+/* ===================== v82: PER-WEEK EXCEPTIONS ===================== */
+// A scheduled task (recurring OR training — one shared engine) places from its schedule:
+// wpSetRecurrence writes real "<slot>:<day>" placements and the v62 rollover copies those
+// into the next week. wpPlan.exceptions is a THIN, OPTIONAL overlay on top of that, for
+// THIS WEEK ONLY:
+//   { "<source>:<id>": { type:"move", from:"<slot>:<day>", to:"<slot>:<day>" }
+//                     | { type:"skip", from?:"<slot>:<day>" } }
+// Rules that must not be broken:
+//   • wpPlan.placements keeps holding ONLY schedule-derived (and one-off) placements — an
+//     exception is NEVER baked into it. That's what stops a move/skip leaking into another
+//     week: the rollover copies placements, and never reads a previous week's exceptions.
+//   • Exceptions only ever exist for defaults sources (recurring/training). One-off tasks
+//     behave exactly as they always have.
+//   • One entry per ref per week (a second exception on the same task replaces the first).
+//   • `from` is the SCHEDULE-derived cell the occurrence comes from, so an exception can be
+//     matched against (and invalidated by) the current schedule.
+// Rendering applies them via wpEffectivePlacements(); every write path still speaks schedule.
+function wpValidCellKey(k){
+  if(typeof k !== "string" || !k) return null;
+  const parts = k.split(":");
+  if(parts.length !== 2) return null;
+  return (WP_TIME_ROWS.some(t=>t[0]===parts[0]) && WP_DAYS.some(d=>d[0]===parts[1])) ? k : null;
+}
+// The week's exception map, created lazily (an untouched week keeps no field at all until
+// something is actually excepted).
+function wpExceptionsMap(){
+  if(!wpPlan) return {};
+  if(!wpPlan.exceptions || typeof wpPlan.exceptions !== "object" || Array.isArray(wpPlan.exceptions)) wpPlan.exceptions = {};
+  return wpPlan.exceptions;
+}
+// Validate one entry. Returns a clean {type, from?, to} or null (unknown shapes are ignored,
+// never thrown away silently mid-render — the load path does the pruning).
+function wpNormException(ref, ex){
+  if(!ex || typeof ex !== "object" || Array.isArray(ex)) return null;
+  if(!wpIsDefaultsSource(String(ref).split(":")[0])) return null;
+  const from = wpValidCellKey(ex.from);
+  if(ex.type === "skip"){ const o = { type:"skip" }; if(from) o.from = from; return o; }
+  if(ex.type === "move"){
+    const to = wpValidCellKey(ex.to);
+    if(!to) return null;                       // a move with nowhere to go is meaningless
+    const o = { type:"move", to };
+    if(from) o.from = from;
+    return o;
+  }
+  return null;
+}
+function wpExceptionFor(ref){ return wpNormException(ref, wpExceptionsMap()[ref]); }
+// Sanitise a stored map on load (structure only — task existence is judged at render time).
+function wpCleanExceptions(raw){
+  const out = {};
+  if(!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  Object.keys(raw).forEach(ref=>{
+    const e = wpNormException(ref, raw[ref]);
+    if(e) out[ref] = e;
+  });
+  return out;
+}
+// RENDER PRECEDENCE: schedule first, then this week's exceptions on top.
+// A skip hides that occurrence; a move renders it in the new cell instead of the scheduled
+// one. An exception for a task that no longer exists, or whose `from` cell no longer holds
+// the ref (the schedule has since changed), is stale — the schedule simply wins.
+// Returns the raw map untouched when there are no exceptions, so a normal week renders
+// through exactly the same object it always did.
+function wpEffectivePlacements(){
+  const base = (wpPlan && wpPlan.placements) || {};
+  const ex = wpExceptionsMap();
+  const refs = Object.keys(ex);
+  if(!refs.length) return base;
+  const out = {};
+  Object.keys(base).forEach(k=>{ out[k] = (base[k]||[]).slice(); });
+  refs.forEach(ref=>{
+    const e = wpNormException(ref, ex[ref]);
+    if(!e || !wpResolveRef(ref)) return;                        // unknown / deleted task
+    const cells = (e.from ? [e.from] : Object.keys(out)).filter(k=>(out[k]||[]).includes(ref));
+    if(!cells.length) return;                                   // stale — schedule wins
+    cells.forEach(k=>{ out[k] = out[k].filter(r=>r!==ref); });
+    if(e.type === "move"){
+      out[e.to] = out[e.to] || [];
+      if(!out[e.to].includes(ref)) out[e.to].push(ref);
+    }
+  });
+  return out;
+}
+// Is this ref a SCHEDULED defaults task (the only thing exceptions apply to)? A recurring or
+// training item with no day set is a one-off as far as the grid is concerned.
+function wpIsScheduledRef(ref){
+  const source = String(ref).split(":")[0];
+  if(!wpIsDefaultsSource(source)) return false;
+  const item = wpResolveRef(ref);
+  return !!(item && wpRecurDays(item));
+}
+// The schedule-derived cell behind a cell you can see: if the chip you grabbed is itself the
+// result of a move exception, its base is that exception's `from`.
+function wpBaseCellOf(ref, cellKey){
+  const e = wpExceptionFor(ref);
+  if(e && e.type === "move" && e.from && e.to === cellKey) return e.from;
+  return cellKey;
+}
+// A moved occurrence takes its tick with it. Only multi-day tasks key done-state per day
+// ("<id>:<day>"); single-day/weekly tasks use the plain id key, which no move can disturb.
+function wpMoveDoneState(ref, fromCell, toCell){
+  const parts = String(ref).split(":");
+  const source = parts[0], id = parts[1];
+  const item = wpResolveRef(ref);
+  if(!item || !wpIsDefaultsSource(source) || !wpMultiDay(item)) return;
+  const fromDay = String(fromCell||"").split(":")[1];
+  const toDay = String(toCell||"").split(":")[1];
+  if(!fromDay || !toDay || fromDay === toDay) return;
+  if(!wpRecDone(id, undefined, fromDay, source)) return;   // wasn't ticked — nothing to carry
+  wpRecDone(id, true, toDay, source);
+  wpRecDone(id, false, fromDay, source);
+}
 // v63: validate + normalise a pasted link. Returns the safe href or null.
 // Accepts http(s) only (bare "example.com/x" gets https:// prefixed); any other
 // scheme (javascript:, data:, …) and junk without a real hostname is rejected.
@@ -1856,6 +2000,10 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
     // v78: per-week review-ritual ticks, keyed by WP_REVIEW_CHECKLIST id. Coerced to a plain
     // {id:true} map so a fresh week (no field) starts empty/unticked and old weeks keep theirs.
     reviewChecklist: (plan.reviewChecklist && typeof plan.reviewChecklist === "object" && !Array.isArray(plan.reviewChecklist)) ? plan.reviewChecklist : {},
+    // v82: this week's exception overlay for scheduled tasks (move/skip a single occurrence).
+    // Structurally validated here; a week without the field starts {} and renders exactly as
+    // it did before v82. NEVER seeded from another week — see wpSeedRecurringPlacements.
+    exceptions: wpCleanExceptions(plan.exceptions),
     carryItems: Array.isArray(plan.carryItems) ? plan.carryItems.filter(x=>x&&x.title&&(x.source==="project"||x.source==="buffer")).map(x=>({id:x.id||wpUid(),title:String(x.title),source:x.source})) : [],
     lastUpdated: plan.lastUpdated || ""
   };
@@ -1870,6 +2018,10 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
 // has none of its own (never overwrites a week you've already scheduled). Only "recurring:"
 // refs roll over; one-off project/buffer placements stay week-specific. Deleted recurring
 // tasks are skipped so no orphan slots appear.
+// v82: this seeds from the SCHEDULE ONLY. wpPlan.placements never contains an exception (the
+// per-week move/skip overlay lives in wpPlan.exceptions and is applied at render time), and
+// `prev.exceptions` is deliberately never read here — so a skip or a move in week A has zero
+// effect on week B, which comes up on the plain schedule.
 async function wpSeedRecurringPlacements(wk){
   if(!wpPlan) return;
   wpPlan.placements = wpPlan.placements || {};
@@ -2141,7 +2293,9 @@ function wpListBox(title, sectionKey, source, items, addFn, addLabel){
 // same chip (checkbox, teal recurring accent, ↗ link via wpValidUrl). mode "today"
 // drops the drag affordances and routes the tick through the modal so it can
 // re-render itself; the grid output is unchanged from v66.
-function wpChipHtml(ref, dk, mode){
+// v82: cellKey ("<slot>:<day>", grid mode only) tells the chip WHICH occurrence it is, so a
+// drag knows where it came from and the ✕ knows which cell it's removing.
+function wpChipHtml(ref, dk, mode, cellKey){
   const [source] = ref.split(":");
   const item = wpResolveRef(ref);
   if(!item) return "";
@@ -2164,11 +2318,19 @@ function wpChipHtml(ref, dk, mode){
       <input type="checkbox" ${done?"checked":""} onchange="wpTodayToggleDone('${ref}',this.checked,'${dk}')">
       <span class="wp-chip-title">${emoji}${wpEsc(item.title)}</span>${linkOut}</label>`;
   }
+  // v82: a ✕ per chip. A scheduled task asks "skip this week / remove entirely" first; a
+  // one-off just comes off the grid, as it always did from the popup. (A <button> inside a
+  // <label> is interactive content, so it doesn't toggle the done checkbox — the handler
+  // stops the event anyway.)
+  const ck = wpValidCellKey(cellKey) || "";
+  const delOut = ck
+    ? `<button type="button" class="wp-chip-del" title="Remove from this slot" onclick="wpChipRemove(event,'${ref}','${ck}')">✕</button>`
+    : "";
   return `<label class="wp-cellchip${done?" wp-done":""}${recCls}" draggable="true" title="${wpEsc(item.title)}"
-      ondragstart="wpChipDragStart(event,'${ref}')" ondragend="wpDragEnd(event)">
+      ondragstart="wpChipDragStart(event,'${ref}','${ck}')" ondragend="wpDragEnd(event)">
     <span class="wp-chip-grip" aria-hidden="true">⠿</span>
     <input type="checkbox" ${done?"checked":""} onchange="wpToggleDoneRef('${ref}',this.checked,'${dk}')">
-    <span class="wp-chip-title">${emoji}${wpEsc(item.title)}</span>${linkOut}</label>`;
+    <span class="wp-chip-title">${emoji}${wpEsc(item.title)}</span>${linkOut}${delOut}</label>`;
 }
 
 /* ===== v70: RICH NOTES ===== */
@@ -2474,11 +2636,13 @@ function wpBuildWeekText(){
   }
 
   // --- Time blocks (what was scheduled where; resolve refs to titles, skip empty slots) ---
+  // v82: the effective map, so a copied week reads as the week actually ran (moves/skips).
+  const tbPlacements = wpEffectivePlacements();
   const tb = [];
   WP_DAYS.forEach(([dk,dl])=>{
     const slots = [];
     WP_TIME_ROWS.filter(([rk])=>rk!=="notes").forEach(([rk,rl])=>{
-      const refs = ((p.placements||{})[rk+":"+dk]||[]).map(r=>{ const it=wpResolveRef(r); return it ? String(it.title||"").trim() : ""; }).filter(Boolean);
+      const refs = (tbPlacements[rk+":"+dk]||[]).map(r=>{ const it=wpResolveRef(r); return it ? String(it.title||"").trim() : ""; }).filter(Boolean);
       const txt = (((p.timeBlocks||{})[rk]||{})[dk]||"").trim();
       const parts = []; if(refs.length) parts.push(refs.join(", ")); if(txt) parts.push(txt);
       if(parts.length) slots.push("  " + rl + ": " + parts.join(" — "));
@@ -2557,12 +2721,16 @@ function renderWeeklyPlan(){
 
   // TIME GRID: each cell = placed-task checkbox rows + a free-text area
   const gridHead = `<tr><th class="wp-corner">Time</th>${WP_DAYS.map(([,l])=>`<th>${l}</th>`).join("")}</tr>`;
+  // v82: the grid renders the EFFECTIVE placements — the schedule with this week's
+  // move/skip exceptions applied on top. p.placements itself is untouched (it stays the
+  // schedule, which is what saves and rolls over).
+  const gridPlacements = wpEffectivePlacements();
   const gridBody = WP_TIME_ROWS.map(([rk,rlbl])=>{
     const notesRow = rk==="notes" ? " wp-grid-notes" : "";
     const cells = WP_DAYS.map(([dk])=>{
       const key = rk+":"+dk;
-      const refs = (p.placements[key]||[]);
-      const chips = refs.map(ref=>wpChipHtml(ref, dk)).join("");
+      const refs = (gridPlacements[key]||[]);
+      const chips = refs.map(ref=>wpChipHtml(ref, dk, "", key)).join("");
       const txt = (p.timeBlocks[rk]&&p.timeBlocks[rk][dk])||"";
       return `<td class="wp-daycell" ondragover="wpCellDragOver(event)" ondragleave="wpCellDragLeave(event)" ondrop="wpCellDrop(event,'${rk}','${dk}')"><div class="wp-cellwrap">${chips?`<div class="wp-cellchips">${chips}</div>`:""}<textarea data-tb="${key}" onblur="wpSaveSection('timeBlocks')">${wpEsc(txt)}</textarea></div></td>`;
     }).join("");
@@ -2646,7 +2814,9 @@ const WP_SECTION_FIELDS = {
   notes: ["notes"],
   foodNotes: ["foodNotes"],   // v71: Intentions tab — its own field, own section, never bundled with notes
   buffer: ["bufferItems","placements","recurringDone","trainingDone"],
-  timeBlocks: ["timeBlocks","placements","recurringDone","trainingDone"],
+  // v82: the grid's own save path also carries this week's exception overlay (the only
+  // section that writes it — project/buffer/carry saves leave the stored field alone).
+  timeBlocks: ["timeBlocks","placements","recurringDone","trainingDone","exceptions"],
   review: ["review","reviewChecklist"],   // v78: the ritual checklist saves on the review path
   carry: ["carryItems","projectItems","bufferItems","placements"]
 };
@@ -2812,7 +2982,7 @@ async function wpCarryDrop(ev){
   wpStopAutoScroll();
   ev.currentTarget.classList.remove("wp-carry-over");
   const ref = wpDragRef || (ev.dataTransfer && ev.dataTransfer.getData("text/plain"));
-  wpDragRef = null;
+  wpDragRef = null; wpDragFrom = null;
   if(!ref) return;
   const [source, id] = ref.split(":");
   if(source !== "project" && source !== "buffer") return; // recurring not allowed in the tray
@@ -2917,16 +3087,22 @@ async function wpAddRecurring(){
   await wpSaveDefaults();
   renderWeeklyPlan();
 }
-async function wpRemoveRecurring(id){
+// v82: `noConfirm` is passed when the v82 "Skip this week / Remove entirely" modal has
+// already asked — the deletion itself is unchanged (task gone from every week).
+async function wpRemoveRecurring(id, noConfirm){
   await wpLoadDefaults();
   const i = (wpDefaults||[]).findIndex(x=>x.id===id);
   if(i<0) return;
   const item = wpDefaults[i];
-  if(!confirm(`Remove "${item.title}" from your recurring list?`)) return;
+  if(!noConfirm && !confirm(`Remove "${item.title}" from your recurring list?`)) return;
+  wpSyncFromDom();
   const ref = wpItemRef("recurring", id);
+  const hadWeekState = wpPlacementsOf(ref).length > 0 || !!wpExceptionsMap()[ref];
   wpRemoveRefEverywhere(ref); // v64: a multi-day task sits in several cells — clear them all
+  delete wpExceptionsMap()[ref];   // v82: no point keeping an exception for a task that's gone
   wpDefaults.splice(i,1);
   await wpSaveDefaults();
+  if(hadWeekState) await wpSaveSection("timeBlocks"); // persist the cleared placements/exception
   renderWeeklyPlan();
 }
 
@@ -2945,19 +3121,20 @@ async function wpAddTraining(){
 }
 // v77: training inline-title editing now routes through the shared wpDefaultTitleBlur
 // (was wpTrainingBlur) so renames update the card, grid chips and re-detect the emoji.
-async function wpRemoveTraining(id){
+async function wpRemoveTraining(id, noConfirm){
   await wpLoadTraining();
   const i = (wpTraining||[]).findIndex(x=>x.id===id);
   if(i<0) return;
   const item = wpTraining[i];
-  if(!confirm(`Remove "${item.title}" from Training?`)) return;
+  if(!noConfirm && !confirm(`Remove "${item.title}" from Training?`)) return;
   wpSyncFromDom();
   const ref = wpItemRef("training", id);
-  const hadPlacements = wpPlacementsOf(ref).length > 0;
+  const hadPlacements = wpPlacementsOf(ref).length > 0 || !!wpExceptionsMap()[ref];
   wpRemoveRefEverywhere(ref); // multi-day sits in several cells — clear them all
+  delete wpExceptionsMap()[ref];   // v82: the task is gone everywhere — its exception too
   wpTraining.splice(i,1);
   await wpSaveTraining();
-  if(hadPlacements) await wpSaveSection("timeBlocks"); // persist the cleared placements
+  if(hadPlacements) await wpSaveSection("timeBlocks"); // persist the cleared placements/exception
   renderWeeklyPlan();
 }
 // v64: THE recurrence writer. Sets a task's day set + time slot and syncs the real
@@ -2977,6 +3154,9 @@ async function wpSetRecurrence(id, days, time, source){
   const valid = WP_DAYS.map(d=>d[0]);
   const ds = valid.filter(d=>(Array.isArray(days)?days:[]).includes(d)); // week order, validated
   wpRemoveRefEverywhere(ref);
+  // v82: editing the actual schedule supersedes any one-week exception on this task — the
+  // occurrence it referred to no longer exists, so drop it rather than leave it dangling.
+  delete wpExceptionsMap()[ref];
   if(typeof time === "string" && WP_TIME_ROWS.some(t=>t[0]===time)) it.time = time;
   if(ds.length){
     it.days = ds;
@@ -3103,6 +3283,9 @@ async function wpPopupApply(source, id){
 
 // ---- project/buffer: drag and drop onto a grid cell ----
 let wpDragRef = null;
+// v82: the grid cell a chip drag started from ("<slot>:<day>"), or null when the drag came
+// from a card row. Only a chip drag can be a single-occurrence move.
+let wpDragFrom = null;
 // ---- auto-scroll the page while dragging (native DnD doesn't do this on its own) ----
 let wpAutoScrollRAF = null;
 let wpAutoScrollDir = 0;   // -1 up, +1 down, 0 idle
@@ -3129,17 +3312,21 @@ function wpStopAutoScroll(){
 }
 function wpDragStart(ev, source, id){
   wpDragRef = wpItemRef(source, id);
+  wpDragFrom = null;   // v82: a card-row drag isn't one occurrence — it keeps the v64 behaviour
   try{ ev.dataTransfer.setData("text/plain", wpDragRef); ev.dataTransfer.effectAllowed = "move"; }catch(e){}
   wpStartAutoScroll();
 }
 // Dragging a chip that's already placed on the grid — carries its ref so a drop
 // on another cell moves it there (wpPlaceRefAt removes it from the old cell first).
-function wpChipDragStart(ev, ref){
+// v82: also carries the cell it came from, so a SCHEDULED task can be asked whether this
+// is a one-week move or a real schedule change.
+function wpChipDragStart(ev, ref, fromKey){
   wpDragRef = ref;
+  wpDragFrom = wpValidCellKey(fromKey);
   try{ ev.dataTransfer.setData("text/plain", ref); ev.dataTransfer.effectAllowed = "move"; }catch(e){}
   wpStartAutoScroll();
 }
-function wpDragEnd(ev){ wpDragRef = null; wpStopAutoScroll(); document.querySelectorAll(".wp-cell-dragover").forEach(el=>el.classList.remove("wp-cell-dragover")); }
+function wpDragEnd(ev){ wpDragRef = null; wpDragFrom = null; wpStopAutoScroll(); document.querySelectorAll(".wp-cell-dragover").forEach(el=>el.classList.remove("wp-cell-dragover")); }
 function wpCellDragOver(ev){ ev.preventDefault(); try{ ev.dataTransfer.dropEffect="move"; }catch(e){} ev.currentTarget.classList.add("wp-cell-dragover"); }
 function wpCellDragLeave(ev){ ev.currentTarget.classList.remove("wp-cell-dragover"); }
 async function wpCellDrop(ev, time, day){
@@ -3147,9 +3334,164 @@ async function wpCellDrop(ev, time, day){
   wpStopAutoScroll();
   ev.currentTarget.classList.remove("wp-cell-dragover");
   const ref = wpDragRef || (ev.dataTransfer && ev.dataTransfer.getData("text/plain"));
-  wpDragRef = null;
+  const from = wpDragFrom;
+  wpDragRef = null; wpDragFrom = null;
   if(!ref) return;
+  const to = time + ":" + day;
+  // v82: moving a SCHEDULED task's chip (recurring or training — the same shared path) asks
+  // whether this is a one-week exception or a real schedule change. One-off chips, and drags
+  // from a card row (no origin cell), keep the v64 behaviour untouched.
+  if(from && wpIsScheduledRef(ref)){
+    if(from === to) return;                       // dropped back where it started
+    const choice = await wpAskMove(ref, from, to);
+    if(choice === "week") return wpMoveThisWeek(ref, from, to);
+    if(choice === "all")  return wpMoveSchedule(ref, from, to);
+    return;                                        // cancelled — nothing changes
+  }
+  if(from && from === to) return;
   await wpPlaceRefAt(ref, time, day);
+}
+
+/* ---- v82: the exception write paths (shared by recurring + training) ---- */
+// "Just this week": record a move for THIS week only. The task's schedule (days/time) is not
+// touched, so next week comes up normally. Dropping the chip back on its scheduled cell
+// clears the exception instead of recording a no-op move.
+async function wpMoveThisWeek(ref, fromCell, toCell){
+  if(!wpPlan || !wpIsScheduledRef(ref)) return;
+  const base = wpValidCellKey(wpBaseCellOf(ref, fromCell));
+  const to = wpValidCellKey(toCell);
+  if(!base || !to) return;
+  wpSyncFromDom();
+  const map = wpExceptionsMap();
+  if(base === to) delete map[ref];
+  else map[ref] = { type:"move", from:base, to:to };
+  wpMoveDoneState(ref, fromCell, to);   // a moved occurrence keeps its tick
+  await wpSaveSection("timeBlocks");
+  renderWeeklyPlan();
+}
+// "All / whole schedule": really change the pattern from now on, through the existing v64
+// writer — the dragged day is swapped for the drop day in the task's day set and the slot
+// becomes the drop slot (one slot for the whole set, as the engine has always worked).
+// No week exception is created; any existing one is cleared inside wpSetRecurrence.
+async function wpMoveSchedule(ref, fromCell, toCell){
+  const parts = String(ref).split(":");
+  const source = parts[0], id = parts[1];
+  const item = wpResolveRef(ref);
+  const to = wpValidCellKey(toCell);
+  if(!item || !to || !wpIsScheduledRef(ref)) return;
+  const fromDay = String(wpBaseCellOf(ref, fromCell)||"").split(":")[1];
+  const toParts = to.split(":");
+  const toTime = toParts[0], toDay = toParts[1];
+  const days = [];
+  (wpRecurDays(item)||[]).forEach(d=>{
+    const nd = (d === fromDay) ? toDay : d;
+    if(!days.includes(nd)) days.push(nd);
+  });
+  if(!days.includes(toDay)) days.push(toDay);   // the dragged day wasn't in the set — add it
+  if(days.length > 1) wpMoveDoneState(ref, wpBaseCellOf(ref, fromCell), to); // still per-day keyed
+  await wpSetRecurrence(id, days, toTime, source);
+}
+// "Just this week" on a remove: hide this week's occurrence. The schedule is untouched, so
+// it's back next week. Its done-state is left alone (irrelevant while hidden).
+async function wpSkipThisWeek(ref, cellKey){
+  if(!wpPlan || !wpIsScheduledRef(ref)) return;
+  const base = wpValidCellKey(wpBaseCellOf(ref, cellKey));
+  wpSyncFromDom();
+  const map = wpExceptionsMap();
+  map[ref] = base ? { type:"skip", from:base } : { type:"skip" };
+  await wpSaveSection("timeBlocks");
+  renderWeeklyPlan();
+}
+// The ✕ on a grid chip. Scheduled task → ask (skip this week / remove entirely). One-off →
+// exactly what "Remove from grid" always did: off the grid, still in its list.
+async function wpChipRemove(ev, ref, cellKey){
+  if(ev){ try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){} }
+  if(!wpPlan || !ref) return;
+  const parts = String(ref).split(":");
+  const source = parts[0], id = parts[1];
+  if(wpIsScheduledRef(ref)){
+    const choice = await wpAskRemove(ref);
+    if(choice === "week") return wpSkipThisWeek(ref, cellKey);
+    if(choice === "all")  return (source === "training") ? wpRemoveTraining(id, true) : wpRemoveRecurring(id, true);
+    return;
+  }
+  wpSyncFromDom();
+  const key = wpValidCellKey(cellKey);
+  if(key && (wpPlan.placements[key]||[]).includes(ref)) wpPlan.placements[key] = wpPlan.placements[key].filter(r=>r!==ref);
+  else wpRemoveRefEverywhere(ref);
+  await wpSaveSection("timeBlocks");
+  renderWeeklyPlan();
+}
+
+/* ---- v82: the "this one / all" question ---- */
+// A small navy/orange modal (never a browser confirm) that resolves to an option key, or
+// null if it was cancelled / dismissed. Only one can be on screen at a time.
+let wpAskResolve = null;
+function wpCloseAsk(result){
+  const el = document.getElementById("wpAskOverlay");
+  if(el && el.remove) el.remove();
+  const r = wpAskResolve;
+  wpAskResolve = null;
+  if(r) r(result || null);
+}
+function wpAsk(opts){
+  const o = opts || {};
+  if(wpAskResolve) wpCloseAsk(null);   // supersede an unanswered question
+  return new Promise(resolve=>{
+    wpAskResolve = resolve;
+    const list = Array.isArray(o.options) ? o.options : [];
+    const ov = document.createElement("div");
+    ov.id = "wpAskOverlay";
+    ov.className = "wp-ask-overlay";
+    ov.innerHTML = `<div class="wp-ask" role="dialog" aria-modal="true">
+      <div class="wp-ask-h">${wpEsc(o.title||"")}</div>
+      ${o.message?`<div class="wp-ask-msg">${wpEsc(o.message)}</div>`:""}
+      <div class="wp-ask-actions">${list.map((op,i)=>
+        `<button type="button" class="wp-ask-btn${i===0?" primary":""}${op.danger?" danger":""}" data-ask="${wpEsc(op.key)}">${wpEsc(op.label)}${op.hint?`<span>${wpEsc(op.hint)}</span>`:""}</button>`).join("")}</div>
+      <button type="button" class="wp-ask-cancel" data-ask="">Cancel</button>
+    </div>`;
+    ov.onclick = (e)=>{
+      const t = e && e.target;
+      const btn = (t && t.closest) ? t.closest("[data-ask]") : null;
+      if(btn){ wpCloseAsk(btn.getAttribute("data-ask")); return; }
+      if(t === ov) wpCloseAsk(null);   // backdrop
+    };
+    document.body.appendChild(ov);
+    requestAnimationFrame(()=>{ const el = document.getElementById("wpAskOverlay"); if(el && el.classList) el.classList.add("open"); });
+  });
+}
+function wpSlotLabel(timeKey){ return (WP_TIME_ROWS.find(t=>t[0]===timeKey)||[])[1] || timeKey; }
+function wpDayLabel(dayKey){ return (WP_DAYS.find(d=>d[0]===dayKey)||[])[1] || dayKey; }
+function wpCellLabel(key){
+  const parts = String(key||"").split(":");
+  return wpDayLabel(parts[1]) + " " + wpSlotLabel(parts[0]);
+}
+// Schedule sentence used by both questions: «"Scorecard" repeats Mon Wed Fri · 6 – 9.»
+function wpScheduleSentence(ref){
+  const item = wpResolveRef(ref);
+  if(!item) return "";
+  const days = wpRecurDays(item) || [];
+  return `"${item.title}" repeats ${wpDaysLabel(days)} · ${wpSlotLabel(item.time || "6-9")}.`;
+}
+function wpAskMove(ref, fromCell, toCell){
+  return wpAsk({
+    title: "Move this week or the whole schedule?",
+    message: wpScheduleSentence(ref) + " You're moving " + wpCellLabel(fromCell) + " → " + wpCellLabel(toCell) + ".",
+    options: [
+      { key:"week", label:"Move this week only", hint:"Next week goes back to normal" },
+      { key:"all",  label:"Move the whole schedule", hint:"Changes the task's days + slot from now on" }
+    ]
+  });
+}
+function wpAskRemove(ref){
+  return wpAsk({
+    title: "Skip this week or remove the task?",
+    message: wpScheduleSentence(ref),
+    options: [
+      { key:"week", label:"Skip this week", hint:"It comes back next week as normal" },
+      { key:"all",  label:"Remove entirely", hint:"Deletes the task from every week", danger:true }
+    ]
+  });
 }
 
 // ---- done tick (from a grid chip) ----
@@ -3209,8 +3551,9 @@ function wpRenderTodayBody(){
     return;
   }
   // The four preset time rows as one vertical column (the grid's Notes row isn't a time slot).
+  const todayPlacements = wpEffectivePlacements();   // v82: same precedence as the grid
   const rows = WP_TIME_ROWS.filter(([rk])=>rk!=="notes").map(([rk,rlbl])=>{
-    const refs = (wpPlan.placements[rk+":"+t.dayKey]||[]);
+    const refs = (todayPlacements[rk+":"+t.dayKey]||[]);
     const chips = refs.map(ref=>wpChipHtml(ref, t.dayKey, "today")).join("");
     const txt = (wpPlan.timeBlocks[rk]&&wpPlan.timeBlocks[rk][t.dayKey])||"";
     const inner = ((chips?`<div class="wp-cellchips">${chips}</div>`:"") +
@@ -3279,7 +3622,12 @@ async function wpTodayToggleDone(ref, checked, day){
   wpRenderTodayBody();
 }
 
-document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && wpTodayOpen) wpCloseToday(); });
+// Escape closes the v82 question first (it sits above everything), else the Today modal.
+document.addEventListener("keydown", (e)=>{
+  if(e.key!=="Escape") return;
+  if(wpAskResolve){ wpCloseAsk(null); return; }
+  if(wpTodayOpen) wpCloseToday();
+});
 
 /* ===================== v80: DAILY CHECK-IN ===================== */
 // A per-date morning ritual that leads the Today modal: three questions (brain dump →

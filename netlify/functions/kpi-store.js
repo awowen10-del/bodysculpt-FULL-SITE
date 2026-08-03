@@ -351,6 +351,44 @@ export default async (req) => {
         }
         incoming.reviewChecklist = clean;
       }
+      // v82: whitelist the per-week exception overlay — a small map of
+      //   "<recurring|training>:<id>" -> { type:"move", from, to } | { type:"skip", from? }
+      // where from/to are "<slot>:<day>" grid cells. Same discipline as reviewChecklist:
+      // shape-checked, size-capped, unknown fields dropped, anything malformed skipped.
+      // This field is per-week only; it is never copied between weeks.
+      if ("exceptions" in incoming) {
+        const VALID_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+        const REF_RE = /^(recurring|training):[A-Za-z0-9_-]{1,40}$/;
+        const cell = (s) => {
+          if (typeof s !== "string") return null;
+          const parts = s.split(":");
+          if (parts.length !== 2) return null;
+          if (!/^[A-Za-z0-9._-]{1,12}$/.test(parts[0])) return null;
+          return VALID_DAYS.includes(parts[1]) ? s : null;
+        };
+        const raw = incoming.exceptions;
+        const clean = {};
+        if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+          for (const k of Object.keys(raw).slice(0, 60)) {
+            if (!REF_RE.test(k)) continue;
+            const v = raw[k];
+            if (!v || typeof v !== "object" || Array.isArray(v)) continue;
+            const from = cell(v.from);
+            if (v.type === "skip") {
+              const o = { type: "skip" };
+              if (from) o.from = from;
+              clean[k] = o;
+            } else if (v.type === "move") {
+              const to = cell(v.to);
+              if (!to) continue;                 // a move with nowhere to go is dropped
+              const o = { type: "move", to };
+              if (from) o.from = from;
+              clean[k] = o;
+            }
+          }
+        }
+        incoming.exceptions = clean;
+      }
       const merged = { ...existing, ...incoming, lastUpdated: new Date().toISOString() };
       await store.set(key, JSON.stringify(merged));
       return Response.json({ ok:true, plan: merged });
