@@ -538,6 +538,9 @@
   .wp-cellchip span.wp-chip-title{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .wp-cellchip.wp-done{opacity:.6;}
   .wp-cellchip.wp-done span{ text-decoration:line-through; }
+  /* v89: drop-above / drop-below indicator while reordering inside a cell */
+  .wp-cellchip.wp-chip-over-top{box-shadow:inset 0 2px 0 0 var(--orange);}
+  .wp-cellchip.wp-chip-over-bot{box-shadow:inset 0 -2px 0 0 var(--orange);}
   /* RECURRING — texty list, click the name to place */
   .wp-txt-row{display:flex;align-items:center;gap:8px;padding:5px 2px;border-bottom:1px solid rgba(255,255,255,.04);}
   .wp-txt-row:last-of-type{border-bottom:none;}
@@ -1234,7 +1237,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v88 · daily-non-negotiables</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v89 · reorder-within-cell</span>
   </footer>
 </div>
 
@@ -2122,7 +2125,61 @@ function wpEffectivePlacements(){
       if(!out[e.to].includes(ref)) out[e.to].push(ref);
     }
   });
+  // v89: LAST — order within each cell. Purely a sort of what the two steps above produced.
+  Object.keys(wpCellOrderMap()).forEach(key=>{
+    if(out[key] && out[key].length > 1) out[key] = wpOrderCellRefs(key, out[key]);
+  });
   return out;
+}
+/* ---- v89: WITHIN-CELL ORDER (a hint, never a placement) ---- */
+// The last thing applied when a week renders. wpPlan.cellOrder = { "<slot>:<day>": [ref, …] }
+// is an ORDERING HINT for the tasks that already landed in that cell — nothing more:
+//   • It only sorts. It never adds a ref, never removes one, never moves one between cells
+//     and never touches a schedule, an exception or a done tick.
+//   • A ref missing from a hint keeps its derived position relative to the others (stable),
+//     so a partial or stale hint can never drop a task off the grid.
+//   • A ref in a hint that is no longer in that cell is simply ignored.
+//   • Per week, like exceptions: it is never seeded into another week (the v62 rollover only
+//     ever copies placements, and this is not a placement).
+// This is deliberately NOT a frozen placement — v83 derivation still decides WHICH cell a
+// scheduled task is in, and v82 exceptions still decide a one-week move/skip; ordering runs
+// after both, on whatever those two produced.
+const WP_CELLORDER_MAX = 24;   // refs kept per cell (a cell never legitimately holds this many)
+function wpValidRef(ref){
+  if(typeof ref !== "string") return null;
+  const parts = ref.split(":");
+  if(parts.length !== 2 || !parts[1]) return null;
+  return ["project","buffer","recurring","training"].includes(parts[0]) ? ref : null;
+}
+function wpCellOrderMap(){
+  if(!wpPlan) return {};
+  if(!wpPlan.cellOrder || typeof wpPlan.cellOrder !== "object" || Array.isArray(wpPlan.cellOrder)) wpPlan.cellOrder = {};
+  return wpPlan.cellOrder;
+}
+function wpCleanCellOrder(raw){
+  const out = {};
+  if(!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  Object.keys(raw).forEach(key=>{
+    if(!wpValidCellKey(key) || !Array.isArray(raw[key])) return;
+    const seen = [];
+    raw[key].forEach(ref=>{
+      const r = wpValidRef(ref);
+      if(r && seen.indexOf(r) < 0 && seen.length < WP_CELLORDER_MAX) seen.push(r);
+    });
+    if(seen.length) out[key] = seen;
+  });
+  return out;
+}
+// Sort one cell's refs by its hint. Hinted refs first in hint order, everything else after in
+// its existing (derived) order — a stable sort, so nothing can be lost or duplicated.
+function wpOrderCellRefs(key, refs){
+  const hint = wpCellOrderMap()[key];
+  if(!Array.isArray(hint) || !hint.length || !refs || refs.length < 2) return refs;
+  const at = {};
+  hint.forEach((r,i)=>{ if(!(r in at)) at[r] = i; });
+  return refs.map((r,i)=>({ r, i, o: (r in at) ? at[r] : Infinity }))
+    .sort((a,b)=> (a.o - b.o) || (a.i - b.i))
+    .map(x=>x.r);
 }
 // Is this ref a SCHEDULED defaults task (the only thing exceptions apply to)? A recurring or
 // training item with no day set is a one-off as far as the grid is concerned.
@@ -2287,6 +2344,9 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
     // additive, optional, validated here, and NEVER seeded from another week — a week with
     // no overrides simply follows the default pattern.
     locations: wpCleanLocations(plan.locations, true),
+    // v89: this week's within-cell ordering hints. Additive, optional, validated here, and —
+    // like exceptions — never seeded from another week.
+    cellOrder: wpCleanCellOrder(plan.cellOrder),
     carryItems: Array.isArray(plan.carryItems) ? plan.carryItems.filter(x=>x&&x.title&&(x.source==="project"||x.source==="buffer")).map(x=>({id:x.id||wpUid(),title:String(x.title),source:x.source})) : [],
     lastUpdated: plan.lastUpdated || ""
   };
@@ -2612,8 +2672,12 @@ function wpChipHtml(ref, dk, mode, cellKey){
   const delOut = ck
     ? `<button type="button" class="wp-chip-del" title="Remove from this slot" onclick="wpChipRemove(event,'${ref}','${ck}')">✕</button>`
     : "";
+  // v89: a chip is also a drop target for its own cell — dropping a chip from the SAME cell
+  // onto it reorders (above/below depending on which half you drop on). A drop from another
+  // cell isn't handled here: it bubbles to the <td> and takes the normal v82 move path.
   return `<label class="wp-cellchip${done?" wp-done":""}${recCls}" draggable="true" title="${wpEsc(item.title)}"
-      ondragstart="wpChipDragStart(event,'${ref}','${ck}')" ondragend="wpDragEnd(event)">
+      ondragstart="wpChipDragStart(event,'${ref}','${ck}')" ondragend="wpDragEnd(event)"
+      ondragover="wpChipDragOver(event,'${ck}')" ondragleave="wpChipDragLeave(event)" ondrop="wpChipDrop(event,'${ck}','${ref}')">
     <span class="wp-chip-grip" aria-hidden="true">⠿</span>
     <input type="checkbox" ${done?"checked":""} onchange="wpToggleDoneRef('${ref}',this.checked,'${dk}')">
     <span class="wp-chip-title">${emoji}${wpEsc(item.title)}</span>${linkOut}${delOut}</label>`;
@@ -3193,7 +3257,7 @@ const WP_SECTION_FIELDS = {
   // section that writes it — project/buffer/carry saves leave the stored field alone).
   // v84: this week's location overrides ride the same grid save (they live in the header of
   // that grid); the DEFAULT pattern has its own key and never travels on a week's plan.
-  timeBlocks: ["timeBlocks","placements","recurringDone","trainingDone","exceptions","locations"],
+  timeBlocks: ["timeBlocks","placements","recurringDone","trainingDone","exceptions","locations","cellOrder"],
   review: ["review","reviewChecklist"],   // v78: the ritual checklist saves on the review path
   carry: ["carryItems","projectItems","bufferItems","placements"]
 };
@@ -3849,6 +3913,65 @@ async function wpCellDrop(ev, time, day){
   }
   if(from && from === to) return;
   await wpPlaceRefAt(ref, time, day);
+}
+
+/* ---- v89: reorder within a cell ---- */
+// Which half of the chip the cursor is over — top half drops above it, bottom half below.
+function wpChipDropBefore(ev){
+  try{
+    const r = ev.currentTarget.getBoundingClientRect();
+    return (ev.clientY - r.top) < (r.height / 2);
+  }catch(e){ return true; }
+}
+// Only a drag that STARTED in this cell is a reorder; anything else must fall through to the
+// cell's own drop handler (the v82 move prompt).
+function wpChipIsReorder(cellKey){
+  return !!(wpDragRef && wpDragFrom && wpDragFrom === cellKey);
+}
+function wpChipDragOver(ev, cellKey){
+  if(!wpChipIsReorder(cellKey)) return;              // let it bubble to the cell (a real move)
+  ev.preventDefault();
+  ev.stopPropagation();
+  try{ ev.dataTransfer.dropEffect = "move"; }catch(e){}
+  const el = ev.currentTarget;
+  if(el && el.classList){
+    el.classList.remove("wp-chip-over-top","wp-chip-over-bot");
+    el.classList.add(wpChipDropBefore(ev) ? "wp-chip-over-top" : "wp-chip-over-bot");
+  }
+}
+function wpChipDragLeave(ev){
+  const el = ev.currentTarget;
+  if(el && el.classList) el.classList.remove("wp-chip-over-top","wp-chip-over-bot");
+}
+async function wpChipDrop(ev, cellKey, targetRef){
+  const el = ev.currentTarget;
+  if(el && el.classList) el.classList.remove("wp-chip-over-top","wp-chip-over-bot");
+  if(!wpChipIsReorder(cellKey)) return;              // different cell → the <td> handles it
+  ev.preventDefault();
+  ev.stopPropagation();
+  const ref = wpDragRef;
+  wpDragRef = null; wpDragFrom = null;
+  wpStopAutoScroll();
+  if(ref === targetRef) return;                      // dropped on itself
+  await wpReorderInCell(cellKey, ref, targetRef, wpChipDropBefore(ev));
+}
+// Write the new order for one cell. The hint stores the cell's FULL visible order, so it is
+// self-healing: whatever the schedule/exceptions produce next render is simply sorted by it,
+// and anything unknown falls to the end in its derived order.
+async function wpReorderInCell(cellKey, dragRef, targetRef, before){
+  if(!wpPlan || !wpValidCellKey(cellKey) || !wpValidRef(dragRef)) return;
+  const cur = (wpEffectivePlacements()[cellKey] || []).slice();
+  const from = cur.indexOf(dragRef);
+  if(from < 0) return;                               // not in this cell — nothing to reorder
+  cur.splice(from, 1);
+  let to = cur.indexOf(targetRef);
+  if(to < 0) to = cur.length; else if(!before) to = to + 1;
+  cur.splice(to, 0, dragRef);
+  if(cur.join("|") === (wpEffectivePlacements()[cellKey]||[]).join("|")) return;   // no change
+  wpSyncFromDom();
+  wpCellOrderMap()[cellKey] = cur.slice(0, WP_CELLORDER_MAX);
+  renderWeeklyPlan();
+  await wpSaveSection("timeBlocks");
 }
 
 /* ---- v82: the exception write paths (shared by recurring + training) ---- */

@@ -434,6 +434,29 @@ export default async (req) => {
       // keys only, values from the fixed list, "" allowed as an explicit "nowhere this week".
       // Per-week only; nothing here is ever copied into another week.
       if ("locations" in incoming) incoming.locations = sanitiseLocationMap(incoming.locations, true);
+      // v89: within-cell ordering hints — { "<slot>:<day>": [ref, …] }. Same discipline:
+      // valid cell keys, ref-shaped strings from the four known sources, de-duped, capped,
+      // everything else dropped. Ordering only ever sorts what a cell already holds, and
+      // like exceptions it is per-week — never copied into another week.
+      if ("cellOrder" in incoming) {
+        const REF_RE = /^(project|buffer|recurring|training):[A-Za-z0-9_-]{1,40}$/;
+        const raw = incoming.cellOrder;
+        const clean = {};
+        if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+          for (const key of Object.keys(raw).slice(0, 60)) {
+            const parts = String(key).split(":");
+            if (parts.length !== 2) continue;
+            if (!/^[A-Za-z0-9._-]{1,12}$/.test(parts[0]) || !VALID_DAY_KEYS.includes(parts[1])) continue;
+            if (!Array.isArray(raw[key])) continue;
+            const refs = [];
+            for (const ref of raw[key]) {
+              if (typeof ref === "string" && REF_RE.test(ref) && !refs.includes(ref) && refs.length < 24) refs.push(ref);
+            }
+            if (refs.length) clean[key] = refs;
+          }
+        }
+        incoming.cellOrder = clean;
+      }
       const merged = { ...existing, ...incoming, lastUpdated: new Date().toISOString() };
       await store.set(key, JSON.stringify(merged));
       return Response.json({ ok:true, plan: merged });
