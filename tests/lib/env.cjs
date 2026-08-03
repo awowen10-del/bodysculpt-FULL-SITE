@@ -169,6 +169,7 @@ async function boot(opts = {}) {
     " get training(){ return wpTraining; }, set training(v){ wpTraining = v; }," +
     " get checkins(){ return wpCheckins; }, set checkins(v){ wpCheckins = v; }," +
     " get locDefaults(){ return wpLocDefaults; }, set locDefaults(v){ wpLocDefaults = v; }," +
+    " get dayCount(){ return wpDayCount; }, get dayStart(){ return wpDayStart; }," +   // v87 view state
     " get weekEnding(){ return wpWeekEnding; }," +
     " get navWeeks(){ return NAV_WEEKS; }," +
     " get timer(){ return wpTimer; }, set timer(v){ wpTimer = v; }" +

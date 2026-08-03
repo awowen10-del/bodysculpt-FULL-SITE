@@ -658,6 +658,29 @@
   .wp-grid-box .wp-box-body{padding:10px;}
   .wp-grid-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
   table.wp-grid{width:100%;border-collapse:collapse;min-width:680px;table-layout:fixed;}
+  /* v87: fewer visible day columns → a lower min-width, so the grid still fills the page
+     width (wider columns, less chip truncation) without ever forcing a horizontal
+     scrollbar. 7 keeps the original 680px exactly. */
+  table.wp-grid.wp-cols-1{min-width:220px;}
+  table.wp-grid.wp-cols-2{min-width:290px;}
+  table.wp-grid.wp-cols-3{min-width:360px;}
+  table.wp-grid.wp-cols-5{min-width:520px;}
+  /* v87: the day-count / window control in the Time Blocks header */
+  .wp-dayview{display:flex;align-items:center;gap:6px;flex:none;}
+  .wp-dv-arrow{background:var(--navy-2);border:1px solid var(--line);color:var(--ink-dim);border-radius:7px;
+    width:22px;height:22px;line-height:1;padding:0;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;flex:none;}
+  .wp-dv-arrow:hover:not(:disabled){border-color:var(--orange);color:var(--orange-soft);}
+  .wp-dv-arrow:disabled{opacity:.3;cursor:default;}
+  .wp-dv-range{font-size:10.5px;font-weight:700;color:var(--ink-dim);text-transform:none;letter-spacing:0;
+    white-space:nowrap;min-width:56px;text-align:center;}
+  .wp-dv-counts{display:flex;align-items:center;gap:2px;background:var(--navy-2);border:1px solid var(--line);
+    border-radius:8px;padding:2px;}
+  .wp-dv-n{background:transparent;border:none;color:var(--ink-dim);border-radius:6px;padding:3px 7px;
+    font-family:inherit;font-size:11px;font-weight:800;cursor:pointer;line-height:1.2;}
+  .wp-dv-n:hover{color:var(--ink);background:var(--card-2);}
+  .wp-dv-n.on{background:var(--orange);color:#fff;}
+  .wp-dv-lbl{font-size:9.5px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.5px;
+    padding:0 5px 0 3px;}
   table.wp-grid th{background:var(--navy-2);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;
     color:var(--orange-soft);padding:9px 6px;text-align:center;border:1px solid var(--line);}
   table.wp-grid th.wp-corner{width:70px;color:var(--ink-faint);}
@@ -1163,7 +1186,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v86 · location-pin-style</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v87 · day-count-view</span>
   </footer>
 </div>
 
@@ -2901,6 +2924,71 @@ async function wpCopyWeek(){
   }
 }
 
+/* ===================== v87: DAY-COUNT VIEW ===================== */
+// How many day-columns the Time Blocks grid shows at once, and where that window sits in the
+// week. This is PURELY A VIEW FILTER over the render — all seven days always exist in the
+// plan, always save, and always behave exactly as before. A hidden day is simply not drawn:
+// nothing is skipped, cleared or migrated, and switching back to 7 restores the exact view.
+// (wpSyncFromDom only ever writes a cell it can actually find in the DOM, so a hidden day's
+// free text can never be blanked by a re-render — that's what makes this safe.)
+// Session-only state, like the v75 recurring tab: it survives re-renders and week changes,
+// and resets to the default 7 on reload.
+const WP_DAY_COUNTS = [1,2,3,5,7];
+let wpDayCount = 7;   // how many columns are shown
+let wpDayStart = 0;   // index into WP_DAYS of the leftmost visible column
+function wpMaxDayStart(){ return Math.max(0, WP_DAYS.length - wpDayCount); }
+function wpClampDayStart(i){ return Math.min(Math.max(0, i|0), wpMaxDayStart()); }
+// The contiguous window of days to render — always exactly wpDayCount columns, always
+// inside the week (never wrapping past Sunday or before Monday).
+function wpVisibleDays(){
+  wpDayStart = wpClampDayStart(wpDayStart);
+  return WP_DAYS.slice(wpDayStart, wpDayStart + wpDayCount);
+}
+// Today's column index in the VIEWED week, or -1 when today isn't in it.
+function wpTodayColIdx(){
+  const t = wpTodayInfo();
+  if(t.weekMonday !== wpWeekEnding) return -1;
+  return WP_DAYS.findIndex(d=>d[0]===t.dayKey);
+}
+// Where a freshly-chosen window should open: on today when today is in this week (clamped so
+// the window still fits inside the week), else at Monday.
+function wpDefaultDayStart(count){
+  const ti = wpTodayColIdx();
+  if(ti < 0) return 0;
+  return Math.min(ti, Math.max(0, WP_DAYS.length - count));
+}
+function wpSetDayCount(n){
+  if(!WP_DAY_COUNTS.includes(n)) return;
+  wpSyncFromDom();                 // capture on-screen edits before the columns change
+  wpDayCount = n;
+  wpDayStart = wpClampDayStart(wpDefaultDayStart(n));
+  renderWeeklyPlan();
+}
+// Slide the window one day left/right, clamped at the ends of the week.
+function wpSlideDays(dir){
+  const next = wpClampDayStart(wpDayStart + (dir > 0 ? 1 : -1));
+  if(next === wpDayStart) return;
+  wpSyncFromDom();
+  wpDayStart = next;
+  renderWeeklyPlan();
+}
+// The header control: ‹ range › + the count buttons. The arrows/range only appear when
+// there's actually a window to move.
+function wpDayViewControlHtml(){
+  const vis = wpVisibleDays();
+  const counts = WP_DAY_COUNTS.map(n=>
+    `<button type="button" class="wp-dv-n${n===wpDayCount?" on":""}" title="Show ${n} day${n===1?"":"s"}" onclick="wpSetDayCount(${n})">${n}</button>`).join("");
+  let slider = "";
+  if(wpDayCount < WP_DAYS.length){
+    const first = vis[0], last = vis[vis.length-1];
+    const range = first === last ? first[1] : (first[1]+"–"+last[1]);
+    slider = `<button type="button" class="wp-dv-arrow" title="Earlier in the week" ${wpDayStart<=0?"disabled":""} onclick="wpSlideDays(-1)">‹</button>
+      <span class="wp-dv-range">${wpEsc(range)}</span>
+      <button type="button" class="wp-dv-arrow" title="Later in the week" ${wpDayStart>=wpMaxDayStart()?"disabled":""} onclick="wpSlideDays(1)">›</button>`;
+  }
+  return `<span class="wp-dayview">${slider}<span class="wp-dv-counts">${counts}<span class="wp-dv-lbl">days</span></span></span>`;
+}
+
 function renderWeeklyPlan(){
   const p = wpPlan;
 
@@ -2941,7 +3029,9 @@ function renderWeeklyPlan(){
   // override). The whole header cell is the click target for setting that day.
   // v85: name + pill on one line — the inner span is the flex row (a th can't safely be the
   // flex container itself without giving up table-cell column sizing).
-  const gridHead = `<tr><th class="wp-corner">Time</th>${WP_DAYS.map(([dk,l])=>
+  // v87: only the visible window of days is drawn — every other day is untouched in the plan.
+  const visDays = wpVisibleDays();
+  const gridHead = `<tr><th class="wp-corner">Time</th>${visDays.map(([dk,l])=>
     `<th class="wp-dayhead" title="Set ${l}'s location" onclick="wpOpenLocPopup('${dk}',this)"
       ><span class="wp-dayhead-in"><span class="wp-dayname">${l}</span>${wpLocPillHtml(dk)}</span></th>`).join("")}</tr>`;
   // v82: the grid renders the EFFECTIVE placements — the schedule with this week's
@@ -2950,7 +3040,7 @@ function renderWeeklyPlan(){
   const gridPlacements = wpEffectivePlacements();
   const gridBody = WP_TIME_ROWS.map(([rk,rlbl])=>{
     const notesRow = rk==="notes" ? " wp-grid-notes" : "";
-    const cells = WP_DAYS.map(([dk])=>{
+    const cells = visDays.map(([dk])=>{
       const key = rk+":"+dk;
       const refs = (gridPlacements[key]||[]);
       const chips = refs.map(ref=>wpChipHtml(ref, dk, "", key)).join("");
@@ -2961,9 +3051,10 @@ function renderWeeklyPlan(){
   }).join("");
   const gridBox = `<div class="wp-box wp-grid-box">
     ${wpBoxHeader("Time Blocks","timeBlocks",
+      wpDayViewControlHtml() +
       `<button class="wp-loc-btn" title="Edit the default weekly location pattern" onclick="wpOpenLocDefaultsPopup(this)">📍 Locations</button>` +
       `<button class="wp-today-btn" title="Focus on just today" onclick="wpOpenToday()">Today<span class="wp-today-btn-timer" id="wpTodayBtnTimer">${wpEsc(wpTimerBadgeText())}</span></button>`)}
-    <div class="wp-box-body"><div class="wp-grid-wrap"><table class="wp-grid"><thead>${gridHead}</thead><tbody>${gridBody}</tbody></table></div></div>
+    <div class="wp-box-body"><div class="wp-grid-wrap"><table class="wp-grid wp-cols-${wpDayCount}"><thead>${gridHead}</thead><tbody>${gridBody}</tbody></table></div></div>
   </div>`;
 
   const r = p.review;
