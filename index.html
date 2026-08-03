@@ -1091,7 +1091,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v82 · weekly-exceptions</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v83 · schedule-edit-propagates</span>
   </footer>
 </div>
 
@@ -1763,23 +1763,33 @@ function wpRemoveRefEverywhere(ref){
   wpPlacementsOf(ref).forEach(k=>{ wpPlan.placements[k] = (wpPlan.placements[k]||[]).filter(r=>r!==ref); });
 }
 
-/* ===================== v82: PER-WEEK EXCEPTIONS ===================== */
-// A scheduled task (recurring OR training — one shared engine) places from its schedule:
-// wpSetRecurrence writes real "<slot>:<day>" placements and the v62 rollover copies those
-// into the next week. wpPlan.exceptions is a THIN, OPTIONAL overlay on top of that, for
+/* ============ v82/v83: SCHEDULE-DERIVED PLACEMENT + PER-WEEK EXCEPTIONS ============ */
+// WHERE A SCHEDULED TASK SITS IS DERIVED, NOT STORED (v83). A recurring or training task
+// with a day set (wpRecurDays) places from its LIVE schedule — item.days × item.time —
+// every time a week renders. Before v83 each week froze a copy of those placements in
+// wpPlan.placements (written by wpSetRecurrence, copied forward by the v62 rollover), so
+// editing the schedule only fixed the week you were looking at and every other week kept
+// showing the task in its old slot. Now:
+//   • wpScheduledPlacements() derives the cells from the schedule itself.
+//   • wpEffectivePlacements() = stored placements with SCHEDULED refs stripped (they are a
+//     stale mirror) + the derived cells + this week's exceptions on top.
+//   • wpPlan.placements therefore only really matters for ONE-OFF refs (project/buffer/
+//     unscheduled training, plus pre-v64 recurring items that never got a day set). Those
+//     stay exactly as they were: hand-placed, per-week, never derived.
+//   • The v62 rollover only seeds refs that AREN'T schedule-derived — a scheduled task needs
+//     no seeding, it simply appears wherever its schedule says, in every week.
+// wpPlan.exceptions is a THIN, OPTIONAL per-week overlay on top of that derivation, for
 // THIS WEEK ONLY:
 //   { "<source>:<id>": { type:"move", from:"<slot>:<day>", to:"<slot>:<day>" }
 //                     | { type:"skip", from?:"<slot>:<day>" } }
 // Rules that must not be broken:
-//   • wpPlan.placements keeps holding ONLY schedule-derived (and one-off) placements — an
-//     exception is NEVER baked into it. That's what stops a move/skip leaking into another
-//     week: the rollover copies placements, and never reads a previous week's exceptions.
+//   • An exception is NEVER baked into wpPlan.placements, and the rollover never reads a
+//     previous week's exceptions — that's what keeps a move/skip inside its own week.
 //   • Exceptions only ever exist for defaults sources (recurring/training). One-off tasks
 //     behave exactly as they always have.
 //   • One entry per ref per week (a second exception on the same task replaces the first).
-//   • `from` is the SCHEDULE-derived cell the occurrence comes from, so an exception can be
-//     matched against (and invalidated by) the current schedule.
-// Rendering applies them via wpEffectivePlacements(); every write path still speaks schedule.
+//   • `from` is the SCHEDULE-derived cell the occurrence comes from, so an exception is
+//     automatically invalidated (schedule wins) once the schedule moves elsewhere.
 function wpValidCellKey(k){
   if(typeof k !== "string" || !k) return null;
   const parts = k.split(":");
@@ -1820,20 +1830,48 @@ function wpCleanExceptions(raw){
   });
   return out;
 }
-// RENDER PRECEDENCE: schedule first, then this week's exceptions on top.
+// v83: every scheduled task's cells, derived from the LIVE schedule (days × slot) of both
+// shared collections. This is the source of truth for where a scheduled task sits, in every
+// week — nothing here is per-week, so a schedule edit shows up everywhere at once.
+function wpScheduledPlacements(){
+  const out = {};
+  const add = (source, list)=>{
+    (list||[]).forEach(it=>{
+      if(!it || !it.id) return;
+      const days = wpRecurDays(it);
+      if(!days) return;                                   // no day set = one-off, not derived
+      const slot = (typeof it.time === "string" && WP_TIME_ROWS.some(t=>t[0]===it.time)) ? it.time : "6-9";
+      const ref = wpItemRef(source, it.id);
+      days.forEach(d=>{
+        if(!WP_DAYS.some(w=>w[0]===d)) return;
+        const key = slot+":"+d;
+        out[key] = out[key] || [];
+        if(!out[key].includes(ref)) out[key].push(ref);
+      });
+    });
+  };
+  add("recurring", wpDefaults);
+  add("training", wpTraining);
+  return out;
+}
+// RENDER PRECEDENCE: live schedule first, then this week's exceptions on top.
 // A skip hides that occurrence; a move renders it in the new cell instead of the scheduled
 // one. An exception for a task that no longer exists, or whose `from` cell no longer holds
-// the ref (the schedule has since changed), is stale — the schedule simply wins.
-// Returns the raw map untouched when there are no exceptions, so a normal week renders
-// through exactly the same object it always did.
+// the ref (the schedule has since moved), is stale — the schedule simply wins.
+// One-off placements are carried through untouched; only SCHEDULED refs are re-derived, so a
+// week that never had a scheduled task in it renders exactly as it always did.
 function wpEffectivePlacements(){
   const base = (wpPlan && wpPlan.placements) || {};
-  const ex = wpExceptionsMap();
-  const refs = Object.keys(ex);
-  if(!refs.length) return base;
+  const derived = wpScheduledPlacements();
   const out = {};
-  Object.keys(base).forEach(k=>{ out[k] = (base[k]||[]).slice(); });
-  refs.forEach(ref=>{
+  // stored copies of scheduled refs are a stale mirror of an older schedule — drop them
+  Object.keys(base).forEach(k=>{ out[k] = (base[k]||[]).filter(r=>!wpIsScheduledRef(r)); });
+  Object.keys(derived).forEach(k=>{
+    out[k] = out[k] || [];
+    derived[k].forEach(r=>{ if(!out[k].includes(r)) out[k].push(r); });
+  });
+  const ex = wpExceptionsMap();
+  Object.keys(ex).forEach(ref=>{
     const e = wpNormException(ref, ex[ref]);
     if(!e || !wpResolveRef(ref)) return;                        // unknown / deleted task
     const cells = (e.from ? [e.from] : Object.keys(out)).filter(k=>(out[k]||[]).includes(ref));
@@ -2018,24 +2056,24 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
 // has none of its own (never overwrites a week you've already scheduled). Only "recurring:"
 // refs roll over; one-off project/buffer placements stay week-specific. Deleted recurring
 // tasks are skipped so no orphan slots appear.
-// v82: this seeds from the SCHEDULE ONLY. wpPlan.placements never contains an exception (the
-// per-week move/skip overlay lives in wpPlan.exceptions and is applied at render time), and
-// `prev.exceptions` is deliberately never read here — so a skip or a move in week A has zero
-// effect on week B, which comes up on the plain schedule.
+// v82: `prev.exceptions` is deliberately never read here — a skip or a move in week A has
+// zero effect on week B.
+// v83: SCHEDULED tasks are no longer seeded at all. Their position is derived from the live
+// schedule every time a week renders (wpScheduledPlacements), so copying a frozen snapshot
+// forward is exactly the bug this replaced: it made an edited schedule invisible in every
+// week that already held a copy. What's left to seed is only the pre-v64 case — a recurring
+// task with NO day set that was hand-placed — which has no schedule to derive from and would
+// otherwise vanish from a fresh week. Unscheduled training keeps its v71 behaviour (one-off,
+// never rolled over).
 async function wpSeedRecurringPlacements(wk){
   if(!wpPlan) return;
   wpPlan.placements = wpPlan.placements || {};
   // Find this week's index. NAV_WEEKS holds Mondays and wk is a Monday, so this should match.
   const idxHere = NAV_WEEKS.indexOf(wk);
   if(idxHere < 0) return; // unknown position — don't risk seeding from an unrelated week
-  // v71: training joins the rollover through the same engine — one pass per ref prefix,
-  // each independent (a week that scheduled its own recurring can still seed training).
-  // Recurring keeps its exact v62 behaviour; training seeds ONLY scheduled items (a days
-  // set) — one-off training is hand-placed and must never auto-appear in a fresh week.
   const sources = [
-    { prefix: "recurring:", valid: new Set((wpDefaults||[]).map(d=>d.id)) },
-    { prefix: "training:",  valid: new Set((wpTraining||[]).filter(d=>Array.isArray(d.days)&&d.days.length).map(d=>d.id)) }
-  ].filter(src =>
+    { prefix: "recurring:", valid: new Set((wpDefaults||[]).filter(d=>!wpRecurDays(d)).map(d=>d.id)) }
+  ].filter(src => src.valid.size &&
     // Does THIS week already have any placement with this prefix? If so, respect it.
     !Object.keys(wpPlan.placements).some(key =>
       (wpPlan.placements[key]||[]).some(ref => String(ref).indexOf(src.prefix)===0)));
@@ -2129,16 +2167,19 @@ function wpPlacementOf(ref){
   return null;
 }
 function wpPlacedLabel(ref){
-  const keys = wpPlacementsOf(ref); if(!keys.length) return "";
-  // v64: a multi-day recurring/training task sits in several cells at one time row — label the set
   const [source] = ref.split(":");
   const item = wpIsDefaultsSource(source) ? wpResolveRef(ref) : null;
-  const [time,day] = keys[0].split(":");
-  const tl = (WP_TIME_ROWS.find(t=>t[0]===time)||[])[1] || time;
+  // v83: a SCHEDULED task's pill reads straight off its live schedule (that's now where its
+  // grid position comes from), so it's right in every week — including one that holds no
+  // stored placement of its own. v64: a multi-day set is labelled as a set.
   const days = item ? wpRecurDays(item) : null;
-  if(days && days.length>1) return wpDaysLabel(days)+" · "+tl;
-  const dl = (WP_DAYS.find(d=>d[0]===day)||[])[1] || day;
-  return dl+" "+tl;
+  if(days){
+    const tl = wpSlotLabel(item.time || "6-9");
+    return days.length>1 ? (wpDaysLabel(days)+" · "+tl) : (wpDayLabel(days[0])+" "+tl);
+  }
+  const keys = wpPlacementsOf(ref); if(!keys.length) return "";
+  const [time,day] = keys[0].split(":");
+  return wpDayLabel(day)+" "+wpSlotLabel(time);
 }
 
 // ---- list-item renderer (Project / Buffer / Recurring share this) ----
@@ -3160,6 +3201,9 @@ async function wpSetRecurrence(id, days, time, source){
   if(typeof time === "string" && WP_TIME_ROWS.some(t=>t[0]===time)) it.time = time;
   if(ds.length){
     it.days = ds;
+    // v83: THIS is the write that matters — days + time on the shared task, which every week
+    // (past, present and future) now derives its grid position from. The placement entries
+    // written below are only a same-week mirror kept for back-compat; rendering ignores them.
     const slot = it.time || "6-9";
     ds.forEach(d=>{
       const key = slot+":"+d;
@@ -3190,11 +3234,14 @@ async function wpEditRecurLink(id){
   renderWeeklyPlan();
 }
 
-// ---- placement (per week; lives in wpPlan.placements) ----
+// ---- placement (one-offs live per week in wpPlan.placements; scheduled tasks derive) ----
 // core placement: put a ref into time:day, moving it if already placed.
 // v64: a recurring task with a day set always keeps the SAME time row on every one of its
 // days — dragging it anywhere on the grid changes the slot for the whole set (the drop
 // day is ignored; days come from the recurrence editor's checkboxes).
+// v83: for a SCHEDULED task the meaningful write here is item.time (the schedule), which is
+// what every week now derives from; the placement entries it also writes are just a mirror
+// of that schedule for this week and are ignored when rendering.
 async function wpPlaceRefAt(ref, time, day){
   wpSyncFromDom();
   const [source] = ref.split(":");
@@ -3222,6 +3269,14 @@ async function wpPlaceRefAt(ref, time, day){
 async function wpUnplaceItem(source, id){
   wpSyncFromDom();
   const ref = wpItemRef(source, id);
+  // v83: a scheduled task isn't "placed" in a week any more — it follows its schedule. Taking
+  // it off the grid therefore means clearing that schedule (exactly what unticking every day
+  // in this popup does), which the shared v64 writer handles for both sources.
+  if(wpIsScheduledRef(ref)){
+    wpClosePopup();
+    await wpSetRecurrence(id, [], undefined, source);
+    return;
+  }
   if(wpPlacementsOf(ref).length){ wpRemoveRefEverywhere(ref); await wpSaveSection("timeBlocks"); }
   wpClosePopup();
   renderWeeklyPlan();
@@ -3235,11 +3290,16 @@ function wpOpenPopup(source, id, anchor){
   const ref = wpItemRef(source, id);
   const item = wpResolveRef(ref);
   const keys = wpPlacementsOf(ref);
-  const curTime = keys.length ? keys[0].split(":")[0] : ((item && item.time) || "6-9");
+  // v83: for a scheduled task the schedule IS the position, so the editor opens on it (a
+  // stored placement may be an older mirror). Unscheduled items still read their cell.
+  const sched = wpRecurDays(item);
+  const curTime = sched ? ((item && item.time) || "6-9")
+    : (keys.length ? keys[0].split(":")[0] : ((item && item.time) || "6-9"));
   // v64: recurrence editor — tick any combination of days; the task repeats on those days
   // at one time slot. Pre-tick from the task's day set, else its current placement(s).
   const placedDays = keys.map(k=>k.split(":")[1]);
-  const ticked = (item && wpRecurDays(item)) || placedDays;
+  const ticked = sched || placedDays;
+  const isPlaced = !!sched || keys.length > 0;
   const dayTicks = WP_DAYS.map(([k,l])=>{
     const on = ticked.includes(k);
     return `<label class="wp-day-tick${on?" on":""}"><input type="checkbox" id="wppop-day-${k}"${on?" checked":""}
@@ -3255,8 +3315,8 @@ function wpOpenPopup(source, id, anchor){
       <select id="wppop-time">${timeOpts}</select>
     </div>
     <div class="wp-popup-actions">
-      <button class="wp-popup-place" onclick="wpPopupApply('${source}','${id}')">${keys.length?"Update":"Place"}</button>
-      ${keys.length?`<button class="wp-popup-remove" onclick="wpUnplaceItem('${source}','${id}')">Remove from grid</button>`:""}
+      <button class="wp-popup-place" onclick="wpPopupApply('${source}','${id}')">${isPlaced?"Update":"Place"}</button>
+      ${isPlaced?`<button class="wp-popup-remove" onclick="wpUnplaceItem('${source}','${id}')">Remove from grid</button>`:""}
     </div>`;
   document.body.appendChild(pop);
   // position near the anchor

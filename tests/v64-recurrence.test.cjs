@@ -97,8 +97,10 @@ function renderedChipDays(ctx, ref) {
     const plans = { [WEEK]: null, [PREV]: { weekEnding: PREV, placements: prevPlacements } };
     const { ctx } = await boot({ defaults, plans });
     await ctx.loadWeeklyPlan(WEEK);
-    const P = ctx.__wpState.plan.placements;
-    assert.deepStrictEqual(keysHolding(P, REF1).sort(), ["6-9:mon", "6-9:sun", "6-9:wed"], "rollover reproduced the full day set");
+    // v83: the fresh week derives a scheduled task's cells from its live day set + slot
+    // (no snapshot copied forward), so the full set is read off the effective map.
+    const P = ctx.wpEffectivePlacements();
+    assert.deepStrictEqual(keysHolding(P, REF1).sort(), ["6-9:mon", "6-9:sun", "6-9:wed"], "the full day set shows in the new week");
     assert.deepStrictEqual(renderedChipDays(ctx, REF1), ["mon", "wed", "sun"], "rolled-over task renders on all its days");
   }
 

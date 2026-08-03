@@ -125,10 +125,14 @@ const notesPostsFor = (posts, field) =>
     };
     const { ctx } = await boot({ training, defaults, plans });
     await ctx.loadWeeklyPlan(WEEK);
+    // v83: a SCHEDULED task no longer needs seeding — its cells are derived from its live
+    // schedule in every week, so this reads the effective (rendered) map. The behaviour under
+    // test is unchanged: it shows up in the fresh week on its days, the one-off doesn't.
+    const E = ctx.wpEffectivePlacements();
+    assert.ok((E["6-9:mon"] || []).includes("training:t1") && (E["6-9:wed"] || []).includes("training:t1"), "scheduled training appears in the new week on its days");
     const P = ctx.__wpState.plan.placements;
-    assert.ok((P["6-9:mon"] || []).includes("training:t1") && (P["6-9:wed"] || []).includes("training:t1"), "scheduled training rolled into the new week on its days");
-    assert.ok((P["6-9:mon"] || []).includes("recurring:r1"), "recurring still rolls over alongside (independent pass)");
-    const all = Object.values(P).flat();
+    assert.ok((P["6-9:mon"] || []).includes("recurring:r1"), "unscheduled recurring still rolls over alongside (independent pass)");
+    const all = Object.values(P).flat().concat(Object.values(E).flat());
     assert.ok(!all.includes("training:t2"), "one-off training does not auto-roll into a fresh week");
   }
 

@@ -179,13 +179,14 @@ function stubAsk(ctx, answer) {
       },
     });
     await ctx.loadWeeklyPlan(WEEK);
-    assert.strictEqual(Object.keys(ctx.__wpState.plan.exceptions).length, 0, "v62 seeding ignores exceptions");
+    assert.strictEqual(Object.keys(ctx.__wpState.plan.exceptions).length, 0, "no exception carried into the fresh week");
     const P = ctx.__wpState.plan.placements;
-    assert.ok(cell(P, "6-9:mon").includes("recurring:r1"), "seeded from the schedule");
-    assert.ok(cell(P, "6-9:wed").includes("recurring:r1"), "seeded from the schedule, not last week's move");
-    assert.ok(!cell(P, "5-8:sat").includes("recurring:r1"), "last week's move did not travel");
+    assert.ok(!Object.values(P).flatMap((v) => Array.from(v)).includes("recurring:r1"),
+      "v83: nothing frozen into the new week — a scheduled task is derived, not seeded");
     const E = ctx.wpEffectivePlacements();
-    assert.ok(cell(E, "6-9:wed").includes("recurring:r1"), "renders per schedule");
+    assert.ok(cell(E, "6-9:mon").includes("recurring:r1"), "renders per its live schedule");
+    assert.ok(cell(E, "6-9:wed").includes("recurring:r1"), "…on every scheduled day");
+    assert.ok(!cell(E, "5-8:sat").includes("recurring:r1"), "last week's move did not travel");
     assert.strictEqual(weeklyPosts(posts).length, 0, "a plain load writes nothing");
   }
 
@@ -303,7 +304,14 @@ function stubAsk(ctx, answer) {
     await ctx.loadWeeklyPlan(WEEK);
     const plan = ctx.__wpState.plan;
     assert.strictEqual(Object.keys(plan.exceptions).length, 0, "fresh/legacy weeks start with none");
-    assert.strictEqual(ctx.wpEffectivePlacements(), plan.placements, "renders through the identical map");
+    // with no exceptions the rendered map is just the schedule (v83) — same cells as the
+    // week's stored snapshot here, since that snapshot matches the current schedule
+    const E = ctx.wpEffectivePlacements();
+    assert.deepStrictEqual(
+      Object.keys(E).filter((k) => cell(E, k).length).sort(),
+      Object.keys(plan.placements).filter((k) => cell(plan.placements, k).length).sort(),
+      "renders exactly the same cells as before"
+    );
 
     await ctx.wpSaveSection("timeBlocks");
     const saved = weeklyPosts(posts).pop().body.weeklyPlan;

@@ -13,9 +13,10 @@ const PREV = "2026-03-09";
 const ALL7 = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri"];
 
-// A defaults set spanning every tab bucket. No placements provided for the current week and
-// no prior-week plans, so nothing auto-seeds onto the grid — each task's title therefore
-// only appears inside the Recurring card, making tab membership checkable from the DOM.
+// A defaults set spanning every tab bucket. v83: a scheduled task renders on the grid in
+// every week (its cells are derived from its live schedule), so tab membership is checked
+// against the Recurring CARD ROW markup (`data-item-title="recurring:<id>"`) rather than a
+// bare title match, which would also hit the task's grid chips.
 const defaults = () => [
   { id: "d1", title: "DailyStandup", days: ALL7.slice(), time: "6-9" },  // 7 days → Daily
   { id: "w5", title: "WeekdayScorecard", days: WEEKDAYS.slice(), time: "6-9" }, // 5 days → Weekly
@@ -41,12 +42,13 @@ const defaults = () => [
   {
     const { ctx } = await boot({ defaults: defaults(), plans: { [WEEK]: { weekEnding: WEEK, placements: {} } } });
     await ctx.loadWeeklyPlan(WEEK);
-    const titles = ["DailyStandup", "WeekdayScorecard", "MondayReview", "UnscheduledTask"];
+    const rows = { DailyStandup: "d1", WeekdayScorecard: "w5", MondayReview: "w1", UnscheduledTask: "u0" };
+    const titles = Object.keys(rows);
     const seenIn = Object.fromEntries(titles.map((t) => [t, []]));
     for (const [tab] of [["daily"], ["weekly"], ["monthly"], ["quarterly"]]) {
       ctx.wpRecurSwitchTab(tab);
       const html = ctx.document.getElementById("wpBody").innerHTML;
-      for (const t of titles) if (html.includes(t)) seenIn[t].push(tab);
+      for (const t of titles) if (html.includes(`data-item-title="recurring:${rows[t]}"`)) seenIn[t].push(tab);
     }
     assert.deepStrictEqual(seenIn.DailyStandup, ["daily"], "the 7-day task shows only under Daily");
     assert.deepStrictEqual(seenIn.WeekdayScorecard, ["weekly"], "the 5-day task shows only under Weekly");
@@ -74,8 +76,9 @@ const defaults = () => [
       ctx.wpRecurSwitchTab(tab);
       const html = ctx.document.getElementById("wpBody").innerHTML;
       assert.ok(html.includes("wp-rec-soon") && html.includes(`${lbl} recurring is coming soon.`), `${lbl} shows the coming-soon placeholder`);
-      // no recurring task rows, and no "+ Add" on placeholder tabs
-      assert.ok(!html.includes("DailyStandup") && !html.includes("WeekdayScorecard"), `${lbl} renders no task rows`);
+      // no recurring task ROWS (the grid chips for those tasks still render, as always), and
+      // no "+ Add" on placeholder tabs
+      assert.ok(!html.includes(`data-item-title="recurring:d1"`) && !html.includes(`data-item-title="recurring:w5"`), `${lbl} renders no task rows`);
       assert.ok(!html.includes("+ Add recurring"), `${lbl} placeholder hides the + Add control`);
     }
   }
@@ -120,7 +123,7 @@ const defaults = () => [
     assert.ok(html.includes("wpToggleDoneRef('recurring:d1'"), "grid chip for the daily task renders independent of the active recurring tab");
   }
 
-  /* ---------- 8: v62 rollover of recurring placements is unchanged ---------- */
+  /* ---------- 8: a scheduled recurring task shows up in a fresh week ---------- */
   {
     const plans = {
       [WEEK]: null, // fresh week
@@ -128,8 +131,9 @@ const defaults = () => [
     };
     const { ctx } = await boot({ defaults: defaults(), plans });
     await ctx.loadWeeklyPlan(WEEK);
-    const P = ctx.__wpState.plan.placements;
-    assert.ok((P["6-9:mon"] || []).includes("recurring:d1") && (P["6-9:tue"] || []).includes("recurring:d1"), "recurring placements still roll over into a fresh week");
+    // v83: derived from d1's live 7-day schedule at 6-9 rather than copied from PREV
+    const E = ctx.wpEffectivePlacements();
+    ALL7.forEach((d) => assert.ok((E["6-9:" + d] || []).includes("recurring:d1"), "daily task shows at 6-9:" + d + " in a fresh week"));
   }
 
   /* ---------- 9: + Add lands the new task in a sensible (visible) tab ---------- */

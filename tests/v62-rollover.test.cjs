@@ -32,15 +32,19 @@ const PREV = "2026-03-09";
     const { ctx } = await boot({ defaults, plans });
     await ctx.loadWeeklyPlan(WEEK);
     const P = ctx.__wpState.plan.placements;
+    const E = ctx.wpEffectivePlacements();
 
-    // weekday task r1 rolled over to all five weekday cells
+    // weekday task r1 shows in all five weekday cells. v83: it has a day set, so it's derived
+    // from its live schedule rather than seeded from last week's snapshot — same result here,
+    // and now also correct after the schedule is edited.
     ["mon", "tue", "wed", "thu", "fri"].forEach((d) =>
-      assert.ok((P["6-9:" + d] || []).includes("recurring:r1"), "r1 rolled to 6-9:" + d)
+      assert.ok((E["6-9:" + d] || []).includes("recurring:r1"), "r1 shows at 6-9:" + d)
     );
-    // weekly task r2 rolled over to its single slot
-    assert.ok((P["1-3:thu"] || []).includes("recurring:r2"), "r2 rolled to 1-3:thu");
+    // r2 has NO day set (pre-v64 hand-placed) — it still rolls over as a real placement
+    assert.ok((P["1-3:thu"] || []).includes("recurring:r2"), "unscheduled r2 rolled to 1-3:thu");
+    assert.ok((E["1-3:thu"] || []).includes("recurring:r2"), "…and renders there");
     // deleted r3 skipped, project ref not copied
-    const all = Object.values(P).flat();
+    const all = Object.values(P).flat().concat(Object.values(E).flat());
     assert.ok(!all.includes("recurring:r3"), "deleted recurring task not seeded");
     assert.ok(!all.includes("project:p9"), "project placements do not roll over");
   }
