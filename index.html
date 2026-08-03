@@ -662,14 +662,19 @@
     color:var(--orange-soft);padding:9px 6px;text-align:center;border:1px solid var(--line);}
   table.wp-grid th.wp-corner{width:70px;color:var(--ink-faint);}
   /* v84: day headers carry a location pill and are click-to-set. Quiet: the pill is a small
-     tinted chip under the day name, never a banner. Colours per location live below — a
-     location with no `.wp-loc-<key>` rule just falls back to the neutral chip. */
-  table.wp-grid th.wp-dayhead{cursor:pointer;padding:7px 5px 6px;}
+     tinted chip, never a banner. Colours per location live below — a location with no
+     `.wp-loc-<key>` rule just falls back to the neutral chip.
+     v85: day name + pill sit on ONE line (a centred flex row inside the th), so the header
+     is exactly as tall as it was before locations existed. The day name never shrinks; the
+     pill takes what's left and ellipses rather than wrapping or widening the column. */
+  table.wp-grid th.wp-dayhead{cursor:pointer;padding:9px 6px;}
   table.wp-grid th.wp-dayhead:hover{background:var(--card-2);}
-  .wp-dayname{display:block;}
-  .wp-locpill{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-    margin-top:4px;padding:1px 7px;border-radius:20px;font-size:9.5px;font-weight:800;letter-spacing:.3px;
-    text-transform:none;border:1px solid transparent;vertical-align:middle;}
+  .wp-dayhead-in{display:flex;align-items:center;justify-content:center;gap:5px;min-width:0;}
+  .wp-dayname{flex:none;}
+  .wp-locpill{display:inline-block;flex:0 1 auto;min-width:0;max-width:100%;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    padding:1px 6px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:.2px;
+    text-transform:none;border:1px solid transparent;vertical-align:middle;line-height:1.5;}
   .wp-loc-warrington{color:var(--orange-soft);background:rgba(232,115,42,.14);border-color:rgba(232,115,42,.45);}
   .wp-loc-home{color:#8fb4e8;background:rgba(108,150,214,.15);border-color:rgba(108,150,214,.45);}
   .wp-locpill.wp-loc-none{color:var(--ink-faint);background:transparent;border-color:var(--line);border-style:dashed;}
@@ -706,7 +711,7 @@
   .wp-locdef-row .wp-loc-opt{padding:4px 8px;font-size:10.5px;}
   /* v84: today's location, at the top of the Today modal */
   .wp-today-loc{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:11px;color:var(--ink-faint);}
-  .wp-today-loc .wp-locpill{margin-top:0;font-size:10.5px;padding:2px 9px;}
+  .wp-today-loc .wp-locpill{font-size:10.5px;padding:2px 9px;}
   table.wp-grid td{border:1px solid var(--line);padding:0;vertical-align:top;height:1px;}
   /* each day cell is a flex column: chips at top, textarea fills whatever height remains.
      height:1px on the td + height:100% here makes the cell fill the (table-equalised) row
@@ -1137,7 +1142,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v84 · daily-location</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v85 · location-single-line</span>
   </footer>
 </div>
 
@@ -2913,9 +2918,11 @@ function renderWeeklyPlan(){
   // TIME GRID: each cell = placed-task checkbox rows + a free-text area
   // v84: each day header carries its location pill (default pattern, or this week's
   // override). The whole header cell is the click target for setting that day.
+  // v85: name + pill on one line — the inner span is the flex row (a th can't safely be the
+  // flex container itself without giving up table-cell column sizing).
   const gridHead = `<tr><th class="wp-corner">Time</th>${WP_DAYS.map(([dk,l])=>
-    `<th class="wp-dayhead" title="Set ${l}'s location" onclick="wpOpenLocPopup('${dk}',this)">
-      <span class="wp-dayname">${l}</span>${wpLocPillHtml(dk)}</th>`).join("")}</tr>`;
+    `<th class="wp-dayhead" title="Set ${l}'s location" onclick="wpOpenLocPopup('${dk}',this)"
+      ><span class="wp-dayhead-in"><span class="wp-dayname">${l}</span>${wpLocPillHtml(dk)}</span></th>`).join("")}</tr>`;
   // v82: the grid renders the EFFECTIVE placements — the schedule with this week's
   // move/skip exceptions applied on top. p.placements itself is untouched (it stays the
   // schedule, which is what saves and rolls over).
