@@ -160,7 +160,10 @@ const checkinPosts = (posts) => posts.filter((p) => p.body.checkin && p.body.che
     assert.deepStrictEqual(dates, ["2026-02-10", "2026-02-11", "2026-02-12"], "list is chronological and complete");
     // clean, consistent shape for the future AI advisor
     const first = list[0];
-    assert.deepStrictEqual(Array.from(Object.keys(first)).sort(), ["date", "dismissed", "doneNote", "gratitude", "mind", "oneThing", "oneThingDone", "updatedAt"], "each entry has the clean fixed shape");
+    // v88 added the per-date habit fields to the same entry (habits / habitsAsked)
+    assert.deepStrictEqual(Array.from(Object.keys(first)).sort(),
+      ["date", "dismissed", "doneNote", "gratitude", "habits", "habitsAsked", "mind", "oneThing", "oneThingDone", "updatedAt"],
+      "each entry has the clean fixed shape");
     assert.strictEqual(list[2].oneThingDone, true, "per-day fields preserved through the list");
   }
 

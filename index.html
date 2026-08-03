@@ -905,6 +905,54 @@
   .wp-ck-yn:hover{border-color:var(--orange);color:var(--ink);}
   .wp-ck-yes.on{background:rgba(63,191,127,.16);border-color:rgba(63,191,127,.5);color:var(--green);}
   .wp-ck-no.on{background:rgba(232,169,58,.16);border-color:rgba(232,169,58,.5);color:var(--amber);}
+  /* ===== v88: daily non-negotiables — the Today checklist, the catch-up nudge and the
+     read-only weekly tracker. Same quiet navy/orange language as the check-in card. ===== */
+  .wp-nn{border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:12px;
+    background:linear-gradient(180deg,rgba(232,115,42,.05),rgba(232,115,42,.015));}
+  .wp-nn-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
+  .wp-nn-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--orange-soft);}
+  .wp-nn-progress{font-size:11px;font-weight:800;color:var(--ink-dim);font-variant-numeric:tabular-nums;
+    background:var(--navy-2);border:1px solid var(--line);border-radius:20px;padding:2px 9px;flex:none;}
+  .wp-nn-list{display:flex;flex-direction:column;gap:3px;}
+  .wp-nn-item{display:flex;align-items:flex-start;gap:9px;padding:5px 4px;cursor:pointer;font-size:13px;
+    color:var(--ink);line-height:1.45;border-radius:7px;}
+  .wp-nn-item:hover{background:rgba(255,255,255,.03);}
+  .wp-nn-item input{appearance:none;-webkit-appearance:none;flex:none;width:16px;height:16px;margin:1px 0 0;
+    border:1.5px solid var(--ink-faint);border-radius:5px;background:transparent;cursor:pointer;position:relative;transition:all .12s;}
+  .wp-nn-item input:hover{border-color:var(--orange);}
+  .wp-nn-item input:checked{background:var(--orange);border-color:var(--orange);}
+  .wp-nn-item input:checked::after{content:"✓";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    color:#fff;font-size:11px;font-weight:900;line-height:1;}
+  .wp-nn-item.done .wp-nn-text{text-decoration:line-through;color:var(--ink-faint);}
+  /* the catch-up nudge about yesterday */
+  .wp-nn-catch{border-color:rgba(232,169,58,.45);background:linear-gradient(180deg,rgba(232,169,58,.09),rgba(232,169,58,.02));}
+  .wp-nn-catch .wp-nn-title{color:var(--amber);}
+  .wp-nn-catch-msg{font-size:12.5px;line-height:1.5;color:var(--ink-dim);margin-bottom:9px;}
+  .wp-nn-catch-msg b{color:var(--ink);}
+  .wp-nn-catch-btns{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+  .wp-nn-catch-yes{background:rgba(63,191,127,.14);border:1px solid rgba(63,191,127,.45);color:var(--green);
+    border-radius:8px;padding:5px 11px;font-family:inherit;font-size:11.5px;font-weight:800;cursor:pointer;}
+  .wp-nn-catch-yes:hover{background:rgba(63,191,127,.25);}
+  .wp-nn-catch-no{background:transparent;border:none;color:var(--ink-faint);font-family:inherit;font-size:11.5px;
+    font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:2px;padding:0;}
+  .wp-nn-catch-no:hover{color:var(--ink-dim);}
+  /* the weekly tracker in the End-of-Week Review */
+  .wp-nnw{margin-bottom:14px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;background:var(--navy);}
+  .wp-nnw-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
+  .wp-nnw-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--orange-soft);}
+  .wp-nnw-total{font-size:11px;font-weight:800;color:var(--ink-dim);font-variant-numeric:tabular-nums;
+    background:var(--navy-2);border:1px solid var(--line);border-radius:20px;padding:2px 9px;flex:none;}
+  .wp-nnw-row{display:flex;align-items:center;gap:4px;padding:2px 0;}
+  .wp-nnw-name{flex:1;min-width:0;font-size:12px;font-weight:700;color:var(--ink);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .wp-nnw-cell{flex:none;width:22px;height:20px;border-radius:5px;background:var(--navy-2);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--ink-faint);}
+  .wp-nnw-cell.on{background:rgba(63,191,127,.16);border-color:rgba(63,191,127,.45);color:var(--green);}
+  .wp-nnw-cell.future{opacity:.45;}
+  .wp-nnw-count{flex:none;width:34px;text-align:right;font-size:11px;font-weight:800;color:var(--ink-dim);
+    font-variant-numeric:tabular-nums;}
+  .wp-nnw-head .wp-nnw-cell{background:transparent;border-color:transparent;font-size:9.5px;
+    text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint);}
   /* ===== v68: focus timer inside the Today modal ===== */
   .wp-today-timer{border:1px solid var(--line);border-radius:10px;background:var(--navy-2);padding:10px 12px;}
   .wp-timer-boxdone{border-color:rgba(63,191,127,.5);background:rgba(63,191,127,.07);}
@@ -1186,7 +1234,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v87 · day-count-view</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v88 · daily-non-negotiables</span>
   </footer>
 </div>
 
@@ -2891,6 +2939,16 @@ function wpBuildWeekText(){
   });
   if(tb.length) sections.push("TIME BLOCKS\n" + tb.join("\n\n"));
 
+  // --- v88: daily non-negotiables, day by day (derived from the per-date check-in data) ---
+  const hs = wpHabitWeekStats();
+  if(hs.total || days.some(d=>wpDayStarted(d))){
+    const lines = hs.per.map(p=>{
+      const per = p.cells.map((c,i)=>WP_DAYS[i][1] + " " + (c.done ? "[x]" : "[ ]")).join(", ");
+      return "  " + p.habit.short + " (" + p.habit.label + "): " + per + " — " + p.done + "/" + WP_DAYS.length;
+    });
+    sections.push("DAILY NON-NEGOTIABLES\n" + lines.join("\n") + "\n\nTotal: " + hs.total + "/" + hs.max);
+  }
+
   // --- Notes / Brain Dump + Intentions Around Food ---
   const notes = [];
   const brain = wpWkPlain(p.notes); if(brain) notes.push("Notes / Brain Dump:\n" + brain);
@@ -3094,6 +3152,7 @@ function renderWeeklyPlan(){
     ${wpBoxHeader("End-of-Week Review","review",`<span class="wp-ssaved" id="wpmsg-copyweek"></span><button type="button" class="wp-copyweek-btn" title="Copy the whole week as plain text (paste into an AI chat for feedback)" onclick="wpCopyWeek()">Copy week</button>`)}
     <div class="wp-box-body">
       ${checklistBox}
+      ${wpHabitTrackerHtml()}
       <div class="wp-review-grid">
         <div class="wp-f"><label>Wins this week</label><textarea data-review="wins" onblur="wpSaveSection('review')">${wpEsc(r.wins)}</textarea></div>
         <div class="wp-f"><label>What didn't get done?</label><textarea data-review="notDone" onblur="wpSaveSection('review')">${wpEsc(r.notDone)}</textarea></div>
@@ -3980,11 +4039,14 @@ function wpRenderTodayBody(){
   // v80: the daily check-in leads the modal (before the day's content), for TODAY's date —
   // independent of which week is being viewed, so it shows even in the off-week case.
   const checkinBlock = wpCheckinBlockHtml(t.date);
+  // v88: yesterday's catch-up nudge, then today's non-negotiables (both purely date-based,
+  // so they show regardless of which week the grid is on).
+  const habitBlocks = wpHabitCatchupHtml() + wpHabitsBlockHtml(t.date);
   // Today outside the viewed week → say so clearly, never a confusing empty day.
   if(t.weekMonday !== wpWeekEnding){
     let wkLbl = wpWeekEnding || "";
     try{ wkLbl = new Date(wpWeekEnding+"T00:00:00Z").toLocaleDateString("en-GB",{day:"numeric",month:"long"}); }catch(e){}
-    body.innerHTML = checkinBlock + wpTimerHtml() + `<div class="wp-today-offweek">
+    body.innerHTML = checkinBlock + habitBlocks + wpTimerHtml() + `<div class="wp-today-offweek">
       <strong>Today isn't in the week you're viewing.</strong>
       <span>You're on the week starting ${wpEsc(wkLbl)}. Use "Current week" in the week bar, then open Today again.</span>
     </div>`;
@@ -4016,7 +4078,7 @@ function wpRenderTodayBody(){
       <div class="wp-notes-editor" id="wpTodayNotes" contenteditable="true" data-ph="Things to think about, ideas for next week, observations, stuff to discuss with the team…" onblur="wpTodaySaveNotes()" onkeydown="wpNotesKeydown(event)">${wpNotesToEditorHtml(wpPlan.notes)}</div>
     </div>
   </div>`;
-  body.innerHTML = checkinBlock + locLine + wpTimerHtml() + rows + notes;
+  body.innerHTML = checkinBlock + habitBlocks + locLine + wpTimerHtml() + rows + notes;
 }
 
 function wpOpenToday(){
@@ -4104,6 +4166,26 @@ async function wpLoadCheckins(){
   }catch(e){ wpCheckins = {}; }
   return wpCheckins;
 }
+/* ===================== v88: DAILY NON-NEGOTIABLES ===================== */
+// The three habits that have to happen every day. EDIT HERE — `id` is the stored key (change
+// one and that habit's history orphans; the label/short text can change freely), and the ids
+// must match VALID_HABITS in netlify/functions/kpi-store.js, which strips anything else.
+// They ride the v80 per-date check-in entry (`habits: { id: true }`), so they use exactly the
+// same store, load, merge and save path — one blob, one fetch, one sanitiser. Additive: no
+// task, placement, exception, location or done-state is involved anywhere.
+const WP_HABITS = [
+  { id:"read",     short:"Read",     label:"Read a minimum 10 pages of a self-development book" },
+  { id:"mobility", short:"Mobility", label:"Mobility — minimum 10 minutes of Pliability" },
+  { id:"house",    short:"House",    label:"Do one thing around the house that will make a difference" },
+];
+function wpHabit(id){ return WP_HABITS.find(h=>h.id===id) || null; }
+// Keep only known ids with real booleans — a stored map can never grow junk keys.
+function wpCleanHabits(raw){
+  const out = {};
+  if(!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  WP_HABITS.forEach(h=>{ if(typeof raw[h.id] === "boolean") out[h.id] = raw[h.id]; });
+  return out;
+}
 // Normalise one date's stored entry to the clean shape (safe defaults for a fresh/absent day).
 function wpCheckinEntry(date){
   const e = (wpCheckins && wpCheckins[date]) || null;
@@ -4116,6 +4198,9 @@ function wpCheckinEntry(date){
     oneThingDone: (e && (e.oneThingDone === true || e.oneThingDone === false)) ? e.oneThingDone : null,
     doneNote: str(e && e.doneNote),
     dismissed: !!(e && e.dismissed),
+    // v88: per-date habit ticks + "already asked about yesterday today" flag
+    habits: wpCleanHabits(e && e.habits),
+    habitsAsked: !!(e && e.habitsAsked),
     updatedAt: str(e && e.updatedAt)
   };
 }
@@ -4190,6 +4275,118 @@ function wpCheckinEveningHtml(entry){
     <div class="wp-notes-editor wp-ck-ed wp-ck-note" id="wpCkDoneNote" contenteditable="true" data-ph="Optional note…" onblur="wpCheckinSaveFromEditors()" onkeydown="wpNotesKeydown(event)">${wpNotesToEditorHtml(entry.doneNote)}</div>
   </div>`;
 }
+/* ---- v88: the habit data layer (all per DATE, never per week) ---- */
+function wpHabitsOf(date){ return wpCheckinEntry(date).habits; }
+function wpHabitDone(date, id){ return !!wpHabitsOf(date)[id]; }
+function wpHabitCount(date){ const h = wpHabitsOf(date); return WP_HABITS.reduce((n,x)=>n+(h[x.id]?1:0),0); }
+// Was this date's day actually started? (Start the day / Skip both dismiss the check-in.)
+function wpDayStarted(date){ return !!(wpCheckins && wpCheckins[date]) && wpCheckinEntry(date).dismissed; }
+// The day before an ISO date, in UTC (same basis as wpTodayInfo().date).
+function wpPrevDate(date){
+  try{
+    const d = new Date(date + "T00:00:00Z");
+    d.setUTCDate(d.getUTCDate() - 1);
+    return d.toISOString().slice(0,10);
+  }catch(e){ return ""; }
+}
+// Tick / untick one habit for one date. Writes through the v80 check-in save (whole entry,
+// server re-cleans + stamps), so a date's habits can never bleed into another date.
+async function wpToggleHabit(date, id){
+  if(!wpHabit(id) || !date) return;
+  await wpLoadCheckins();
+  const habits = Object.assign({}, wpHabitsOf(date));
+  habits[id] = !habits[id];
+  await wpCheckinSave(date, { habits });
+  wpRenderTodayBody();
+}
+// v88 CATCH-UP: on a new day, ask about YESTERDAY ONLY (never older days), only when that day
+// was actually started and left something unticked, and only until it's been answered today.
+// Returns { date, missing:[habit] } or null.
+function wpHabitCatchup(){
+  const t = wpTodayInfo();
+  if(wpCheckinEntry(t.date).habitsAsked) return null;   // already handled today
+  const y = wpPrevDate(t.date);
+  if(!y || !wpDayStarted(y)) return null;               // no started day yesterday → nothing to ask
+  const missing = WP_HABITS.filter(h=>!wpHabitDone(y, h.id));
+  return missing.length ? { date:y, missing } : null;
+}
+// "Yes I did it" after the fact — updates YESTERDAY's record (never today's).
+async function wpHabitCatchupMark(id){
+  const c = wpHabitCatchup();
+  if(!c || !wpHabit(id) || wpHabitDone(c.date, id)) return;
+  await wpToggleHabit(c.date, id);
+}
+// "Leave as missed" / done with the prompt — flags TODAY as asked so it doesn't come back.
+async function wpHabitCatchupDismiss(){
+  const t = wpTodayInfo();
+  await wpCheckinSave(t.date, { habitsAsked:true });
+  wpRenderTodayBody();
+}
+// The tickable checklist shown in the Today modal once the day has been started.
+function wpHabitsBlockHtml(date){
+  if(!wpDayStarted(date)) return "";   // appears after "Start the day" (or Skip)
+  const done = wpHabitCount(date);
+  const rows = WP_HABITS.map(h=>{
+    const on = wpHabitDone(date, h.id);
+    return `<label class="wp-nn-item${on?" done":""}">
+      <input type="checkbox" ${on?"checked":""} onchange="wpToggleHabit('${date}','${h.id}')">
+      <span class="wp-nn-text">${wpEsc(h.label)}</span>
+    </label>`;
+  }).join("");
+  return `<div class="wp-nn">
+    <div class="wp-nn-head"><span class="wp-nn-title">Daily non-negotiables</span>
+      <span class="wp-nn-progress">${done} of ${WP_HABITS.length}</span></div>
+    <div class="wp-nn-list">${rows}</div>
+  </div>`;
+}
+// The catch-up prompt (nothing rendered when there's nothing to ask).
+function wpHabitCatchupHtml(){
+  const c = wpHabitCatchup();
+  if(!c) return "";
+  const names = c.missing.map(h=>h.short).join(", ");
+  const btns = c.missing.map(h=>
+    `<button type="button" class="wp-nn-catch-yes" onclick="wpHabitCatchupMark('${h.id}')">${wpEsc(h.short)} — I did it</button>`).join("");
+  let lbl = c.date;
+  try{ lbl = new Date(c.date+"T00:00:00Z").toLocaleDateString("en-GB",{weekday:"long"}); }catch(e){}
+  return `<div class="wp-nn wp-nn-catch">
+    <div class="wp-nn-head"><span class="wp-nn-title">Yesterday (${wpEsc(lbl)})</span></div>
+    <div class="wp-nn-catch-msg">You didn't tick: <b>${wpEsc(names)}</b>. Did you actually do them?</div>
+    <div class="wp-nn-catch-btns">${btns}</div>
+    <button type="button" class="wp-nn-catch-no" onclick="wpHabitCatchupDismiss()">No — leave as missed</button>
+  </div>`;
+}
+// Week totals per habit, derived on the fly (never stored) from the per-date entries. Uses
+// the v81 wpWeekDates(monday) helper — Mon..Sun ISO dates, aligned index-for-index with
+// WP_DAYS — so the tracker, Copy week and the check-in section all speak the same dates.
+function wpHabitWeekStats(){
+  const dates = wpWeekDates(wpWeekEnding || (wpPlan && wpPlan.weekEnding) || "");
+  const today = wpTodayInfo().date;
+  const per = WP_HABITS.map(h=>{
+    const cells = WP_DAYS.map(([k],i)=>{
+      const date = dates[i] || "";
+      return { day:k, date, done: date ? wpHabitDone(date, h.id) : false, future: !!date && date > today };
+    });
+    return { habit:h, cells, done: cells.filter(c=>c.done).length };
+  });
+  return { per, dates, total: per.reduce((n,p)=>n+p.done,0), max: WP_HABITS.length * WP_DAYS.length };
+}
+// The weekly tracker in the End-of-Week Review — a read-only summary of the per-date data.
+function wpHabitTrackerHtml(){
+  const st = wpHabitWeekStats();
+  const head = `<div class="wp-nnw-row wp-nnw-head"><span class="wp-nnw-name"></span>
+    ${WP_DAYS.map(([,l])=>`<span class="wp-nnw-cell">${l[0]}</span>`).join("")}<span class="wp-nnw-count"></span></div>`;
+  const rows = st.per.map(p=>`<div class="wp-nnw-row">
+    <span class="wp-nnw-name" title="${wpEsc(p.habit.label)}">${wpEsc(p.habit.short)}</span>
+    ${p.cells.map(c=>`<span class="wp-nnw-cell${c.done?" on":(c.future?" future":"")}" title="${wpEsc(c.date)}">${c.done?"✓":(c.future?"·":"")}</span>`).join("")}
+    <span class="wp-nnw-count">${p.done}/${WP_DAYS.length}</span>
+  </div>`).join("");
+  return `<div class="wp-nnw">
+    <div class="wp-nnw-h"><span class="wp-nnw-title">Daily non-negotiables</span>
+      <span class="wp-nnw-total">${st.total} of ${st.max} this week</span></div>
+    ${head}${rows}
+  </div>`;
+}
+
 // The block that leads the modal: the questions form (fresh/editing) or the compact summary.
 function wpCheckinBlockHtml(date){
   const entry = wpCheckinEntry(date);

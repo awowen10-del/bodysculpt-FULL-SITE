@@ -53,6 +53,15 @@ const TRAINING_DEFAULTS_KEY = "weekly-training-defaults";
 // v80: daily check-in history — a single blob holding a map { "YYYY-MM-DD": entry }, so every
 // day's answers accumulate and are trivially retrievable as a list for a future AI advisor.
 const DAILY_CHECKINS_KEY = "daily-checkins";
+// v88: the daily non-negotiables ride the same per-date entry (`habits`). Ids must match
+// WP_HABITS in index.html — anything else, and any non-boolean value, is stripped.
+const VALID_HABITS = ["read", "mobility", "house"];
+function cleanHabits(raw) {
+  const out = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  for (const id of VALID_HABITS) if (typeof raw[id] === "boolean") out[id] = raw[id];
+  return out;
+}
 // Whitelist + coerce one check-in entry to the clean, consistent shape. Free-text fields hold
 // client-sanitised rich-text HTML (re-sanitised again on render), capped here defensively.
 function cleanCheckin(raw) {
@@ -65,6 +74,8 @@ function cleanCheckin(raw) {
     oneThingDone: (raw.oneThingDone === true || raw.oneThingDone === false) ? raw.oneThingDone : null,
     doneNote: str(raw.doneNote),
     dismissed: !!raw.dismissed,
+    habits: cleanHabits(raw.habits),        // v88: { habitId: boolean }, known ids only
+    habitsAsked: !!raw.habitsAsked,         // v88: yesterday's catch-up already answered today
     updatedAt: new Date().toISOString(),
   };
 }
