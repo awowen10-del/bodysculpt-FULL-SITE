@@ -46,6 +46,7 @@ async function boot(opts = {}) {
   const defaults = opts.defaults || [];
   const training = opts.training || []; // v71: personal training list (separate collection)
   const checkins = Object.assign({}, opts.checkins || {}); // v80: daily check-in map (mutable, so save→reload round-trips)
+  let locations = Object.assign({}, opts.locations || {}); // v84: default weekly location pattern (mutable, same reason)
   const posts = [];
   const els = new Map();
 
@@ -100,6 +101,11 @@ async function boot(opts = {}) {
       if (Array.isArray(body.trainingDefaults)) {
         return reply({ ok: true, defaults: body.trainingDefaults });
       }
+      if (body.locationDefaults) {
+        // mirror kpi-store: the whole default pattern is written as a unit
+        locations = { ...body.locationDefaults };
+        return reply({ ok: true, locations });
+      }
       if (body.checkin && body.checkin.date) {
         // mirror kpi-store: merge into the date-keyed map, stamp updatedAt, echo the entry
         const entry = { ...body.checkin, updatedAt: "2026-01-01T00:00:00.000Z" };
@@ -110,6 +116,7 @@ async function boot(opts = {}) {
     }
     if (u.includes("trainingdefaults=1")) return reply({ defaults: training });
     if (u.includes("checkins=1")) return reply({ checkins });
+    if (u.includes("locationdefaults=1")) return reply({ locations });
     if (u.includes("recurringdefaults=1")) return reply({ defaults });
     if (u.includes("weeklyplan=")) {
       const date = decodeURIComponent(u.split("weeklyplan=")[1]);
@@ -161,6 +168,7 @@ async function boot(opts = {}) {
     " get defaults(){ return wpDefaults; }, set defaults(v){ wpDefaults = v; }," +
     " get training(){ return wpTraining; }, set training(v){ wpTraining = v; }," +
     " get checkins(){ return wpCheckins; }, set checkins(v){ wpCheckins = v; }," +
+    " get locDefaults(){ return wpLocDefaults; }, set locDefaults(v){ wpLocDefaults = v; }," +
     " get weekEnding(){ return wpWeekEnding; }," +
     " get navWeeks(){ return NAV_WEEKS; }," +
     " get timer(){ return wpTimer; }, set timer(v){ wpTimer = v; }" +

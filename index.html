@@ -661,6 +661,52 @@
   table.wp-grid th{background:var(--navy-2);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;
     color:var(--orange-soft);padding:9px 6px;text-align:center;border:1px solid var(--line);}
   table.wp-grid th.wp-corner{width:70px;color:var(--ink-faint);}
+  /* v84: day headers carry a location pill and are click-to-set. Quiet: the pill is a small
+     tinted chip under the day name, never a banner. Colours per location live below — a
+     location with no `.wp-loc-<key>` rule just falls back to the neutral chip. */
+  table.wp-grid th.wp-dayhead{cursor:pointer;padding:7px 5px 6px;}
+  table.wp-grid th.wp-dayhead:hover{background:var(--card-2);}
+  .wp-dayname{display:block;}
+  .wp-locpill{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    margin-top:4px;padding:1px 7px;border-radius:20px;font-size:9.5px;font-weight:800;letter-spacing:.3px;
+    text-transform:none;border:1px solid transparent;vertical-align:middle;}
+  .wp-loc-warrington{color:var(--orange-soft);background:rgba(232,115,42,.14);border-color:rgba(232,115,42,.45);}
+  .wp-loc-home{color:#8fb4e8;background:rgba(108,150,214,.15);border-color:rgba(108,150,214,.45);}
+  .wp-locpill.wp-loc-none{color:var(--ink-faint);background:transparent;border-color:var(--line);border-style:dashed;}
+  table.wp-grid th.wp-dayhead:hover .wp-locpill.wp-loc-none{color:var(--ink-dim);border-color:var(--orange);}
+  /* a one-week override is drawn dashed, so "just this week" always reads differently
+     from the default pattern */
+  .wp-locpill.wp-loc-ovr{border-style:dashed;}
+  /* the header control that opens the default-pattern editor */
+  .wp-loc-btn{background:rgba(232,115,42,.12);border:1px solid rgba(232,115,42,.45);color:var(--orange-soft);
+    border-radius:8px;padding:5px 10px;font-family:inherit;font-size:11px;font-weight:800;
+    text-transform:uppercase;letter-spacing:.6px;cursor:pointer;flex:none;}
+  .wp-loc-btn:hover{background:var(--orange);border-color:var(--orange);color:#fff;}
+  /* two controls now share the Time Blocks header — let them wrap rather than squash */
+  .wp-grid-box .wp-box-h .wp-sec-save{flex-wrap:wrap;justify-content:flex-end;gap:6px;}
+  /* the two location popups (per-day override + the default pattern), on the .wp-popup shell */
+  .wp-loc-popup{min-width:230px;max-width:290px;}
+  .wp-loc-opts{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:9px;}
+  .wp-loc-opt{background:var(--navy-2);border:1px solid var(--line);color:var(--ink-dim);border-radius:7px;
+    padding:5px 9px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;}
+  .wp-loc-opt:hover{border-color:var(--orange);color:var(--ink);}
+  .wp-loc-opt.on{color:#fff;border-color:var(--orange);background:rgba(232,115,42,.22);}
+  .wp-loc-opt.wp-loc-warrington.on{border-color:rgba(232,115,42,.8);background:rgba(232,115,42,.26);}
+  .wp-loc-opt.wp-loc-home.on{border-color:rgba(108,150,214,.8);background:rgba(108,150,214,.26);}
+  .wp-loc-foot{display:flex;flex-direction:column;gap:7px;font-size:10.5px;line-height:1.5;color:var(--ink-faint);
+    border-top:1px solid var(--line);padding-top:8px;}
+  .wp-loc-foot b{color:var(--ink-dim);}
+  .wp-loc-foot-btns{display:flex;gap:6px;flex-wrap:wrap;}
+  .wp-loc-reset,.wp-loc-editdef{background:transparent;border:1px solid var(--line);color:var(--ink-dim);
+    border-radius:7px;padding:4px 9px;font-family:inherit;font-size:10.5px;font-weight:700;cursor:pointer;}
+  .wp-loc-reset:hover,.wp-loc-editdef:hover{border-color:var(--orange);color:var(--orange-soft);}
+  .wp-locdef-list{display:flex;flex-direction:column;gap:4px;margin-bottom:9px;}
+  .wp-locdef-row{display:flex;align-items:center;gap:5px;}
+  .wp-locdef-day{flex:none;width:30px;font-size:10.5px;font-weight:800;color:var(--ink-faint);text-transform:uppercase;}
+  .wp-locdef-row .wp-loc-opt{padding:4px 8px;font-size:10.5px;}
+  /* v84: today's location, at the top of the Today modal */
+  .wp-today-loc{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:11px;color:var(--ink-faint);}
+  .wp-today-loc .wp-locpill{margin-top:0;font-size:10.5px;padding:2px 9px;}
   table.wp-grid td{border:1px solid var(--line);padding:0;vertical-align:top;height:1px;}
   /* each day cell is a flex column: chips at top, textarea fills whatever height remains.
      height:1px on the td + height:100% here makes the cell fill the (table-equalised) row
@@ -1091,7 +1137,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v83 · schedule-edit-propagates</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v84 · daily-location</span>
   </footer>
 </div>
 
@@ -1579,6 +1625,7 @@ let wpWeekEnding = null;
 let wpMonthFocus = null;   // this month's focus items (read-only anchor from Monthly)
 let wpMonthProjects = { ym:"", projects:[] };  // v61: this month's projects, for the weekly picker
 let wpCheckins = null;     // v80: daily check-in history — a map { "YYYY-MM-DD": entry }, loaded once
+let wpLocDefaults = null;  // v84: the DEFAULT weekly location pattern { day: locationKey }, loaded once
 
 function wpEsc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 function wpFmtTime(iso){ if(!iso) return ""; try{ const d=new Date(iso); return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}); }catch(e){ return ""; } }
@@ -1747,6 +1794,102 @@ const WP_REVIEW_CHECKLIST = [
   { id:"motivation", label:"Consume something motivational or educational" },
   { id:"copyai",     label:"Copy the week and run it past AI for feedback" },
 ];
+/* ===================== v84: DAILY LOCATION ===================== */
+// Where you are on each day of the week. Purely informational — it never hides, moves or
+// alters a task, a placement, a done tick or a v82/v83 exception.
+//
+// THE FIXED LIST. To add a location: add an entry here, add its key to VALID_LOCATIONS in
+// netlify/functions/kpi-store.js (the server strips anything not on that list), and add a
+// `.wp-loc-<key>` colour rule in the stylesheet — without one it just renders neutral.
+const WP_LOCATIONS = [
+  { key:"warrington", label:"Warrington", short:"Warrington" },
+  { key:"home",       label:"Home",       short:"Home" },
+];
+function wpLocation(key){ return WP_LOCATIONS.find(l=>l.key===key) || null; }
+function wpLocLabel(key){ const l = wpLocation(key); return l ? l.label : ""; }
+// Same precedence shape as the v82/v83 task model:
+//   DEFAULT PATTERN (wpLocDefaults, stored once, applies to every week)
+//     → THIS WEEK'S OVERRIDES (wpPlan.locations, per-week, never rolled over) on top.
+// An override value of "" means "explicitly nowhere this week" — different from having no
+// override at all, which follows the default.
+function wpCleanLocations(raw, allowClear){
+  const out = {};
+  if(!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  WP_DAYS.forEach(([day])=>{
+    if(!Object.prototype.hasOwnProperty.call(raw, day)) return;
+    const v = raw[day];
+    if(typeof v !== "string") return;
+    if(wpLocation(v)) out[day] = v;
+    else if(allowClear && v === "") out[day] = "";
+  });
+  return out;
+}
+// This week's overrides, created lazily (a week carries no field until one is set).
+function wpWeekLocations(){
+  if(!wpPlan) return {};
+  if(!wpPlan.locations || typeof wpPlan.locations !== "object" || Array.isArray(wpPlan.locations)) wpPlan.locations = {};
+  return wpPlan.locations;
+}
+function wpLocDefaultsMap(){ return (wpLocDefaults && typeof wpLocDefaults === "object") ? wpLocDefaults : {}; }
+// The location shown for a day of the VIEWED week: override first, else the default pattern.
+function wpLocationOf(day){
+  const ov = wpWeekLocations();
+  if(Object.prototype.hasOwnProperty.call(ov, day)) return ov[day] || "";
+  return wpLocDefaultsMap()[day] || "";
+}
+// Is this day's value a one-week override rather than the default pattern?
+function wpLocIsOverride(day){
+  return Object.prototype.hasOwnProperty.call(wpWeekLocations(), day);
+}
+async function wpLoadLocDefaults(){
+  if(wpLocDefaults != null) return wpLocDefaults;
+  try{
+    const r = await fetch(WP_STORE + "?locationdefaults=1").then(x=>x.json());
+    wpLocDefaults = wpCleanLocations(r && r.locations, false);
+  }catch(e){ wpLocDefaults = {}; }
+  return wpLocDefaults;
+}
+async function wpSaveLocDefaults(){
+  const map = wpCleanLocations(wpLocDefaultsMap(), false);
+  wpLocDefaults = map;
+  try{
+    await fetch(WP_STORE, {method:"POST",headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ locationDefaults: map })});
+  }catch(e){}
+}
+// Set (or clear, with "") THIS WEEK's location for a day. Saves on the grid's own section
+// path, so it lands with the week — and only that week.
+async function wpSetWeekLocation(day, key){
+  if(!wpPlan || !WP_DAYS.some(d=>d[0]===day)) return;
+  if(key !== "" && !wpLocation(key)) return;
+  wpSyncFromDom();
+  wpWeekLocations()[day] = key;
+  wpCloseLocPopup();
+  renderWeeklyPlan();
+  await wpSaveSection("timeBlocks");
+}
+// Drop this week's override for a day — the day goes back to following the default pattern.
+async function wpClearWeekLocation(day){
+  if(!wpPlan) return;
+  wpSyncFromDom();
+  delete wpWeekLocations()[day];
+  wpCloseLocPopup();
+  renderWeeklyPlan();
+  await wpSaveSection("timeBlocks");
+}
+// Edit the DEFAULT pattern. Like a v83 schedule edit, this changes every week that hasn't
+// overridden that day — past, present and future — because each week derives from it.
+async function wpSetLocationDefault(day, key){
+  if(!WP_DAYS.some(d=>d[0]===day)) return;
+  if(key !== "" && !wpLocation(key)) return;
+  await wpLoadLocDefaults();
+  if(key === "") delete wpLocDefaults[day];
+  else wpLocDefaults[day] = key;
+  await wpSaveLocDefaults();
+  if(wpPlan) renderWeeklyPlan();
+  if(document.getElementById("wpLocPopup")) wpRenderLocDefaultsPopup();   // keep the editor live
+}
+
 // Compact label for a day set: "Daily", "Mon–Fri", or "Mon Wed Fri" (kept in week order).
 function wpDaysLabel(days){
   const ds = WP_DAYS.map(d=>d[0]).filter(k=>days.includes(k));
@@ -1974,6 +2117,7 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
   await wpLoadDefaults();
   await wpLoadTraining();   // v71: personal training list (separate collection)
   await wpLoadCheckins();   // v80: daily check-in history (date-keyed, independent of the week)
+  await wpLoadLocDefaults();// v84: the default weekly location pattern (one key, all weeks)
   let plan = null;
   if(preloadedPlan){
     // Caller supplied the just-written plan (e.g. after Finish Week) — use it directly
@@ -2042,6 +2186,10 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
     // Structurally validated here; a week without the field starts {} and renders exactly as
     // it did before v82. NEVER seeded from another week — see wpSeedRecurringPlacements.
     exceptions: wpCleanExceptions(plan.exceptions),
+    // v84: this week's location overrides ({ day: locationKey | "" }). Like exceptions:
+    // additive, optional, validated here, and NEVER seeded from another week — a week with
+    // no overrides simply follows the default pattern.
+    locations: wpCleanLocations(plan.locations, true),
     carryItems: Array.isArray(plan.carryItems) ? plan.carryItems.filter(x=>x&&x.title&&(x.source==="project"||x.source==="buffer")).map(x=>({id:x.id||wpUid(),title:String(x.title),source:x.source})) : [],
     lastUpdated: plan.lastUpdated || ""
   };
@@ -2688,7 +2836,9 @@ function wpBuildWeekText(){
       const parts = []; if(refs.length) parts.push(refs.join(", ")); if(txt) parts.push(txt);
       if(parts.length) slots.push("  " + rl + ": " + parts.join(" — "));
     });
-    if(slots.length) tb.push(dl + ":\n" + slots.join("\n"));
+    // v84: where you were that day, when set — a heading detail, never a slot of its own
+    const loc = wpLocLabel(wpLocationOf(dk));
+    if(slots.length) tb.push(dl + (loc ? " (" + loc + ")" : "") + ":\n" + slots.join("\n"));
   });
   if(tb.length) sections.push("TIME BLOCKS\n" + tb.join("\n\n"));
 
@@ -2761,7 +2911,11 @@ function renderWeeklyPlan(){
   </div>`;
 
   // TIME GRID: each cell = placed-task checkbox rows + a free-text area
-  const gridHead = `<tr><th class="wp-corner">Time</th>${WP_DAYS.map(([,l])=>`<th>${l}</th>`).join("")}</tr>`;
+  // v84: each day header carries its location pill (default pattern, or this week's
+  // override). The whole header cell is the click target for setting that day.
+  const gridHead = `<tr><th class="wp-corner">Time</th>${WP_DAYS.map(([dk,l])=>
+    `<th class="wp-dayhead" title="Set ${l}'s location" onclick="wpOpenLocPopup('${dk}',this)">
+      <span class="wp-dayname">${l}</span>${wpLocPillHtml(dk)}</th>`).join("")}</tr>`;
   // v82: the grid renders the EFFECTIVE placements — the schedule with this week's
   // move/skip exceptions applied on top. p.placements itself is untouched (it stays the
   // schedule, which is what saves and rolls over).
@@ -2778,7 +2932,9 @@ function renderWeeklyPlan(){
     return `<tr class="${notesRow}"><td class="wp-rowlabel">${rlbl}</td>${cells}</tr>`;
   }).join("");
   const gridBox = `<div class="wp-box wp-grid-box">
-    ${wpBoxHeader("Time Blocks","timeBlocks",`<button class="wp-today-btn" title="Focus on just today" onclick="wpOpenToday()">Today<span class="wp-today-btn-timer" id="wpTodayBtnTimer">${wpEsc(wpTimerBadgeText())}</span></button>`)}
+    ${wpBoxHeader("Time Blocks","timeBlocks",
+      `<button class="wp-loc-btn" title="Edit the default weekly location pattern" onclick="wpOpenLocDefaultsPopup(this)">📍 Locations</button>` +
+      `<button class="wp-today-btn" title="Focus on just today" onclick="wpOpenToday()">Today<span class="wp-today-btn-timer" id="wpTodayBtnTimer">${wpEsc(wpTimerBadgeText())}</span></button>`)}
     <div class="wp-box-body"><div class="wp-grid-wrap"><table class="wp-grid"><thead>${gridHead}</thead><tbody>${gridBody}</tbody></table></div></div>
   </div>`;
 
@@ -2857,7 +3013,9 @@ const WP_SECTION_FIELDS = {
   buffer: ["bufferItems","placements","recurringDone","trainingDone"],
   // v82: the grid's own save path also carries this week's exception overlay (the only
   // section that writes it — project/buffer/carry saves leave the stored field alone).
-  timeBlocks: ["timeBlocks","placements","recurringDone","trainingDone","exceptions"],
+  // v84: this week's location overrides ride the same grid save (they live in the header of
+  // that grid); the DEFAULT pattern has its own key and never travels on a week's plan.
+  timeBlocks: ["timeBlocks","placements","recurringDone","trainingDone","exceptions","locations"],
   review: ["review","reviewChecklist"],   // v78: the ritual checklist saves on the review path
   carry: ["carryItems","projectItems","bufferItems","placements"]
 };
@@ -3328,6 +3486,105 @@ function wpOpenPopup(source, id, anchor){
   if(pr.right > window.innerWidth-8) pop.style.left = (window.scrollX + window.innerWidth - pr.width - 8) + "px";
   setTimeout(()=>document.addEventListener("click", wpPopupOutside, true), 0);
 }
+/* ---- v84: the location pill + its two popups ---- */
+// The pill rendered in a day's grid header. Shows the effective location for that day of the
+// viewed week; a one-week override is drawn dashed so it's obvious it isn't the pattern.
+function wpLocPillHtml(day){
+  const key = wpLocationOf(day);
+  const loc = wpLocation(key);
+  const ov = wpLocIsOverride(day);
+  const def = wpLocDefaultsMap()[day] || "";
+  const defTxt = def ? ("default: " + wpLocLabel(def)) : "no default";
+  const cls = "wp-locpill " + (loc ? ("wp-loc-" + key) : "wp-loc-none") + (ov ? " wp-loc-ovr" : "");
+  const title = loc
+    ? (loc.label + (ov ? " — this week only (" + defTxt + ")" : " — from the default pattern"))
+    : (ov ? "No location this week (" + defTxt + ")" : "Set a location");
+  const text = loc ? loc.short : (ov ? "None" : "+");
+  return `<span class="${cls}" title="${wpEsc(title)}">${wpEsc(text)}</span>`;
+}
+// One popup element is reused by both editors (per-day override, and the default pattern).
+let wpLocPopupDay = null;
+function wpCloseLocPopup(){
+  const el = document.getElementById("wpLocPopup");
+  if(el && el.remove) el.remove();
+  document.removeEventListener("click", wpLocPopupOutside, true);
+  wpLocPopupDay = null;
+}
+function wpLocPopupOutside(e){
+  const p = document.getElementById("wpLocPopup");
+  if(!p) return;
+  const t = e.target;
+  if(p.contains && p.contains(t)) return;
+  if(t && t.closest && (t.closest(".wp-dayhead") || t.closest(".wp-loc-btn"))) return; // those re-open it themselves
+  wpCloseLocPopup();
+}
+// Build + position the popup. The anchor's rect is measured BEFORE the old popup is removed,
+// so one popup can anchor itself to the one it replaces (Edit default pattern → in place).
+function wpLocPopupShell(anchor, html){
+  const r = (anchor && anchor.getBoundingClientRect) ? anchor.getBoundingClientRect() : null;
+  wpCloseLocPopup();
+  const pop = document.createElement("div");
+  pop.id = "wpLocPopup";
+  pop.className = "wp-popup wp-loc-popup";
+  pop.innerHTML = html;
+  document.body.appendChild(pop);
+  if(r){
+    pop.style.top = (window.scrollY + r.bottom + 6) + "px";
+    pop.style.left = (window.scrollX + r.left) + "px";
+    const pr = pop.getBoundingClientRect();
+    if(pr.right > window.innerWidth-8) pop.style.left = (window.scrollX + window.innerWidth - pr.width - 8) + "px";
+  }
+  setTimeout(()=>document.addEventListener("click", wpLocPopupOutside, true), 0);
+  return pop;
+}
+function wpLocOptsHtml(day, cur, fn){
+  return WP_LOCATIONS.map(l=>
+    `<button type="button" class="wp-loc-opt wp-loc-${l.key}${cur===l.key?" on":""}" onclick="${fn}('${day}','${l.key}')">${wpEsc(l.label)}</button>`).join("");
+}
+// Set THIS week's location for one day (or clear it back to the default pattern).
+function wpOpenLocPopup(day, anchor){
+  if(!wpPlan || !WP_DAYS.some(d=>d[0]===day)) return;
+  const lbl = wpDayLabel(day);
+  const cur = wpLocationOf(day);
+  const def = wpLocDefaultsMap()[day] || "";
+  const opts = wpLocOptsHtml(day, cur, "wpSetWeekLocation")
+    + `<button type="button" class="wp-loc-opt wp-loc-none${cur===""?" on":""}" onclick="wpSetWeekLocation('${day}','')">Nowhere</button>`;
+  const html = `<div class="wp-popup-h">${wpEsc(lbl)} — where are you?</div>
+    <div class="wp-loc-opts">${opts}</div>
+    <div class="wp-loc-foot">
+      <span>This week only. ${def?("Default: <b>"+wpEsc(wpLocLabel(def))+"</b>."):"No default set for "+wpEsc(lbl)+"."}</span>
+      <span class="wp-loc-foot-btns">
+        ${wpLocIsOverride(day)?`<button type="button" class="wp-loc-reset" onclick="wpClearWeekLocation('${day}')">Use default</button>`:""}
+        <button type="button" class="wp-loc-editdef" onclick="wpOpenLocDefaultsPopup(document.getElementById('wpLocPopup'))">Edit default pattern</button>
+      </span>
+    </div>`;
+  const el = wpLocPopupShell(anchor, html);
+  wpLocPopupDay = day;
+  return el;
+}
+// Edit the DEFAULT pattern — the one that every non-overridden week follows.
+function wpLocDefaultsPopupHtml(){
+  const rows = WP_DAYS.map(([k,l])=>{
+    const cur = wpLocDefaultsMap()[k] || "";
+    const btns = wpLocOptsHtml(k, cur, "wpSetLocationDefault")
+      + `<button type="button" class="wp-loc-opt wp-loc-none${cur===""?" on":""}" title="No location" onclick="wpSetLocationDefault('${k}','')">—</button>`;
+    return `<div class="wp-locdef-row"><span class="wp-locdef-day">${l}</span>${btns}</div>`;
+  }).join("");
+  return `<div class="wp-popup-h">Default weekly pattern</div>
+    <div class="wp-locdef-list">${rows}</div>
+    <div class="wp-loc-foot"><span>Applies to every week that hasn't set its own.</span>
+      <span class="wp-loc-foot-btns"><button type="button" class="wp-loc-reset" onclick="wpCloseLocPopup()">Done</button></span></div>`;
+}
+function wpOpenLocDefaultsPopup(anchor){
+  const el = wpLocPopupShell(anchor, wpLocDefaultsPopupHtml());
+  wpLocPopupDay = null;
+  return el;
+}
+function wpRenderLocDefaultsPopup(){
+  const el = document.getElementById("wpLocPopup");
+  if(el && wpLocPopupDay === null) el.innerHTML = wpLocDefaultsPopupHtml();
+}
+
 // v64: read the editor's ticked days + chosen slot and apply them as real placements.
 // v71: source-aware — the SAME popup schedules recurring and training.
 async function wpPopupApply(source, id){
@@ -3611,6 +3868,12 @@ function wpRenderTodayBody(){
     return;
   }
   // The four preset time rows as one vertical column (the grid's Notes row isn't a time slot).
+  // v84: today's location, same precedence as the grid header (override → default pattern).
+  const locKey = wpLocationOf(t.dayKey);
+  const locLine = locKey
+    ? `<div class="wp-today-loc"><span class="wp-locpill wp-loc-${locKey}${wpLocIsOverride(t.dayKey)?" wp-loc-ovr":""}">${wpEsc(wpLocLabel(locKey))}</span>
+        <span>Where you are today</span></div>`
+    : "";
   const todayPlacements = wpEffectivePlacements();   // v82: same precedence as the grid
   const rows = WP_TIME_ROWS.filter(([rk])=>rk!=="notes").map(([rk,rlbl])=>{
     const refs = (todayPlacements[rk+":"+t.dayKey]||[]);
@@ -3630,7 +3893,7 @@ function wpRenderTodayBody(){
       <div class="wp-notes-editor" id="wpTodayNotes" contenteditable="true" data-ph="Things to think about, ideas for next week, observations, stuff to discuss with the team…" onblur="wpTodaySaveNotes()" onkeydown="wpNotesKeydown(event)">${wpNotesToEditorHtml(wpPlan.notes)}</div>
     </div>
   </div>`;
-  body.innerHTML = checkinBlock + wpTimerHtml() + rows + notes;
+  body.innerHTML = checkinBlock + locLine + wpTimerHtml() + rows + notes;
 }
 
 function wpOpenToday(){
@@ -3682,10 +3945,12 @@ async function wpTodayToggleDone(ref, checked, day){
   wpRenderTodayBody();
 }
 
-// Escape closes the v82 question first (it sits above everything), else the Today modal.
+// Escape closes the v82 question first (it sits above everything), then any open location
+// popup (v84), then the Today modal.
 document.addEventListener("keydown", (e)=>{
   if(e.key!=="Escape") return;
   if(wpAskResolve){ wpCloseAsk(null); return; }
+  if(document.getElementById("wpLocPopup")){ wpCloseLocPopup(); return; }
   if(wpTodayOpen) wpCloseToday();
 });
 

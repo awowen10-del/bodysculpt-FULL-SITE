@@ -68,6 +68,29 @@ function cleanCheckin(raw) {
     updatedAt: new Date().toISOString(),
   };
 }
+// v84: daily location. WHERE you are on each day of the week — a default weekly pattern in
+// its own key, plus optional per-week overrides carried on the week's plan (field
+// "locations"). Purely informational: it never touches tasks, placements or done-state.
+const LOCATION_DEFAULTS_KEY = "weekly-location-defaults";
+// The fixed list of places. TO ADD A LOCATION: add its key here AND to WP_LOCATIONS in
+// index.html (and give it a `.wp-loc-<key>` colour there). Anything else is stripped.
+const VALID_LOCATIONS = ["warrington", "home"];
+const VALID_DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+// Coerce a { day: location } map to the clean shape: valid day keys only, values limited to
+// the fixed list. `allowClear` (per-week overrides) additionally permits "" — an explicit
+// "nowhere this week", which is different from having no override at all.
+function sanitiseLocationMap(raw, allowClear) {
+  const out = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  for (const day of VALID_DAY_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(raw, day)) continue;
+    const v = raw[day];
+    if (typeof v !== "string") continue;
+    if (VALID_LOCATIONS.includes(v)) out[day] = v;
+    else if (allowClear && v === "") out[day] = "";
+  }
+  return out;
+}
 function weeklyPlanKeyOf(date) { return WEEKLY_PLAN_PREFIX + date; }
 function validWeekDate(d) { return typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d); }
 function defaultRecurringDefaults() {
@@ -224,6 +247,13 @@ export default async (req) => {
   if (req.method === "GET" && url.searchParams.get("checkins") === "1") {
     const checkins = (await store.get(DAILY_CHECKINS_KEY, { type: "json" })) || {};
     return Response.json({ checkins });
+  }
+
+  // v84 Location defaults: GET ?locationdefaults=1 returns the default weekly pattern
+  // ({ mon:"warrington", … }) — empty when never set, so every day starts unset.
+  if (req.method === "GET" && url.searchParams.get("locationdefaults") === "1") {
+    const locations = sanitiseLocationMap((await store.get(LOCATION_DEFAULTS_KEY, { type: "json" })) || {}, false);
+    return Response.json({ locations });
   }
 
   // Monthly Plan: GET ?monthlyplan=YYYY-MM → { plan, quarterTag, rocks }
@@ -389,6 +419,10 @@ export default async (req) => {
         }
         incoming.exceptions = clean;
       }
+      // v84: per-week location overrides — { day: location | "" }, same discipline: valid day
+      // keys only, values from the fixed list, "" allowed as an explicit "nowhere this week".
+      // Per-week only; nothing here is ever copied into another week.
+      if ("locations" in incoming) incoming.locations = sanitiseLocationMap(incoming.locations, true);
       const merged = { ...existing, ...incoming, lastUpdated: new Date().toISOString() };
       await store.set(key, JSON.stringify(merged));
       return Response.json({ ok:true, plan: merged });
@@ -441,6 +475,14 @@ export default async (req) => {
         });
       await store.set(TRAINING_DEFAULTS_KEY, JSON.stringify(clean));
       return Response.json({ ok:true, defaults: clean });
+    }
+
+    // v84: save the DEFAULT weekly location pattern (its own key, whole map written as a
+    // unit). No "" values here — an unset day is simply absent from the pattern.
+    if (body.locationDefaults && typeof body.locationDefaults === "object" && !Array.isArray(body.locationDefaults)) {
+      const clean = sanitiseLocationMap(body.locationDefaults, false);
+      await store.set(LOCATION_DEFAULTS_KEY, JSON.stringify(clean));
+      return Response.json({ ok:true, locations: clean });
     }
 
     // v80: save one day's check-in. Merges into the date-keyed map (never rewrites other
