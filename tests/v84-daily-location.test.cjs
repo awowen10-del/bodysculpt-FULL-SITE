@@ -31,9 +31,12 @@ const weeklyPosts = (posts) => posts.filter((p) => p.body && p.body.weeklyPlan);
 
     const html = ctx.document.getElementById("wpBody").innerHTML;
     assert.ok(html.includes(`wpOpenLocPopup('mon',this)`), "the day header is the click target");
-    assert.ok(html.includes(`class="wp-locpill wp-loc-warrington"`), "Warrington pill rendered");
-    assert.ok(html.includes(`class="wp-locpill wp-loc-home"`), "Home pill rendered (own colour class)");
-    assert.ok(html.includes(`class="wp-locpill wp-loc-none"`), "unset days render the quiet empty pill");
+    // v86: the header location is quiet text (divider + 📍 + place), not a filled pill
+    assert.ok(html.includes(`class="wp-loctext wp-loc-warrington"`), "Warrington rendered with its own colour class");
+    assert.ok(html.includes(`class="wp-loctext wp-loc-home"`), "Home rendered with its own colour class");
+    assert.ok(html.includes("📍") && html.includes(`class="wp-loclbl">Warrington<`), "pin + plain place text");
+    assert.ok(html.includes(`class="wp-locset"`), "unset days show only the click-to-set affordance");
+    assert.ok(!/class="wp-locset[^"]*"[^>]*>[^<]*📍/.test(html), "…with no stray pin");
     assert.ok(html.includes("📍 Locations"), "the default-pattern control is in the grid header");
   }
 
@@ -103,8 +106,8 @@ const weeklyPosts = (posts) => posts.filter((p) => p.body && p.body.weeklyPlan);
     assert.strictEqual(ctx.wpLocationOf("mon"), "", "cleared for this week");
     assert.ok(ctx.wpLocIsOverride("mon"), "…as a real override, not a fallthrough");
     assert.strictEqual(ctx.__wpState.locDefaults.mon, "warrington", "the pattern still says Warrington");
-    assert.ok(ctx.document.getElementById("wpBody").innerHTML.includes("wp-locpill wp-loc-none wp-loc-ovr"),
-      "a cleared day renders the override-styled empty pill");
+    assert.ok(ctx.document.getElementById("wpBody").innerHTML.includes(`class="wp-locset wp-loc-ovr"`),
+      "a cleared day falls back to the click-to-set affordance, marked as an override");
 
     // (b) "Use default" removes the override
     await ctx.wpClearWeekLocation("mon");

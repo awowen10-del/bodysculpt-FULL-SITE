@@ -661,16 +661,38 @@
   table.wp-grid th{background:var(--navy-2);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;
     color:var(--orange-soft);padding:9px 6px;text-align:center;border:1px solid var(--line);}
   table.wp-grid th.wp-corner{width:70px;color:var(--ink-faint);}
-  /* v84: day headers carry a location pill and are click-to-set. Quiet: the pill is a small
-     tinted chip, never a banner. Colours per location live below — a location with no
-     `.wp-loc-<key>` rule just falls back to the neutral chip.
-     v85: day name + pill sit on ONE line (a centred flex row inside the th), so the header
-     is exactly as tall as it was before locations existed. The day name never shrinks; the
-     pill takes what's left and ellipses rather than wrapping or widening the column. */
+  /* v84: day headers show the day's location and are click-to-set.
+     v85: day name + location sit on ONE line (a centred flex row inside the th), so the
+     header is exactly as tall as it was before locations existed. The day name never
+     shrinks; the location takes what's left and ellipses rather than wrapping or widening
+     the column.
+     v86: the header location is plain text (see .wp-loctext below), not a filled pill —
+     the pill styling that follows is now only used by the Today modal. */
   table.wp-grid th.wp-dayhead{cursor:pointer;padding:9px 6px;}
   table.wp-grid th.wp-dayhead:hover{background:var(--card-2);}
   .wp-dayhead-in{display:flex;align-items:center;justify-content:center;gap:5px;min-width:0;}
   .wp-dayname{flex:none;}
+  /* v86: "MON | 📍 Warrington" — a hairline divider, the pin, then the place as quiet
+     coloured text. No fill, no border, lower contrast and not uppercase, so the day name
+     stays the loudest thing in the cell. The label is the only part that shrinks/ellipses;
+     the divider and pin never wrap or clip. */
+  .wp-loctext{display:inline-flex;align-items:center;gap:3px;flex:0 1 auto;min-width:0;
+    border-left:1px solid var(--line);padding-left:6px;
+    font-size:9.5px;font-weight:600;letter-spacing:0;text-transform:none;line-height:1.5;}
+  .wp-locpin{flex:none;font-size:9px;line-height:1;opacity:.75;}
+  .wp-loclbl{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* muted variants of the pill colours — distinguishable at a glance, but clearly quieter
+     than the bold uppercase day name. These also cancel the filled `.wp-loc-<key>` pill
+     styling further down (which the Today modal and the popup buttons still use). */
+  .wp-loctext.wp-loc-warrington{color:#d08c52;background:none;border-color:var(--line);}
+  .wp-loctext.wp-loc-home{color:#7fa3d4;background:none;border-color:var(--line);}
+  /* a one-week override reads differently from the default pattern, quietly */
+  .wp-loctext.wp-loc-ovr .wp-loclbl{text-decoration:underline dotted;text-underline-offset:2px;}
+  /* no location set: just the small click-to-set affordance, no divider and no pin */
+  .wp-locset{flex:none;font-size:11px;font-weight:700;line-height:1;color:var(--ink-faint);opacity:.45;
+    text-transform:none;letter-spacing:0;}
+  table.wp-grid th.wp-dayhead:hover .wp-locset{opacity:1;color:var(--orange-soft);}
+  .wp-locset.wp-loc-ovr{text-decoration:underline dotted;text-underline-offset:2px;}
   .wp-locpill{display:inline-block;flex:0 1 auto;min-width:0;max-width:100%;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
     padding:1px 6px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:.2px;
@@ -678,7 +700,6 @@
   .wp-loc-warrington{color:var(--orange-soft);background:rgba(232,115,42,.14);border-color:rgba(232,115,42,.45);}
   .wp-loc-home{color:#8fb4e8;background:rgba(108,150,214,.15);border-color:rgba(108,150,214,.45);}
   .wp-locpill.wp-loc-none{color:var(--ink-faint);background:transparent;border-color:var(--line);border-style:dashed;}
-  table.wp-grid th.wp-dayhead:hover .wp-locpill.wp-loc-none{color:var(--ink-dim);border-color:var(--orange);}
   /* a one-week override is drawn dashed, so "just this week" always reads differently
      from the default pattern */
   .wp-locpill.wp-loc-ovr{border-style:dashed;}
@@ -1142,7 +1163,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v85 · location-single-line</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v86 · location-pin-style</span>
   </footer>
 </div>
 
@@ -3493,21 +3514,25 @@ function wpOpenPopup(source, id, anchor){
   if(pr.right > window.innerWidth-8) pop.style.left = (window.scrollX + window.innerWidth - pr.width - 8) + "px";
   setTimeout(()=>document.addEventListener("click", wpPopupOutside, true), 0);
 }
-/* ---- v84: the location pill + its two popups ---- */
-// The pill rendered in a day's grid header. Shows the effective location for that day of the
-// viewed week; a one-week override is drawn dashed so it's obvious it isn't the pattern.
+/* ---- v84: the location display + its two popups ---- */
+// What a day's grid header shows after the day name. v86: not a filled pill — a subtle
+// divider, a 📍 and the location as quiet coloured text, so it reads as metadata supporting
+// the day name rather than competing with it. A day with no location shows only the small
+// click-to-set "+" (no divider, no pin). A one-week override is underlined dotted, so it
+// still reads differently from the default pattern.
 function wpLocPillHtml(day){
   const key = wpLocationOf(day);
   const loc = wpLocation(key);
   const ov = wpLocIsOverride(day);
   const def = wpLocDefaultsMap()[day] || "";
   const defTxt = def ? ("default: " + wpLocLabel(def)) : "no default";
-  const cls = "wp-locpill " + (loc ? ("wp-loc-" + key) : "wp-loc-none") + (ov ? " wp-loc-ovr" : "");
-  const title = loc
-    ? (loc.label + (ov ? " — this week only (" + defTxt + ")" : " — from the default pattern"))
-    : (ov ? "No location this week (" + defTxt + ")" : "Set a location");
-  const text = loc ? loc.short : (ov ? "None" : "+");
-  return `<span class="${cls}" title="${wpEsc(title)}">${wpEsc(text)}</span>`;
+  if(!loc){
+    const title = ov ? ("No location this week (" + defTxt + ")") : "Set a location";
+    return `<span class="wp-locset${ov?" wp-loc-ovr":""}" title="${wpEsc(title)}">+</span>`;
+  }
+  const title = loc.label + (ov ? (" — this week only (" + defTxt + ")") : " — from the default pattern");
+  return `<span class="wp-loctext wp-loc-${key}${ov?" wp-loc-ovr":""}" title="${wpEsc(title)}"
+    ><span class="wp-locpin" aria-hidden="true">📍</span><span class="wp-loclbl">${wpEsc(loc.short)}</span></span>`;
 }
 // One popup element is reused by both editors (per-day override, and the default pattern).
 let wpLocPopupDay = null;
