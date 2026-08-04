@@ -129,7 +129,13 @@ async function boot(opts = {}) {
       const ym = decodeURIComponent(u.split("monthfocus=")[1]);
       return reply({ focus: (opts.monthFocus && opts.monthFocus[ym]) || [] });
     }
-    if (u.includes("monthlyplan=")) return reply({ plan: { priorities: [] } });
+    // v102: the weekly anchor's PERSONAL column comes from the same monthly-plan record's
+    // priorities list. opts.monthPriorities maps "YYYY-MM" -> [items]; unknown months return
+    // [] exactly as before.
+    if (u.includes("monthlyplan=")) {
+      const ym = decodeURIComponent(u.split("monthlyplan=")[1]);
+      return reply({ plan: { priorities: (opts.monthPriorities && opts.monthPriorities[ym]) || [] } });
+    }
     if (u.includes("settings=1")) return reply({ settings: null });
     if (u.includes("reset=YES")) return reply({ ok: true });
     if (u.endsWith("kpi-store")) return reply({ weeks: [] }); // invalid → app falls back to SEED
@@ -176,6 +182,7 @@ async function boot(opts = {}) {
     " get checkins(){ return wpCheckins; }, set checkins(v){ wpCheckins = v; }," +
     " get locDefaults(){ return wpLocDefaults; }, set locDefaults(v){ wpLocDefaults = v; }," +
     " get dayCount(){ return wpDayCount; }, get dayStart(){ return wpDayStart; }," +   // v87 view state
+    " get recurCollapsed(){ return wpRecurCollapsed; }, get recurTab(){ return wpRecurTabSel; }," +  // v102 session UI state
     " get weekEnding(){ return wpWeekEnding; }," +
     " get navWeeks(){ return NAV_WEEKS; }," +
     " get timer(){ return wpTimer; }, set timer(v){ wpTimer = v; }" +

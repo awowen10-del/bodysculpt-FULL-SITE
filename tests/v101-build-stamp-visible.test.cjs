@@ -32,8 +32,9 @@ const STAMP = /build v(\d+) · ([a-z0-9-]+)/;
   assert.strictEqual(wText, mText,
     "the Weekly Dashboard and Monthly Report show the SAME build — bump both, or this fails");
 
-  const [, num, slug] = STAMP.exec(mText);
-  assert.strictEqual(slug, "build-stamp-visible", "this release is v101 · build-stamp-visible");
+  // the slug moves with each release; what this test guards is that the two pages agree and
+  // that the stamp is visible — the exact current stamp is the newest test's job.
+  const [, num] = STAMP.exec(mText);
   assert.ok(Number(num) >= 101, "the suite build is v101 or later");
 
   /* ---------- 3. the stamp is real page content, not a comment ---------- */

@@ -499,6 +499,16 @@
     letter-spacing:.5px;cursor:pointer;line-height:1.2;}
   .wp-ntab:hover{color:var(--ink-dim);border-color:var(--line);}
   .wp-ntab.active{color:var(--orange-soft);border-color:rgba(232,115,42,.45);background:rgba(232,115,42,.10);}
+  /* v102: recurring collapse control */
+  .wp-rec-h{gap:8px;}
+  .wp-rec-collapse{background:transparent;border:1px solid var(--line);color:var(--ink-dim);border-radius:7px;
+    width:26px;height:24px;font-family:inherit;font-size:10px;font-weight:700;line-height:1;
+    cursor:pointer;flex:none;padding:0;}
+  .wp-rec-collapse:hover{border-color:var(--orange);color:var(--orange-soft);}
+  .wp-rec-title{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;
+    color:var(--orange-soft);cursor:pointer;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .wp-rec-summary{font-size:11px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink-faint);margin-left:8px;}
+  .wp-rec-collapsed .wp-box-h{border-bottom:0;}
   .wp-tab-hidden{display:none!important;}
   .wp-nt-copy{width:auto;padding:0 8px;margin-left:auto;font-size:11px;}
   /* v75: Recurring card tabs — same quiet navy/orange family as the Notes tabs, tuned a
@@ -520,6 +530,19 @@
   .wp-anchor-item{font-size:13.5px;color:var(--ink);line-height:1.6;}
   .wp-anchor-done{text-decoration:line-through;opacity:.5;}
   .wp-anchor-tick{color:var(--green);font-weight:800;margin-right:5px;text-decoration:none;display:inline-block;}
+  /* v102: business | personal, equal columns from the same monthly record */
+  .wp-anchor-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;}
+  .wp-anchor-col{min-width:0;}
+  .wp-anchor-col + .wp-anchor-col{border-left:1px solid rgba(232,115,42,.20);padding-left:14px;}
+  .wp-anchor-empty{font-size:12.5px;color:var(--ink-faint);font-style:italic;line-height:1.6;}
+  /* personal keeps the green accent it has everywhere else (Training, food notes, the
+     Monthly Plan's own personal card) */
+  .wp-anchor-personal .wp-anchor-h{color:var(--green);}
+  .wp-anchor-personal + .wp-anchor-col, .wp-anchor-personal{border-left-color:rgba(63,191,127,.22);}
+  @media(max-width:700px){
+    .wp-anchor-cols{grid-template-columns:1fr;gap:12px;}
+    .wp-anchor-col + .wp-anchor-col{border-left:0;padding-left:0;border-top:1px solid rgba(63,191,127,.22);padding-top:12px;}
+  }
   .wp-item-done{ opacity:.85; }
   /* placed-task chips inside a grid cell — tidy pills that match the page aesthetic */
   .wp-cellchips{display:flex;flex-direction:column;gap:4px;padding:6px 6px 4px;}
@@ -1238,7 +1261,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v101 · build-stamp-visible</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v102 · monthly-anchor-and-recurring-collapse</span>
   </footer>
 </div>
 
@@ -1881,6 +1904,12 @@ function wpRecurTab(it){
 // Remembered for the session. Default to Weekly, where the seed tasks (unscheduled) and any
 // newly-added task land, so the card isn't empty on first open.
 let wpRecurTabSel = "weekly";
+// v102: the recurring card collapses — its tabbed list is tall and pushes the rest of the
+// week down the page. Session-only UI state, exactly like wpRecurTabSel above: it survives
+// moving between weeks and resets on a fresh load, and nothing about it is stored. Default
+// expanded, i.e. today's behaviour.
+let wpRecurCollapsed = false;
+function wpToggleRecurCollapsed(){ wpRecurCollapsed = !wpRecurCollapsed; renderWeeklyPlan(); }
 
 // v78: the End-of-Week Review ritual — an ordered checklist worked through each week to close
 // out and set up the next. Ticks are stored per-week in wpPlan.reviewChecklist keyed by `id`
@@ -2601,8 +2630,21 @@ function wpRecurringBox(){
   // Weekly, and wpAddRecurring switches there so you always see what you just added.
   const addRow = isPlaceholder ? "" :
     `<div class="wp-rec-actions"><button class="wp-rec-addbtn" onclick="wpAddRecurring()">+ Add recurring</button></div>`;
+  // v102: collapsed shows the header only — plus the per-tab counts, so you still know what
+  // is in there without expanding. Everything inside the card is untouched when expanded.
+  const toggle = `<button type="button" class="wp-rec-collapse" aria-expanded="${wpRecurCollapsed?"false":"true"}"
+    title="${wpRecurCollapsed?"Expand":"Collapse"} recurring" onclick="wpToggleRecurCollapsed()">${wpRecurCollapsed?"\u25b8":"\u25be"}</button>`;
+  if(wpRecurCollapsed){
+    const summary = WP_RECUR_TABS.filter(([k])=>counts[k]>0).map(([k,l])=>`${l} ${counts[k]}`).join(" \u00b7 ") || "Nothing yet";
+    return `<div class="wp-box wp-rec-collapsed">
+      <div class="wp-box-h wp-rec-h">
+        <span class="wp-rec-title" onclick="wpToggleRecurCollapsed()">Recurring <span class="wp-rec-summary">${wpEsc(summary)}</span></span>
+        ${toggle}
+      </div>
+    </div>`;
+  }
   return `<div class="wp-box">
-    <div class="wp-box-h"><span class="wp-notes-tabs wp-rec-tabs">${tabBtns}</span></div>
+    <div class="wp-box-h wp-rec-h"><span class="wp-notes-tabs wp-rec-tabs">${tabBtns}</span>${toggle}</div>
     <div class="wp-box-body">
       <div>${bodyInner}</div>
       ${addRow}
@@ -3231,27 +3273,47 @@ function renderWeeklyPlan(){
     </div>
   </div>`;
 
-  // Cascade anchor: this month's focus (read-only), tying week execution to the month.
+  // Cascade anchor: this month's plan, read-only, tying week execution to the month.
+  // v102: BOTH halves of the month side by side — business focus left, personal right —
+  // so the week is planned against the whole month, not just the business half. They come
+  // from the SAME monthly-plan record for the week's month (focus + priorities), loaded
+  // together above. Monthly is the single source of truth: nothing here is editable, no
+  // copy is stored on the weekly plan, and there is no write path back.
   let anchorBox = "";
-  if(wpMonthFocus && wpMonthFocus.focus && wpMonthFocus.focus.length){
-    const items = wpMonthFocus.focus.filter(f=>f.title && f.title.trim());
-    if(items.length){
-      // v98: the done-state comes straight off the monthly focus item in the monthly-plan
-      // record — Monthly is the single source of truth and this anchor stays read-only, so
-      // there is no second copy to diverge. Struck through, plus an explicit tick so it
-      // reads as done at a glance.
-      const rows = items.map(f=>`<li class="wp-anchor-item${f.done?" wp-anchor-done":""}">${f.done?`<span class="wp-anchor-tick">✓</span>`:""}${wpEsc(f.title)}</li>`).join("");
+  if(wpMonthFocus && wpMonthFocus.ym){
+    const bizItems = (wpMonthFocus.focus||[]).filter(f=>f && f.title && f.title.trim());
+    // the personal side is the Monthly Plan's "Personal Priorities & Projects" list; its
+    // Status field is that section's done-state, so "Done" reads as done here too
+    const persItems = ((wpMonthProjects && wpMonthProjects.ym === wpMonthFocus.ym && wpMonthProjects.projects) || [])
+      .filter(p=>p && p.title && p.title.trim());
+    if(bizItems.length || persItems.length){
       let mlabel = ""; try{ const d=new Date(wpMonthFocus.ym+"-01T00:00:00"); mlabel=d.toLocaleDateString("en-GB",{month:"long"}); }catch(e){}
-      anchorBox = `<div class="wp-anchor">
-        <div class="wp-anchor-h">${mlabel} focus <span>from Monthly Plan</span></div>
-        <ul class="wp-anchor-list">${rows}</ul>
-      </div>`;
+      anchorBox = `<div class="wp-anchor"><div class="wp-anchor-cols">
+        ${wpAnchorCol(mlabel+" focus", bizItems, f=>!!f.done, "")}
+        ${wpAnchorCol(mlabel+" personal", persItems, p=>String(p.status||"")==="Done", " wp-anchor-personal")}
+      </div></div>`;
     }
   }
 
   document.getElementById("wpBody").innerHTML = anchorBox + topRow + gridBox + reviewBox;
 }
 
+// v102: one column of the monthly anchor (business focus, or the personal priorities).
+// Read-only by construction — it renders text and nothing else: no inputs, no handlers, no
+// ids to write back through. Done items are struck through with an explicit tick, and an
+// empty side keeps its column with a quiet hint so the two-column rhythm holds.
+function wpAnchorCol(heading, items, isDone, cls){
+  const body = items.length
+    ? `<ul class="wp-anchor-list">${items.map(it=>{
+        const done = !!isDone(it);
+        return `<li class="wp-anchor-item${done?" wp-anchor-done":""}">${done?`<span class="wp-anchor-tick">\u2713</span>`:""}${wpEsc(it.title)}</li>`;
+      }).join("")}</ul>`
+    : `<div class="wp-anchor-empty">Nothing set for this month.</div>`;
+  return `<div class="wp-anchor-col${cls||""}">
+    <div class="wp-anchor-h">${wpEsc(heading)} <span>from Monthly Plan</span></div>
+    ${body}
+  </div>`;
+}
 // ---- per-section save ----
 const WP_SECTION_FIELDS = {
   project: ["projectItems","placements","recurringDone","trainingDone"],
@@ -3530,6 +3592,7 @@ async function wpAddRecurring(){
   // v75: jump to the tab the new task derives into (a fresh, unscheduled task → Weekly) so
   // it's visible straight after adding, regardless of which tab was active.
   wpRecurTabSel = wpRecurTab(it);
+  wpRecurCollapsed = false;        // v102: never add into a collapsed card you can't see
   await wpSaveDefaults();
   renderWeeklyPlan();
 }
