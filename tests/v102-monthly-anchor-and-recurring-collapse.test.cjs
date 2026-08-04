@@ -90,8 +90,12 @@ async function week(opts) {
       "the personal column carries the green personal accent");
 
     /* ---- read-only: no controls, no write path ---- */
-    ["<input", "<select", "<textarea", "onclick", "onchange", "contenteditable", "draggable"]
+    ["<input", "<select", "<textarea", "onchange", "contenteditable", "draggable"]
       .forEach((c2) => assert.ok(!cols(env).box.includes(c2), "the anchor stays read-only: no " + c2));
+    // v104 added ONE handler to the anchor — the read-only notes viewer. Nothing else may
+    // appear here: any other handler would be a write path into the monthly record.
+    (cols(env).box.match(/on[a-z]+="[^"]*"/g) || []).forEach((h) =>
+      assert.ok(/^onclick="wpOpenAnchorNotes\(/.test(h), "the anchor's only handler is the notes viewer, not " + h));
     assert.ok(!env.posts.some((p) => p.body.monthlyPlan), "the weekly app never writes the monthly record");
     const st = env.ctx.__wpState;
     assert.ok(!("focus" in st.plan) && !("priorities" in st.plan) && !("monthFocus" in st.plan),

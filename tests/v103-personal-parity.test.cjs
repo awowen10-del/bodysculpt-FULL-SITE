@@ -48,8 +48,11 @@ async function setStatus(env, id, value) {
 }
 
 (async () => {
-  assert.ok(/<!-- build v103 · personal-parity -->/.test(MONTHLY), "monthly.html stamped v103 · personal-parity");
-  assert.ok(/build v103 · personal-parity/.test(WEEKLY), "index.html carries the same stamp");
+  // ">= v103" — the exact stamp is asserted by the newest version's test; both pages still
+  // have to agree on it (v101).
+  const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(MONTHLY);
+  assert.ok(stamp && Number(stamp[1]) >= 103, "monthly.html stamped v103 or later");
+  assert.ok(WEEKLY.includes("build v" + stamp[1] + " · " + stamp[2]), "index.html carries the same stamp");
 
   /* ============ 2. personal done-state: persists on Monthly, shows on Weekly ============ */
   {

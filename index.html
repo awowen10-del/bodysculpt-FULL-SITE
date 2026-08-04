@@ -482,13 +482,19 @@
     overflow-y:auto;resize:vertical;}
   .wp-notes-editor:focus{outline:none;border-color:var(--orange);}
   .wp-notes-editor:empty::before{content:attr(data-ph);color:var(--ink-faint);pointer-events:none;}
-  .wp-notes-editor ul,.wp-notes-editor ol{margin:4px 0;padding-left:22px;}
-  .wp-notes-editor input[type=checkbox]{appearance:none;-webkit-appearance:none;width:14px;height:14px;
+  /* v104: the read-only anchor viewer renders the SAME sanitised markup, so it shares the
+     content styles (lists, checkbox lines) — only the editing affordances stay editor-only */
+  .wp-notes-editor ul,.wp-notes-editor ol,
+  .wp-anchor-notes-view ul,.wp-anchor-notes-view ol{margin:4px 0;padding-left:22px;}
+  .wp-notes-editor input[type=checkbox],
+  .wp-anchor-notes-view input[type=checkbox]{appearance:none;-webkit-appearance:none;width:14px;height:14px;
     border:1.5px solid var(--ink-faint);border-radius:4px;background:transparent;cursor:pointer;position:relative;
     vertical-align:-2px;margin:0 7px 0 0;transition:all .12s;}
   .wp-notes-editor input[type=checkbox]:hover{border-color:var(--orange);}
-  .wp-notes-editor input[type=checkbox]:checked{background:var(--orange);border-color:var(--orange);}
-  .wp-notes-editor input[type=checkbox]:checked::after{content:"✓";position:absolute;top:50%;left:50%;
+  .wp-notes-editor input[type=checkbox]:checked,
+  .wp-anchor-notes-view input[type=checkbox]:checked{background:var(--orange);border-color:var(--orange);}
+  .wp-notes-editor input[type=checkbox]:checked::after,
+  .wp-anchor-notes-view input[type=checkbox]:checked::after{content:"✓";position:absolute;top:50%;left:50%;
     transform:translate(-50%,-50%);color:#fff;font-size:10px;font-weight:900;line-height:1;}
   .wp-note-todo{margin:2px 0;}
   .wp-note-todo:has(input:checked){text-decoration:line-through;opacity:.6;}
@@ -543,6 +549,20 @@
     .wp-anchor-cols{grid-template-columns:1fr;gap:12px;}
     .wp-anchor-col + .wp-anchor-col{border-left:0;padding-left:0;border-top:1px solid rgba(63,191,127,.22);padding-top:12px;}
   }
+  /* v104: notes indicator — only on anchor items that actually carry monthly notes, so an
+     item without them looks exactly as it did before */
+  .wp-anchor-note{background:transparent;border:0;padding:0;margin-left:6px;font-family:inherit;
+    font-size:11.5px;line-height:1;color:var(--ink-faint);cursor:pointer;vertical-align:1px;
+    text-decoration:none;display:inline-block;}
+  .wp-anchor-note:hover{color:var(--orange-soft);}
+  .wp-anchor-personal .wp-anchor-note:hover{color:var(--green);}
+  .wp-anchor-done .wp-anchor-note{text-decoration:none;}
+  /* the read-only viewer body: the notes editor's look, without any of its affordances */
+  .wp-anchor-notes-view{background:var(--navy);color:var(--ink);border:1px solid var(--line);
+    border-radius:8px;padding:10px 12px;font-size:13.5px;line-height:1.7;
+    max-height:56vh;overflow-y:auto;overflow-wrap:anywhere;}
+  .wp-anchor-notes-view input[type=checkbox]{pointer-events:none;}   /* nothing here is editable */
+  .wp-anchor-notes-hint{font-size:11px;color:var(--ink-faint);font-style:italic;}
   .wp-item-done{ opacity:.85; }
   /* placed-task chips inside a grid cell — tidy pills that match the page aesthetic */
   .wp-cellchips{display:flex;flex-direction:column;gap:4px;padding:6px 6px 4px;}
@@ -1261,7 +1281,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v103 · personal-parity</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v104 · anchor-notes-view</span>
   </footer>
 </div>
 
@@ -1279,6 +1299,24 @@
       <button class="wp-today-close" title="Close (Esc)" onclick="wpCloseToday()">✕</button>
     </div>
     <div class="wp-today-body" id="wpTodayBody"></div>
+  </div>
+</div>
+
+<!-- v104: READ-ONLY viewer for a monthly anchor item's notes. Same modal shell as Today
+     (and as the v93 notes popup on the Monthly Plan) — ✕ / Esc / backdrop close, blurred
+     backdrop — but there is no editor and no save path: the Monthly Plan stays the only
+     place these notes are written. Lives outside #wpBody so a weekly re-render can't
+     disturb an open viewer. -->
+<div id="wpAnchorNotesOverlay" class="wp-today-overlay" hidden onclick="if(event.target===this)wpCloseAnchorNotes()">
+  <div class="wp-today-modal" role="dialog" aria-modal="true" aria-labelledby="wpAnchorNotesTitle">
+    <div class="wp-today-h">
+      <div>
+        <div class="wp-today-title" id="wpAnchorNotesKicker">Monthly notes</div>
+        <div class="wp-today-date" id="wpAnchorNotesTitle"></div>
+      </div>
+      <button class="wp-today-close" title="Close (Esc)" onclick="wpCloseAnchorNotes()">✕</button>
+    </div>
+    <div class="wp-today-body" id="wpAnchorNotesBody"></div>
   </div>
 </div>
 
@@ -1748,6 +1786,8 @@ let wpTraining = null;      // v71: personal training list — SEPARATE collecti
 let wpWeekEnding = null;
 let wpMonthFocus = null;   // this month's focus items (read-only anchor from Monthly)
 let wpMonthProjects = { ym:"", projects:[] };  // v61: this month's projects, for the weekly picker
+let wpAnchorNotesOpen = false;      // v104: the anchor's read-only monthly-notes viewer
+let wpAnchorNotesCloseTimer = null; //       (declared up here so the render path is never in its TDZ)
 let wpCheckins = null;     // v80: daily check-in history — a map { "YYYY-MM-DD": entry }, loaded once
 let wpLocDefaults = null;  // v84: the DEFAULT weekly location pattern { day: locationKey }, loaded once
 
@@ -3281,16 +3321,15 @@ function renderWeeklyPlan(){
   // copy is stored on the weekly plan, and there is no write path back.
   let anchorBox = "";
   if(wpMonthFocus && wpMonthFocus.ym){
-    const bizItems = (wpMonthFocus.focus||[]).filter(f=>f && f.title && f.title.trim());
+    const bizItems = wpAnchorItems("focus");
     // the personal side is the Monthly Plan's "Personal Priorities & Projects" list; its
     // Status field is that section's done-state, so "Done" reads as done here too
-    const persItems = ((wpMonthProjects && wpMonthProjects.ym === wpMonthFocus.ym && wpMonthProjects.projects) || [])
-      .filter(p=>p && p.title && p.title.trim());
+    const persItems = wpAnchorItems("personal");
     if(bizItems.length || persItems.length){
       let mlabel = ""; try{ const d=new Date(wpMonthFocus.ym+"-01T00:00:00"); mlabel=d.toLocaleDateString("en-GB",{month:"long"}); }catch(e){}
       anchorBox = `<div class="wp-anchor"><div class="wp-anchor-cols">
-        ${wpAnchorCol(mlabel+" focus", bizItems, f=>!!f.done, "")}
-        ${wpAnchorCol(mlabel+" personal", persItems, p=>String(p.status||"")==="Done", " wp-anchor-personal")}
+        ${wpAnchorCol(mlabel+" focus", "focus", bizItems, f=>!!f.done, "")}
+        ${wpAnchorCol(mlabel+" personal", "personal", persItems, p=>String(p.status||"")==="Done", " wp-anchor-personal")}
       </div></div>`;
     }
   }
@@ -3298,21 +3337,76 @@ function renderWeeklyPlan(){
   document.getElementById("wpBody").innerHTML = anchorBox + topRow + gridBox + reviewBox;
 }
 
+// v104: the two anchor lists, derived from the SAME monthly-plan record the anchor renders
+// from. One helper for both the render pass and the notes viewer, so the notes that open are
+// always the notes of the item that was clicked — and still no copy stored anywhere.
+function wpAnchorItems(kind){
+  if(!wpMonthFocus || !wpMonthFocus.ym) return [];
+  if(kind === "personal"){
+    return ((wpMonthProjects && wpMonthProjects.ym === wpMonthFocus.ym && wpMonthProjects.projects) || [])
+      .filter(p=>p && p.title && p.title.trim());
+  }
+  return (wpMonthFocus.focus||[]).filter(f=>f && f.title && f.title.trim());
+}
+// Does this monthly item actually carry note content? Reuses the plain-text projection, so
+// both stored formats (legacy plain, v70 rich) are judged on real content — an empty string,
+// whitespace, or empty rich blocks all read as "no notes", and no icon is rendered.
+function wpAnchorHasNotes(it){
+  return wpNotesToPlainText(it && typeof it.notes === "string" ? it.notes : "").trim() !== "";
+}
+const WP_ANCHOR_KINDS = { focus:{ noun:"Monthly focus" }, personal:{ noun:"Monthly personal" } };
+
 // v102: one column of the monthly anchor (business focus, or the personal priorities).
-// Read-only by construction — it renders text and nothing else: no inputs, no handlers, no
-// ids to write back through. Done items are struck through with an explicit tick, and an
-// empty side keeps its column with a quiet hint so the two-column rhythm holds.
-function wpAnchorCol(heading, items, isDone, cls){
+// Read-only by construction — nothing in it writes: no inputs, no ids to save through.
+// Done items are struck through with an explicit tick, and an empty side keeps its column
+// with a quiet hint so the two-column rhythm holds.
+// v104: an item that has notes on Monthly also gets a small note glyph opening them in a
+// read-only viewer (the only handler in the anchor). Items without notes are untouched.
+function wpAnchorCol(heading, kind, items, isDone, cls){
   const body = items.length
-    ? `<ul class="wp-anchor-list">${items.map(it=>{
+    ? `<ul class="wp-anchor-list">${items.map((it,i)=>{
         const done = !!isDone(it);
-        return `<li class="wp-anchor-item${done?" wp-anchor-done":""}">${done?`<span class="wp-anchor-tick">\u2713</span>`:""}${wpEsc(it.title)}</li>`;
+        const note = wpAnchorHasNotes(it)
+          ? `<button type="button" class="wp-anchor-note" title="Read this item's notes from the Monthly Plan" aria-label="Read the notes for ${wpEsc(it.title)}" onclick="wpOpenAnchorNotes('${kind}',${i})">\u{1F5D2}</button>`
+          : "";
+        return `<li class="wp-anchor-item${done?" wp-anchor-done":""}">${done?`<span class="wp-anchor-tick">\u2713</span>`:""}${wpEsc(it.title)}${note}</li>`;
       }).join("")}</ul>`
     : `<div class="wp-anchor-empty">Nothing set for this month.</div>`;
   return `<div class="wp-anchor-col${cls||""}">
     <div class="wp-anchor-h">${wpEsc(heading)} <span>from Monthly Plan</span></div>
     ${body}
   </div>`;
+}
+
+// v104: read the month's notes while planning the week. Read-only end to end — the item is
+// re-read from the monthly record at open time, its notes go through the same sanitiser used
+// everywhere else (sanitise-on-render, so even a tampered store value is safe), and there is
+// no editor, no blur handler and no save path. Editing stays on the Monthly Plan.
+function wpOpenAnchorNotes(kind, idx){
+  const it = wpAnchorItems(kind)[idx];
+  const ov = document.getElementById("wpAnchorNotesOverlay");
+  if(!it || !ov) return;
+  const kick = document.getElementById("wpAnchorNotesKicker");
+  if(kick) kick.textContent = (WP_ANCHOR_KINDS[kind] || WP_ANCHOR_KINDS.focus).noun + " notes";
+  const t = document.getElementById("wpAnchorNotesTitle");
+  if(t) t.textContent = String(it.title||"").trim() || "Untitled";
+  const body = document.getElementById("wpAnchorNotesBody");
+  if(body) body.innerHTML = `<div class="wp-anchor-notes-view">${wpNotesToEditorHtml(it.notes)}</div>
+    <div class="wp-anchor-notes-hint">From the Monthly Plan — read-only here.</div>`;
+  if(wpAnchorNotesCloseTimer){ clearTimeout(wpAnchorNotesCloseTimer); wpAnchorNotesCloseTimer = null; }
+  ov.hidden = false;
+  wpAnchorNotesOpen = true;
+  document.body.style.overflow = "hidden";   // the page behind must not scroll
+  // double-rAF so the fade/scale transition runs from the hidden state instead of snapping
+  requestAnimationFrame(()=>requestAnimationFrame(()=>ov.classList.add("open")));
+}
+function wpCloseAnchorNotes(){
+  const ov = document.getElementById("wpAnchorNotesOverlay");
+  if(!ov || !wpAnchorNotesOpen) return;
+  wpAnchorNotesOpen = false;                 // nothing to save on the way out — it never edited
+  document.body.style.overflow = "";
+  ov.classList.remove("open");
+  wpAnchorNotesCloseTimer = setTimeout(()=>{ ov.hidden = true; wpAnchorNotesCloseTimer = null; }, 200);
 }
 // ---- per-section save ----
 const WP_SECTION_FIELDS = {
@@ -4322,11 +4416,13 @@ async function wpTodayToggleDone(ref, checked, day){
 }
 
 // Escape closes the v82 question first (it sits above everything), then any open location
-// popup (v84), then the Today modal.
+// popup (v84), then the v104 anchor notes viewer (opened from the page behind the Today
+// modal, so it is the topmost thing whenever it is open), then the Today modal.
 document.addEventListener("keydown", (e)=>{
   if(e.key!=="Escape") return;
   if(wpAskResolve){ wpCloseAsk(null); return; }
   if(document.getElementById("wpLocPopup")){ wpCloseLocPopup(); return; }
+  if(wpAnchorNotesOpen){ wpCloseAnchorNotes(); return; }
   if(wpTodayOpen) wpCloseToday();
 });
 

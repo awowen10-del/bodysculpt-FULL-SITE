@@ -183,6 +183,10 @@ async function boot(opts = {}) {
     " get locDefaults(){ return wpLocDefaults; }, set locDefaults(v){ wpLocDefaults = v; }," +
     " get dayCount(){ return wpDayCount; }, get dayStart(){ return wpDayStart; }," +   // v87 view state
     " get recurCollapsed(){ return wpRecurCollapsed; }, get recurTab(){ return wpRecurTabSel; }," +  // v102 session UI state
+    // v104: the monthly anchor's source record + the read-only notes viewer's open state
+    " get monthFocus(){ return wpMonthFocus; }, set monthFocus(v){ wpMonthFocus = v; }," +
+    " get monthProjects(){ return wpMonthProjects; }, set monthProjects(v){ wpMonthProjects = v; }," +
+    " get anchorNotesOpen(){ return wpAnchorNotesOpen; }," +
     " get weekEnding(){ return wpWeekEnding; }," +
     " get navWeeks(){ return NAV_WEEKS; }," +
     " get timer(){ return wpTimer; }, set timer(v){ wpTimer = v; }" +
