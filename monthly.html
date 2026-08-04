@@ -226,19 +226,28 @@
   .mp-rocks-empty{font-size:12.5px;color:var(--ink-faint);line-height:1.6;}
   .mp-rocks-empty a{color:var(--orange-soft);cursor:pointer;text-decoration:underline;}
   .mp-item{background:var(--card-2);border:1px solid var(--line);border-radius:10px;padding:11px;margin-bottom:9px;}
-  .mp-item-top{display:flex;align-items:center;gap:8px;margin-bottom:9px;}
-  .mp-item-top input.mp-title{flex:1;font-weight:600;}
-  .mp-chk{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-dim);font-weight:700;white-space:nowrap;cursor:pointer;}
-  .mp-chk input{width:15px;height:15px;accent-color:var(--orange);cursor:pointer;}
-  .mp-item.done{opacity:.6;}
-  .mp-item.done input.mp-title{text-decoration:line-through;}
+  .mp-item-top{display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap;}
+  .mp-item-top input.mp-title{flex:1 1 180px;min-width:140px;font-weight:600;}
+  /* v90: the Done toggle. It used to be crushed by the generic "#mpBody input{width:100%}"
+     rule below (id specificity beat the old .mp-chk sizing), which stretched the checkbox
+     and squeezed the word "Done" out of its box. Checkboxes now opt out of that rule and
+     the toggle is a proper 30px pill, the same height as the Rock badge beside it. */
+  .mp-done,.mp-linktag{height:30px;box-sizing:border-box;display:inline-flex;align-items:center;flex:none;}
+  .mp-done{gap:8px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy);
+    font-size:12px;font-weight:700;color:var(--ink-dim);white-space:nowrap;cursor:pointer;user-select:none;}
+  .mp-done:hover{border-color:var(--orange);color:var(--ink);}
+  .mp-item.done .mp-done{border-color:rgba(63,191,127,.5);background:rgba(63,191,127,.14);color:var(--green);}
+  .mp-item.done{border-color:rgba(63,191,127,.32);}
+  .mp-item.done input.mp-title{text-decoration:line-through;color:var(--ink-faint);}
   .mp-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .mp-f{display:flex;flex-direction:column;gap:3px;}
   .mp-f label{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint);font-weight:700;}
-  #mpBody input, #mpBody select, #mpBody textarea{background:var(--navy);color:var(--ink);border:1px solid var(--line);
+  #mpBody input:not([type=checkbox]), #mpBody select, #mpBody textarea{background:var(--navy);color:var(--ink);border:1px solid var(--line);
     border-radius:7px;padding:7px 9px;font-family:inherit;font-size:12.5px;width:100%;}
+  #mpBody .mp-done input[type=checkbox]{width:16px;height:16px;min-width:16px;flex:none;margin:0;padding:0;
+    accent-color:var(--green);cursor:pointer;}
   #mpBody textarea{resize:vertical;min-height:44px;line-height:1.5;}
-  #mpBody input:focus,#mpBody select:focus,#mpBody textarea:focus{outline:none;border-color:var(--orange);}
+  #mpBody input:not([type=checkbox]):focus,#mpBody select:focus,#mpBody textarea:focus{outline:none;border-color:var(--orange);}
   .mp-del{background:transparent;border:1px solid var(--line);color:var(--ink-faint);border-radius:6px;
     padding:3px 8px;font-size:10.5px;font-weight:700;cursor:pointer;white-space:nowrap;}
   .mp-del:hover{border-color:#e0574f;color:#e0574f;}
@@ -249,14 +258,27 @@
   .mp-week-btn{background:transparent;border:1px solid var(--line);color:var(--ink-dim);border-radius:7px;
     padding:5px 11px;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;}
   .mp-week-btn:hover{border-color:var(--orange);color:var(--orange-soft);}
-  .mp-linktag{font-size:10px;font-weight:700;color:var(--orange-soft);background:rgba(232,115,42,.12);
-    border-radius:5px;padding:2px 7px;}
+  .mp-linktag{font-size:10.5px;font-weight:700;color:var(--orange-soft);background:rgba(232,115,42,.12);
+    border:1px solid rgba(232,115,42,.28);border-radius:7px;padding:0 10px;white-space:nowrap;}
+  /* v90: push-forward row — provenance marker, result note, and the inline month picker. */
+  .mp-focus-actions{margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+  .mp-focus-meta{margin-right:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .mp-pushed{font-size:10.5px;font-weight:700;color:var(--ink-dim);background:rgba(159,177,199,.10);
+    border:1px solid var(--line);border-radius:999px;padding:3px 9px;white-space:nowrap;}
+  .mp-pushnote{font-size:11px;font-weight:700;color:var(--green);}
+  .mp-pushnote.warn{color:var(--amber);}
+  .mp-push{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;padding:9px 10px;
+    background:var(--navy);border:1px solid var(--orange);border-radius:9px;}
+  .mp-push .mp-push-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint);font-weight:700;}
+  #mpBody .mp-push select{width:auto;flex:1 1 150px;min-width:140px;}
+  .mp-week-btn.go{background:var(--orange);border-color:var(--orange);color:#fff;}
+  .mp-week-btn.go:hover{background:var(--orange-soft);border-color:var(--orange-soft);color:#fff;}
   .mp-review-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
   @media(max-width:820px){ .mp-fields,.mp-review-grid{grid-template-columns:1fr;} }
 </style>
 </head>
 <body>
-<!-- build v60 · monthly-to-weekly -->
+<!-- build v90 · monthly-push-forward -->
 <header>
   <div class="htop">
     <div class="brand">
@@ -534,6 +556,8 @@ function ymParts(ym){
 function ymLabel(ym){ const {y,m} = ymParts(ym); return isNum(y) ? (MONTHS_LONG[m] + " " + y) : "—"; }
 function ymShort(ym){ const {y,m} = ymParts(ym); return isNum(y) ? (MONTHS[m] + " " + String(y).slice(2)) : "—"; }
 function prevYm(ym){ let {y,m} = ymParts(ym); if(!isNum(y)) return null; m--; if(m<0){m=11;y--;} return y + "-" + String(m+1).padStart(2,"0"); }
+function nextYm(ym){ let {y,m} = ymParts(ym); if(!isNum(y)) return null; m++; if(m>11){m=0;y++;} return y + "-" + String(m+1).padStart(2,"0"); }
+function validYm(ym){ return typeof ym === "string" && /^\d{4}-\d{2}$/.test(ym); }
 function gbp(v){ if(!isNum(v)) return "—"; return "£" + Math.round(v).toLocaleString("en-GB"); }
 function gbp2(v){ if(!isNum(v)) return "—"; return "£" + v.toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function pct(v){ if(!isNum(v)) return "—"; return Math.round(v*100) + "%"; }
@@ -1460,14 +1484,21 @@ function mpSyncFromDom(){
   const body = document.getElementById("mpBody");
   if(!body) return;
   const focus = [];
+  // v90: only five fields have inputs of their own; everything else a focus item carries
+  // lives in state only — the v90 push-forward provenance, and the quarterly cascade's
+  // linkId / successMeasure / owner / status on milestones routed down from a Rock.
+  // Carry those across the DOM round-trip by id, or a sync here would quietly drop them.
+  const prevFocus = {};
+  (mpPlan.focus||[]).forEach(f=>{ if(f && f.id) prevFocus[f.id] = f; });
   body.querySelectorAll('[data-focus]').forEach(el=>{
-    focus.push({
-      id: el.getAttribute("data-focus"),
+    const id = el.getAttribute("data-focus");
+    focus.push(Object.assign({}, prevFocus[id] || {}, {
+      id,
       title: (el.querySelector('[data-ff="title"]')||{}).value || "",
       rockRef: (el.querySelector('[data-ff="rockRef"]')||{}).value || "",
       notes: (el.querySelector('[data-ff="notes"]')||{}).value || "",
       done: (el.querySelector('[data-ff="done"]')||{}).checked || false
-    });
+    }));
   });
   mpPlan.focus = focus;
   const pr = [];
@@ -1522,18 +1553,29 @@ function drawMonthlyPlan(){
   </div>`;
 
   const focusRows = p.focus.length ? p.focus.map(it=>{
+    if(!it.id) it.id = mpQid();
+    const id = it.id;
     const linked = (it.rockRef!==""&&it.rockRef!=null&&mpRocks[Number(it.rockRef)]);
-    return `<div class="mp-item${it.done?" done":""}" data-focus="${it.id||mpQid()}">
+    const from = it.pushedFrom ? `<span class="mp-pushed" title="Copied forward from an earlier month">↩ pushed from ${esc(ymLabel(it.pushedFrom))}</span>` : "";
+    const note = (mpPushNote && mpPushNote.id===id)
+      ? `<span class="mp-pushnote${mpPushNote.warn?" warn":""}">${esc(mpPushNote.text)}</span>` : "";
+    const picker = (mpPushOpen && mpPushOpen.id===id) ? mpPushPickerHtml(id) : "";
+    return `<div class="mp-item${it.done?" done":""}" data-focus="${esc(id)}">
       <div class="mp-item-top">
         <input class="mp-title" data-ff="title" value="${esc(it.title||"")}" placeholder="This month's focus…">
         ${linked?`<span class="mp-linktag">↳ Rock ${Number(it.rockRef)+1}</span>`:""}
-        <label class="mp-chk"><input type="checkbox" data-ff="done"${it.done?" checked":""} onchange="mpToggleFocus(this)">Done</label>
+        <label class="mp-done"><input type="checkbox" data-ff="done"${it.done?" checked":""} onchange="mpToggleFocus(this)"><span class="mp-done-lbl">Done</span></label>
         <button class="mp-del" onclick="mpRemoveFocus(this)">✕</button>
       </div>
       <div class="mp-fields">
         <div class="mp-f"><label>Supports which Rock?</label><select data-ff="rockRef" onchange="mpQuickSave()">${mpRockOptions(it.rockRef)}</select></div>
         <div class="mp-f"><label>Notes</label><input data-ff="notes" value="${esc(it.notes||"")}" placeholder="Optional"></div>
       </div>
+      <div class="mp-focus-actions">
+        <span class="mp-focus-meta">${from}${note}</span>
+        <button class="mp-week-btn" onclick="mpOpenPushForward('${esc(id)}')">↪ Push forward</button>
+      </div>
+      ${picker}
     </div>`;
   }).join("") : `<div class="mp-rocks-empty">What are the 1–3 things this month that move the Rocks forward?</div>`;
   const focusBox = `<div class="mp-box">
@@ -1589,6 +1631,92 @@ function mpGoToQuarterly(){ location.href = "quarterly.html"; }
 function mpAddFocus(){ mpSyncFromDom(); mpPlan.focus.push({id:mpQid(),title:"",rockRef:"",notes:"",done:false}); drawMonthlyPlan(); }
 function mpRemoveFocus(btn){ mpSyncFromDom(); const el=btn.closest("[data-focus]"); const id=el.getAttribute("data-focus"); mpPlan.focus=mpPlan.focus.filter(f=>(f.id||"")!==id); drawMonthlyPlan(); }
 function mpToggleFocus(cb){ const el=cb.closest(".mp-item"); if(el) el.classList.toggle("done", cb.checked); }
+
+/* ---- v90: push a focus item forward into a later month (COPY, never move) ----
+   An unproductive month should still read honestly, so the original item is left here
+   exactly as it is — planned, not ticked — and a fresh copy is written into the month
+   you choose. The copy keeps the title, Rock link and notes, starts unticked, and
+   carries a "pushed from <month>" marker so it never looks like an independent plan.
+   Pushing the same item into the same month twice is a no-op. */
+let mpPushOpen = null;   // {id, ym} — the focus item whose month picker is open
+let mpPushNote = null;   // {id, text, warn} — one-line result shown on that item
+
+function mpFutureYms(fromYm, count){
+  const out = []; let y = fromYm;
+  for(let i=0; i<(count||12); i++){ y = nextYm(y); if(!validYm(y)) break; out.push(y); }
+  return out;
+}
+function mpPushPickerHtml(id){
+  const target = (mpPushOpen && mpPushOpen.ym) || nextYm(mpYm);
+  const opts = mpFutureYms(mpYm, 12)
+    .map(y=>`<option value="${y}"${y===target?" selected":""}>${esc(ymLabel(y))}</option>`).join("");
+  return `<div class="mp-push" data-push="${esc(id)}">
+    <span class="mp-push-lbl">Push a copy to</span>
+    <select data-pushym onchange="mpSetPushTarget(this)">${opts}</select>
+    <button class="mp-week-btn go" onclick="mpPushFocusForward('${esc(id)}')">Push forward</button>
+    <button class="mp-week-btn" onclick="mpClosePushForward()">Cancel</button>
+  </div>`;
+}
+function mpOpenPushForward(id){
+  mpSyncFromDom();
+  if(!(mpPlan.focus||[]).some(f=>(f.id||"")===id)) return;
+  mpPushNote = null;
+  mpPushOpen = { id, ym: nextYm(mpYm) };
+  drawMonthlyPlan();
+}
+function mpClosePushForward(){ mpSyncFromDom(); mpPushOpen = null; drawMonthlyPlan(); }
+function mpSetPushTarget(sel){ if(mpPushOpen) mpPushOpen.ym = sel.value; }
+// Live <select> wins (it is what the user is looking at); the session state is the fallback.
+function mpPushTargetYm(id){
+  const box = document.querySelector('[data-push="' + id + '"]');
+  const sel = box ? box.querySelector("[data-pushym]") : null;
+  if(sel && sel.value) return sel.value;
+  return (mpPushOpen && mpPushOpen.ym) || nextYm(mpYm);
+}
+async function mpPushFocusForward(id){
+  mpSyncFromDom();
+  const it = (mpPlan.focus||[]).find(f=>(f.id||"")===id);
+  if(!it) return;
+  if(!(it.title||"").trim()){ window.alert("Give the focus item a title before pushing it forward."); return; }
+  const target = mpPushTargetYm(id);
+  if(!validYm(target) || target === mpYm){ window.alert("Pick a month to push this into."); return; }
+  try{
+    const r = await fetch(STORE + "?monthlyplan=" + encodeURIComponent(target)).then(x=>x.json());
+    const tPlan = (r && r.plan) ? r.plan : null;
+    const focus = (tPlan && Array.isArray(tPlan.focus)) ? tPlan.focus.slice() : [];
+    // De-dupe guard: this exact item already pushed into that month.
+    if(focus.some(f=>f && f.pushedFrom===mpYm && f.pushedFromId===id)){
+      mpPushOpen = null;
+      mpPushNote = { id, text:"Already in " + ymLabel(target) + " — not copied twice.", warn:true };
+      drawMonthlyPlan(); return;
+    }
+    focus.push({
+      id: mpQid(),
+      title: it.title || "",
+      rockRef: (it.rockRef==null ? "" : it.rockRef),
+      notes: it.notes || "",
+      done: false,                 // fresh work in that month
+      pushedFrom: mpYm,            // provenance: the month it came from
+      pushedFromId: id
+    });
+    const w = await fetch(STORE, { method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ monthlyPlan: { ym: target, focus } }) }).then(x=>x.json());
+    if(!(w && w.ok)){
+      mpPushNote = { id, text:"Push failed — please retry.", warn:true };
+      drawMonthlyPlan(); return;
+    }
+    // Persist THIS month's focus exactly as it stands (same payload the Save button sends,
+    // nothing about the original changes) so the "planned, not done" record survives a reload.
+    await mpSaveSection("focus");
+    mpPushOpen = null;
+    mpPushNote = { id, text:"↪ Copied to " + ymLabel(target) + " — still open here." };
+    drawMonthlyPlan();
+  }catch(e){
+    mpPushOpen = null;
+    mpPushNote = { id, text:"Push failed: " + e.message, warn:true };
+    drawMonthlyPlan();
+  }
+}
 function mpAddPrio(){ mpSyncFromDom(); mpPlan.priorities.push({title:"",owner:"",status:"Not Started",notes:""}); drawMonthlyPlan(); }
 // v60: push a monthly project down into a week's plan as a Project task (one-way). Mirrors the
 // quarterly→weekly cascade: pick a week, write into that week's projectItems, block duplicates.

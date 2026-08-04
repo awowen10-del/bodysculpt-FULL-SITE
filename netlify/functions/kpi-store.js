@@ -178,10 +178,49 @@ function quarterTagOfYm(ym) {
   const q = Math.floor((m - 1) / 3) + 1;
   return y + "-Q" + q;
 }
+// v90: whitelist for a monthly focus item. TWO apps write these, so the list must cover
+// both or a save from one would strip the other's data:
+//   monthly.html  — {id,title,rockRef,notes,done} + v90 {pushedFrom,pushedFromId}
+//   quarterly.html— cascade/carry-forward milestones, which add {linkId,sourceType,
+//                   monthlyOutcome,milestone,successMeasure,priorityRef,sourceQuarter,
+//                   owner,status}. linkId is the cascade's idempotency key — losing it
+//                   would let the quarterly view create duplicate milestones.
+// rockRef/priorityRef stay as-sent (string index from the monthly select, a source id from
+// the quarterly cascade, or null) so links are never rewritten. pushedFrom/pushedFromId are
+// the push-forward provenance: the month a copy came from and the item it was copied from.
+const MONTHLY_FOCUS_STRINGS = {
+  title: 400, notes: 2000, linkId: 160, sourceType: 40, monthlyOutcome: 400,
+  milestone: 400, successMeasure: 400, sourceQuarter: 20, owner: 60, status: 40,
+};
+function cleanMonthlyFocus(list) {
+  const ref = (v) => (v === null || typeof v === "number" ? v : typeof v === "string" ? v.slice(0, 60) : "");
+  return list
+    .filter((f) => f && typeof f === "object")
+    .slice(0, 60)
+    .map((f) => {
+      const d = {
+        id: typeof f.id === "string" ? f.id.slice(0, 40) : "",
+        title: typeof f.title === "string" ? f.title.slice(0, 400) : "",
+        rockRef: ref(f.rockRef),
+        notes: typeof f.notes === "string" ? f.notes.slice(0, 2000) : "",
+        done: !!f.done,
+      };
+      for (const k of Object.keys(MONTHLY_FOCUS_STRINGS)) {
+        if (k === "title" || k === "notes") continue; // already set above
+        if (typeof f[k] === "string" && f[k]) d[k] = f[k].slice(0, MONTHLY_FOCUS_STRINGS[k]);
+      }
+      if (f.priorityRef !== undefined) d.priorityRef = ref(f.priorityRef);
+      if (typeof f.pushedFrom === "string" && validYm(f.pushedFrom)) {
+        d.pushedFrom = f.pushedFrom;
+        d.pushedFromId = typeof f.pushedFromId === "string" ? f.pushedFromId.slice(0, 40) : "";
+      }
+      return d;
+    });
+}
 function defaultMonthlyPlan(ym) {
   return {
     ym,
-    focus: [],        // [{id, title, rockRef, notes, done}]
+    focus: [],        // [{id, title, rockRef, notes, done, pushedFrom?, pushedFromId?}]
     priorities: [],   // [{title, owner, status, notes}]
     notes: "",
     review: { wins:"", notDone:"", carryForward:"", blockers:"" },
@@ -681,7 +720,13 @@ export default async (req) => {
       if (!validYm(ym)) return new Response("Bad monthlyPlan.ym", { status: 400 });
       const key = monthlyPlanKeyOf(ym);
       const existing = (await store.get(key, { type: "json" })) || defaultMonthlyPlan(ym);
-      const merged = { ...existing, ...body.monthlyPlan, lastUpdated: new Date().toISOString() };
+      const incoming = { ...body.monthlyPlan };
+      // v90: focus items get the same field-whitelist discipline as the weekly defaults —
+      // {id,title,rockRef,notes,done} plus the push-forward provenance {pushedFrom,pushedFromId}.
+      // Anything else is dropped server-side. Only touched when focus is actually part of
+      // this write, so priorities/notes/review section saves are unaffected.
+      if (Array.isArray(incoming.focus)) incoming.focus = cleanMonthlyFocus(incoming.focus);
+      const merged = { ...existing, ...incoming, lastUpdated: new Date().toISOString() };
       await store.set(key, JSON.stringify(merged));
       return Response.json({ ok:true, plan: merged });
     }
