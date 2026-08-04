@@ -239,8 +239,11 @@
   .mp-item.done .mp-done{border-color:rgba(63,191,127,.5);background:rgba(63,191,127,.14);color:var(--green);}
   .mp-item.done{border-color:rgba(63,191,127,.32);}
   .mp-item.done input.mp-title{text-decoration:line-through;color:var(--ink-faint);}
-  .mp-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-  .mp-f{display:flex;flex-direction:column;gap:3px;}
+  /* v93: min-width:0 is what makes the two columns actually equal — grid items default to
+     min-width:auto, so the Rock <select>'s widest option was pushing its column wider
+     than Notes. Both controls then share the same padding/border/font below. */
+  .mp-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:start;}
+  .mp-f{display:flex;flex-direction:column;gap:3px;min-width:0;}
   .mp-f label{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint);font-weight:700;}
   #mpBody input:not([type=checkbox]), #mpBody select, #mpBody textarea{background:var(--navy);color:var(--ink);border:1px solid var(--line);
     border-radius:7px;padding:7px 9px;font-family:inherit;font-size:12.5px;width:100%;}
@@ -274,11 +277,64 @@
   .mp-week-btn.go{background:var(--orange);border-color:var(--orange);color:#fff;}
   .mp-week-btn.go:hover{background:var(--orange-soft);border-color:var(--orange-soft);color:#fff;}
   .mp-review-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  /* ===== v93: focus-item notes — resting preview + the modal editor ===== */
+  /* The resting control mirrors the Rock select exactly (padding/border/radius/font), so
+     the two columns line up to the pixel; the note itself is edited in the modal. */
+  .mp-notes-open{width:100%;display:flex;align-items:center;gap:7px;text-align:left;
+    background:var(--navy);color:var(--ink);border:1px solid var(--line);border-radius:7px;
+    padding:7px 9px;font-family:inherit;font-size:12.5px;line-height:1.35;cursor:pointer;overflow:hidden;}
+  .mp-notes-open:hover{border-color:var(--orange);}
+  .mp-notes-prev{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .mp-notes-open.empty .mp-notes-prev{color:var(--ink-faint);}
+  .mp-notes-ico{flex:none;font-size:11px;color:var(--ink-faint);}
+  .mp-notes-open:hover .mp-notes-ico{color:var(--orange-soft);}
+  /* Modal: same shape as the weekly app's v67 Today modal — blurred backdrop, scale/fade in. */
+  .mp-modal-overlay{position:fixed;inset:0;z-index:10000;display:flex;align-items:flex-start;justify-content:center;
+    padding:6vh 16px 40px;overflow-y:auto;background:rgba(8,14,24,.62);
+    -webkit-backdrop-filter:blur(7px);backdrop-filter:blur(7px);
+    opacity:0;transition:opacity .18s ease;}
+  .mp-modal-overlay[hidden]{display:none;}
+  .mp-modal-overlay.open{opacity:1;}
+  .mp-modal{width:min(620px,100%);background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:0 24px 70px rgba(0,0,0,.6);overflow:hidden;
+    transform:scale(.96) translateY(10px);transition:transform .18s ease;}
+  .mp-modal-overlay.open .mp-modal{transform:scale(1) translateY(0);}
+  .mp-modal-h{background:var(--navy-2);border-bottom:1px solid var(--line);padding:13px 18px;
+    display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  .mp-modal-kicker{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--orange-soft);}
+  .mp-modal-title{font-size:14px;font-weight:800;color:#fff;letter-spacing:-.2px;margin-top:1px;}
+  .mp-modal-close{background:transparent;border:1px solid var(--line);color:var(--ink-dim);border-radius:8px;
+    width:30px;height:30px;font-size:13px;font-weight:700;cursor:pointer;flex:none;line-height:1;padding:0;}
+  .mp-modal-close:hover{border-color:var(--orange);color:var(--orange-soft);}
+  .mp-modal-body{padding:14px 18px 18px;}
+  /* Editor chrome — the v70 rich-notes styles, same values as the weekly app. */
+  .mp-nt-bar{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;}
+  .mp-nt-btn{background:var(--navy-2);border:1px solid var(--line);color:var(--ink-dim);border-radius:6px;
+    width:28px;height:26px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;line-height:1;padding:0;}
+  .mp-nt-btn:hover{border-color:var(--orange);color:var(--orange-soft);}
+  .mp-notes-editor{background:var(--navy);color:var(--ink);border:1px solid var(--line);border-radius:8px;
+    padding:10px 11px;font-family:inherit;font-size:13px;line-height:1.6;min-height:260px;max-height:56vh;
+    overflow-y:auto;white-space:pre-wrap;word-break:break-word;}
+  .mp-notes-editor:focus{outline:none;border-color:var(--orange);}
+  .mp-notes-editor:empty::before{content:attr(data-ph);color:var(--ink-faint);pointer-events:none;}
+  .mp-notes-editor ul,.mp-notes-editor ol{margin:4px 0;padding-left:22px;}
+  .mp-notes-editor input[type=checkbox]{appearance:none;-webkit-appearance:none;width:14px;height:14px;
+    min-width:14px;border:1px solid var(--line);border-radius:4px;background:var(--card-2);vertical-align:-2px;
+    position:relative;cursor:pointer;padding:0;margin:0 2px 0 0;}
+  .mp-notes-editor input[type=checkbox]:hover{border-color:var(--orange);}
+  .mp-notes-editor input[type=checkbox]:checked{background:var(--orange);border-color:var(--orange);}
+  .mp-notes-editor input[type=checkbox]:checked::after{content:"✓";position:absolute;top:50%;left:50%;
+    transform:translate(-50%,-50%);font-size:10px;color:#fff;line-height:1;}
+  /* Same class name as the weekly app: the stored format is identical, so a note written
+     in either place renders the same in both. */
+  .wp-note-todo{margin:2px 0;}
+  .wp-note-todo:has(input:checked){text-decoration:line-through;opacity:.6;}
+  .mp-note-hint{font-size:10.5px;color:var(--ink-faint);margin-top:7px;}
   @media(max-width:820px){ .mp-fields,.mp-review-grid{grid-template-columns:1fr;} }
 </style>
 </head>
 <body>
-<!-- build v90 · monthly-push-forward -->
+<!-- build v93 · focus-notes-editor -->
 <header>
   <div class="htop">
     <div class="brand">
@@ -515,6 +571,21 @@
     <div class="mp-saved" id="mpSavedMsg"></div>
   </div>
   <div id="mpBody"><div class="mp-loading">Loading this month's plan…</div></div>
+</div>
+
+<!-- v93: focus-item notes editor — the v70 rich editor in a Today-modal-style dialog.
+     Lives outside #mpBody so redrawing the plan never disturbs an open editor. -->
+<div id="mpNotesOverlay" class="mp-modal-overlay" hidden onclick="if(event.target===this)mpCloseNotes()">
+  <div class="mp-modal" role="dialog" aria-modal="true" aria-labelledby="mpNotesTitle">
+    <div class="mp-modal-h">
+      <div>
+        <div class="mp-modal-kicker">Focus notes</div>
+        <div class="mp-modal-title" id="mpNotesTitle"></div>
+      </div>
+      <button class="mp-modal-close" title="Close (Esc)" onclick="mpCloseNotes()">✕</button>
+    </div>
+    <div class="mp-modal-body" id="mpNotesBody"></div>
+  </div>
 </div>
 
 <script>
@@ -1560,6 +1631,7 @@ function drawMonthlyPlan(){
     const note = (mpPushNote && mpPushNote.id===id)
       ? `<span class="mp-pushnote${mpPushNote.warn?" warn":""}">${esc(mpPushNote.text)}</span>` : "";
     const picker = (mpPushOpen && mpPushOpen.id===id) ? mpPushPickerHtml(id) : "";
+    const prev = mpNotesPreview(it.notes || "");   // v93: one-line resting preview of the note
     return `<div class="mp-item${it.done?" done":""}" data-focus="${esc(id)}">
       <div class="mp-item-top">
         <input class="mp-title" data-ff="title" value="${esc(it.title||"")}" placeholder="This month's focus…">
@@ -1569,7 +1641,12 @@ function drawMonthlyPlan(){
       </div>
       <div class="mp-fields">
         <div class="mp-f"><label>Supports which Rock?</label><select data-ff="rockRef" onchange="mpQuickSave()">${mpRockOptions(it.rockRef)}</select></div>
-        <div class="mp-f"><label>Notes</label><input data-ff="notes" value="${esc(it.notes||"")}" placeholder="Optional"></div>
+        <div class="mp-f"><label>Notes</label>
+          <input type="hidden" data-ff="notes" value="${esc(it.notes||"")}">
+          <button type="button" class="mp-notes-open${prev?"":" empty"}" onclick="mpOpenNotes('${esc(id)}')" title="Open the notes editor">
+            <span class="mp-notes-prev" data-notes-prev>${esc(prev||"Add notes…")}</span><span class="mp-notes-ico">✎</span>
+          </button>
+        </div>
       </div>
       <div class="mp-focus-actions">
         <span class="mp-focus-meta">${from}${note}</span>
@@ -1631,6 +1708,261 @@ function mpGoToQuarterly(){ location.href = "quarterly.html"; }
 function mpAddFocus(){ mpSyncFromDom(); mpPlan.focus.push({id:mpQid(),title:"",rockRef:"",notes:"",done:false}); drawMonthlyPlan(); }
 function mpRemoveFocus(btn){ mpSyncFromDom(); const el=btn.closest("[data-focus]"); const id=el.getAttribute("data-focus"); mpPlan.focus=mpPlan.focus.filter(f=>(f.id||"")!==id); drawMonthlyPlan(); }
 function mpToggleFocus(cb){ const el=cb.closest(".mp-item"); if(el) el.classList.toggle("done", cb.checked); }
+
+/* ===================== v93: FOCUS-ITEM NOTES (rich text, in a modal) =====================
+   This is the weekly app's v70 notes engine, ported unchanged — same marker, same tag
+   allowlist, same wp-note-todo checkbox markup — so a note is stored in ONE format across
+   the suite and either app can render the other's. monthly.html is its own standalone
+   page with no shared runtime, so the guard against the two copies drifting is a parity
+   test (tests/v93-focus-notes-editor.test.cjs) that runs both sanitisers over the same
+   inputs and asserts identical output. Do not "improve" one side alone.
+
+   A focus item's notes value is ONE string in two formats:
+     plain (legacy): any string not starting with the marker — rendered fully escaped with
+                     "\n" → <br>, byte-for-byte; upgraded to rich on the next real edit.
+     rich:           MP_NOTES_MARK + html — marker stripped before render, and the sanitiser
+                     drops all comments, so the marker can never nest or leak.                */
+const MP_NOTES_MARK = "<!--wp:rich-->";
+// Strict allowlist. No <a> at all, so javascript:/data: hrefs cannot exist in notes.
+const MP_NOTE_TAGS = new Set(["b","strong","i","em","u","s","strike","ul","ol","li","br","p","div","input"]);
+const MP_NOTE_VOID = new Set(["br","input"]);
+// Elements whose CONTENT is dangerous junk rather than prose — skipped wholesale.
+const MP_NOTE_DROP = new Set(["script","style","iframe","object","embed","noscript","svg","math","title","textarea","template","head"]);
+const MP_NOTE_TODO_CLASS = "wp-note-todo";   // the one class the sanitiser lets through (checkbox line)
+
+// Escape for note TEXT (matches the weekly app's wpEsc — quotes are left alone because
+// this output goes into innerHTML, never into an attribute).
+function mpNoteEsc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+// Escape a text node, leaving existing entities alone so sanitising is idempotent
+// (a stored "&amp;" must not become "&amp;amp;" on the next pass).
+function mpNoteEscText(t){
+  return String(t).replace(/&(?![a-zA-Z][a-zA-Z0-9]{1,31};|#\d{1,7};|#[xX][0-9a-fA-F]{1,6};)/g,"&amp;")
+    .replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+// Parse a tag's attribute string into {name: value} (names lowercased).
+function mpNoteAttrs(str){
+  const out = {};
+  const re = /([a-zA-Z][\w:.-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g;
+  let m;
+  while((m = re.exec(str))) out[m[1].toLowerCase()] = (m[2]!=null ? m[2] : m[3]!=null ? m[3] : m[4]!=null ? m[4] : "");
+  return out;
+}
+// The sanitiser — runs on BOTH save (mpNotesFromEditor) and render (mpNotesToEditorHtml).
+// Pure string tokenizer (no DOM), so the vm test harness exercises the real thing.
+// Everything outside the allowlist is dropped; every attribute is dropped except the
+// checkbox's type/checked and the checkbox-line class. Output is always balanced.
+function mpSanitizeNotesHtml(html){
+  const s = String(html == null ? "" : html);
+  const out = [];
+  const stack = [];   // open non-void allowlisted tags — closed in order at the end
+  let i = 0;
+  while(i < s.length){
+    const lt = s.indexOf("<", i);
+    if(lt < 0){ out.push(mpNoteEscText(s.slice(i))); break; }
+    if(lt > i) out.push(mpNoteEscText(s.slice(i, lt)));
+    // comments / doctype / processing instructions — skipped entirely
+    if(s.startsWith("<!--", lt)){ const e = s.indexOf("-->", lt+4); i = e < 0 ? s.length : e+3; continue; }
+    if(s[lt+1] === "!" || s[lt+1] === "?"){ const e = s.indexOf(">", lt); i = e < 0 ? s.length : e+1; continue; }
+    const m = /^<\s*(\/?)\s*([a-zA-Z][a-zA-Z0-9-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>/.exec(s.slice(lt));
+    if(!m){ out.push("&lt;"); i = lt+1; continue; }   // stray "<" — just text
+    i = lt + m[0].length;
+    const name = m[2].toLowerCase();
+    if(m[1] === "/"){
+      // emit only if it closes something we actually opened (keeps output balanced)
+      const at = stack.lastIndexOf(name);
+      if(at >= 0){ while(stack.length > at) out.push("</" + stack.pop() + ">"); }
+      continue;
+    }
+    if(MP_NOTE_DROP.has(name)){
+      const cm = new RegExp("</\\s*" + name + "\\s*>", "i").exec(s.slice(i));
+      i = cm ? i + cm.index + cm[0].length : s.length;
+      continue;
+    }
+    if(!MP_NOTE_TAGS.has(name)) continue;   // unknown tag dropped; its text content still flows
+    const attrStr = m[3].replace(/\/\s*$/, "");   // tolerate self-closing "<input …/>"
+    if(name === "input"){
+      const at = mpNoteAttrs(attrStr);
+      if(String(at.type||"").trim().toLowerCase() !== "checkbox") continue;   // checkboxes only
+      out.push('<input type="checkbox"' + ("checked" in at ? " checked" : "") + ">");
+      continue;
+    }
+    let keep = "";
+    if(name === "div"){
+      const at = mpNoteAttrs(attrStr);
+      if(String(at["class"]||"").trim() === MP_NOTE_TODO_CLASS) keep = ' class="' + MP_NOTE_TODO_CLASS + '"';
+    }
+    if(MP_NOTE_VOID.has(name)){ out.push("<" + name + ">"); continue; }
+    out.push("<" + name + keep + ">");
+    stack.push(name);
+  }
+  while(stack.length) out.push("</" + stack.pop() + ">");
+  return out.join("");
+}
+// Legacy plain text → editor HTML. FULL escaping so every character of an old note renders
+// byte-identical, with "\n" → <br> preserving the line structure exactly.
+function mpNotesPlainToHtml(text){
+  return String(text == null ? "" : text).split("\n").map(mpNoteEsc).join("<br>");
+}
+// Stored value (either format) → safe editor HTML. The marker check is what tells an
+// already-converted note from a plain one, so a migration can never run twice.
+// Sanitise-on-render: even a tampered store value goes through the allowlist.
+function mpNotesToEditorHtml(notes){
+  const raw = typeof notes === "string" ? notes : "";
+  if(raw.indexOf(MP_NOTES_MARK) === 0) return mpSanitizeNotesHtml(raw.slice(MP_NOTES_MARK.length));
+  return mpNotesPlainToHtml(raw);
+}
+// "Nothing left but empty blocks/whitespace" → store plain "" (blank notes stay blank).
+// A lone unticked checkbox IS content — <input> survives the strip below.
+function mpNotesIsEmptyHtml(h){
+  return String(h).replace(/<br>/g,"")
+    .replace(/<\/?(?:div|p|ul|ol|li|b|i|u|s|em|strong|strike)(?: [^>]*)?>/g,"")
+    .replace(/&nbsp;/g," ").trim() === "";
+}
+// Editor DOM → stored value. Sanitise-on-save: the browser's innerHTML (or anything pasted
+// into the editor) never reaches the store unfiltered.
+function mpNotesFromEditor(el){
+  const clean = mpSanitizeNotesHtml(el && typeof el.innerHTML === "string" ? el.innerHTML : "");
+  return mpNotesIsEmptyHtml(clean) ? "" : MP_NOTES_MARK + clean;
+}
+// Stored value (either format) → clean readable plain text (checkbox lines as "[ ]"/"[x]",
+// bullets as "- ", block boundaries as line breaks). Used for the resting preview.
+function mpNotesToPlainText(stored){
+  const raw = typeof stored === "string" ? stored : "";
+  if(raw.indexOf(MP_NOTES_MARK) !== 0) return raw;
+  let h = mpSanitizeNotesHtml(raw.slice(MP_NOTES_MARK.length));
+  h = h.replace(/<div class="wp-note-todo"><input type="checkbox" checked>/g, "\n[x] ")
+       .replace(/<div class="wp-note-todo"><input type="checkbox">/g, "\n[ ] ")
+       .replace(/<input type="checkbox" checked>/g, "[x] ")
+       .replace(/<input type="checkbox">/g, "[ ] ")
+       .replace(/<li>/g, "\n- ")
+       .replace(/<div><br><\/div>/g, "\n")
+       .replace(/<br>/g, "\n")
+       .replace(/<(?:div|p)>/g, "\n")
+       .replace(/<[^>]+>/g, "");
+  h = h.replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+  return h.replace(/\] +/g, "] ").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").replace(/^\n+|\n+$/g, "");
+}
+// One-line preview for the resting control in the row.
+function mpNotesPreview(stored){
+  return mpNotesToPlainText(stored).replace(/\s+/g, " ").trim().slice(0, 140);
+}
+// Quiet toolbar — same commands and markup as the weekly app's. mousedown is prevented so
+// clicking a button doesn't steal the editor's selection.
+function mpNotesToolbarHtml(edId){
+  const b = (cmd,lbl,title) =>
+    `<button type="button" class="mp-nt-btn" title="${title}" onmousedown="event.preventDefault()" onclick="mpNotesCmd('${cmd}','${edId}')">${lbl}</button>`;
+  return `<div class="mp-nt-bar">${b("bold","<b>B</b>","Bold (⌘B)")}${b("italic","<i>I</i>","Italic (⌘I)")}${b("underline","<u>U</u>","Underline (⌘U)")}${b("strike","<s>S</s>","Strikethrough")}${b("bullets","•","Bullet list")}${b("todo","☑","Checkbox")}</div>`;
+}
+const MP_NOTE_CMDS = { bold:"bold", italic:"italic", underline:"underline", strike:"strikeThrough", bullets:"insertUnorderedList" };
+function mpNotesCmd(cmd, edId){
+  const ed = edId ? document.getElementById(edId) : null;
+  if(ed && document.activeElement !== ed && ed.focus) ed.focus();
+  if(cmd === "todo"){
+    // our own constant markup — and it round-trips the sanitiser unchanged anyway
+    document.execCommand("insertHTML", false, '<div class="' + MP_NOTE_TODO_CLASS + '"><input type="checkbox">&nbsp;</div>');
+    return;
+  }
+  if(MP_NOTE_CMDS[cmd]) document.execCommand(MP_NOTE_CMDS[cmd], false, null);
+}
+// Standard shortcuts inside the editor (⌘/Ctrl + B/I/U).
+function mpNotesKeydown(e){
+  if(!(e.metaKey || e.ctrlKey) || e.altKey) return;
+  const k = String(e.key || "").toLowerCase();
+  const cmd = k === "b" ? "bold" : k === "i" ? "italic" : k === "u" ? "underline" : null;
+  if(cmd){ e.preventDefault(); document.execCommand(cmd, false, null); }
+}
+
+let mpNotesId = null;          // id of the focus item whose notes modal is open
+let mpNotesCloseTimer = null;
+
+function mpFocusItem(id){
+  return ((mpPlan && mpPlan.focus) || []).find(f => (f.id||"") === id) || null;
+}
+// Reach a rendered focus row without needing descendant-selector support.
+function mpFocusRow(id){
+  const body = document.getElementById("mpBody");
+  const rows = (body && body.querySelectorAll) ? body.querySelectorAll("[data-focus]") : [];
+  for(let i=0; i<rows.length; i++){ if(rows[i].getAttribute("data-focus") === id) return rows[i]; }
+  return null;
+}
+
+function mpOpenNotes(id){
+  mpSyncFromDom();               // capture any unsaved title/Rock edits before we redraw later
+  const it = mpFocusItem(id);
+  const ov = document.getElementById("mpNotesOverlay");
+  if(!it || !ov) return;
+  mpNotesId = id;
+  const t = document.getElementById("mpNotesTitle");
+  if(t) t.textContent = (it.title||"").trim() || "Untitled focus item";
+  const body = document.getElementById("mpNotesBody");
+  if(body) body.innerHTML = `<div class="mp-notes-rich">
+      ${mpNotesToolbarHtml("mpNotesEd")}
+      <div class="mp-notes-editor" id="mpNotesEd" contenteditable="true" data-ph="Everything about this focus item — the thinking, the steps, what's blocking it…" onblur="mpSaveNotes()" onkeydown="mpNotesKeydown(event)">${mpNotesToEditorHtml(it.notes)}</div>
+      <div class="mp-note-hint">Saves as you go · Esc to close</div>
+    </div>`;
+  if(mpNotesCloseTimer){ clearTimeout(mpNotesCloseTimer); mpNotesCloseTimer = null; }
+  ov.hidden = false;
+  document.body.style.overflow = "hidden";   // the page behind must not scroll
+  // double-rAF so the fade/scale transition runs from the hidden state instead of snapping
+  requestAnimationFrame(()=>requestAnimationFrame(()=>ov.classList.add("open")));
+  const ed = document.getElementById("mpNotesEd");
+  if(ed && ed.focus) ed.focus();
+}
+
+// The one write path for focus notes: editor blur, a checkbox tick, and closing all land
+// here. Serialise through the sanitiser, no-op when unchanged (so a legacy plain note
+// migrates once and never re-saves), patch the row's hidden field + preview so a later
+// mpSyncFromDom can't re-read a stale value, then save on the normal focus section path.
+function mpSaveNotes(){
+  if(!mpPlan || !mpNotesId) return;
+  const el = document.getElementById("mpNotesEd");
+  if(!el || typeof el.innerHTML !== "string") return;
+  const it = mpFocusItem(mpNotesId);
+  if(!it) return;
+  const stored = mpNotesFromEditor(el);
+  if(stored === (it.notes || "")) return;
+  it.notes = stored;
+  const row = mpFocusRow(mpNotesId);
+  if(row && row.querySelector){
+    const hidden = row.querySelector('[data-ff="notes"]');
+    if(hidden) hidden.value = stored;
+    const prev = row.querySelector("[data-notes-prev]");
+    if(prev) prev.textContent = mpNotesPreview(stored) || "Add notes…";
+  }
+  return mpSaveSection("focus");
+}
+
+function mpCloseNotes(){
+  const ov = document.getElementById("mpNotesOverlay");
+  if(!ov || !mpNotesId) return;
+  mpSaveNotes();                 // Esc/backdrop close never blurs the editor — catch it here
+  mpNotesId = null;
+  document.body.style.overflow = "";
+  ov.classList.remove("open");
+  mpNotesCloseTimer = setTimeout(()=>{ ov.hidden = true; mpNotesCloseTimer = null; }, 200);
+  drawMonthlyPlan();             // refresh the row's preview
+}
+
+// Escape closes the notes modal (nothing else in this view is modal).
+document.addEventListener("keydown", (e)=>{
+  if(e.key === "Escape" && mpNotesId) mpCloseNotes();
+});
+
+// Checkbox ticks inside the notes editor. The tick must land on the ATTRIBUTE (innerHTML
+// serialises attributes, not the live property) and save immediately — a tick is often
+// never followed by a blur. Scoped to .mp-notes-editor, so the focus items' own Done
+// checkboxes (their own onchange path) are untouched.
+document.addEventListener("click", (e)=>{
+  const t = e.target;
+  if(!t || String(t.tagName).toUpperCase() !== "INPUT" || t.type !== "checkbox") return;
+  const ed = t.closest ? t.closest(".mp-notes-editor") : null;
+  if(!ed) return;
+  e.preventDefault();   // we toggle ourselves so attribute and property can't diverge
+  const on = !t.hasAttribute("checked");
+  if(on) t.setAttribute("checked",""); else t.removeAttribute("checked");
+  t.checked = on;
+  mpSaveNotes();
+});
 
 /* ---- v90: push a focus item forward into a later month (COPY, never move) ----
    An unproductive month should still read honestly, so the original item is left here

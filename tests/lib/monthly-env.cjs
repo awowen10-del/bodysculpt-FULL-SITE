@@ -111,11 +111,22 @@ function parseMpBody(html) {
       self.fields = {};
       self.getAttribute = (k) => (k in attrs ? attrs[k] : null);
       self.querySelector = (sel) => {
-        const f = /\[data-(ff|pf)="([^"]+)"\]/.exec(String(sel));
+        const s = String(sel);
+        if (s.includes("[data-notes-prev]")) return self.fields["notes-prev"] || null;
+        const f = /\[data-(ff|pf)="([^"]+)"\]/.exec(s);
         return f ? self.fields[f[1] + ":" + f[2]] || null : null;
       };
       row = self;
       rows.push(self);
+      continue;
+    }
+    // v93: the notes preview <span data-notes-prev> is text, not a value-bearing field —
+    // mpSaveNotes patches its textContent in place, so it needs to be reachable too.
+    if ("data-notes-prev" in attrs && row) {
+      const close = html.indexOf("</span>", tagEnd);
+      const prev = fakeElement("notes-prev");
+      prev.textContent = unesc(html.slice(tagEnd, close < 0 ? html.length : close));
+      row.fields["notes-prev"] = prev;
       continue;
     }
     const ff = "data-ff" in attrs ? "ff:" + attrs["data-ff"] : "data-pf" in attrs ? "pf:" + attrs["data-pf"] : null;
@@ -155,6 +166,26 @@ function mpBodyElement() {
   return el;
 }
 
+// v93: #mpNotesBody holds the rich-notes editor, which mpOpenNotes writes as HTML and
+// mpSaveNotes later reads back via getElementById("mpNotesEd").innerHTML. Wire that up so
+// the modal's render → edit → save round-trip is the real one.
+function notesBodyElement(els) {
+  const el = fakeElement("mpNotesBody");
+  let html = "";
+  Object.defineProperty(el, "innerHTML", {
+    get() { return html; },
+    set(v) {
+      html = String(v);
+      const m = /<div class="mp-notes-editor" id="mpNotesEd"[^>]*>([\s\S]*)<\/div>\s*<div class="mp-note-hint"/.exec(html);
+      const ed = els.get("mpNotesEd") || fakeElement("mpNotesEd");
+      ed.innerHTML = m ? m[1] : "";
+      ed.closest = (sel) => (String(sel) === ".mp-notes-editor" ? ed : null);
+      els.set("mpNotesEd", ed);
+    },
+  });
+  return el;
+}
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // opts:
@@ -171,6 +202,8 @@ async function boot(opts = {}) {
   const alerts = [];
   const els = new Map();
   els.set("mpBody", mpBodyElement());
+  els.set("mpNotesBody", notesBodyElement(els));
+  const listeners = {};   // document-level handlers (Escape, the notes checkbox delegate)
 
   const reply = (obj) => Promise.resolve({ ok: true, status: 200, json: async () => obj });
 
@@ -211,7 +244,10 @@ async function boot(opts = {}) {
     querySelector() { return null; },   // [data-push] lookup falls back to mpPushOpen state
     querySelectorAll() { return []; },
     createElement(tag) { return fakeElement("el:" + tag); },
-    addEventListener() {},
+    addEventListener(t, f) { (listeners[t] = listeners[t] || []).push(f); },
+    removeEventListener(t, f) { const l = listeners[t]; if (l) { const i = l.indexOf(f); if (i >= 0) l.splice(i, 1); } },
+    execCommand() { return true; },
+    activeElement: null,
     body: fakeElement("body"),
   };
 
@@ -251,14 +287,19 @@ async function boot(opts = {}) {
     " get ym(){ return mpYm; }, set ym(v){ mpYm = v; }," +
     " get rocks(){ return mpRocks; }," +
     " get pushOpen(){ return mpPushOpen; }, set pushOpen(v){ mpPushOpen = v; }," +
-    " get pushNote(){ return mpPushNote; }, set pushNote(v){ mpPushNote = v; }" +
+    " get pushNote(){ return mpPushNote; }, set pushNote(v){ mpPushNote = v; }," +
+    " get notesId(){ return mpNotesId; }" +   // v93: which focus item's notes modal is open
     " };";
   vm.runInContext(code, sandbox, { filename: "monthly-inline-script.js" });
 
   const settle = async () => { await sleep(30); await sleep(30); };
   await settle(); // let the boot IIFE finish
 
-  return { ctx: sandbox, posts, plans, alerts, settle, body: els.get("mpBody"), els };
+  // Fire a document-level event at the handlers the script registered (Escape, the notes
+  // checkbox delegate) — the same objects the browser would hand them.
+  const fire = (type, event) => (listeners[type] || []).forEach((f) => f(event));
+
+  return { ctx: sandbox, posts, plans, alerts, settle, fire, body: els.get("mpBody"), els };
 }
 
 // Open the Monthly Plan for a given month and wait for its fetch to land.

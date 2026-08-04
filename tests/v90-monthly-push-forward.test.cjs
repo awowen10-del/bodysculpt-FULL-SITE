@@ -21,7 +21,12 @@ function rowOf(env, id) { return env.body.focusRows().find((r) => r.getAttribute
 
 (async () => {
   /* ---------- 1. build stamp ---------- */
-  assert.ok(/<!-- build v90 · monthly-push-forward -->/.test(HTML), "build stamp is v90 · monthly-push-forward");
+  // The stamp moves with every release, so this only pins that monthly.html carries a
+  // well-formed one at or after the version that introduced push-forward. The exact
+  // current stamp is asserted by the newest version's test.
+  const stamp = /<!-- build v(\d+) · [a-z0-9-]+ -->/.exec(HTML);
+  assert.ok(stamp, "monthly.html carries a build stamp");
+  assert.ok(Number(stamp[1]) >= 90, "build stamp is v90 or later");
 
   /* ---------- 2. the Done control renders legibly ---------- */
   {

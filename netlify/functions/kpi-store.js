@@ -188,8 +188,15 @@ function quarterTagOfYm(ym) {
 // rockRef/priorityRef stay as-sent (string index from the monthly select, a source id from
 // the quarterly cascade, or null) so links are never rewritten. pushedFrom/pushedFromId are
 // the push-forward provenance: the month a copy came from and the item it was copied from.
+// v93: `notes` is now a rich-notes field, exactly like the weekly plan's notes — one string
+// that is either legacy plain text or the "<!--wp:rich-->" marker + sanitised HTML. Same
+// discipline as the weekly notes: the client sanitises on BOTH save and render against a
+// strict tag allowlist, and the store keeps the string verbatim (no server-side rewriting,
+// which would fight the client sanitiser and could corrupt a note). Only the size cap
+// changes — rich HTML is far longer than the old one-line field. A cap can never leave
+// broken markup behind either: sanitise-on-render rebalances any truncated tags.
 const MONTHLY_FOCUS_STRINGS = {
-  title: 400, notes: 2000, linkId: 160, sourceType: 40, monthlyOutcome: 400,
+  title: 400, notes: 20000, linkId: 160, sourceType: 40, monthlyOutcome: 400,
   milestone: 400, successMeasure: 400, sourceQuarter: 20, owner: 60, status: 40,
 };
 function cleanMonthlyFocus(list) {
@@ -202,7 +209,7 @@ function cleanMonthlyFocus(list) {
         id: typeof f.id === "string" ? f.id.slice(0, 40) : "",
         title: typeof f.title === "string" ? f.title.slice(0, 400) : "",
         rockRef: ref(f.rockRef),
-        notes: typeof f.notes === "string" ? f.notes.slice(0, 2000) : "",
+        notes: typeof f.notes === "string" ? f.notes.slice(0, MONTHLY_FOCUS_STRINGS.notes) : "",
         done: !!f.done,
       };
       for (const k of Object.keys(MONTHLY_FOCUS_STRINGS)) {
