@@ -10,8 +10,10 @@ const WEEKLY = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8")
 
 (async () => {
   /* ---------- build stamp ---------- */
-  assert.ok(/<!-- build v94 · monthly-width-and-default-tab -->/.test(MONTHLY),
-    "build stamp is v94 · monthly-width-and-default-tab");
+  // "v94 or later" — the stamp moves with every release; the current one is asserted by
+  // the newest version's test.
+  const stamp = /<!-- build v(\d+) · [a-z0-9-]+ -->/.exec(MONTHLY);
+  assert.ok(stamp && Number(stamp[1]) >= 94, "build stamp is v94 or later");
 
   /* ---------- 1. one width across the two pages ---------- */
   {

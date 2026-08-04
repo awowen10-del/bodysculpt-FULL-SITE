@@ -13,6 +13,9 @@
     --orange:#e8732a; --orange-soft:#f0935a;
     --green:#3fbf7f; --amber:#e8a93a; --red:#e25555;
     --radius:16px; --shadow:0 10px 30px rgba(0,0,0,.35);
+    /* v95: one height for the focus item's side-by-side Rock select + Notes control,
+       so the pair can never drift apart again. */
+    --mp-field-h:34px;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   html,body{background:var(--navy);color:var(--ink);}
@@ -247,6 +250,15 @@
      than Notes. Both controls then share the same padding/border/font below. */
   .mp-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:start;}
   .mp-f{display:flex;flex-direction:column;gap:3px;min-width:0;}
+  /* v95: on a focus item the Rock <select> and the Notes control are a matched pair, but a
+     native select's intrinsic line-height left it a couple of px shorter than the notes
+     button. Both now take one explicit height, the cells stretch to the same height, and
+     the labels above them stay on one line — so the pair aligns top AND bottom on every
+     row, empty or filled. Widths are untouched. */
+  .mp-fields-focus{align-items:stretch;}
+  .mp-fields-focus .mp-f > label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #mpBody .mp-fields-focus select,
+  #mpBody .mp-fields-focus .mp-notes-open{height:var(--mp-field-h);min-height:var(--mp-field-h);line-height:1.2;}
   .mp-f label{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint);font-weight:700;}
   #mpBody input:not([type=checkbox]), #mpBody select, #mpBody textarea{background:var(--navy);color:var(--ink);border:1px solid var(--line);
     border-radius:7px;padding:7px 9px;font-family:inherit;font-size:12.5px;width:100%;}
@@ -337,7 +349,7 @@
 </style>
 </head>
 <body>
-<!-- build v94 · monthly-width-and-default-tab -->
+<!-- build v95 · focus-fields-equal-height -->
 <header>
   <div class="htop">
     <div class="brand">
@@ -1645,7 +1657,7 @@ function drawMonthlyPlan(){
         <label class="mp-done"><input type="checkbox" data-ff="done"${it.done?" checked":""} onchange="mpToggleFocus(this)"><span class="mp-done-lbl">Done</span></label>
         <button class="mp-del" onclick="mpRemoveFocus(this)">✕</button>
       </div>
-      <div class="mp-fields">
+      <div class="mp-fields mp-fields-focus">
         <div class="mp-f"><label>Supports which Rock?</label><select data-ff="rockRef" onchange="mpQuickSave()">${mpRockOptions(it.rockRef)}</select></div>
         <div class="mp-f"><label>Notes</label>
           <input type="hidden" data-ff="notes" value="${esc(it.notes||"")}">

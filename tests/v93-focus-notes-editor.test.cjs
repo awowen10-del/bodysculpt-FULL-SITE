@@ -52,7 +52,8 @@ async function withItem(notes, extra) {
     assert.ok(!/width:/.test(fields.replace(/min-width:0;?/, "")), "neither column is given a fixed width");
     // both controls share the same box metrics, so the two columns render identically
     const select = /#mpBody input:not\(\[type=checkbox\]\), #mpBody select, #mpBody textarea\{([^}]*)\}/.exec(HTML)[1];
-    const notes = /\.mp-notes-open\{([^}]*)\}/.exec(HTML)[1];
+    // the BASE .mp-notes-open rule (line-anchored) — later rules add height, not box metrics
+    const notes = /\n  \.mp-notes-open\{([^}]*)\}/.exec(HTML)[1];
     ["padding:7px 9px", "border-radius:7px", "font-size:12.5px", "border:1px solid var(--line)"].forEach((d) => {
       assert.ok(select.includes(d), "the Rock select declares " + d);
       assert.ok(notes.includes(d), "the Notes control declares the same " + d);
@@ -61,7 +62,7 @@ async function withItem(notes, extra) {
 
     const env = await withItem("");
     const html = env.body.innerHTML;
-    const grid = html.slice(html.indexOf('<div class="mp-fields">'), html.indexOf('<div class="mp-focus-actions">'));
+    const grid = html.slice(html.indexOf('<div class="mp-fields'), html.indexOf('<div class="mp-focus-actions">'));
     assert.strictEqual((grid.match(/<div class="mp-f">/g) || []).length, 2, "exactly two equal columns in the item");
     assert.ok(grid.indexOf("Supports which Rock?") < grid.indexOf("Notes"), "Rock column first, Notes second");
   }
