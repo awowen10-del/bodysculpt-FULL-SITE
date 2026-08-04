@@ -10,6 +10,8 @@ const { extract } = require("./lib/extract.cjs");
 const SOURCES = [
   ["index.html", path.join(__dirname, "..", "index.html")],
   ["monthly.html", path.join(__dirname, "..", "monthly.html")],
+  // v106: quarterly.html joined the syntax check when the theming change started touching it
+  ["quarterly.html", path.join(__dirname, "..", "quarterly.html")],
 ];
 for (const [label, file] of SOURCES) {
   const tmp = path.join(os.tmpdir(), "bodysculpt-extracted-" + process.pid + "-" + label + ".js");

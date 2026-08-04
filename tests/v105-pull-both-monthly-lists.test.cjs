@@ -57,8 +57,11 @@ async function week(opts) {
 
 (async () => {
   /* ================= 0. the build stamp ================= */
-  assert.ok(/<!-- build v105 · pull-both-monthly-lists -->/.test(MONTHLY), "monthly.html stamped v105 · pull-both-monthly-lists");
-  assert.ok(/build v105 · pull-both-monthly-lists/.test(WEEKLY), "index.html carries the same stamp");
+  // ">= v105" — the exact stamp is asserted by the newest version's test; both pages still
+  // have to agree on it (v101).
+  const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(MONTHLY);
+  assert.ok(stamp && Number(stamp[1]) >= 105, "monthly.html stamped v105 or later");
+  assert.ok(WEEKLY.includes("build v" + stamp[1] + " · " + stamp[2]), "index.html carries the same stamp");
 
   /* ================= 1. THE BUG: both lists are offered ================= */
   {

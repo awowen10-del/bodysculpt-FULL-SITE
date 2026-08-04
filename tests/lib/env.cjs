@@ -6,6 +6,9 @@ const vm = require("vm");
 const { extract } = require("./extract.cjs");
 
 function fakeElement(id) {
+  // v106: real attribute storage — the theme lives on <html>'s data-theme attribute, so
+  // get/setAttribute have to round-trip for the toggle to be drivable from a test.
+  const attrs = {};
   return {
     id,
     dataset: {},
@@ -15,6 +18,10 @@ function fakeElement(id) {
     hidden: false,
     disabled: false,
     innerHTML: "",
+    getAttribute(k) { return k in attrs ? attrs[k] : null; },
+    setAttribute(k, v) { attrs[k] = String(v); },
+    hasAttribute(k) { return k in attrs; },
+    removeAttribute(k) { delete attrs[k]; },
     classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
     addEventListener() {},
     removeEventListener() {},
@@ -80,6 +87,10 @@ async function boot(opts = {}) {
     addEventListener() {},
     removeEventListener() {},
     body: fakeElement("body"),
+    // v106: the theme is an attribute on <html>. The page's boot snippet (a separate tiny
+    // <script>, not part of the extracted app script) normally seeds it, so the sandbox
+    // starts it at the shipped default: light.
+    documentElement: (() => { const el = fakeElement("html"); el.setAttribute("data-theme", "light"); return el; })(),
   };
 
   const reply = (obj) =>
@@ -153,7 +164,16 @@ async function boot(opts = {}) {
       removeEventListener(t, f) { const l = this._handlers[t]; if (l) { const i = l.indexOf(f); if (i >= 0) l.splice(i, 1); } },
       location: { href: "" },
     },
-    localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
+    // v106: a real (per-boot, in-memory) store so a remembered choice can be asserted.
+    // Empty at boot, exactly as the old always-null stub was, so nothing else changes.
+    localStorage: (() => {
+      const m = new Map(Object.entries(opts.storage || {}));
+      return {
+        getItem: (k) => (m.has(k) ? m.get(k) : null),
+        setItem(k, v) { m.set(k, String(v)); },
+        removeItem(k) { m.delete(k); },
+      };
+    })(),
     navigator: {},
     fetch: fetchStub,
     prompt: () => null,

@@ -58,9 +58,9 @@ function cards(env) {
       "the intro line says what the section is for");
     // quiet green accent, mirroring the weekly app's Training / food-notes treatment
     assert.ok(c.personal.startsWith('<div class="mp-box mp-personal">'), "the card takes the personal class");
-    assert.ok(/\.mp-personal\{[^}]*border-left:3px solid rgba\(63,191,127/.test(HTML), "…with a green edge");
+    assert.ok(/\.mp-personal\{[^}]*border-left:3px solid rgba\(var\(--green-rgb\)/.test(HTML), "…with a green edge");
     assert.ok(/\.mp-personal \.mp-box-h\{color:var\(--green\);?\}/.test(HTML), "…and a green heading, not the business orange");
-    assert.ok(/\.mp-personal \.mp-item\{[^}]*border-left:2px solid rgba\(63,191,127/.test(HTML),
+    assert.ok(/\.mp-personal \.mp-item\{[^}]*border-left:2px solid rgba\(var\(--green-rgb\)/.test(HTML),
       "…carried onto its items");
     assert.ok(!/\.mp-personal[^{]*\{[^}]*background:var\(--green\)/.test(HTML), "the accent stays quiet, not a filled block");
   }

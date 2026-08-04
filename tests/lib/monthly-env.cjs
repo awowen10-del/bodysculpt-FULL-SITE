@@ -31,6 +31,7 @@ function attrsOf(src) {
 
 function fakeElement(id) {
   const classes = new Set();
+  const ownAttrs = {};
   return {
     id,
     dataset: {},
@@ -54,8 +55,10 @@ function fakeElement(id) {
     focus() {},
     blur() {},
     click() {},
-    getAttribute() { return null; },
-    setAttribute() {},
+    // v106: real attribute storage (the theme lives on <html>'s data-theme). Rows built by
+    // the #mpBody parser override getAttribute with their own parsed map, as before.
+    getAttribute(k) { return k in ownAttrs ? ownAttrs[k] : null; },
+    setAttribute(k, v) { ownAttrs[k] = String(v); },
     querySelector() { return null; },
     querySelectorAll() { return []; },
     closest() { return null; },
@@ -263,6 +266,9 @@ async function boot(opts = {}) {
     execCommand() { return true; },
     activeElement: null,
     body: fakeElement("body"),
+    // v106: <html> carries data-theme; seeded to the shipped default (the page's separate
+    // boot snippet does this in the browser, and it is not part of the extracted script).
+    documentElement: (() => { const el = fakeElement("html"); el.setAttribute("data-theme", "light"); return el; })(),
   };
 
   const sandbox = {
@@ -275,7 +281,16 @@ async function boot(opts = {}) {
       prompt: () => null,
       confirm: () => true,
     },
-    localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
+    // v106: real per-boot storage + a <html> element to hold data-theme, so the theme
+    // toggle can be driven here exactly as it is in the weekly harness.
+    localStorage: (() => {
+      const m = new Map(Object.entries(opts.storage || {}));
+      return {
+        getItem: (k) => (m.has(k) ? m.get(k) : null),
+        setItem(k, v) { m.set(k, String(v)); },
+        removeItem(k) { m.delete(k); },
+      };
+    })(),
     location: { search: "", href: "" },
     navigator: {},
     fetch: fetchStub,

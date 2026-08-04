@@ -1,21 +1,105 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+/* v106 theme boot — runs before the stylesheet is parsed, so the page never flashes the
+   wrong theme. Light is the default; the choice is remembered in localStorage and shared
+   by all three pages. Deleting this script (and the light token block) reverts to dark. */
+(function(){
+  var t = "light";
+  try{ var s = localStorage.getItem("bodysculpt:theme"); if(s === "dark" || s === "light") t = s; }catch(e){}
+  try{ document.documentElement.setAttribute("data-theme", t); }catch(e){}
+})();
+</script>
 <meta charset="UTF-8">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
 <title>Bodysculpt Monthly Report</title>
 <style>
+  /* ===================== THEME TOKENS =====================
+     Every colour in this stylesheet resolves to one of these — there are no literal
+     colours below this block. Two themes, one set of names: the ":root,:root[data-theme=
+     "dark"]" block is the original dark navy, and ":root[data-theme="light"]" is the warm
+     paper light theme (the default — see the boot script at the top of <head>). Switching
+     themes is therefore only ever a change of values here, and reverting to dark-only is
+     a matter of deleting the light block.
+     The *-rgb tokens are bare "r,g,b" triples, so the many rgba(<accent>,<alpha>) tints
+     throughout the stylesheet stay tied to the same single source of truth.
+     The accents CARRY MEANING and must stay distinct from each other in both themes:
+       orange = business / brand          teal  = recurring
+       green  = training + done           blue  = home location, buffer, decisions
+       amber  = watch / warning           red   = problem / delete
+       info   = acquisition + decision panels   loc-warrington = the other location badge
+     In light they are re-mapped (darkened and re-saturated), not merely reused: the dark
+     theme's tones are tuned for a navy background and would wash out on off-white. */
   :root{
-    --navy:#0f1b2d; --navy-2:#16273f; --card:#1b2c45; --card-2:#203552;
-    --line:#2c405e; --ink:#eaf0f8; --ink-dim:#9fb1c7; --ink-faint:#6b7f99;
-    --orange:#e8732a; --orange-soft:#f0935a;
-    --green:#3fbf7f; --amber:#e8a93a; --red:#e25555;
-    --radius:16px; --shadow:0 10px 30px rgba(0,0,0,.35);
+    /* metrics — not themed */
+    --radius:16px;
     /* v95: one height for the focus item's side-by-side Rock select + Notes control,
        so the pair can never drift apart again. */
     --mp-field-h:34px;
+  }
+  :root,:root[data-theme="dark"]{
+    color-scheme:dark;
+    /* surfaces */
+    --navy:#0f1b2d; --navy-2:#16273f; --card:#1b2c45; --card-2:#203552;
+    --line:#2c405e; --line-rgb:44,64,94;
+    /* ink */
+    --ink:#eaf0f8; --ink-dim:#9fb1c7; --ink-faint:#6b7f99; --ink-strong:#fff;
+    --ink-dim-rgb:159,177,199; --ink-faint-rgb:107,127,153;
+    --on-accent:#fff;              /* text sitting ON a solid accent fill */
+    /* accents */
+    --orange:#e8732a; --orange-soft:#f0935a; --orange-rgb:232,115,42;
+    --green:#3fbf7f; --green-2:#43c088; --green-rgb:63,191,127; --green2-rgb:67,192,136;
+    --amber:#e8a93a; --amber-2:#f0b73a; --amber-rgb:232,169,58; --amber2-rgb:240,183,58;
+    --red:#e25555; --red-2:#e0574f; --red-rgb:226,85,85; --red2-rgb:214,77,77;
+    --teal:#4fa3b8; --teal-soft:#7fc4d6; --teal-bright:#a9dbe8; --teal-rgb:79,163,184;
+    --blue:#7fa3d4; --blue-soft:#8fb4e8; --blue-rgb:108,150,214;
+    --info:#6aa3e8; --info-rgb:120,170,255;
+    --loc-warrington:#d08c52; --grad-mid:#a9cf6e;
+    /* text on a tinted (translucent-accent) chip */
+    --tint-red:#f3a0a0; --tint-amber:#f0cd86; --tint-green:#d6f5e6;
+    --tint-blue:#d8e6fb; --tint-orange:#fbdcc4;
+    /* panels, hero, chrome */
+    --panel-0:#1a2b47; --panel-1:#15233b; --panel-2:#13203a;
+    --hero-1:#12203a; --hero-2:#0f1b2d; --hero-3:#0d1626;
+    --mark-bg:#000; --chart-grid:#22344e;
+    --backdrop-rgb:8,14,24;        /* modal scrim */
+    --shadow-rgb:0,0,0;            /* every box-shadow */
+    --lift-rgb:255,255,255;        /* hover / zebra lift over a surface */
+    --shadow:0 10px 30px rgba(var(--shadow-rgb),.35);
+  }
+  :root[data-theme="light"]{
+    color-scheme:light;
+    /* warm paper surfaces — off-white, never stark white; the card sits ABOVE the page */
+    --navy:#f7f3ec; --navy-2:#efe8dc; --card:#fffcf7; --card-2:#f5eee2;
+    --line:#e2d8c8; --line-rgb:196,180,158;
+    /* dark-but-soft ink — warm near-black, never #000 */
+    --ink:#332f29; --ink-dim:#6b6155; --ink-faint:#7f7362; --ink-strong:#1d1a16;
+    --ink-dim-rgb:107,97,85; --ink-faint-rgb:127,115,98;
+    --on-accent:#fff;
+    --orange:#bd5417; --orange-soft:#a44a12; --orange-rgb:189,84,23;
+    --green:#17804d; --green-2:#0f6d40; --green-rgb:23,128,77; --green2-rgb:15,109,64;
+    --amber:#9a6a05; --amber-2:#8a5e04; --amber-rgb:154,106,5; --amber2-rgb:138,94,4;
+    --red:#b81e28; --red-2:#9c1b23; --red-rgb:184,30,40; --red2-rgb:156,27,35;
+    --teal:#0e7490; --teal-soft:#0b6379; --teal-bright:#075469; --teal-rgb:14,116,144;
+    --blue:#3455b0; --blue-soft:#2b4894; --blue-rgb:52,85,176;
+    --info:#1d6fbf; --info-rgb:29,111,191;
+    --loc-warrington:#7a4a1e; --grad-mid:#7d9c3f;
+    /* on light these become the DEEP version of the accent — the chip behind them is a
+       pale tint, so a pale text colour would vanish */
+    --tint-red:#9c2f24; --tint-amber:#7a5504; --tint-green:#136540;
+    --tint-blue:#27488f; --tint-orange:#8f4212;
+    --panel-0:#fdf7ed; --panel-1:#f8f1e5; --panel-2:#f2eadc;
+    --hero-1:#fdf6ea; --hero-2:#f7efe1; --hero-3:#f1e7d6;
+    --mark-bg:#efe6d8; --chart-grid:#e4dac9;
+    /* a warm, light-toned scrim/shadow: light values at the stylesheet's existing alphas
+       read as gentle depth on paper, where black would read as grime */
+    --backdrop-rgb:120,102,84;
+    --shadow-rgb:171,150,124;
+    --lift-rgb:141,110,78;
+    --shadow:0 10px 30px rgba(var(--shadow-rgb),.35);
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   html,body{background:var(--navy);color:var(--ink);}
@@ -31,7 +115,7 @@
   .htop{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
   .brand{display:flex;align-items:center;gap:12px;}
   .mark{width:46px;height:46px;border-radius:12px;overflow:hidden;flex:0 0 auto;
-    border:1px solid var(--line);background:#000;}
+    border:1px solid var(--line);background:var(--mark-bg);}
   .monthpick{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-dim);}
   .periodbar{display:flex;align-items:center;gap:10px;margin-top:12px;background:var(--navy-2);
     border:1px solid var(--line);border-radius:12px;padding:8px 10px;}
@@ -39,7 +123,7 @@
     width:38px;height:36px;font-size:16px;font-weight:800;cursor:pointer;flex:0 0 auto;}
   .pb-arrow:hover:not(:disabled){border-color:var(--orange);color:var(--orange-soft);}
   .pb-arrow:disabled{opacity:.35;cursor:not-allowed;}
-  .pb-label{flex:1;text-align:center;font-size:15px;font-weight:800;color:#fff;letter-spacing:-.2px;}
+  .pb-label{flex:1;text-align:center;font-size:15px;font-weight:800;color:var(--ink-strong);letter-spacing:-.2px;}
   .pb-jump{background:var(--card);border:1px solid var(--line);color:var(--ink-dim);border-radius:8px;
     padding:8px 13px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;flex:0 0 auto;}
   .pb-jump:hover{border-color:var(--orange);color:var(--ink);}
@@ -51,19 +135,24 @@
     color:var(--ink-dim);padding:12px 14px;border-radius:10px;letter-spacing:.2px;
     display:flex;align-items:center;justify-content:center;gap:7px;}
   .topnav a:hover{color:var(--ink);background:var(--card);}
-  .topnav a.active{background:var(--orange);color:#fff;}
+  .topnav a.active{background:var(--orange);color:var(--on-accent);}
   .topnav a .ico{font-size:13px;opacity:.85;}
+  /* v106: theme toggle — a quiet chip at the end of the top nav, same family as the links */
+  .themebtn{flex:0 0 auto;background:transparent;border:1px solid var(--line);color:var(--ink-dim);
+    border-radius:10px;padding:12px 14px;font-family:inherit;font-size:12.5px;font-weight:800;
+    letter-spacing:.2px;cursor:pointer;display:flex;align-items:center;gap:6px;}
+  .themebtn:hover{color:var(--ink);background:var(--card);border-color:var(--orange);}
   .viewtoggle{display:flex;gap:6px;background:var(--navy-2);border:1px solid var(--line);
     border-radius:12px;padding:5px;margin-top:16px;overflow-x:auto;}
   .vt{flex:1;min-width:74px;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink-dim);
     background:transparent;border:0;border-radius:8px;padding:9px 8px;cursor:pointer;white-space:nowrap;}
-  .vt.active{background:var(--orange);color:#fff;}
+  .vt.active{background:var(--orange);color:var(--on-accent);}
   .actionbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px;}
   .abtn{font-family:inherit;font-size:13px;font-weight:600;color:var(--ink);background:var(--card);
     border:1px solid var(--line);border-radius:10px;padding:9px 14px;cursor:pointer;}
   .abtn:hover{border-color:var(--orange);}
   .abtn.ghost{background:transparent;color:var(--ink-dim);}
-  .abtn.primary{background:var(--orange);border-color:var(--orange);color:#fff;}
+  .abtn.primary{background:var(--orange);border-color:var(--orange);color:var(--on-accent);}
   .msg{font-size:12px;color:var(--ink-faint);}
   section{margin-top:18px;}
   .view[hidden]{display:none;}
@@ -76,7 +165,7 @@
   .home-head{margin-top:18px;}
   .home-head .rule-pill{display:inline-block;margin-top:4px;}
   .hsec{margin-top:22px;}
-  .hsec-title{font-size:15px;font-weight:800;letter-spacing:-.2px;color:#fff;margin-bottom:12px;}
+  .hsec-title{font-size:15px;font-weight:800;letter-spacing:-.2px;color:var(--ink-strong);margin-bottom:12px;}
   /* Growth: tiles left, chart right */
   .gpair{display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:18px;align-items:start;
     background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);}
@@ -101,7 +190,7 @@
   .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;}
   .tile{background:var(--navy-2);border:1px solid var(--line);border-radius:12px;padding:12px;}
   .tile .lbl{font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-dim);font-weight:700;}
-  .tile .val{font-size:21px;font-weight:800;margin-top:5px;color:#fff;}
+  .tile .val{font-size:21px;font-weight:800;margin-top:5px;color:var(--ink-strong);}
   .tile .sub{font-size:11px;color:var(--ink-dim);margin-top:2px;}
   .tile .tdelta{font-size:11px;font-weight:700;margin-top:5px;display:inline-block;}
   .tile .tdelta.up{color:var(--green);}
@@ -121,12 +210,12 @@
   label.f.calc{color:var(--ink-faint);}
   label.f.calc input{background:var(--navy);border-style:dashed;color:var(--orange-soft);font-weight:700;cursor:default;}
   .calc-tag{display:inline-block;font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;
-    color:var(--orange-soft);background:rgba(232,115,42,.14);border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:1px;}
+    color:var(--orange-soft);background:rgba(var(--orange-rgb),.14);border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:1px;}
   .calc-hint{font-size:9.5px;color:var(--ink-faint);font-weight:600;margin-top:1px;}
   .esub{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);font-weight:700;margin:16px 0 8px;}
   .esub-total{font-size:14px;font-weight:800;color:var(--orange-soft);margin:12px 0 4px;}
   .erow-actions{display:flex;gap:10px;align-items:center;margin-top:16px;flex-wrap:wrap;}
-  .save{font-family:inherit;background:var(--orange);border:0;color:#fff;font-weight:700;font-size:14px;
+  .save{font-family:inherit;background:var(--orange);border:0;color:var(--on-accent);font-weight:700;font-size:14px;
     border-radius:10px;padding:11px 18px;cursor:pointer;}
   .ghostbtn{font-family:inherit;background:transparent;border:1px solid var(--line);color:var(--ink-dim);
     font-weight:600;font-size:13px;border-radius:10px;padding:10px 14px;cursor:pointer;}
@@ -143,28 +232,28 @@
   .cmp-table th, .cmp-table td{font-variant-numeric:tabular-nums;}
   .cmp-table thead th{font-size:10px;padding:10px 14px;background:transparent;border-bottom:1px solid var(--line);}
   .cmp-table thead th:not(:first-child){text-align:right;}
-  .cmp-table td{padding:11px 14px;border-bottom:1px solid rgba(44,64,94,.45);font-size:13px;}
+  .cmp-table td{padding:11px 14px;border-bottom:1px solid rgba(var(--line-rgb),.45);font-size:13px;}
   .cmp-table td:not(:first-child){text-align:right;}
   .cmp-table td:first-child{color:var(--ink);font-weight:600;font-size:12px;}
-  .cmp-table tbody tr:nth-child(even) td{background:rgba(255,255,255,.015);}
-  .cmp-table tbody tr:hover td{background:rgba(255,255,255,.04);}
+  .cmp-table tbody tr:nth-child(even) td{background:rgba(var(--lift-rgb),.015);}
+  .cmp-table tbody tr:hover td{background:rgba(var(--lift-rgb),.04);}
   /* past months: quiet reference, value only */
   .cmp-table .past{color:var(--ink-faint);font-weight:400;}
   /* current month: the anchor */
   .cmp-table thead th.cur-col{color:var(--orange-soft);font-weight:700;
-    background:rgba(232,115,42,.10);border-bottom:2px solid var(--orange);}
-  .cmp-table td.cur-col{background:rgba(232,115,42,.08);color:var(--ink);font-weight:700;font-size:14px;
-    border-left:1px solid rgba(232,115,42,.25);border-right:1px solid rgba(232,115,42,.25);}
-  .cmp-table tbody tr:nth-child(even) td.cur-col{background:rgba(232,115,42,.11);}
-  .cmp-table tbody tr:hover td.cur-col{background:rgba(232,115,42,.15);}
+    background:rgba(var(--orange-rgb),.10);border-bottom:2px solid var(--orange);}
+  .cmp-table td.cur-col{background:rgba(var(--orange-rgb),.08);color:var(--ink);font-weight:700;font-size:14px;
+    border-left:1px solid rgba(var(--orange-rgb),.25);border-right:1px solid rgba(var(--orange-rgb),.25);}
+  .cmp-table tbody tr:nth-child(even) td.cur-col{background:rgba(var(--orange-rgb),.11);}
+  .cmp-table tbody tr:hover td.cur-col{background:rgba(var(--orange-rgb),.15);}
   /* the single delta lives only in the current column */
   .vsdelta{display:inline-block;font-size:10px;font-weight:700;margin-left:7px;
     padding:1px 5px;border-radius:5px;vertical-align:1px;}
-  .vsdelta.up{color:var(--red);background:rgba(226,85,85,.12);}
-  .vsdelta.down{color:var(--green);background:rgba(63,191,127,.12);}
+  .vsdelta.up{color:var(--red);background:rgba(var(--red-rgb),.12);}
+  .vsdelta.down{color:var(--green);background:rgba(var(--green-rgb),.12);}
   .vsdelta.flat{color:var(--ink-faint);background:transparent;}
-  .vsdelta.vd-good{color:var(--green);background:rgba(63,191,127,.12);}
-  .vsdelta.vd-bad{color:var(--red);background:rgba(226,85,85,.12);}
+  .vsdelta.vd-good{color:var(--green);background:rgba(var(--green-rgb),.12);}
+  .vsdelta.vd-bad{color:var(--red);background:rgba(var(--red-rgb),.12);}
   .vsdelta.vd-flat{color:var(--ink-faint);background:transparent;}
   .cmp-table .sect-row td{background:var(--navy-2);color:var(--ink-faint);text-transform:uppercase;
     letter-spacing:.5px;font-size:10px;font-weight:700;padding:8px 14px;}
@@ -172,7 +261,7 @@
   .cmp-table .totrow td{border-top:2px solid var(--line);border-bottom:none;
     background:var(--navy-2);font-weight:800;font-size:14px;padding-top:14px;padding-bottom:14px;}
   .cmp-table .totrow td:first-child{color:var(--ink);text-transform:uppercase;letter-spacing:.5px;font-size:11px;}
-  .cmp-table .totrow td.cur-col{background:rgba(232,115,42,.16);}
+  .cmp-table .totrow td.cur-col{background:rgba(var(--orange-rgb),.16);}
   /* charts */
   .chart-wrap{width:100%;overflow:hidden;}
   svg{display:block;width:100%;height:auto;}
@@ -189,7 +278,7 @@
   .mentor-ai{margin:16px 0 4px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--card);}
   .mentor-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;}
   .mentor-title{display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px;}
-  .mentor-dot{width:9px;height:9px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 4px rgba(232,115,42,.18);}
+  .mentor-dot{width:9px;height:9px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 4px rgba(var(--orange-rgb),.18);}
   .mentor-verdict{font-size:13px;color:var(--ink-dim);padding:0 16px 16px;line-height:1.6;white-space:pre-wrap;}
   .mentor-body{padding:0 16px 16px;border-top:1px solid var(--line);}
   .mentor-body[hidden]{display:none;}
@@ -217,7 +306,7 @@
   .mp-head .mp-saved{margin-top:8px;}
   .mp-head .mp-saved:empty{display:none;}   /* before the first save, no orphaned gap */
   .mp-saved{font-size:12px;color:var(--ink-faint);}
-  .mp-saved.ok{color:#43c088;}
+  .mp-saved.ok{color:var(--green-2);}
   .mp-loading{font-size:13px;color:var(--ink-dim);font-style:italic;padding:20px 0;}
   .mp-box{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:16px;}
   .mp-box-h{background:var(--navy-2);border-bottom:1px solid var(--line);padding:10px 14px;
@@ -225,17 +314,17 @@
     display:flex;align-items:center;justify-content:space-between;gap:10px;}
   .mp-box-h .mp-hint{font-size:10px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink-faint);}
   .mp-sec-save{display:flex;align-items:center;gap:9px;}
-  .mp-ssave{background:var(--orange);color:#fff;border:none;border-radius:7px;padding:5px 12px;
+  .mp-ssave{background:var(--orange);color:var(--on-accent);border:none;border-radius:7px;padding:5px 12px;
     font-family:inherit;font-size:11px;font-weight:800;text-transform:none;letter-spacing:0;cursor:pointer;}
   .mp-ssave:hover{background:var(--orange-soft);}
   .mp-ssave:disabled{opacity:.5;cursor:wait;}
   .mp-ssaved{font-size:10.5px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink-faint);}
-  .mp-ssaved.ok{color:#43c088;}
+  .mp-ssaved.ok{color:var(--green-2);}
   .mp-box-body{padding:14px;}
   .mp-rock{display:flex;align-items:flex-start;gap:10px;padding:9px 11px;background:var(--navy);
     border:1px solid var(--line);border-radius:9px;margin-bottom:8px;}
   .mp-rock:last-child{margin-bottom:0;}
-  .mp-rock-num{width:20px;height:20px;flex:none;border-radius:5px;background:rgba(232,115,42,.16);
+  .mp-rock-num{width:20px;height:20px;flex:none;border-radius:5px;background:rgba(var(--orange-rgb),.16);
     color:var(--orange-soft);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:1px;}
   .mp-rock-body{flex:1;}
   .mp-rock-title{font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.4;}
@@ -253,8 +342,8 @@
   .mp-done{gap:8px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy);
     font-size:12px;font-weight:700;color:var(--ink-dim);white-space:nowrap;cursor:pointer;user-select:none;}
   .mp-done:hover{border-color:var(--orange);color:var(--ink);}
-  .mp-item.done .mp-done{border-color:rgba(63,191,127,.5);background:rgba(63,191,127,.14);color:var(--green);}
-  .mp-item.done{border-color:rgba(63,191,127,.32);}
+  .mp-item.done .mp-done{border-color:rgba(var(--green-rgb),.5);background:rgba(var(--green-rgb),.14);color:var(--green);}
+  .mp-item.done{border-color:rgba(var(--green-rgb),.32);}
   .mp-item.done input.mp-title{text-decoration:line-through;color:var(--ink-faint);}
   /* v93: min-width:0 is what makes the two columns actually equal — grid items default to
      min-width:auto, so the Rock <select>'s widest option was pushing its column wider
@@ -279,7 +368,7 @@
   #mpBody input:not([type=checkbox]):focus,#mpBody select:focus,#mpBody textarea:focus{outline:none;border-color:var(--orange);}
   .mp-del{background:transparent;border:1px solid var(--line);color:var(--ink-faint);border-radius:6px;
     padding:3px 8px;font-size:10.5px;font-weight:700;cursor:pointer;white-space:nowrap;}
-  .mp-del:hover{border-color:#e0574f;color:#e0574f;}
+  .mp-del:hover{border-color:var(--red-2);color:var(--red-2);}
   .mp-add{background:var(--card-2);border:1px dashed var(--line);color:var(--ink-dim);border-radius:9px;
     padding:9px;width:100%;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;margin-top:2px;}
   .mp-add:hover{border-color:var(--orange);color:var(--ink);}
@@ -287,12 +376,12 @@
   .mp-week-btn{background:transparent;border:1px solid var(--line);color:var(--ink-dim);border-radius:7px;
     padding:5px 11px;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;}
   .mp-week-btn:hover{border-color:var(--orange);color:var(--orange-soft);}
-  .mp-linktag{font-size:10.5px;font-weight:700;color:var(--orange-soft);background:rgba(232,115,42,.12);
-    border:1px solid rgba(232,115,42,.28);border-radius:7px;padding:0 10px;white-space:nowrap;}
+  .mp-linktag{font-size:10.5px;font-weight:700;color:var(--orange-soft);background:rgba(var(--orange-rgb),.12);
+    border:1px solid rgba(var(--orange-rgb),.28);border-radius:7px;padding:0 10px;white-space:nowrap;}
   /* v90: push-forward row — provenance marker, result note, and the inline month picker. */
   .mp-focus-actions{margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
   .mp-focus-meta{margin-right:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-  .mp-pushed{font-size:10.5px;font-weight:700;color:var(--ink-dim);background:rgba(159,177,199,.10);
+  .mp-pushed{font-size:10.5px;font-weight:700;color:var(--ink-dim);background:rgba(var(--ink-dim-rgb),.10);
     border:1px solid var(--line);border-radius:999px;padding:3px 9px;white-space:nowrap;}
   .mp-pushnote{font-size:11px;font-weight:700;color:var(--green);}
   .mp-pushnote.warn{color:var(--amber);}
@@ -300,15 +389,15 @@
     background:var(--navy);border:1px solid var(--orange);border-radius:9px;}
   .mp-push .mp-push-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint);font-weight:700;}
   #mpBody .mp-push select{width:auto;flex:1 1 150px;min-width:140px;}
-  .mp-week-btn.go{background:var(--orange);border-color:var(--orange);color:#fff;}
-  .mp-week-btn.go:hover{background:var(--orange-soft);border-color:var(--orange-soft);color:#fff;}
+  .mp-week-btn.go{background:var(--orange);border-color:var(--orange);color:var(--on-accent);}
+  .mp-week-btn.go:hover{background:var(--orange-soft);border-color:var(--orange-soft);color:var(--on-accent);}
   /* ===== v97: the personal counterpart to This Month's Focus. Mirrors the weekly app's
      business/personal split (Recurring vs Training, Notes vs Intentions Around Food): the
      same navy shell, with a quiet green accent in place of the business orange. Nothing
      louder than an edge and a heading colour — the Focus card above stays the loud one. */
-  .mp-personal{border-left:3px solid rgba(63,191,127,.45);}
+  .mp-personal{border-left:3px solid rgba(var(--green-rgb),.45);}
   .mp-personal .mp-box-h{color:var(--green);}
-  .mp-personal .mp-item{border-left:2px solid rgba(63,191,127,.28);}
+  .mp-personal .mp-item{border-left:2px solid rgba(var(--green-rgb),.28);}
   .mp-personal .mp-add:hover{border-color:var(--green);}
   .mp-intro{font-size:12px;color:var(--ink-dim);line-height:1.5;margin-bottom:11px;}
   .mp-footer{margin-top:26px;padding-bottom:8px;text-align:center;}
@@ -328,19 +417,19 @@
   .mp-notes-open:hover .mp-notes-ico{color:var(--orange-soft);}
   /* Modal: same shape as the weekly app's v67 Today modal — blurred backdrop, scale/fade in. */
   .mp-modal-overlay{position:fixed;inset:0;z-index:10000;display:flex;align-items:flex-start;justify-content:center;
-    padding:6vh 16px 40px;overflow-y:auto;background:rgba(8,14,24,.62);
+    padding:6vh 16px 40px;overflow-y:auto;background:rgba(var(--backdrop-rgb),.62);
     -webkit-backdrop-filter:blur(7px);backdrop-filter:blur(7px);
     opacity:0;transition:opacity .18s ease;}
   .mp-modal-overlay[hidden]{display:none;}
   .mp-modal-overlay.open{opacity:1;}
   .mp-modal{width:min(620px,100%);background:var(--card);border:1px solid var(--line);border-radius:16px;
-    box-shadow:0 24px 70px rgba(0,0,0,.6);overflow:hidden;
+    box-shadow:0 24px 70px rgba(var(--shadow-rgb),.6);overflow:hidden;
     transform:scale(.96) translateY(10px);transition:transform .18s ease;}
   .mp-modal-overlay.open .mp-modal{transform:scale(1) translateY(0);}
   .mp-modal-h{background:var(--navy-2);border-bottom:1px solid var(--line);padding:13px 18px;
     display:flex;align-items:center;justify-content:space-between;gap:12px;}
   .mp-modal-kicker{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--orange-soft);}
-  .mp-modal-title{font-size:14px;font-weight:800;color:#fff;letter-spacing:-.2px;margin-top:1px;}
+  .mp-modal-title{font-size:14px;font-weight:800;color:var(--ink-strong);letter-spacing:-.2px;margin-top:1px;}
   .mp-modal-close{background:transparent;border:1px solid var(--line);color:var(--ink-dim);border-radius:8px;
     width:30px;height:30px;font-size:13px;font-weight:700;cursor:pointer;flex:none;line-height:1;padding:0;}
   .mp-modal-close:hover{border-color:var(--orange);color:var(--orange-soft);}
@@ -362,7 +451,7 @@
   .mp-notes-editor input[type=checkbox]:hover{border-color:var(--orange);}
   .mp-notes-editor input[type=checkbox]:checked{background:var(--orange);border-color:var(--orange);}
   .mp-notes-editor input[type=checkbox]:checked::after{content:"✓";position:absolute;top:50%;left:50%;
-    transform:translate(-50%,-50%);font-size:10px;color:#fff;line-height:1;}
+    transform:translate(-50%,-50%);font-size:10px;color:var(--on-accent);line-height:1;}
   /* Same class name as the weekly app: the stored format is identical, so a note written
      in either place renders the same in both. */
   .wp-note-todo{margin:2px 0;}
@@ -372,7 +461,7 @@
 </style>
 </head>
 <body>
-<!-- build v105 · pull-both-monthly-lists -->
+<!-- build v106 · warm-light-theme -->
 <header>
   <div class="htop">
     <div class="brand">
@@ -387,6 +476,7 @@
     <a href="/index.html">Weekly Dashboard</a>
     <a href="/monthly.html" class="active">Monthly Report</a>
     <a href="/quarterly.html">Quarterly Review</a>
+  <button type="button" class="themebtn" id="themeToggle" onclick="bsToggleTheme()" aria-pressed="false" title="Switch theme">☾ Dark</button>
   </nav>
   <div class="viewtoggle" id="tabBar">
     <button class="vt active" data-view="plan">Monthly Plan</button>
@@ -616,7 +706,7 @@
      after a monthly-only release. Same pill as the Weekly Dashboard's footer, and the two
      pages carry the SAME suite build string — a test fails if they ever drift apart. -->
 <footer class="mp-footer">
-  <span class="mp-stage">build v105 · pull-both-monthly-lists</span>
+  <span class="mp-stage">build v106 · warm-light-theme</span>
 </footer>
 
 <!-- v93: focus-item notes editor — the v70 rich editor in a Today-modal-style dialog.
@@ -636,6 +726,41 @@
 
 <script>
 "use strict";
+/* ===================== v106: LIGHT / DARK THEME =====================
+   Purely visual. The palette lives in the token blocks at the top of the stylesheet; this
+   only flips the data-theme attribute on <html>, remembers the choice, and keeps the
+   toggle's label in step. No render path, no data, no behaviour depends on it. */
+function bsTheme(){
+  try{ return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light"; }
+  catch(e){ return "light"; }
+}
+function bsSetTheme(t){
+  const next = t === "dark" ? "dark" : "light";
+  try{ document.documentElement.setAttribute("data-theme", next); }catch(e){}
+  try{ localStorage.setItem("bodysculpt:theme", next); }catch(e){}
+  // pages that bake colours into generated markup (monthly.html's SVG charts) repaint here
+  if(typeof bsThemeRepaint === "function"){ try{ bsThemeRepaint(); }catch(e){} }
+  bsSyncThemeBtn();
+  return next;
+}
+function bsToggleTheme(){ return bsSetTheme(bsTheme() === "dark" ? "light" : "dark"); }
+// Everything on this page is CSS-driven except the hand-rolled SVG charts, which bake their
+// colours in at draw time — so they (and only they) are redrawn after a theme switch.
+function bsThemeRepaint(){
+  const g = document.getElementById("view-growth");
+  if(g && !g.hidden && typeof renderGrowth === "function") renderGrowth();
+}
+// The button offers the theme you'd switch TO, so its label always names the next state.
+function bsSyncThemeBtn(){
+  const b = document.getElementById("themeToggle");
+  if(!b) return;
+  const dark = bsTheme() === "dark";
+  b.textContent = dark ? "☀ Light" : "☾ Dark";
+  b.title = dark ? "Switch to the light theme" : "Switch to the dark theme";
+  if(b.setAttribute) b.setAttribute("aria-pressed", dark ? "true" : "false");
+}
+bsSyncThemeBtn();
+
 /* ============================================================
    Bodysculpt Monthly Report
    - Reads weekly data from the shared kpi-store (GET) to DERIVE flow/ratio metrics.
@@ -1052,7 +1177,24 @@ function renderExpenseTable(selYm){
 }
 
 // ===================== CHARTS (hand-rolled SVG, no library) =====================
-const C = { ink:"#eaf0f8", dim:"#9fb1c7", faint:"#6b7f99", line:"#2c405e", orange:"#e8732a", grid:"#22344e" };
+// v106: the charts are the one place colours are chosen in JS rather than CSS, so C reads
+// the SAME theme tokens the stylesheet uses — live, on every access, so a chart drawn after
+// a theme switch is already in the new palette. The dark values are the fallbacks, which is
+// also what the test sandbox (no getComputedStyle) sees.
+const CHART_TOKENS = {
+  ink:["--ink","#eaf0f8"], dim:["--ink-dim","#9fb1c7"], faint:["--ink-faint","#6b7f99"],
+  line:["--line","#2c405e"], orange:["--orange","#e8732a"], grid:["--chart-grid","#22344e"],
+};
+function cssToken(name, fallback){
+  try{
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  }catch(e){ return fallback; }
+}
+const C = {};
+Object.keys(CHART_TOKENS).forEach(k=>Object.defineProperty(C, k, {
+  get(){ return cssToken(CHART_TOKENS[k][0], CHART_TOKENS[k][1]); }, enumerable:true,
+}));
 
 // shared frame: returns {W,H,padL,padR,padT,padB,plotW,plotH,x,y}
 function frame(count, maxV){
