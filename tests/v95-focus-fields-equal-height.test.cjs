@@ -13,8 +13,9 @@ const ROCKS = [{ title: "Retention above 92%" }, { title: "Open the second studi
 
 (async () => {
   /* ---------- build stamp ---------- */
-  assert.ok(/<!-- build v95 · focus-fields-equal-height -->/.test(HTML),
-    "build stamp is v95 · focus-fields-equal-height");
+  // "v95 or later" — the exact stamp is asserted by the newest version's test.
+  const stamp = /<!-- build v(\d+) · [a-z0-9-]+ -->/.exec(HTML);
+  assert.ok(stamp && Number(stamp[1]) >= 95, "build stamp is v95 or later");
 
   /* ---------- 1. one height, declared once, for both controls ---------- */
   {
