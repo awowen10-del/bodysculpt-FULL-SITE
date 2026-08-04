@@ -37,7 +37,10 @@ async function withItem(notes, extra) {
 
 (async () => {
   /* ---------- 1. build stamp ---------- */
-  assert.ok(/<!-- build v93 · focus-notes-editor -->/.test(HTML), "build stamp is v93 · focus-notes-editor");
+  // Pinned to "v93 or later", not the exact stamp — the stamp moves with every release and
+  // the current one is asserted by the newest version's test.
+  const stamp = /<!-- build v(\d+) · [a-z0-9-]+ -->/.exec(HTML);
+  assert.ok(stamp && Number(stamp[1]) >= 93, "build stamp is v93 or later");
 
   /* ---------- 2. equal-width columns ---------- */
   {

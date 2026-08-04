@@ -241,7 +241,15 @@ async function boot(opts = {}) {
       if (!els.has(id)) els.set(id, fakeElement(id));
       return els.get(id);
     },
-    querySelector() { return null; },   // [data-push] lookup falls back to mpPushOpen state
+    // Id-anchored lookups ("#expTable thead") resolve to a stable stub element, so views
+    // that render into static markup (Expenses) can be driven. Attribute selectors still
+    // return null — the v90 [data-push] path deliberately falls back to mpPushOpen state.
+    querySelector(sel) {
+      const s = String(sel || "");
+      if (s[0] !== "#") return null;
+      if (!els.has("sel:" + s)) els.set("sel:" + s, fakeElement(s));
+      return els.get("sel:" + s);
+    },
     querySelectorAll() { return []; },
     createElement(tag) { return fakeElement("el:" + tag); },
     addEventListener(t, f) { (listeners[t] = listeners[t] || []).push(f); },
@@ -282,6 +290,7 @@ async function boot(opts = {}) {
     extract(MONTHLY_HTML) +
     "\n;globalThis.__mpState = {" +
     " get curYm(){ return curYm; }, set curYm(v){ curYm = v; }," +
+    " get view(){ return curView; }, get defaultView(){ return DEFAULT_VIEW; }," +   // v94: landing tab
     " get yms(){ return YMS; }," +
     " get plan(){ return mpPlan; }, set plan(v){ mpPlan = v; }," +
     " get ym(){ return mpYm; }, set ym(v){ mpYm = v; }," +
