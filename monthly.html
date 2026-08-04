@@ -369,7 +369,7 @@
 </style>
 </head>
 <body>
-<!-- build v98 · monthly-focus-done-sync -->
+<!-- build v99 · focus-rock-link-save -->
 <header>
   <div class="htop">
     <div class="brand">
@@ -2139,7 +2139,13 @@ async function mpPushProjectToWeek(projectId){
   }catch(e){ window.alert("Save failed: "+e.message); }
 }
 function mpRemovePrio(btn){ mpSyncFromDom(); const rows=[...document.querySelectorAll('[data-prio]')]; const i=rows.indexOf(btn.closest('[data-prio]')); if(i>=0){ mpPlan.priorities.splice(i,1); drawMonthlyPlan(); } }
-function mpQuickSave(){ mpSyncFromDom(); drawMonthlyPlan(); }
+// v99 FIX: the only caller is the focus item's "Supports which Rock?" select. Like the
+// Done tick before v98, picking a Rock used to sync + redraw (so the ↳ Rock N badge
+// updates) but never write — so the new link was lost the moment you navigated away.
+// Choosing from a dropdown is a decision, not an edit-in-progress: it now saves on the
+// same focus section path the Save button uses. The redraw still happens first so the
+// badge is right, and the save re-reads the DOM exactly as it always did.
+function mpQuickSave(){ mpSyncFromDom(); drawMonthlyPlan(); return mpSaveSection("focus"); }
 
 const MP_SECTION_FIELDS = { focus:["focus"], priorities:["priorities"], notes:["notes"], review:["review"] };
 async function mpSaveSection(sectionKey){

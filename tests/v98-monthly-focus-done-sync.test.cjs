@@ -31,7 +31,10 @@ async function tickDone(env, id, on) {
 
 (async () => {
   /* ---------- build stamp (both files changed) ---------- */
-  assert.ok(/<!-- build v98 · monthly-focus-done-sync -->/.test(MONTHLY), "monthly.html stamped v98");
+  // monthly.html moves on with every release, so it is pinned to ">= v98"; index.html was
+  // last touched by this change, so its exact stamp still stands.
+  const mStamp = /<!-- build v(\d+) · [a-z0-9-]+ -->/.exec(MONTHLY);
+  assert.ok(mStamp && Number(mStamp[1]) >= 98, "monthly.html stamped v98 or later");
   assert.ok(/build v98 · monthly-focus-done-sync/.test(WEEKLY), "index.html stamped v98");
 
   /* ================= PART 1: a tick persists by itself ================= */
