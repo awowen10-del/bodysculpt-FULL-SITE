@@ -122,7 +122,13 @@ async function boot(opts = {}) {
       const date = decodeURIComponent(u.split("weeklyplan=")[1]);
       return reply({ plan: Object.prototype.hasOwnProperty.call(plans, date) ? plans[date] : null });
     }
-    if (u.includes("monthfocus=")) return reply({ focus: [] });
+    // v98: the cascade anchor reads the month's focus items (title + done) from the
+    // monthly-plan record. opts.monthFocus maps "YYYY-MM" -> [focus items]; unknown months
+    // return [] exactly as before, so tests that never set it are unaffected.
+    if (u.includes("monthfocus=")) {
+      const ym = decodeURIComponent(u.split("monthfocus=")[1]);
+      return reply({ focus: (opts.monthFocus && opts.monthFocus[ym]) || [] });
+    }
     if (u.includes("monthlyplan=")) return reply({ plan: { priorities: [] } });
     if (u.includes("settings=1")) return reply({ settings: null });
     if (u.includes("reset=YES")) return reply({ ok: true });

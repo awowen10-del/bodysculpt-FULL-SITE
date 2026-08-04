@@ -31,7 +31,9 @@ function cards(env) {
   /* ---------- build stamp ---------- */
   // Requested as v91, but the file was already at v96 and three tests assert ">= v93/94/95";
   // a v91 stamp would move the build backwards and fail them. Shipped as v97 instead.
-  assert.ok(/<!-- build v97 · personal-priorities -->/.test(HTML), "build stamp is v97 · personal-priorities");
+  // "v97 or later" — the exact stamp is asserted by the newest version's test.
+  const stamp = /<!-- build v(\d+) · [a-z0-9-]+ -->/.exec(HTML);
+  assert.ok(stamp && Number(stamp[1]) >= 97, "build stamp is v97 or later");
 
   const env = await boot({
     plans: { [AUG]: { ym: AUG,

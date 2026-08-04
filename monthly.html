@@ -369,7 +369,7 @@
 </style>
 </head>
 <body>
-<!-- build v97 · personal-priorities -->
+<!-- build v98 · monthly-focus-done-sync -->
 <header>
   <div class="htop">
     <div class="brand">
@@ -1760,7 +1760,17 @@ function drawMonthlyPlan(){
 function mpGoToQuarterly(){ location.href = "quarterly.html"; }
 function mpAddFocus(){ mpSyncFromDom(); mpPlan.focus.push({id:mpQid(),title:"",rockRef:"",notes:"",done:false}); drawMonthlyPlan(); }
 function mpRemoveFocus(btn){ mpSyncFromDom(); const el=btn.closest("[data-focus]"); const id=el.getAttribute("data-focus"); mpPlan.focus=mpPlan.focus.filter(f=>(f.id||"")!==id); drawMonthlyPlan(); }
-function mpToggleFocus(cb){ const el=cb.closest(".mp-item"); if(el) el.classList.toggle("done", cb.checked); }
+// v98 FIX: ticking Done used to update the row's class and nothing else — the value only
+// reached the store if you then pressed the section's Save button, so a tick was lost the
+// moment you navigated away. A tick is an action, not an edit-in-progress: it now saves
+// immediately on the normal focus section path (mpSaveSection re-reads the DOM, so the
+// checkbox state, titles, Rock links and notes all go up exactly as the Save button sends
+// them). Nothing else about focus items or Rock links changes.
+function mpToggleFocus(cb){
+  const el = cb.closest(".mp-item");
+  if(el) el.classList.toggle("done", cb.checked);
+  return mpSaveSection("focus");
+}
 
 /* ===================== v93: FOCUS-ITEM NOTES (rich text, in a modal) =====================
    This is the weekly app's v70 notes engine, ported unchanged — same marker, same tag

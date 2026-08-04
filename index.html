@@ -519,6 +519,7 @@
   .wp-anchor-list{margin:0;padding-left:18px;}
   .wp-anchor-item{font-size:13.5px;color:var(--ink);line-height:1.6;}
   .wp-anchor-done{text-decoration:line-through;opacity:.5;}
+  .wp-anchor-tick{color:var(--green);font-weight:800;margin-right:5px;text-decoration:none;display:inline-block;}
   .wp-item-done{ opacity:.85; }
   /* placed-task chips inside a grid cell — tidy pills that match the page aesthetic */
   .wp-cellchips{display:flex;flex-direction:column;gap:4px;padding:6px 6px 4px;}
@@ -1237,7 +1238,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v89 · reorder-within-cell</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v98 · monthly-focus-done-sync</span>
   </footer>
 </div>
 
@@ -3235,7 +3236,11 @@ function renderWeeklyPlan(){
   if(wpMonthFocus && wpMonthFocus.focus && wpMonthFocus.focus.length){
     const items = wpMonthFocus.focus.filter(f=>f.title && f.title.trim());
     if(items.length){
-      const rows = items.map(f=>`<li class="wp-anchor-item${f.done?" wp-anchor-done":""}">${wpEsc(f.title)}</li>`).join("");
+      // v98: the done-state comes straight off the monthly focus item in the monthly-plan
+      // record — Monthly is the single source of truth and this anchor stays read-only, so
+      // there is no second copy to diverge. Struck through, plus an explicit tick so it
+      // reads as done at a glance.
+      const rows = items.map(f=>`<li class="wp-anchor-item${f.done?" wp-anchor-done":""}">${f.done?`<span class="wp-anchor-tick">✓</span>`:""}${wpEsc(f.title)}</li>`).join("");
       let mlabel = ""; try{ const d=new Date(wpMonthFocus.ym+"-01T00:00:00"); mlabel=d.toLocaleDateString("en-GB",{month:"long"}); }catch(e){}
       anchorBox = `<div class="wp-anchor">
         <div class="wp-anchor-h">${mlabel} focus <span>from Monthly Plan</span></div>
