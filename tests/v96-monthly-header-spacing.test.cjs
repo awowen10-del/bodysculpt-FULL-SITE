@@ -21,8 +21,9 @@ const px = (css, prop) => {
 
 (async () => {
   /* ---------- build stamp ---------- */
-  assert.ok(/<!-- build v96 · monthly-header-spacing -->/.test(HTML),
-    "build stamp is v96 · monthly-header-spacing");
+  // "v96 or later" — the exact stamp is asserted by the newest version's test.
+  const stamp = /<!-- build v(\d+) · [a-z0-9-]+ -->/.exec(HTML);
+  assert.ok(stamp && Number(stamp[1]) >= 96, "build stamp is v96 or later");
 
   /* ---------- 1. the header stack has a deliberate, even rhythm ---------- */
   {

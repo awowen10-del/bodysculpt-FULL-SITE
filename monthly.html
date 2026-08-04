@@ -302,6 +302,15 @@
   #mpBody .mp-push select{width:auto;flex:1 1 150px;min-width:140px;}
   .mp-week-btn.go{background:var(--orange);border-color:var(--orange);color:#fff;}
   .mp-week-btn.go:hover{background:var(--orange-soft);border-color:var(--orange-soft);color:#fff;}
+  /* ===== v97: the personal counterpart to This Month's Focus. Mirrors the weekly app's
+     business/personal split (Recurring vs Training, Notes vs Intentions Around Food): the
+     same navy shell, with a quiet green accent in place of the business orange. Nothing
+     louder than an edge and a heading colour — the Focus card above stays the loud one. */
+  .mp-personal{border-left:3px solid rgba(63,191,127,.45);}
+  .mp-personal .mp-box-h{color:var(--green);}
+  .mp-personal .mp-item{border-left:2px solid rgba(63,191,127,.28);}
+  .mp-personal .mp-add:hover{border-color:var(--green);}
+  .mp-intro{font-size:12px;color:var(--ink-dim);line-height:1.5;margin-bottom:11px;}
   .mp-review-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
   /* ===== v93: focus-item notes — resting preview + the modal editor ===== */
   /* The resting control mirrors the Rock select exactly (padding/border/radius/font), so
@@ -360,7 +369,7 @@
 </style>
 </head>
 <body>
-<!-- build v96 · monthly-header-spacing -->
+<!-- build v97 · personal-priorities -->
 <header>
   <div class="htop">
     <div class="brand">
@@ -1565,13 +1574,23 @@ async function renderMonthlyPlan(){
   try{ data = await fetch(STORE + "?monthlyplan=" + encodeURIComponent(ym)).then(x=>x.json()); }catch(e){ data = null; }
   const plan = (data && data.plan) || { ym, focus:[], priorities:[], notes:"", review:{wins:"",notDone:"",carryForward:"",blockers:""}, lastUpdated:"" };
   plan.focus = plan.focus || [];
-  plan.priorities = plan.priorities || [];
+  plan.priorities = mpClearPriorityRockLinks(plan.priorities || []);
   plan.notes = plan.notes || "";
   plan.review = plan.review || {wins:"",notDone:"",carryForward:"",blockers:""};
   mpPlan = plan;
   mpRocks = (data && data.rocks) || [];
   mpQuarterTag = (data && data.quarterTag) || "";
   drawMonthlyPlan();
+}
+
+// v97: this section is now the PERSONAL counterpart to This Month's Focus, so a business
+// Rock link on one of its items is meaningless. Strip only that field from anything stored
+// before the repurpose — the item itself and every other field (title, owner, status,
+// notes, id) are left exactly as they were, and the cleared value persists on the next
+// ordinary save of the section. Nothing is written just by opening the month.
+function mpClearPriorityRockLinks(list){
+  (list||[]).forEach(p=>{ if(p && typeof p === "object"){ delete p.rockRef; delete p.rockLink; } });
+  return list || [];
 }
 
 function mpRockOptions(sel){
@@ -1703,10 +1722,15 @@ function drawMonthlyPlan(){
       <div class="mp-f" style="margin-top:8px"><label>Notes</label><input data-pf="notes" value="${esc(it.notes||"")}" placeholder="Optional"></div>
       <div class="mp-prio-actions"><button class="mp-week-btn" onclick="mpPushProjectToWeek('${esc(it.id)}')">→ Weekly action</button></div>
     </div>`;
-    }).join("") : `<div class="mp-rocks-empty">Key projects or priorities for the month.</div>`;
-  const prioBox = `<div class="mp-box">
-    ${mpSaveHeader("Priorities & Projects","priorities","")}
-    <div class="mp-box-body">${prRows}<button class="mp-add" onclick="mpAddPrio()">+ Add priority</button></div>
+    }).join("") : `<div class="mp-rocks-empty">Nothing here yet — the things outside work you want to move this month.</div>`;
+  // v97: the personal half of the month. Same section key, same save path, same items —
+  // only the framing and the accent change. No Rock link: personal work doesn't serve a
+  // business Rock, and that is the one thing cleared off any pre-existing item.
+  const prioBox = `<div class="mp-box mp-personal">
+    ${mpSaveHeader("Personal Priorities &amp; Projects","priorities","life outside the business")}
+    <div class="mp-box-body">
+      <div class="mp-intro">Personal projects and priorities for the month — life outside the business.</div>
+      ${prRows}<button class="mp-add" onclick="mpAddPrio()">+ Add priority</button></div>
   </div>`;
 
   const notesBox = `<div class="mp-box">

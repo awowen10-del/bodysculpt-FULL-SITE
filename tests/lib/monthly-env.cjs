@@ -250,7 +250,13 @@ async function boot(opts = {}) {
       if (!els.has("sel:" + s)) els.set("sel:" + s, fakeElement(s));
       return els.get("sel:" + s);
     },
-    querySelectorAll() { return []; },
+    // The plan's rows live inside #mpBody, so a DOCUMENT-level lookup finds them in a real
+    // browser too — mpRemovePrio does exactly that. Everything else (.view/.vt) stays empty.
+    querySelectorAll(sel) {
+      const s = String(sel || "");
+      if (s.includes("[data-prio]") || s.includes("[data-focus]")) return els.get("mpBody").querySelectorAll(s);
+      return [];
+    },
     createElement(tag) { return fakeElement("el:" + tag); },
     addEventListener(t, f) { (listeners[t] = listeners[t] || []).push(f); },
     removeEventListener(t, f) { const l = listeners[t]; if (l) { const i = l.indexOf(f); if (i >= 0) l.splice(i, 1); } },

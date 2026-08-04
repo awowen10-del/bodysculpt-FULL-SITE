@@ -224,11 +224,29 @@ function cleanMonthlyFocus(list) {
       return d;
     });
 }
+// v97: whitelist for a PERSONAL priority/project item. monthly.html is the only writer of
+// this list (index.html reads id/title/owner for the weekly cascade); the fields are exactly
+// what the section's inputs produce. `rockRef` is deliberately NOT here — the section is the
+// personal counterpart to focus now, so a Rock link stored before the repurpose is dropped
+// on the next save. Everything else on the item survives untouched.
+const MONTHLY_PRIORITY_STRINGS = { title: 400, owner: 60, status: 40, notes: 2000 };
+function cleanMonthlyPriorities(list) {
+  return list
+    .filter((p) => p && typeof p === "object")
+    .slice(0, 60)
+    .map((p) => {
+      const d = { id: typeof p.id === "string" ? p.id.slice(0, 40) : "" };
+      for (const k of Object.keys(MONTHLY_PRIORITY_STRINGS)) {
+        d[k] = typeof p[k] === "string" ? p[k].slice(0, MONTHLY_PRIORITY_STRINGS[k]) : "";
+      }
+      return d;
+    });
+}
 function defaultMonthlyPlan(ym) {
   return {
     ym,
     focus: [],        // [{id, title, rockRef, notes, done, pushedFrom?, pushedFromId?}]
-    priorities: [],   // [{title, owner, status, notes}]
+    priorities: [],   // v97: PERSONAL priorities/projects — [{id, title, owner, status, notes}]
     notes: "",
     review: { wins:"", notDone:"", carryForward:"", blockers:"" },
     lastUpdated: ""
@@ -733,6 +751,10 @@ export default async (req) => {
       // Anything else is dropped server-side. Only touched when focus is actually part of
       // this write, so priorities/notes/review section saves are unaffected.
       if (Array.isArray(incoming.focus)) incoming.focus = cleanMonthlyFocus(incoming.focus);
+      // v97: the priorities list is now the PERSONAL counterpart to focus, so it gets the
+      // same whitelist treatment — and a business rockRef is no longer one of its fields,
+      // so a stale one from before the repurpose is dropped here too.
+      if (Array.isArray(incoming.priorities)) incoming.priorities = cleanMonthlyPriorities(incoming.priorities);
       const merged = { ...existing, ...incoming, lastUpdated: new Date().toISOString() };
       await store.set(key, JSON.stringify(merged));
       return Response.json({ ok:true, plan: merged });
