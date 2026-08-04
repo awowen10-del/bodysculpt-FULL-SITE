@@ -369,7 +369,7 @@
 </style>
 </head>
 <body>
-<!-- build v99 · focus-rock-link-save -->
+<!-- build v100 · commit-on-change -->
 <header>
   <div class="htop">
     <div class="brand">
@@ -1580,6 +1580,7 @@ async function renderMonthlyPlan(){
   mpPlan = plan;
   mpRocks = (data && data.rocks) || [];
   mpQuarterTag = (data && data.quarterTag) || "";
+  mpMarkAllSectionsSaved();   // v100: what we just loaded IS the saved state
   drawMonthlyPlan();
 }
 
@@ -1682,7 +1683,7 @@ function drawMonthlyPlan(){
     const prev = mpNotesPreview(it.notes || "");   // v93: one-line resting preview of the note
     return `<div class="mp-item${it.done?" done":""}" data-focus="${esc(id)}">
       <div class="mp-item-top">
-        <input class="mp-title" data-ff="title" value="${esc(it.title||"")}" placeholder="This month's focus…">
+        <input class="mp-title" data-ff="title" value="${esc(it.title||"")}" placeholder="This month's focus…" onblur="mpCommit('focus')">
         ${linked?`<span class="mp-linktag">↳ Rock ${Number(it.rockRef)+1}</span>`:""}
         <label class="mp-done"><input type="checkbox" data-ff="done"${it.done?" checked":""} onchange="mpToggleFocus(this)"><span class="mp-done-lbl">Done</span></label>
         <button class="mp-del" onclick="mpRemoveFocus(this)">✕</button>
@@ -1712,14 +1713,14 @@ function drawMonthlyPlan(){
       if(!it.id) it.id = "mprj-"+Math.random().toString(36).slice(2,9);
       return `<div class="mp-item" data-prio data-pid="${esc(it.id)}">
       <div class="mp-item-top">
-        <input class="mp-title" data-pf="title" value="${esc(it.title||"")}" placeholder="Priority / project">
+        <input class="mp-title" data-pf="title" value="${esc(it.title||"")}" placeholder="Priority / project" onblur="mpCommit('priorities')">
         <button class="mp-del" onclick="mpRemovePrio(this)">✕</button>
       </div>
       <div class="mp-fields">
-        <div class="mp-f"><label>Owner</label><select data-pf="owner">${MP_OWNERS.map(o=>`<option${o===(it.owner||"")?" selected":""}>${o||"—"}</option>`).join("")}</select></div>
-        <div class="mp-f"><label>Status</label><select data-pf="status">${MP_STATUS.map(s=>`<option${s===(it.status||"Not Started")?" selected":""}>${s}</option>`).join("")}</select></div>
+        <div class="mp-f"><label>Owner</label><select data-pf="owner" onchange="mpCommit('priorities')">${MP_OWNERS.map(o=>`<option value="${esc(o)}"${o===(it.owner||"")?" selected":""}>${o||"—"}</option>`).join("")}</select></div>
+        <div class="mp-f"><label>Status</label><select data-pf="status" onchange="mpCommit('priorities')">${MP_STATUS.map(s=>`<option${s===(it.status||"Not Started")?" selected":""}>${s}</option>`).join("")}</select></div>
       </div>
-      <div class="mp-f" style="margin-top:8px"><label>Notes</label><input data-pf="notes" value="${esc(it.notes||"")}" placeholder="Optional"></div>
+      <div class="mp-f" style="margin-top:8px"><label>Notes</label><input data-pf="notes" value="${esc(it.notes||"")}" placeholder="Optional" onblur="mpCommit('priorities')"></div>
       <div class="mp-prio-actions"><button class="mp-week-btn" onclick="mpPushProjectToWeek('${esc(it.id)}')">→ Weekly action</button></div>
     </div>`;
     }).join("") : `<div class="mp-rocks-empty">Nothing here yet — the things outside work you want to move this month.</div>`;
@@ -1735,17 +1736,17 @@ function drawMonthlyPlan(){
 
   const notesBox = `<div class="mp-box">
     ${mpSaveHeader("Notes & Issues","notes","")}
-    <div class="mp-box-body"><textarea data-field="mpnotes" style="min-height:120px" placeholder="Observations, issues, things to watch this month…">${esc(p.notes||"")}</textarea></div>
+    <div class="mp-box-body"><textarea data-field="mpnotes" style="min-height:120px" onblur="mpCommit('notes')" placeholder="Observations, issues, things to watch this month…">${esc(p.notes||"")}</textarea></div>
   </div>`;
 
   const r = p.review;
   const reviewBox = `<div class="mp-box">
     ${mpSaveHeader("Month-End Review","review","")}
     <div class="mp-box-body"><div class="mp-review-grid">
-      <div class="mp-f"><label>What moved / wins</label><textarea data-mpreview="wins">${esc(r.wins||"")}</textarea></div>
-      <div class="mp-f"><label>What didn't move</label><textarea data-mpreview="notDone">${esc(r.notDone||"")}</textarea></div>
-      <div class="mp-f"><label>Carry into next month</label><textarea data-mpreview="carryForward">${esc(r.carryForward||"")}</textarea></div>
-      <div class="mp-f"><label>Issues / blockers</label><textarea data-mpreview="blockers">${esc(r.blockers||"")}</textarea></div>
+      <div class="mp-f"><label>What moved / wins</label><textarea data-mpreview="wins" onblur="mpCommit('review')">${esc(r.wins||"")}</textarea></div>
+      <div class="mp-f"><label>What didn't move</label><textarea data-mpreview="notDone" onblur="mpCommit('review')">${esc(r.notDone||"")}</textarea></div>
+      <div class="mp-f"><label>Carry into next month</label><textarea data-mpreview="carryForward" onblur="mpCommit('review')">${esc(r.carryForward||"")}</textarea></div>
+      <div class="mp-f"><label>Issues / blockers</label><textarea data-mpreview="blockers" onblur="mpCommit('review')">${esc(r.blockers||"")}</textarea></div>
     </div></div>
   </div>`;
 
@@ -1759,7 +1760,10 @@ function drawMonthlyPlan(){
 
 function mpGoToQuarterly(){ location.href = "quarterly.html"; }
 function mpAddFocus(){ mpSyncFromDom(); mpPlan.focus.push({id:mpQid(),title:"",rockRef:"",notes:"",done:false}); drawMonthlyPlan(); }
-function mpRemoveFocus(btn){ mpSyncFromDom(); const el=btn.closest("[data-focus]"); const id=el.getAttribute("data-focus"); mpPlan.focus=mpPlan.focus.filter(f=>(f.id||"")!==id); drawMonthlyPlan(); }
+// v100: a deletion is a commit — it used to revert on the next load unless you also
+// pressed Save. Adding a row deliberately does NOT save: an empty row is not content,
+// and it persists as soon as you type a title (which commits on blur).
+function mpRemoveFocus(btn){ mpSyncFromDom(); const el=btn.closest("[data-focus]"); const id=el.getAttribute("data-focus"); mpPlan.focus=mpPlan.focus.filter(f=>(f.id||"")!==id); drawMonthlyPlan(); return mpCommit("focus"); }
 // v98 FIX: ticking Done used to update the row's class and nothing else — the value only
 // reached the store if you then pressed the section's Save button, so a tick was lost the
 // moment you navigated away. A tick is an action, not an edit-in-progress: it now saves
@@ -1769,7 +1773,7 @@ function mpRemoveFocus(btn){ mpSyncFromDom(); const el=btn.closest("[data-focus]
 function mpToggleFocus(cb){
   const el = cb.closest(".mp-item");
   if(el) el.classList.toggle("done", cb.checked);
-  return mpSaveSection("focus");
+  return mpCommit("focus");
 }
 
 /* ===================== v93: FOCUS-ITEM NOTES (rich text, in a modal) =====================
@@ -1992,7 +1996,7 @@ function mpSaveNotes(){
     const prev = row.querySelector("[data-notes-prev]");
     if(prev) prev.textContent = mpNotesPreview(stored) || "Add notes…";
   }
-  return mpSaveSection("focus");
+  return mpCommit("focus");
 }
 
 function mpCloseNotes(){
@@ -2138,16 +2142,41 @@ async function mpPushProjectToWeek(projectId){
     else window.alert("Save failed — please retry.");
   }catch(e){ window.alert("Save failed: "+e.message); }
 }
-function mpRemovePrio(btn){ mpSyncFromDom(); const rows=[...document.querySelectorAll('[data-prio]')]; const i=rows.indexOf(btn.closest('[data-prio]')); if(i>=0){ mpPlan.priorities.splice(i,1); drawMonthlyPlan(); } }
+function mpRemovePrio(btn){ mpSyncFromDom(); const rows=[...document.querySelectorAll('[data-prio]')]; const i=rows.indexOf(btn.closest('[data-prio]')); if(i>=0){ mpPlan.priorities.splice(i,1); drawMonthlyPlan(); return mpCommit("priorities"); } }
 // v99 FIX: the only caller is the focus item's "Supports which Rock?" select. Like the
 // Done tick before v98, picking a Rock used to sync + redraw (so the ↳ Rock N badge
 // updates) but never write — so the new link was lost the moment you navigated away.
 // Choosing from a dropdown is a decision, not an edit-in-progress: it now saves on the
 // same focus section path the Save button uses. The redraw still happens first so the
 // badge is right, and the save re-reads the DOM exactly as it always did.
-function mpQuickSave(){ mpSyncFromDom(); drawMonthlyPlan(); return mpSaveSection("focus"); }
+function mpQuickSave(){ mpSyncFromDom(); drawMonthlyPlan(); return mpCommit("focus"); }
 
 const MP_SECTION_FIELDS = { focus:["focus"], priorities:["priorities"], notes:["notes"], review:["review"] };
+
+/* ---- v100: commit-on-interaction ----------------------------------------------------
+   This view was built around per-section Save buttons, so a control could change the plan
+   on screen and never write — the change was then silently lost on navigation. That bit us
+   three times (focus Done → v98, focus Rock link → v99, and the audit found the rest), so
+   every control now commits itself:
+     · a dropdown pick or a toggle saves on change  — choosing IS the commit
+     · a text field saves on blur                   — never per keystroke
+   Each control commits on ITS OWN section path, so sections can never cross-write (a focus
+   edit never posts priorities). mpSaved holds the last value written or loaded per section,
+   so tabbing through fields without editing anything writes nothing. The Save buttons still
+   work exactly as before — they save unconditionally. */
+let mpSaved = {};   // sectionKey -> snapshot of the last value saved (or loaded)
+function mpSectionSnapshot(sectionKey){
+  if(!mpPlan) return "";
+  return JSON.stringify((MP_SECTION_FIELDS[sectionKey]||[]).map(f=>mpPlan[f]));
+}
+function mpMarkSectionSaved(sectionKey){ mpSaved[sectionKey] = mpSectionSnapshot(sectionKey); }
+function mpMarkAllSectionsSaved(){ Object.keys(MP_SECTION_FIELDS).forEach(mpMarkSectionSaved); }
+function mpCommit(sectionKey){
+  if(!mpPlan || !mpYm || !MP_SECTION_FIELDS[sectionKey]) return;
+  mpSyncFromDom();
+  if(mpSectionSnapshot(sectionKey) === mpSaved[sectionKey]) return;   // nothing actually changed
+  return mpSaveSection(sectionKey);
+}
 async function mpSaveSection(sectionKey){
   if(!mpPlan || !mpYm) return;
   mpSyncFromDom();
@@ -2161,6 +2190,7 @@ async function mpSaveSection(sectionKey){
       body: JSON.stringify({ monthlyPlan: patch })}).then(x=>x.json());
     if(r && r.ok){
       if(r.plan && r.plan.lastUpdated) mpPlan.lastUpdated = r.plan.lastUpdated;
+      mpMarkSectionSaved(sectionKey);   // v100: this section is now clean
       if(msg){ msg.textContent = "Saved " + mpFmtTime(mpPlan.lastUpdated); msg.className = "mp-ssaved ok"; }
     } else if(msg){ msg.textContent = "Save failed"; msg.className = "mp-ssaved"; }
   }catch(e){ if(msg){ msg.textContent = "Couldn't reach store"; msg.className = "mp-ssaved"; } }

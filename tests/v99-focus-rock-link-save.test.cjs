@@ -19,7 +19,9 @@ async function pickRock(env, id, value) {
 }
 
 (async () => {
-  assert.ok(/<!-- build v99 · focus-rock-link-save -->/.test(HTML), "build stamp is v99 · focus-rock-link-save");
+  // "v99 or later" — the exact stamp is asserted by the newest version's test.
+  const stamp = /<!-- build v(\d+) · [a-z0-9-]+ -->/.exec(HTML);
+  assert.ok(stamp && Number(stamp[1]) >= 99, "build stamp is v99 or later");
 
   const env = await boot({ plans: { [AUG]: { ym: AUG, focus: [
     { id: "f1", title: "Rebuild the onboarding call", rockRef: "", notes: "with Dan", done: true },
