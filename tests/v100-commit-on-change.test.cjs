@@ -38,7 +38,9 @@ async function roundTrip(env, commit, read) {
 }
 
 (async () => {
-  assert.ok(/<!-- build v100 · commit-on-change -->/.test(MONTHLY), "build stamp is v100 · commit-on-change");
+  // ">= v100" — the exact stamp is asserted by the newest version's test.
+  const stamp = /<!-- build v(\d+) · [a-z0-9-]+ -->/.exec(MONTHLY);
+  assert.ok(stamp && Number(stamp[1]) >= 100, "build stamp is v100 or later");
 
   /* ---------- 1. every control the audit found now round-trips ---------- */
   const CONTROLS = [

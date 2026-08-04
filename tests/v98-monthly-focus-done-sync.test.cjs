@@ -35,7 +35,10 @@ async function tickDone(env, id, on) {
   // last touched by this change, so its exact stamp still stands.
   const mStamp = /<!-- build v(\d+) · [a-z0-9-]+ -->/.exec(MONTHLY);
   assert.ok(mStamp && Number(mStamp[1]) >= 98, "monthly.html stamped v98 or later");
-  assert.ok(/build v98 · monthly-focus-done-sync/.test(WEEKLY), "index.html stamped v98");
+  // index.html now moves with every release too (v101 made the stamp visible on both
+  // pages and pinned them to the same string), so this is ">= v98" as well.
+  const wStamp = /build v(\d+) · [a-z0-9-]+/.exec(WEEKLY);
+  assert.ok(wStamp && Number(wStamp[1]) >= 98, "index.html stamped v98 or later");
 
   /* ================= PART 1: a tick persists by itself ================= */
   {

@@ -311,6 +311,9 @@
   .mp-personal .mp-item{border-left:2px solid rgba(63,191,127,.28);}
   .mp-personal .mp-add:hover{border-color:var(--green);}
   .mp-intro{font-size:12px;color:var(--ink-dim);line-height:1.5;margin-bottom:11px;}
+  .mp-footer{margin-top:26px;padding-bottom:8px;text-align:center;}
+  .mp-stage{display:inline-block;background:var(--card);border:1px solid var(--line);
+    border-radius:20px;padding:5px 13px;font-size:11px;color:var(--ink-dim);font-weight:600;opacity:.5;}
   .mp-review-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
   /* ===== v93: focus-item notes — resting preview + the modal editor ===== */
   /* The resting control mirrors the Rock select exactly (padding/border/radius/font), so
@@ -369,7 +372,7 @@
 </style>
 </head>
 <body>
-<!-- build v100 · commit-on-change -->
+<!-- build v101 · build-stamp-visible -->
 <header>
   <div class="htop">
     <div class="brand">
@@ -607,6 +610,14 @@
   </div>
   <div id="mpBody"><div class="mp-loading">Loading this month's plan…</div></div>
 </div>
+
+<!-- v101: the build stamp, on screen. It used to exist only as an HTML comment up top, so
+     the Monthly Report never showed which build was live and a refresh looked unchanged
+     after a monthly-only release. Same pill as the Weekly Dashboard's footer, and the two
+     pages carry the SAME suite build string — a test fails if they ever drift apart. -->
+<footer class="mp-footer">
+  <span class="mp-stage">build v101 · build-stamp-visible</span>
+</footer>
 
 <!-- v93: focus-item notes editor — the v70 rich editor in a Today-modal-style dialog.
      Lives outside #mpBody so redrawing the plan never disturbs an open editor. -->
