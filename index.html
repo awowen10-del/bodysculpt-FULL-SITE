@@ -650,6 +650,10 @@
   .wp-pull-sel{background:var(--navy-2);border:1px solid var(--line);color:var(--green);border-radius:9px;
     padding:8px;width:100%;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;}
   .wp-pull-sel:hover{border-color:var(--green);}
+  /* v105: the list is grouped (business focus / personal), so the group headings need to read
+     as headings wherever the browser styles the popup itself rather than using the OS chrome */
+  .wp-pull-sel optgroup{background:var(--navy-2);color:var(--ink-faint);font-style:normal;font-weight:800;}
+  .wp-pull-sel option{background:var(--navy-2);color:var(--green);font-weight:700;}
   .wp-rec-addbtn{background:var(--card-2);border:1px dashed var(--line);color:var(--ink-dim);border-radius:9px;
     padding:8px;width:100%;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;}
   .wp-rec-addbtn:hover{border-color:var(--orange);color:var(--ink);}
@@ -1281,7 +1285,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v104 · anchor-notes-view</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v105 · pull-both-monthly-lists</span>
   </footer>
 </div>
 
@@ -3453,26 +3457,54 @@ function wpToggleReviewChecklist(id){
 
 // ---- project/buffer per-week items ----
 // v61: build the "Pull from Monthly" dropdown for the Projects box. Lists this month's
-// projects that aren't already in this week (matched by sourceProjectId). Returns "" if there
-// are none to offer, so the control only appears when it's useful.
+// monthly items that aren't already in this week (matched by sourceProjectId). Returns "" if
+// there are none to offer, so the control only appears when it's useful.
+//
+// v105 fix: it offers BOTH monthly lists — the business "This Month's Focus" and the
+// "Personal Priorities & Projects" — grouped so you can tell which is which. It had been
+// personal-only: v61 built this against the monthly `priorities` array, which was then the
+// month's general Priorities & Projects list, and v97 repurposed that same array into the
+// PERSONAL counterpart to `focus` without widening the pull path — so from v97 the business
+// focus items (a different array) were silently never offered. Both lists now come from
+// wpAnchorItems, the same reader the monthly anchor renders from, so the picker and the
+// anchor can never disagree about what is in the month.
+const WP_PULL_GROUPS = [
+  { kind:"focus",    label:"This Month's Focus" },
+  { kind:"personal", label:"Personal Priorities & Projects" },
+];
 function wpMonthlyPickerHtml(){
-  const mp = wpMonthProjects && Array.isArray(wpMonthProjects.projects) ? wpMonthProjects.projects : [];
-  if(!mp.length) return "";
   const already = new Set((wpPlan.projectItems||[]).map(it=>it.sourceProjectId).filter(Boolean));
-  const available = mp.filter(p=>p && p.id && p.title && p.title.trim() && !already.has(p.id));
-  if(!available.length) return "";
-  const opts = [`<option value="">Pull from Monthly…</option>`]
-    .concat(available.map(p=>`<option value="${wpEsc(p.id)}">${wpEsc(p.title)}</option>`)).join("");
+  // an item needs an id to be linked/de-duped; wpAnchorItems has already dropped untitled ones
+  const groups = WP_PULL_GROUPS
+    .map(g=>({ kind:g.kind, label:g.label, items:wpAnchorItems(g.kind).filter(p=>p && p.id && !already.has(p.id)) }))
+    .filter(g=>g.items.length);
+  if(!groups.length) return "";
+  const opts = [`<option value="">Pull from Monthly…</option>`].concat(groups.map(g=>
+    `<optgroup label="${wpEsc(g.label)}">${g.items.map(p=>
+      `<option value="${wpEsc(g.kind + ":" + p.id)}">${wpEsc(p.title)}</option>`).join("")}</optgroup>`)).join("");
   return `<select class="wp-pull-sel" onchange="wpPullMonthlyProject(this.value); this.value='';">${opts}</select>`;
 }
-// Add a chosen monthly project into this week's Projects bucket — same shape/linkId/tag as the
+// Add a chosen monthly item into this week's Projects bucket — same shape/linkId/tag as the
 // v60 push, so push and pull are interchangeable and share the same de-dupe.
-function wpPullMonthlyProject(projectId){
-  if(!projectId) return;
+// v105: the picker's value is "<kind>:<id>", so an item resolves in the list it was offered
+// from; a bare id still resolves (both lists searched) so any older caller keeps working.
+// Nothing about the item that gets created or stored changes — both kinds land as the same
+// monthly-linked project item they always did.
+function wpPullMonthlyProject(value){
+  if(!value) return;
   wpSyncFromDom();
-  const proj = (wpMonthProjects.projects||[]).find(p=>p.id===projectId);
+  const s = String(value);
+  const cut = s.indexOf(":");
+  const kind = cut > 0 ? s.slice(0, cut) : "";
+  const projectId = cut > 0 ? s.slice(cut + 1) : s;
+  const lists = (kind === "focus" || kind === "personal") ? [kind] : ["focus","personal"];
+  let proj = null;
+  for(const k of lists){
+    proj = wpAnchorItems(k).find(p=>p && p.id === projectId);
+    if(proj) break;
+  }
   if(!proj) return;
-  const ym = wpMonthProjects.ym || String(wpWeekEnding||"").slice(0,7);
+  const ym = (wpMonthFocus && wpMonthFocus.ym) || wpMonthProjects.ym || String(wpWeekEnding||"").slice(0,7);
   const week = wpWeekEnding;
   const linkId = "monthly:"+ym+":"+projectId+":"+week;
   wpPlan.projectItems = Array.isArray(wpPlan.projectItems) ? wpPlan.projectItems : [];

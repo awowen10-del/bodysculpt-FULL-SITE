@@ -77,8 +77,11 @@ const viewer = (env) => el(env, "wpAnchorNotesBody").innerHTML;
 
 (async () => {
   /* ================= 0. the build stamp ================= */
-  assert.ok(/<!-- build v104 · anchor-notes-view -->/.test(MONTHLY), "monthly.html stamped v104 · anchor-notes-view");
-  assert.ok(/build v104 · anchor-notes-view/.test(WEEKLY), "index.html carries the same stamp");
+  // ">= v104" — the exact stamp is asserted by the newest version's test; both pages still
+  // have to agree on it (v101).
+  const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(MONTHLY);
+  assert.ok(stamp && Number(stamp[1]) >= 104, "monthly.html stamped v104 or later");
+  assert.ok(WEEKLY.includes("build v" + stamp[1] + " · " + stamp[2]), "index.html carries the same stamp");
 
   /* ================= 1. the icon appears ONLY where notes exist ================= */
   {
