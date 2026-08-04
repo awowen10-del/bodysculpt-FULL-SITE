@@ -372,7 +372,7 @@
 </style>
 </head>
 <body>
-<!-- build v102 · monthly-anchor-and-recurring-collapse -->
+<!-- build v103 · personal-parity -->
 <header>
   <div class="htop">
     <div class="brand">
@@ -616,7 +616,7 @@
      after a monthly-only release. Same pill as the Weekly Dashboard's footer, and the two
      pages carry the SAME suite build string — a test fails if they ever drift apart. -->
 <footer class="mp-footer">
-  <span class="mp-stage">build v102 · monthly-anchor-and-recurring-collapse</span>
+  <span class="mp-stage">build v103 · personal-parity</span>
 </footer>
 
 <!-- v93: focus-item notes editor — the v70 rich editor in a Today-modal-style dialog.
@@ -625,7 +625,7 @@
   <div class="mp-modal" role="dialog" aria-modal="true" aria-labelledby="mpNotesTitle">
     <div class="mp-modal-h">
       <div>
-        <div class="mp-modal-kicker">Focus notes</div>
+        <div class="mp-modal-kicker" id="mpNotesKicker">Focus notes</div>
         <div class="mp-modal-title" id="mpNotesTitle"></div>
       </div>
       <button class="mp-modal-close" title="Close (Esc)" onclick="mpCloseNotes()">✕</button>
@@ -1633,14 +1633,19 @@ function mpSyncFromDom(){
   });
   mpPlan.focus = focus;
   const pr = [];
+  // v103: same discipline as focus above — the push-forward provenance has no input of its
+  // own, so carry it across the DOM round-trip by id or a sync would silently drop it.
+  const prevPrio = {};
+  (mpPlan.priorities||[]).forEach(f=>{ if(f && f.id) prevPrio[f.id] = f; });
   body.querySelectorAll('[data-prio]').forEach(el=>{
-    pr.push({
-      id: el.getAttribute("data-pid") || ("mprj-"+Math.random().toString(36).slice(2,9)),
+    const id = el.getAttribute("data-pid") || mpPid();
+    pr.push(Object.assign({}, prevPrio[id] || {}, {
+      id,
       title: (el.querySelector('[data-pf="title"]')||{}).value || "",
       owner: (el.querySelector('[data-pf="owner"]')||{}).value || "",
       status: (el.querySelector('[data-pf="status"]')||{}).value || "Not Started",
       notes: (el.querySelector('[data-pf="notes"]')||{}).value || ""
-    });
+    }));
   });
   mpPlan.priorities = pr;
   const notesEl = body.querySelector('[data-field="mpnotes"]');
@@ -1688,9 +1693,9 @@ function drawMonthlyPlan(){
     const id = it.id;
     const linked = (it.rockRef!==""&&it.rockRef!=null&&mpRocks[Number(it.rockRef)]);
     const from = it.pushedFrom ? `<span class="mp-pushed" title="Copied forward from an earlier month">↩ pushed from ${esc(ymLabel(it.pushedFrom))}</span>` : "";
-    const note = (mpPushNote && mpPushNote.id===id)
-      ? `<span class="mp-pushnote${mpPushNote.warn?" warn":""}">${esc(mpPushNote.text)}</span>` : "";
-    const picker = (mpPushOpen && mpPushOpen.id===id) ? mpPushPickerHtml(id) : "";
+    const pn = mpPushNoteOn("focus", id);
+    const note = pn ? `<span class="mp-pushnote${pn.warn?" warn":""}">${esc(pn.text)}</span>` : "";
+    const picker = mpPushOpenOn("focus", id) ? mpPushPickerHtml("focus", id) : "";
     const prev = mpNotesPreview(it.notes || "");   // v93: one-line resting preview of the note
     return `<div class="mp-item${it.done?" done":""}" data-focus="${esc(id)}">
       <div class="mp-item-top">
@@ -1720,19 +1725,38 @@ function drawMonthlyPlan(){
     <div class="mp-box-body">${focusRows}<button class="mp-add" onclick="mpAddFocus()">+ Add focus item</button></div>
   </div>`;
 
+  // v103: the personal item now matches the business focus item — a visible done state
+  // (Status "Done" is this section's tick), the v93 notes popup, and v90 push-forward.
   const prRows = p.priorities.length ? p.priorities.map(it=>{
-      if(!it.id) it.id = "mprj-"+Math.random().toString(36).slice(2,9);
-      return `<div class="mp-item" data-prio data-pid="${esc(it.id)}">
+      if(!it.id) it.id = mpPid();
+      const id = it.id;
+      const done = mpKind("priorities").isDone(it);
+      const prev = mpNotesPreview(it.notes || "");
+      const from = it.pushedFrom ? `<span class="mp-pushed" title="Copied forward from an earlier month">↩ pushed from ${esc(ymLabel(it.pushedFrom))}</span>` : "";
+      const pn = mpPushNoteOn("priorities", id);
+      const note = pn ? `<span class="mp-pushnote${pn.warn?" warn":""}">${esc(pn.text)}</span>` : "";
+      const picker = mpPushOpenOn("priorities", id) ? mpPushPickerHtml("priorities", id) : "";
+      return `<div class="mp-item${done?" done":""}" data-prio data-pid="${esc(id)}">
       <div class="mp-item-top">
         <input class="mp-title" data-pf="title" value="${esc(it.title||"")}" placeholder="Priority / project" onblur="mpCommit('priorities')">
         <button class="mp-del" onclick="mpRemovePrio(this)">✕</button>
       </div>
       <div class="mp-fields">
         <div class="mp-f"><label>Owner</label><select data-pf="owner" onchange="mpCommit('priorities')">${MP_OWNERS.map(o=>`<option value="${esc(o)}"${o===(it.owner||"")?" selected":""}>${o||"—"}</option>`).join("")}</select></div>
-        <div class="mp-f"><label>Status</label><select data-pf="status" onchange="mpCommit('priorities')">${MP_STATUS.map(s=>`<option${s===(it.status||"Not Started")?" selected":""}>${s}</option>`).join("")}</select></div>
+        <div class="mp-f"><label>Status</label><select data-pf="status" onchange="mpPrioStatus(this)">${MP_STATUS.map(s=>`<option${s===(it.status||"Not Started")?" selected":""}>${s}</option>`).join("")}</select></div>
       </div>
-      <div class="mp-f" style="margin-top:8px"><label>Notes</label><input data-pf="notes" value="${esc(it.notes||"")}" placeholder="Optional" onblur="mpCommit('priorities')"></div>
-      <div class="mp-prio-actions"><button class="mp-week-btn" onclick="mpPushProjectToWeek('${esc(it.id)}')">→ Weekly action</button></div>
+      <div class="mp-f" style="margin-top:8px"><label>Notes</label>
+        <input type="hidden" data-pf="notes" value="${esc(it.notes||"")}">
+        <button type="button" class="mp-notes-open${prev?"":" empty"}" onclick="mpOpenNotesPersonal('${esc(id)}')" title="Open the notes editor">
+          <span class="mp-notes-prev" data-notes-prev>${esc(prev||"Add notes…")}</span><span class="mp-notes-ico">✎</span>
+        </button>
+      </div>
+      <div class="mp-focus-actions mp-prio-actions">
+        <span class="mp-focus-meta">${from}${note}</span>
+        <button class="mp-week-btn" onclick="mpOpenPushPersonal('${esc(id)}')">↪ Push forward</button>
+        <button class="mp-week-btn" onclick="mpPushProjectToWeek('${esc(id)}')">→ Weekly action</button>
+      </div>
+      ${picker}
     </div>`;
     }).join("") : `<div class="mp-rocks-empty">Nothing here yet — the things outside work you want to move this month.</div>`;
   // v97: the personal half of the month. Same section key, same save path, same items —
@@ -1950,28 +1974,27 @@ function mpNotesKeydown(e){
   if(cmd){ e.preventDefault(); document.execCommand(cmd, false, null); }
 }
 
-let mpNotesId = null;          // id of the focus item whose notes modal is open
+let mpNotesId = null;          // id of the item whose notes modal is open
+let mpNotesKind = "focus";     // v103: which list that item lives in
 let mpNotesCloseTimer = null;
 
-function mpFocusItem(id){
-  return ((mpPlan && mpPlan.focus) || []).find(f => (f.id||"") === id) || null;
-}
-// Reach a rendered focus row without needing descendant-selector support.
-function mpFocusRow(id){
-  const body = document.getElementById("mpBody");
-  const rows = (body && body.querySelectorAll) ? body.querySelectorAll("[data-focus]") : [];
-  for(let i=0; i<rows.length; i++){ if(rows[i].getAttribute("data-focus") === id) return rows[i]; }
-  return null;
-}
+function mpFocusItem(id){ return mpItemOf("focus", id); }
+function mpFocusRow(id){ return mpRowOf("focus", id); }
 
-function mpOpenNotes(id){
-  mpSyncFromDom();               // capture any unsaved title/Rock edits before we redraw later
-  const it = mpFocusItem(id);
+// v93 entry point (business focus) and its v103 personal twin — one implementation.
+function mpOpenNotes(id){ return mpOpenNotesFor("focus", id); }
+function mpOpenNotesPersonal(id){ return mpOpenNotesFor("priorities", id); }
+function mpOpenNotesFor(kind, id){
+  mpSyncFromDom();               // capture any unsaved edits before we redraw later
+  const it = mpItemOf(kind, id);
   const ov = document.getElementById("mpNotesOverlay");
   if(!it || !ov) return;
+  mpNotesKind = kind;
   mpNotesId = id;
+  const kick = document.getElementById("mpNotesKicker");
+  if(kick) kick.textContent = mpKind(kind).noun + " notes";
   const t = document.getElementById("mpNotesTitle");
-  if(t) t.textContent = (it.title||"").trim() || "Untitled focus item";
+  if(t) t.textContent = (it.title||"").trim() || ("Untitled " + mpKind(kind).what);
   const body = document.getElementById("mpNotesBody");
   if(body) body.innerHTML = `<div class="mp-notes-rich">
       ${mpNotesToolbarHtml("mpNotesEd")}
@@ -1995,19 +2018,20 @@ function mpSaveNotes(){
   if(!mpPlan || !mpNotesId) return;
   const el = document.getElementById("mpNotesEd");
   if(!el || typeof el.innerHTML !== "string") return;
-  const it = mpFocusItem(mpNotesId);
+  const k = mpKind(mpNotesKind);
+  const it = mpItemOf(mpNotesKind, mpNotesId);
   if(!it) return;
   const stored = mpNotesFromEditor(el);
   if(stored === (it.notes || "")) return;
   it.notes = stored;
-  const row = mpFocusRow(mpNotesId);
+  const row = mpRowOf(mpNotesKind, mpNotesId);
   if(row && row.querySelector){
-    const hidden = row.querySelector('[data-ff="notes"]');
+    const hidden = row.querySelector(mpNotesKind === "priorities" ? '[data-pf="notes"]' : '[data-ff="notes"]');
     if(hidden) hidden.value = stored;
     const prev = row.querySelector("[data-notes-prev]");
     if(prev) prev.textContent = mpNotesPreview(stored) || "Add notes…";
   }
-  return mpCommit("focus");
+  return mpCommit(k.section);
 }
 
 function mpCloseNotes(){
@@ -2048,32 +2072,77 @@ document.addEventListener("click", (e)=>{
    you choose. The copy keeps the title, Rock link and notes, starts unticked, and
    carries a "pushed from <month>" marker so it never looks like an independent plan.
    Pushing the same item into the same month twice is a no-op. */
-let mpPushOpen = null;   // {id, ym} — the focus item whose month picker is open
-let mpPushNote = null;   // {id, text, warn} — one-line result shown on that item
+let mpPushOpen = null;   // {kind, id, ym} — the item whose month picker is open
+let mpPushNote = null;   // {kind, id, text, warn} — one-line result shown on that item
+
+/* v103: the personal section now gets the same three affordances the business focus has —
+   push-forward (v90), the notes popup (v93) and a visible done state (v98). ONE
+   implementation serves both, parameterised by kind, exactly as the weekly app
+   parameterised recurring/training rather than growing a second copy:
+     focus      — business, Rock-linked, done is a boolean
+     priorities — personal, no Rock link, done is Status === "Done"
+   Everything below (picker, copy, de-dupe, notes modal, save path) is shared; only this
+   table differs. The focus-specific entry points are kept as thin wrappers so existing
+   call sites and the v90/v93/v98/v99/v100 tests are untouched. */
+const MP_KINDS = {
+  focus: {
+    section: "focus", what: "focus item", noun: "Focus", rowSel: "[data-focus]", rowAttr: "data-focus",
+    list: () => (mpPlan && mpPlan.focus) || [],
+    isDone: it => !!it.done,
+    // the copy that lands in the target month: title + notes travel, done resets
+    copy: it => ({ id: mpQid(), title: it.title || "", rockRef: (it.rockRef == null ? "" : it.rockRef),
+                   notes: it.notes || "", done: false })
+  },
+  priorities: {
+    section: "priorities", what: "personal item", noun: "Personal", rowSel: "[data-prio]", rowAttr: "data-pid",
+    list: () => (mpPlan && mpPlan.priorities) || [],
+    isDone: it => String(it.status || "") === "Done",
+    // no Rock link on a personal item; owner travels with it, status resets to Not Started
+    copy: it => ({ id: mpPid(), title: it.title || "", owner: it.owner || "",
+                   status: "Not Started", notes: it.notes || "" })
+  }
+};
+function mpKind(k){ return MP_KINDS[k] || MP_KINDS.focus; }
+function mpItemOf(kind, id){ return mpKind(kind).list().find(x => (x.id || "") === id) || null; }
+function mpPid(){ return "mprj-" + Math.random().toString(36).slice(2,9); }
+// Reach a rendered row of either kind without needing descendant-selector support.
+function mpRowOf(kind, id){
+  const k = mpKind(kind);
+  const body = document.getElementById("mpBody");
+  const rows = (body && body.querySelectorAll) ? body.querySelectorAll(k.rowSel) : [];
+  for(let i=0; i<rows.length; i++){ if(rows[i].getAttribute(k.rowAttr) === id) return rows[i]; }
+  return null;
+}
 
 function mpFutureYms(fromYm, count){
   const out = []; let y = fromYm;
   for(let i=0; i<(count||12); i++){ y = nextYm(y); if(!validYm(y)) break; out.push(y); }
   return out;
 }
-function mpPushPickerHtml(id){
+function mpPushPickerHtml(kind, id){
   const target = (mpPushOpen && mpPushOpen.ym) || nextYm(mpYm);
   const opts = mpFutureYms(mpYm, 12)
     .map(y=>`<option value="${y}"${y===target?" selected":""}>${esc(ymLabel(y))}</option>`).join("");
   return `<div class="mp-push" data-push="${esc(id)}">
     <span class="mp-push-lbl">Push a copy to</span>
     <select data-pushym onchange="mpSetPushTarget(this)">${opts}</select>
-    <button class="mp-week-btn go" onclick="mpPushFocusForward('${esc(id)}')">Push forward</button>
+    <button class="mp-week-btn go" onclick="mpPushForward('${kind}','${esc(id)}')">Push forward</button>
     <button class="mp-week-btn" onclick="mpClosePushForward()">Cancel</button>
   </div>`;
 }
-function mpOpenPushForward(id){
+// Is this item's picker the one currently open?
+function mpPushOpenOn(kind, id){ return !!(mpPushOpen && mpPushOpen.kind === kind && mpPushOpen.id === id); }
+function mpPushNoteOn(kind, id){ return (mpPushNote && mpPushNote.kind === kind && mpPushNote.id === id) ? mpPushNote : null; }
+function mpOpenPush(kind, id){
   mpSyncFromDom();
-  if(!(mpPlan.focus||[]).some(f=>(f.id||"")===id)) return;
+  if(!mpItemOf(kind, id)) return;
   mpPushNote = null;
-  mpPushOpen = { id, ym: nextYm(mpYm) };
+  mpPushOpen = { kind, id, ym: nextYm(mpYm) };
   drawMonthlyPlan();
 }
+// v90 entry point, unchanged for the business focus; v103 adds the personal one.
+function mpOpenPushForward(id){ return mpOpenPush("focus", id); }
+function mpOpenPushPersonal(id){ return mpOpenPush("priorities", id); }
 function mpClosePushForward(){ mpSyncFromDom(); mpPushOpen = null; drawMonthlyPlan(); }
 function mpSetPushTarget(sel){ if(mpPushOpen) mpPushOpen.ym = sel.value; }
 // Live <select> wins (it is what the user is looking at); the session state is the fallback.
@@ -2083,49 +2152,58 @@ function mpPushTargetYm(id){
   if(sel && sel.value) return sel.value;
   return (mpPushOpen && mpPushOpen.ym) || nextYm(mpYm);
 }
-async function mpPushFocusForward(id){
+async function mpPushForward(kind, id){
+  const k = mpKind(kind);
   mpSyncFromDom();
-  const it = (mpPlan.focus||[]).find(f=>(f.id||"")===id);
+  const it = mpItemOf(kind, id);
   if(!it) return;
-  if(!(it.title||"").trim()){ window.alert("Give the focus item a title before pushing it forward."); return; }
+  if(!(it.title||"").trim()){ window.alert("Give the " + k.what + " a title before pushing it forward."); return; }
   const target = mpPushTargetYm(id);
   if(!validYm(target) || target === mpYm){ window.alert("Pick a month to push this into."); return; }
   try{
     const r = await fetch(STORE + "?monthlyplan=" + encodeURIComponent(target)).then(x=>x.json());
     const tPlan = (r && r.plan) ? r.plan : null;
-    const focus = (tPlan && Array.isArray(tPlan.focus)) ? tPlan.focus.slice() : [];
+    const list = (tPlan && Array.isArray(tPlan[k.section])) ? tPlan[k.section].slice() : [];
     // De-dupe guard: this exact item already pushed into that month.
-    if(focus.some(f=>f && f.pushedFrom===mpYm && f.pushedFromId===id)){
+    if(list.some(f=>f && f.pushedFrom===mpYm && f.pushedFromId===id)){
       mpPushOpen = null;
-      mpPushNote = { id, text:"Already in " + ymLabel(target) + " — not copied twice.", warn:true };
+      mpPushNote = { kind, id, text:"Already in " + ymLabel(target) + " — not copied twice.", warn:true };
       drawMonthlyPlan(); return;
     }
-    focus.push({
-      id: mpQid(),
-      title: it.title || "",
-      rockRef: (it.rockRef==null ? "" : it.rockRef),
-      notes: it.notes || "",
-      done: false,                 // fresh work in that month
+    list.push(Object.assign(k.copy(it), {
       pushedFrom: mpYm,            // provenance: the month it came from
       pushedFromId: id
-    });
+    }));
+    const patch = { ym: target };
+    patch[k.section] = list;
     const w = await fetch(STORE, { method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ monthlyPlan: { ym: target, focus } }) }).then(x=>x.json());
+      body: JSON.stringify({ monthlyPlan: patch }) }).then(x=>x.json());
     if(!(w && w.ok)){
-      mpPushNote = { id, text:"Push failed — please retry.", warn:true };
+      mpPushNote = { kind, id, text:"Push failed — please retry.", warn:true };
       drawMonthlyPlan(); return;
     }
-    // Persist THIS month's focus exactly as it stands (same payload the Save button sends,
+    // Persist THIS month's list exactly as it stands (same payload the Save button sends,
     // nothing about the original changes) so the "planned, not done" record survives a reload.
-    await mpSaveSection("focus");
+    await mpSaveSection(k.section);
     mpPushOpen = null;
-    mpPushNote = { id, text:"↪ Copied to " + ymLabel(target) + " — still open here." };
+    mpPushNote = { kind, id, text:"↪ Copied to " + ymLabel(target) + " — still open here." };
     drawMonthlyPlan();
   }catch(e){
     mpPushOpen = null;
-    mpPushNote = { id, text:"Push failed: " + e.message, warn:true };
+    mpPushNote = { kind, id, text:"Push failed: " + e.message, warn:true };
     drawMonthlyPlan();
   }
+}
+// v90 entry point, unchanged for the business focus.
+async function mpPushFocusForward(id){ return mpPushForward("focus", id); }
+
+// v103: Status is this section's done-state — the personal equivalent of the v98 Done tick.
+// Flip the row's done styling immediately (so it reads as done without waiting for a
+// redraw), then commit on the priorities path exactly as any other control does.
+function mpPrioStatus(sel){
+  const el = sel && sel.closest ? sel.closest(".mp-item") : null;
+  if(el && el.classList) el.classList.toggle("done", String(sel.value||"") === "Done");
+  return mpCommit("priorities");
 }
 function mpAddPrio(){ mpSyncFromDom(); mpPlan.priorities.push({title:"",owner:"",status:"Not Started",notes:""}); drawMonthlyPlan(); }
 // v60: push a monthly project down into a week's plan as a Project task (one-way). Mirrors the

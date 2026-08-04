@@ -229,7 +229,10 @@ function cleanMonthlyFocus(list) {
 // what the section's inputs produce. `rockRef` is deliberately NOT here — the section is the
 // personal counterpart to focus now, so a Rock link stored before the repurpose is dropped
 // on the next save. Everything else on the item survives untouched.
-const MONTHLY_PRIORITY_STRINGS = { title: 400, owner: 60, status: 40, notes: 2000 };
+// v103: two additions, mirroring the focus item exactly — `notes` is now a rich-notes field
+// (same "<!--wp:rich-->" marker + client-sanitised HTML, so the cap rises from a one-line
+// 2000 to 20000), and pushedFrom/pushedFromId carry the push-forward provenance.
+const MONTHLY_PRIORITY_STRINGS = { title: 400, owner: 60, status: 40, notes: 20000 };
 function cleanMonthlyPriorities(list) {
   return list
     .filter((p) => p && typeof p === "object")
@@ -238,6 +241,10 @@ function cleanMonthlyPriorities(list) {
       const d = { id: typeof p.id === "string" ? p.id.slice(0, 40) : "" };
       for (const k of Object.keys(MONTHLY_PRIORITY_STRINGS)) {
         d[k] = typeof p[k] === "string" ? p[k].slice(0, MONTHLY_PRIORITY_STRINGS[k]) : "";
+      }
+      if (typeof p.pushedFrom === "string" && validYm(p.pushedFrom)) {
+        d.pushedFrom = p.pushedFrom;
+        d.pushedFromId = typeof p.pushedFromId === "string" ? p.pushedFromId.slice(0, 40) : "";
       }
       return d;
     });

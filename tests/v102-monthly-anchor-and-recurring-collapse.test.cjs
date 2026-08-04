@@ -51,8 +51,9 @@ async function week(opts) {
 }
 
 (async () => {
-  assert.ok(/build v102 · monthly-anchor-and-recurring-collapse/.test(WEEKLY),
-    "build stamp is v102 · monthly-anchor-and-recurring-collapse");
+  // ">= v102" — the exact stamp is asserted by the newest version's test.
+  const stamp = /build v(\d+) · [a-z0-9-]+/.exec(WEEKLY);
+  assert.ok(stamp && Number(stamp[1]) >= 102, "build stamp is v102 or later");
 
   /* ================= 1. the two-column monthly anchor ================= */
   {
