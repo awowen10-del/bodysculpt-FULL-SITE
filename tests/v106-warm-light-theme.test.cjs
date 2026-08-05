@@ -44,8 +44,11 @@ const MEANING = ["--orange", "--teal", "--green", "--amber", "--red", "--blue", 
 
 (async () => {
   /* ================= 0. the build stamp ================= */
-  assert.ok(/<!-- build v106 · warm-light-theme -->/.test(MONTHLY), "monthly.html stamped v106 · warm-light-theme");
-  assert.ok(/build v106 · warm-light-theme/.test(WEEKLY), "index.html carries the same stamp");
+  // v107 relaxed this from the pinned v106 stamp to "at least v106" — the newest version's
+  // test pins the exact stamp, older ones only assert they haven't gone backwards.
+  const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(MONTHLY);
+  assert.ok(stamp && Number(stamp[1]) >= 106, "monthly.html stamped v106 or later");
+  assert.ok(WEEKLY.includes("build v" + stamp[1] + " · " + stamp[2]), "index.html carries the same stamp");
 
   /* ================= 1. one palette, in one place, per page ================= */
   for (const f of FILES) {

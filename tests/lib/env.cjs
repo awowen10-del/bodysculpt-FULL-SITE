@@ -149,7 +149,12 @@ async function boot(opts = {}) {
     }
     if (u.includes("settings=1")) return reply({ settings: null });
     if (u.includes("reset=YES")) return reply({ ok: true });
-    if (u.endsWith("kpi-store")) return reply({ weeks: [] }); // invalid → app falls back to SEED
+    // v107: opts.weeks lets a test plant real KPI history (>=5 dated weeks, or Store.all
+    // treats it as invalid and falls back to SEED) so WEEKS/DERIVED are built by the app's
+    // own boot path. The array is served BY REFERENCE, so a test can push a newly-entered
+    // week onto it and drive the app's real reloadAndRender(). Defaults to [] — exactly the
+    // old always-fall-back-to-SEED behaviour, so no existing test is affected.
+    if (u.endsWith("kpi-store")) return reply({ weeks: opts.weeks || [] });
     return Promise.resolve({ ok: false, status: 404, json: async () => ({}) });
   };
 
@@ -210,6 +215,15 @@ async function boot(opts = {}) {
     " get weekEnding(){ return wpWeekEnding; }," +
     " get navWeeks(){ return NAV_WEEKS; }," +
     " get timer(){ return wpTimer; }, set timer(v){ wpTimer = v; }" +
+    " };" +
+    // v107: the KPI/Facebook side of the app is let-bound the same way. All READ-ONLY on
+    // purpose — a test plants data by serving it (opts.weeks) and drives the app's own load,
+    // rather than poking WEEKS from outside, and the mid-week check's temporary state must
+    // only ever be reachable through the app's own functions.
+    "\n;globalThis.__fbState = {" +
+    " get weeks(){ return WEEKS; }," +
+    " get derived(){ return DERIVED; }," +
+    " get override(){ return mwcOverride; }" +
     " };";
   vm.runInContext(code, sandbox, { filename: "index-inline-script.js" });
 

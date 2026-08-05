@@ -365,9 +365,48 @@
     box-shadow:0 0 0 2px var(--navy);transform:translateX(-50%);}
   .fb-funnel{font-size:12px;color:var(--ink-faint);}
   .fb-funnel b{color:var(--ink-dim);}
-  .campaignbar{margin:16px 0 14px;}
+  .campaignbar{margin:16px 0 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
   .campaignbar select{background:var(--card);color:var(--ink);border:1px solid var(--line);
     border-radius:10px;padding:9px 13px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;min-width:240px;}
+  /* v107: mid-week check — a TEMPORARY, display-only override of the campaign-to-date
+     figures. Amber everywhere (the "watch / not the real record" accent), never orange,
+     so an overridden view can never be misread as the saved one. */
+  .mwc-open{background:transparent;color:var(--amber);border:1px solid var(--amber);border-radius:10px;
+    padding:9px 13px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;}
+  .mwc-open:hover{background:rgba(var(--amber-rgb),.12);}
+  .mwc-open.on{background:var(--amber);color:var(--on-accent);}
+  .mwc-panel{background:var(--card);border:1px solid var(--amber);border-left:4px solid var(--amber);
+    border-radius:var(--radius);padding:16px 18px;margin-bottom:14px;}
+  .mwc-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:13px;}
+  .mwc-title{font-size:14px;font-weight:800;letter-spacing:-.2px;color:var(--tint-amber);}
+  .mwc-sub{font-size:12px;color:var(--ink-faint);margin-top:4px;line-height:1.5;max-width:70ch;}
+  .mwc-sub b{color:var(--ink-dim);}
+  .mwc-x{margin-left:auto;background:none;border:0;color:var(--ink-faint);font-size:15px;
+    cursor:pointer;font-family:inherit;flex:0 0 auto;}
+  .mwc-x:hover{color:var(--ink);}
+  .mwc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px;}
+  .mwc-f{background:var(--navy-2);border:1px solid var(--line);border-radius:10px;padding:9px 11px;}
+  .mwc-f label{display:block;font-size:10.5px;letter-spacing:.4px;text-transform:uppercase;
+    color:var(--ink-faint);font-weight:700;margin-bottom:3px;}
+  .mwc-f input{width:100%;background:transparent;border:0;color:var(--ink);padding:0;
+    font-size:19px;font-weight:800;letter-spacing:-.4px;font-family:inherit;}
+  .mwc-f input:focus{outline:none;}
+  .mwc-f.edited{border-color:var(--amber);background:rgba(var(--amber-rgb),.12);}
+  .mwc-derived{display:flex;flex-wrap:wrap;gap:8px 22px;padding:11px 13px;margin-bottom:12px;
+    background:rgba(var(--amber-rgb),.10);border:1px solid rgba(var(--amber-rgb),.35);border-radius:10px;}
+  .mwc-d{display:flex;align-items:baseline;gap:7px;}
+  .mwc-dk{font-size:11.5px;color:var(--ink-faint);font-weight:600;}
+  .mwc-dv{font-size:15px;font-weight:800;color:var(--ink);letter-spacing:-.3px;}
+  .mwc-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .mwc-reset{background:var(--navy-2);border:1px solid var(--line);color:var(--ink-dim);border-radius:9px;
+    padding:8px 12px;font-size:12.5px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;}
+  .mwc-reset:hover{border-color:var(--amber);color:var(--amber);}
+  .mwc-foot{font-size:11.5px;color:var(--ink-faint);}
+  /* the banner that rides ON the campaign card for as long as what's shown is overridden */
+  .camp-override{display:flex;align-items:center;gap:9px;background:rgba(var(--amber-rgb),.14);
+    border:1px solid var(--amber);border-radius:10px;padding:9px 12px;margin-bottom:14px;
+    font-size:12.5px;font-weight:700;color:var(--tint-amber);}
+  .fb-card.overridden{border-color:var(--amber);}
   .fb-empty{background:var(--card);border:1px dashed var(--line);border-radius:var(--radius);padding:20px;
     color:var(--ink-faint);font-size:13px;text-align:center;}
   .fb-reports{margin-top:16px;border-top:1px solid var(--line);padding-top:14px;}
@@ -1354,7 +1393,10 @@
     <div id="campaignWrap" hidden>
       <div class="campaignbar">
         <select id="campaignSel"></select>
+        <!-- v107: opens the temporary, display-only mid-week override. No save path. -->
+        <button class="mwc-open" id="mwcBtn" type="button" onclick="mwcToggle()">Mid-week check</button>
       </div>
+      <div id="mwcPanel" hidden></div>
       <div id="campaignView"></div>
     </div>
   </div><!-- /fbView -->
@@ -1375,7 +1417,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v106 · warm-light-theme</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v107 · midweek-check</span>
   </footer>
 </div>
 
@@ -5089,6 +5131,7 @@ function wireViewToggle(){
     Object.keys(tabs).forEach(k=>{ if(tabs[k]) tabs[k].classList.toggle('active', k===which); });
     // entry/edit action buttons are relevant on the KPIs tab (week data); hidden on FB/Table/Plan
     if(wa) wa.style.display = (which==='kpi') ? 'flex' : 'none';
+    if(which!=='fb') mwcAbandon();   // v107: leaving the FB tab throws away any mid-week override
     if(which==='table') buildQuarterSelector();
     if(which==='plan') loadWeeklyPlan();
     window.scrollTo({top:0,behavior:'smooth'});
@@ -5181,6 +5224,9 @@ function wireCollapsibles(){
       const open=wrap.hidden;
       wrap.hidden=!open;
       tog.classList.toggle('open',open);
+      // v107: collapsing "Campaign to date" throws away any mid-week override, so the next
+      // time it's opened it's showing the real saved numbers again.
+      if(!open && t==='campaignToggle') mwcAbandon();
       if(open && t==='mentorToggle' && !document.getElementById('mentorBox').value){
         document.getElementById('mentorBox').value=buildMentorSummary();
       }
@@ -6435,12 +6481,170 @@ function renderFbWeek(){
     </div>`;
   }).join('');
 }
+/* ===================== v107: MID-WEEK CHECK =====================
+   KPI weeks run Sunday–Saturday, so a sale that lands on a Sunday isn't in the saved figures
+   until the NEXT week is entered. A mid-week look at a campaign therefore understates it —
+   CPA reads high because recent sales aren't counted yet — and that is exactly the moment a
+   campaign that's actually working gets killed by mistake.
+
+   This lets those campaign-to-date figures be corrected FOR THE LOOK ONLY. The safety rules
+   are structural, not just conventional:
+     * `mwcOverride` is a plain object held in memory. Nothing in this block serialises it,
+       posts it, stores it, or merges it into WEEKS/DERIVED — there is no call to Store.save,
+       no fetch, no localStorage anywhere below. The saved record is read and copied, never
+       written. When the real weekly numbers are entered later they are untouched by anything
+       typed here.
+     * It is display-derived state only. campaignFigures() decides what the view SHOWS; the
+       actuals are always still there underneath, and every derived number comes out of
+       fbCalc() — the same one function the real campaign view and the weekly cards use, so
+       the maths cannot drift from the real thing.
+     * It is discarded on every exit: closing the panel, "Reset to actual", switching
+       campaign, collapsing the section, leaving the Facebook tab, saving new FB numbers —
+       and, being memory only, any refresh. Re-opening always re-prefills from the record. */
+const MWC_FIELDS = [
+  {key:'adSpend',     label:'Total spend (£)',    step:'0.01'},
+  {key:'impressions', label:'Impressions',        step:'1'},
+  {key:'linkClicks',  label:'Link clicks',        step:'1'},
+  {key:'leads',       label:'Leads',              step:'1'},
+  {key:'sales',       label:'Sales / sign-ups',   step:'1'},
+];
+/* Every computed figure the campaign view shows, formatted exactly as it is there. Both the
+   panel's live strip and the card read from the same fbCalc() result. */
+const MWC_DERIVED = [
+  {key:'cpa',      label:'Blended CPA',     fmt:(m,f)=>f.sales?'£'+m.cpa.toFixed(2):'—'},
+  {key:'cpl',      label:'Blended CPL',     fmt:(m)=>'£'+m.cpl.toFixed(2)},
+  {key:'leadSale', label:'Lead to sale',    fmt:(m)=>m.leadSale.toFixed(1)+'%'},
+  {key:'pageConv', label:'Page conversion', fmt:(m)=>m.pageConv.toFixed(1)+'%'},
+  {key:'ctr',      label:'Link CTR',        fmt:(m)=>m.ctr.toFixed(2)+'%'},
+  {key:'revenue',  label:'Revenue',         fmt:(m)=>'£'+m.revenue.toLocaleString('en-GB')},
+  {key:'roas',     label:'ROAS',            fmt:(m)=>m.roas.toFixed(2)+'×'},
+];
+let mwcOverride=null;   // {campaign,adSpend,impressions,linkClicks,leads,sales,weeks} | null
+
+/* The SAVED campaign-to-date totals, summed straight off WEEKS. Pure read, and it builds a
+   fresh object every call, so nothing downstream can end up holding a reference into a week
+   record and mutating it by accident. */
+function campaignActuals(name){
+  const t={campaign:name,adSpend:0,impressions:0,linkClicks:0,leads:0,sales:0,weeks:0};
+  WEEKS.forEach(w=>(w.fbCampaigns||[]).forEach(c=>{ if(c.campaign===name){
+    t.adSpend+=c.adSpend||0; t.impressions+=c.impressions||0; t.linkClicks+=c.linkClicks||0;
+    t.leads+=c.leads||0; t.sales+=c.sales||0; t.weeks++; } }));
+  return t;
+}
+/* What the campaign view should DISPLAY. The override shadows the actuals, it never replaces
+   them — `actual` is returned alongside so the two can always be told apart. */
+function campaignFigures(name){
+  const actual=campaignActuals(name);
+  if(mwcOverride && mwcOverride.campaign===name) return {figures:{...mwcOverride}, actual, overridden:true};
+  return {figures:actual, actual, overridden:false};
+}
+/* Which fields have actually been moved off the saved value — drives the per-field highlight
+   and the "n figures overridden" footnote. */
+function mwcDirtyKeys(){
+  if(!mwcOverride) return [];
+  const a=campaignActuals(mwcOverride.campaign);
+  return MWC_FIELDS.map(f=>f.key).filter(k=>Number(mwcOverride[k])!==Number(a[k]));
+}
+function mwcCurrentCampaign(){
+  const sel=document.getElementById('campaignSel');
+  return sel && allCampaignNames().includes(sel.value) ? sel.value : '';
+}
+/* The single teardown path — throw the override away and close the panel. Every exit route
+   funnels through here, so there is exactly one place the temporary state can die. */
+function mwcDiscard(){
+  mwcOverride=null;
+  // Clear the derived strip and footnote explicitly BEFORE emptying their container. Dropping
+  // the panel's innerHTML would take them with it, but clearing them by hand means no element
+  // anywhere is left holding a what-if number, whatever the surrounding DOM looks like.
+  const d=document.getElementById('mwcDerived'); if(d) d.innerHTML='';
+  const f=document.getElementById('mwcFoot'); if(f) f.textContent='';
+  const p=document.getElementById('mwcPanel'); if(p){ p.hidden=true; p.innerHTML=''; }
+  const b=document.getElementById('mwcBtn'); if(b) b.classList.remove('on');
+}
+/* Discard AND repaint — used wherever the user leaves the view rather than closing the panel
+   deliberately (tab switch, section collapse), so the card can't be left showing what-ifs. */
+function mwcAbandon(){ if(!mwcOverride) return; mwcDiscard(); renderCampaign(); }
+function mwcClose(){ mwcDiscard(); renderCampaign(); }
+function mwcToggle(){ if(mwcOverride){ mwcClose(); return; } mwcOpenPanel(); }
+function mwcOpenPanel(){
+  const name=mwcCurrentCampaign();
+  if(!name) return;
+  mwcOverride=campaignActuals(name);   // pre-filled with the real saved numbers (a copy of them)
+  const p=document.getElementById('mwcPanel');
+  p.innerHTML=mwcPanelHtml(name);
+  p.hidden=false;
+  const b=document.getElementById('mwcBtn'); if(b) b.classList.add('on');
+  mwcPaint();
+}
+function mwcPanelHtml(name){
+  // NOTE the class names: mwc-in, never the fb-* classes the weekly entry form saves from.
+  // These inputs also live outside #fbCampaignBlocks, so the FB save loop cannot see them.
+  const fields=MWC_FIELDS.map(f=>`
+      <div class="mwc-f" id="mwcF_${f.key}">
+        <label for="mwcIn_${f.key}">${f.label}</label>
+        <input id="mwcIn_${f.key}" class="mwc-in" type="number" step="${f.step}" min="0" inputmode="decimal"
+               value="${mwcOverride[f.key]}" oninput="mwcEdit('${f.key}',this.value)">
+      </div>`).join('');
+  return `<div class="mwc-panel">
+    <div class="mwc-head">
+      <div>
+        <div class="mwc-title">⚠ Mid-week check — not saved</div>
+        <div class="mwc-sub">Temporary what-if figures for <b>${name}</b>, for when sales have landed
+          but this week's numbers aren't entered yet. Everything below recalculates live off what you
+          type. <b>Nothing here is saved anywhere</b> — close it, reset it or refresh the page and your
+          real record is exactly as it was.</div>
+      </div>
+      <button class="mwc-x" type="button" title="Close and discard" onclick="mwcClose()">✕</button>
+    </div>
+    <div class="mwc-grid">${fields}</div>
+    <div class="mwc-derived" id="mwcDerived"></div>
+    <div class="mwc-actions">
+      <button class="mwc-reset" type="button" onclick="mwcReset()">Reset to actual</button>
+      <span class="mwc-foot" id="mwcFoot"></span>
+    </div>
+  </div>`;
+}
+function mwcEdit(key,raw){
+  if(!mwcOverride) return;
+  const n=raw===''?0:Number(raw);
+  mwcOverride[key]=Number.isFinite(n)?n:0;
+  mwcPaint();
+}
+function mwcReset(){
+  if(!mwcOverride) return;
+  mwcOverride=campaignActuals(mwcOverride.campaign);   // straight back to the saved numbers
+  MWC_FIELDS.forEach(f=>{ const el=document.getElementById('mwcIn_'+f.key); if(el) el.value=mwcOverride[f.key]; });
+  mwcPaint();
+}
+/* Repaint everything the override feeds: the panel's live derived strip, the edited-field
+   marks, the footnote, and the campaign card itself. The INPUTS are deliberately not
+   re-rendered here, so typing is never interrupted mid-keystroke. */
+function mwcPaint(){
+  const d=document.getElementById('mwcDerived');
+  if(d && mwcOverride){
+    const m=fbCalc(mwcOverride);   // the real calc — derived figures are never re-implemented here
+    d.innerHTML=MWC_DERIVED.map(x=>
+      `<div class="mwc-d"><span class="mwc-dk">${x.label}</span><span class="mwc-dv">${x.fmt(m,mwcOverride)}</span></div>`).join('');
+  }
+  const dirty=mwcDirtyKeys();
+  MWC_FIELDS.forEach(f=>{
+    const el=document.getElementById('mwcF_'+f.key);
+    if(el) el.classList.toggle('edited', dirty.includes(f.key));
+  });
+  const foot=document.getElementById('mwcFoot');
+  if(foot) foot.textContent = dirty.length
+    ? `${dirty.length} figure${dirty.length===1?'':'s'} overridden · display only, nothing saved`
+    : 'Showing your actual saved figures';
+  renderCampaign();
+}
+
 function buildCampaignSelector(){
   const sel=document.getElementById('campaignSel');
   const names=allCampaignNames();
+  mwcDiscard();   // v107: rebuilding the selector means the underlying numbers moved — drop any override
   if(!names.length){ sel.innerHTML='<option>No campaigns yet</option>'; renderCampaign(); return; }
   sel.innerHTML=names.map(n=>`<option value="${n}">${n}</option>`).join('');
-  sel.onchange=renderCampaign;
+  sel.onchange=()=>{ mwcDiscard(); renderCampaign(); };   // an override belongs to one campaign only
   renderCampaign();
 }
 function renderCampaign(){
@@ -6449,13 +6653,15 @@ function renderCampaign(){
   const name=sel.value;
   const names=allCampaignNames();
   if(!names.length){ view.innerHTML='<div class="fb-empty">Campaign totals appear here once you\'ve entered Facebook data.</div>'; return; }
-  // gather all weeks' entries for this campaign
-  let spend=0,impr=0,clicks=0,leads=0,sales=0,weeks=0;
-  WEEKS.forEach(w=>(w.fbCampaigns||[]).forEach(c=>{ if(c.campaign===name){
-    spend+=c.adSpend; impr+=c.impressions; clicks+=c.linkClicks; leads+=c.leads; sales+=c.sales; weeks++; } }));
-  const ctr=impr?(clicks/impr)*100:0, pageConv=clicks?(leads/clicks)*100:0, leadSale=leads?(sales/leads)*100:0;
-  const revenue=sales*PROGRAM_PRICE, roas=spend?revenue/spend:0, cpl=leads?spend/leads:0, cpa=sales?spend/sales:0;
-  view.innerHTML=`<div class="fb-card">
+  // v107: what's DISPLAYED may be a temporary mid-week override; the saved weeks are only read.
+  const {figures:t, overridden}=campaignFigures(name);
+  const {ctr,pageConv,leadSale,cpl,cpa,revenue,roas}=fbCalc(t);   // one shared calc, same as the weekly cards
+  const spend=t.adSpend, impr=t.impressions, clicks=t.linkClicks, leads=t.leads, sales=t.sales, weeks=t.weeks;
+  const banner = overridden
+    ? `<div class="camp-override">⚠ Mid-week check — temporary what-if numbers, not your saved record.</div>`
+    : '';
+  view.innerHTML=`<div class="fb-card${overridden?' overridden':''}">
+    ${banner}
     <div class="fb-name">${name}</div>
     <div class="fb-roas">${weeks} week${weeks===1?'':'s'} · Revenue <b>£${revenue.toLocaleString('en-GB')}</b> on £${spend.toLocaleString('en-GB',{minimumFractionDigits:0,maximumFractionDigits:2})} spend · ROAS <b>${roas.toFixed(2)}×</b></div>
     <div class="camp-headline">
