@@ -39,9 +39,9 @@
   :root{
     /* metrics — not themed */
     --radius:16px;
-    /* v95: one height for the focus item's side-by-side Rock select + Notes control,
-       so the pair can never drift apart again. */
-    --mp-field-h:34px;
+    /* v95's --mp-field-h went in v109: it existed to keep the focus row's side-by-side Rock
+       select and Notes control the same height, and the tile stacks them instead (the note
+       moved off the tile face entirely). */
   }
   :root,:root[data-theme="dark"]{
     color-scheme:dark;
@@ -344,8 +344,41 @@
   .mp-rocks-empty{font-size:12.5px;color:var(--ink-faint);line-height:1.6;}
   .mp-rocks-empty a{color:var(--orange-soft);cursor:pointer;text-decoration:underline;}
   .mp-item{background:var(--card-2);border:1px solid var(--line);border-radius:10px;padding:11px;margin-bottom:9px;}
-  .mp-item-top{display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap;}
-  .mp-item-top input.mp-title{flex:1 1 180px;min-width:140px;font-weight:600;}
+  .mp-item input.mp-title{font-weight:600;}
+  /* ===== v109: focus / personal items are TILES in a 3-across grid =====
+     Three columns at full width, two on a narrow desktop, one on a phone. The counts are
+     set explicitly rather than by auto-fit, because "3 across" is the ask, not whatever
+     falls out of the container width (auto-fit gives 4–5 columns at this page's 1500px).
+     minmax(0,1fr) is what makes the columns actually equal — a grid item's min-width:auto
+     otherwise lets a long <select> option push its column wider, the same trap v93 hit.
+     Grid rows stretch by default, so every tile in a row is as tall as the tallest one;
+     the tile is a flex COLUMN whose footer takes margin-top:auto, so the controls sit on
+     the bottom edge instead of floating mid-tile and the row reads as a row. That is the
+     v79 idiom from the weekly app's side-by-side Buffer/Training cards. */
+  .mp-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:stretch;}
+  @media(max-width:1080px){ .mp-tiles{grid-template-columns:repeat(2,minmax(0,1fr));} }
+  @media(max-width:700px){ .mp-tiles{grid-template-columns:minmax(0,1fr);} }
+  /* the tile itself: same card as the row it replaces, now a column with a pinned footer */
+  .mp-tiles .mp-item{margin-bottom:0;display:flex;flex-direction:column;gap:8px;min-width:0;
+    box-shadow:0 1px 2px rgba(var(--shadow-rgb),.05);}
+  .mp-tile-foot{margin-top:auto;display:flex;flex-direction:column;gap:7px;}
+  .mp-tile-ctl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .mp-tile-ctl .mp-del{margin-left:auto;}
+  /* provenance/link tags live under the controls; the row collapses when there are none */
+  .mp-tile-tags{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .mp-tile-tags:empty{display:none;}
+  /* v109: the note is never on the tile face — this is the door to the v93 popup. Quiet
+     when the item has no note yet, accented once it has one, so a glance down the grid
+     shows which items carry thinking without any of it taking up tile space. */
+  .mp-note-ico{flex:none;width:30px;height:30px;padding:0;line-height:1;font-size:14px;cursor:pointer;
+    display:inline-flex;align-items:center;justify-content:center;border-radius:8px;
+    background:rgba(var(--orange-rgb),.12);border:1px solid rgba(var(--orange-rgb),.28);color:var(--orange-soft);}
+  .mp-note-ico:hover{border-color:var(--orange);}
+  .mp-note-ico.empty{background:transparent;border:1px solid var(--line);color:var(--ink-faint);opacity:.85;}
+  .mp-note-ico.empty:hover{opacity:1;color:var(--ink-dim);}
+  .mp-personal .mp-note-ico{background:rgba(var(--green-rgb),.12);border-color:rgba(var(--green-rgb),.3);color:var(--green);}
+  .mp-personal .mp-note-ico:hover{border-color:var(--green);}
+  .mp-personal .mp-note-ico.empty{background:transparent;border-color:var(--line);color:var(--ink-faint);}
   /* v90: the Done toggle. It used to be crushed by the generic "#mpBody input{width:100%}"
      rule below (id specificity beat the old .mp-chk sizing), which stretched the checkbox
      and squeezed the word "Done" out of its box. Checkboxes now opt out of that rule and
@@ -357,21 +390,12 @@
   .mp-item.done .mp-done{border-color:rgba(var(--green-rgb),.5);background:rgba(var(--green-rgb),.14);color:var(--green);}
   .mp-item.done{border-color:rgba(var(--green-rgb),.32);}
   .mp-item.done input.mp-title{text-decoration:line-through;color:var(--ink-faint);}
-  /* v93: min-width:0 is what makes the two columns actually equal — grid items default to
-     min-width:auto, so the Rock <select>'s widest option was pushing its column wider
-     than Notes. Both controls then share the same padding/border/font below. */
-  .mp-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:start;}
+  /* v93: min-width:0 is what makes a field cell actually shrink — it defaults to
+     min-width:auto, so the Rock <select>'s widest option would otherwise push the cell
+     (and in v109 the whole tile column) wider than its share of the grid. */
   .mp-f{display:flex;flex-direction:column;gap:3px;min-width:0;}
-  /* v95: on a focus item the Rock <select> and the Notes control are a matched pair, but a
-     native select's intrinsic line-height left it a couple of px shorter than the notes
-     button. Both now take one explicit height, the cells stretch to the same height, and
-     the labels above them stay on one line — so the pair aligns top AND bottom on every
-     row, empty or filled. Widths are untouched. */
-  .mp-fields-focus{align-items:stretch;}
-  .mp-fields-focus .mp-f > label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  #mpBody .mp-fields-focus select,
-  #mpBody .mp-fields-focus .mp-notes-open{height:var(--mp-field-h);min-height:var(--mp-field-h);line-height:1.2;}
-  .mp-f label{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint);font-weight:700;}
+  .mp-f label{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint);font-weight:700;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   #mpBody input:not([type=checkbox]), #mpBody select, #mpBody textarea{background:var(--navy);color:var(--ink);border:1px solid var(--line);
     border-radius:7px;padding:7px 9px;font-family:inherit;font-size:12.5px;width:100%;}
   #mpBody .mp-done input[type=checkbox]{width:16px;height:16px;min-width:16px;flex:none;margin:0;padding:0;
@@ -384,15 +408,17 @@
   .mp-add{background:var(--card-2);border:1px dashed var(--line);color:var(--ink-dim);border-radius:9px;
     padding:9px;width:100%;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;margin-top:2px;}
   .mp-add:hover{border-color:var(--orange);color:var(--ink);}
-  .mp-prio-actions{margin-top:8px;display:flex;justify-content:flex-end;}
+  /* v109: in the grid the "+ Add …" control IS the last tile, so it takes a tile's height
+     rather than a row's, and the Rocks anchor's read-only cards lose their stacking margin. */
+  .mp-tiles .mp-add{margin-top:0;min-height:72px;}
+  .mp-tiles .mp-rock{margin-bottom:0;}
   .mp-week-btn{background:transparent;border:1px solid var(--line);color:var(--ink-dim);border-radius:7px;
     padding:5px 11px;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;}
   .mp-week-btn:hover{border-color:var(--orange);color:var(--orange-soft);}
   .mp-linktag{font-size:10.5px;font-weight:700;color:var(--orange-soft);background:rgba(var(--orange-rgb),.12);
     border:1px solid rgba(var(--orange-rgb),.28);border-radius:7px;padding:0 10px;white-space:nowrap;}
-  /* v90: push-forward row — provenance marker, result note, and the inline month picker. */
-  .mp-focus-actions{margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
-  .mp-focus-meta{margin-right:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  /* v90: push-forward provenance marker, result note, and the inline month picker. v109
+     moved the first two into the tile's tag row; the picker still opens under the item. */
   .mp-pushed{font-size:10.5px;font-weight:700;color:var(--ink-dim);background:rgba(var(--ink-dim-rgb),.10);
     border:1px solid var(--line);border-radius:999px;padding:3px 9px;white-space:nowrap;}
   .mp-pushnote{font-size:11px;font-weight:700;color:var(--green);}
@@ -416,17 +442,10 @@
   .mp-stage{display:inline-block;background:var(--card);border:1px solid var(--line);
     border-radius:20px;padding:5px 13px;font-size:11px;color:var(--ink-dim);font-weight:600;opacity:.5;}
   .mp-review-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-  /* ===== v93: focus-item notes — resting preview + the modal editor ===== */
-  /* The resting control mirrors the Rock select exactly (padding/border/radius/font), so
-     the two columns line up to the pixel; the note itself is edited in the modal. */
-  .mp-notes-open{width:100%;display:flex;align-items:center;gap:7px;text-align:left;
-    background:var(--navy);color:var(--ink);border:1px solid var(--line);border-radius:7px;
-    padding:7px 9px;font-family:inherit;font-size:12.5px;line-height:1.35;cursor:pointer;overflow:hidden;}
-  .mp-notes-open:hover{border-color:var(--orange);}
-  .mp-notes-prev{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .mp-notes-open.empty .mp-notes-prev{color:var(--ink-faint);}
-  .mp-notes-ico{flex:none;font-size:11px;color:var(--ink-faint);}
-  .mp-notes-open:hover .mp-notes-ico{color:var(--orange-soft);}
+  /* ===== v93: focus-item notes — the modal editor =====
+     v109 removed the resting one-line preview from the item: on a ~1/3-width tile it was
+     the control that made everything else cramped. The note is reached from the tile's
+     🗒 button (.mp-note-ico above) and lives entirely in this modal. */
   /* Modal: same shape as the weekly app's v67 Today modal — blurred backdrop, scale/fade in. */
   .mp-modal-overlay{position:fixed;inset:0;z-index:10000;display:flex;align-items:flex-start;justify-content:center;
     padding:6vh 16px 40px;overflow-y:auto;background:rgba(var(--backdrop-rgb),.62);
@@ -473,7 +492,7 @@
 </style>
 </head>
 <body>
-<!-- build v108 · neutral-light-theme -->
+<!-- build v109 · focus-tile-grid -->
 <header>
   <div class="htop">
     <div class="brand">
@@ -718,7 +737,7 @@
      after a monthly-only release. Same pill as the Weekly Dashboard's footer, and the two
      pages carry the SAME suite build string — a test fails if they ever drift apart. -->
 <footer class="mp-footer">
-  <span class="mp-stage">build v108 · neutral-light-theme</span>
+  <span class="mp-stage">build v109 · focus-tile-grid</span>
 </footer>
 
 <!-- v93: focus-item notes editor — the v70 rich editor in a Today-modal-style dialog.
@@ -1826,13 +1845,15 @@ function drawMonthlyPlan(){
 
   let rocksHtml;
   if(mpRocks.length){
-    rocksHtml = mpRocks.map((r,i)=>`<div class="mp-rock">
+    // v109: the Rocks anchor takes the same 3-across grid as the focus items below it, so
+    // the two lists read as one column of thinking rather than two different shapes.
+    rocksHtml = `<div class="mp-tiles">` + mpRocks.map((r,i)=>`<div class="mp-rock">
       <div class="mp-rock-num">${i+1}</div>
       <div class="mp-rock-body">
         <div class="mp-rock-title">${esc(r.title||"(untitled rock)")}</div>
         <div class="mp-rock-meta">${r.owner?("Owner: "+esc(r.owner)):""}${r.owner&&r.status?" · ":""}${r.status?esc(r.status):""}${r.successMeasure?" · "+esc(r.successMeasure):""}</div>
       </div>
-    </div>`).join("");
+    </div>`).join("") + `</div>`;
   } else {
     rocksHtml = `<div class="mp-rocks-empty">No Rocks set for ${esc(mpQuarterTag||"this quarter")} yet.
       Set them in the <a onclick="mpGoToQuarterly()">Quarterly plan</a>, and they'll appear here as your anchor.</div>`;
@@ -1842,7 +1863,11 @@ function drawMonthlyPlan(){
     <div class="mp-box-body">${rocksHtml}</div>
   </div>`;
 
-  const focusRows = p.focus.length ? p.focus.map(it=>{
+  // v109: one tile per focus item, laid out 3-across by .mp-tiles. Everything the old
+  // full-width row carried is still here, stacked down the tile instead of spread across
+  // it: title, the Rock link, then the controls and any provenance tags pinned to the
+  // bottom edge. The only thing that left is the resting notes preview — see mpNoteButtonHtml.
+  const focusTiles = p.focus.map(it=>{
     if(!it.id) it.id = mpQid();
     const id = it.id;
     const linked = (it.rockRef!==""&&it.rockRef!=null&&mpRocks[Number(it.rockRef)]);
@@ -1850,69 +1875,62 @@ function drawMonthlyPlan(){
     const pn = mpPushNoteOn("focus", id);
     const note = pn ? `<span class="mp-pushnote${pn.warn?" warn":""}">${esc(pn.text)}</span>` : "";
     const picker = mpPushOpenOn("focus", id) ? mpPushPickerHtml("focus", id) : "";
-    const prev = mpNotesPreview(it.notes || "");   // v93: one-line resting preview of the note
     return `<div class="mp-item${it.done?" done":""}" data-focus="${esc(id)}">
-      <div class="mp-item-top">
-        <input class="mp-title" data-ff="title" value="${esc(it.title||"")}" placeholder="This month's focus…" onblur="mpCommit('focus')">
-        ${linked?`<span class="mp-linktag">↳ Rock ${Number(it.rockRef)+1}</span>`:""}
-        <label class="mp-done"><input type="checkbox" data-ff="done"${it.done?" checked":""} onchange="mpToggleFocus(this)"><span class="mp-done-lbl">Done</span></label>
-        <button class="mp-del" onclick="mpRemoveFocus(this)">✕</button>
-      </div>
-      <div class="mp-fields mp-fields-focus">
-        <div class="mp-f"><label>Supports which Rock?</label><select data-ff="rockRef" onchange="mpQuickSave()">${mpRockOptions(it.rockRef)}</select></div>
-        <div class="mp-f"><label>Notes</label>
-          <input type="hidden" data-ff="notes" value="${esc(it.notes||"")}">
-          <button type="button" class="mp-notes-open${prev?"":" empty"}" onclick="mpOpenNotes('${esc(id)}')" title="Open the notes editor">
-            <span class="mp-notes-prev" data-notes-prev>${esc(prev||"Add notes…")}</span><span class="mp-notes-ico">✎</span>
-          </button>
+      <input class="mp-title" data-ff="title" value="${esc(it.title||"")}" placeholder="This month's focus…" onblur="mpCommit('focus')">
+      <div class="mp-f"><label>Supports which Rock?</label><select data-ff="rockRef" onchange="mpQuickSave()">${mpRockOptions(it.rockRef)}</select></div>
+      <input type="hidden" data-ff="notes" value="${esc(it.notes||"")}">
+      <div class="mp-tile-foot">
+        <div class="mp-tile-ctl">
+          <label class="mp-done"><input type="checkbox" data-ff="done"${it.done?" checked":""} onchange="mpToggleFocus(this)"><span class="mp-done-lbl">Done</span></label>
+          <button class="mp-week-btn" onclick="mpOpenPushForward('${esc(id)}')">↪ Push forward</button>
+          ${mpNoteButtonHtml("focus", id, mpHasNote(it))}
+          <button class="mp-del" onclick="mpRemoveFocus(this)">✕</button>
         </div>
-      </div>
-      <div class="mp-focus-actions">
-        <span class="mp-focus-meta">${from}${note}</span>
-        <button class="mp-week-btn" onclick="mpOpenPushForward('${esc(id)}')">↪ Push forward</button>
+        <div class="mp-tile-tags">${linked?`<span class="mp-linktag">↳ Rock ${Number(it.rockRef)+1}</span>`:""}${from}${note}</div>
       </div>
       ${picker}
     </div>`;
-  }).join("") : `<div class="mp-rocks-empty">What are the 1–3 things this month that move the Rocks forward?</div>`;
+  }).join("");
+  // The empty-state line sits ABOVE the grid, full width — inside it, it would render as a
+  // lonely one-third-width cell next to the add tile.
+  const focusEmpty = p.focus.length ? "" : `<div class="mp-rocks-empty">What are the 1–3 things this month that move the Rocks forward?</div>`;
   const focusBox = `<div class="mp-box">
     ${mpSaveHeader("This Month's Focus","focus","link each to a Rock")}
-    <div class="mp-box-body">${focusRows}<button class="mp-add" onclick="mpAddFocus()">+ Add focus item</button></div>
+    <div class="mp-box-body">${focusEmpty}<div class="mp-tiles">${focusTiles}<button class="mp-add" onclick="mpAddFocus()">+ Add focus item</button></div></div>
   </div>`;
 
   // v103: the personal item now matches the business focus item — a visible done state
   // (Status "Done" is this section's tick), the v93 notes popup, and v90 push-forward.
-  const prRows = p.priorities.length ? p.priorities.map(it=>{
+  // v109: the personal item is the same tile as the business one — its two selects stack
+  // down the tile exactly as the focus item's single one does, and its extra button (→
+  // Weekly action) joins the same control row. Parity is the point: these two builders
+  // must keep producing the same shape, or the two halves of the month drift apart.
+  const prTiles = p.priorities.map(it=>{
       if(!it.id) it.id = mpPid();
       const id = it.id;
       const done = mpKind("priorities").isDone(it);
-      const prev = mpNotesPreview(it.notes || "");
       const from = it.pushedFrom ? `<span class="mp-pushed" title="Copied forward from an earlier month">↩ pushed from ${esc(ymLabel(it.pushedFrom))}</span>` : "";
       const pn = mpPushNoteOn("priorities", id);
       const note = pn ? `<span class="mp-pushnote${pn.warn?" warn":""}">${esc(pn.text)}</span>` : "";
       const picker = mpPushOpenOn("priorities", id) ? mpPushPickerHtml("priorities", id) : "";
       return `<div class="mp-item${done?" done":""}" data-prio data-pid="${esc(id)}">
-      <div class="mp-item-top">
-        <input class="mp-title" data-pf="title" value="${esc(it.title||"")}" placeholder="Priority / project" onblur="mpCommit('priorities')">
-        <button class="mp-del" onclick="mpRemovePrio(this)">✕</button>
-      </div>
-      <div class="mp-fields">
-        <div class="mp-f"><label>Owner</label><select data-pf="owner" onchange="mpCommit('priorities')">${MP_OWNERS.map(o=>`<option value="${esc(o)}"${o===(it.owner||"")?" selected":""}>${o||"—"}</option>`).join("")}</select></div>
-        <div class="mp-f"><label>Status</label><select data-pf="status" onchange="mpPrioStatus(this)">${MP_STATUS.map(s=>`<option${s===(it.status||"Not Started")?" selected":""}>${s}</option>`).join("")}</select></div>
-      </div>
-      <div class="mp-f" style="margin-top:8px"><label>Notes</label>
-        <input type="hidden" data-pf="notes" value="${esc(it.notes||"")}">
-        <button type="button" class="mp-notes-open${prev?"":" empty"}" onclick="mpOpenNotesPersonal('${esc(id)}')" title="Open the notes editor">
-          <span class="mp-notes-prev" data-notes-prev>${esc(prev||"Add notes…")}</span><span class="mp-notes-ico">✎</span>
-        </button>
-      </div>
-      <div class="mp-focus-actions mp-prio-actions">
-        <span class="mp-focus-meta">${from}${note}</span>
-        <button class="mp-week-btn" onclick="mpOpenPushPersonal('${esc(id)}')">↪ Push forward</button>
-        <button class="mp-week-btn" onclick="mpPushProjectToWeek('${esc(id)}')">→ Weekly action</button>
+      <input class="mp-title" data-pf="title" value="${esc(it.title||"")}" placeholder="Priority / project" onblur="mpCommit('priorities')">
+      <div class="mp-f"><label>Owner</label><select data-pf="owner" onchange="mpCommit('priorities')">${MP_OWNERS.map(o=>`<option value="${esc(o)}"${o===(it.owner||"")?" selected":""}>${o||"—"}</option>`).join("")}</select></div>
+      <div class="mp-f"><label>Status</label><select data-pf="status" onchange="mpPrioStatus(this)">${MP_STATUS.map(s=>`<option${s===(it.status||"Not Started")?" selected":""}>${s}</option>`).join("")}</select></div>
+      <input type="hidden" data-pf="notes" value="${esc(it.notes||"")}">
+      <div class="mp-tile-foot">
+        <div class="mp-tile-ctl">
+          <button class="mp-week-btn" onclick="mpOpenPushPersonal('${esc(id)}')">↪ Push forward</button>
+          <button class="mp-week-btn" onclick="mpPushProjectToWeek('${esc(id)}')">→ Weekly action</button>
+          ${mpNoteButtonHtml("priorities", id, mpHasNote(it))}
+          <button class="mp-del" onclick="mpRemovePrio(this)">✕</button>
+        </div>
+        <div class="mp-tile-tags">${from}${note}</div>
       </div>
       ${picker}
     </div>`;
-    }).join("") : `<div class="mp-rocks-empty">Nothing here yet — the things outside work you want to move this month.</div>`;
+    }).join("");
+  const prEmpty = p.priorities.length ? "" : `<div class="mp-rocks-empty">Nothing here yet — the things outside work you want to move this month.</div>`;
   // v97: the personal half of the month. Same section key, same save path, same items —
   // only the framing and the accent change. No Rock link: personal work doesn't serve a
   // business Rock, and that is the one thing cleared off any pre-existing item.
@@ -1920,7 +1938,7 @@ function drawMonthlyPlan(){
     ${mpSaveHeader("Personal Priorities &amp; Projects","priorities","life outside the business")}
     <div class="mp-box-body">
       <div class="mp-intro">Personal projects and priorities for the month — life outside the business.</div>
-      ${prRows}<button class="mp-add" onclick="mpAddPrio()">+ Add priority</button></div>
+      ${prEmpty}<div class="mp-tiles">${prTiles}<button class="mp-add" onclick="mpAddPrio()">+ Add priority</button></div></div>
   </div>`;
 
   const notesBox = `<div class="mp-box">
@@ -2102,6 +2120,18 @@ function mpNotesToPlainText(stored){
 function mpNotesPreview(stored){
   return mpNotesToPlainText(stored).replace(/\s+/g, " ").trim().slice(0, 140);
 }
+// v109: does this item actually carry a note? Judged on the PLAIN TEXT, so an empty rich
+// block (an editor opened, formatted and closed without typing) counts as no note — the
+// same rule the weekly app's anchor icon uses.
+function mpHasNote(it){ return !!mpNotesPreview((it && it.notes) || ""); }
+// v109: the one door to the v93 notes popup, identical on both kinds of tile. The note
+// itself is never rendered on the tile face — at ~1/3 width the resting preview was what
+// crowded everything else out. The button stays clickable when the item has no note yet:
+// it is now the only way to write the first one, so hiding it would cost a behaviour.
+function mpNoteButtonHtml(kind, id, has){
+  const fn = mpKind(kind).section === "priorities" ? "mpOpenNotesPersonal" : "mpOpenNotes";
+  return `<button type="button" class="mp-note-ico${has?"":" empty"}" data-note-ico onclick="${fn}('${esc(id)}')" title="${has?"Read or edit this item's note":"Add a note"}">🗒</button>`;
+}
 // Quiet toolbar — same commands and markup as the weekly app's. mousedown is prevented so
 // clicking a button doesn't steal the editor's selection.
 function mpNotesToolbarHtml(edId){
@@ -2182,8 +2212,10 @@ function mpSaveNotes(){
   if(row && row.querySelector){
     const hidden = row.querySelector(mpNotesKind === "priorities" ? '[data-pf="notes"]' : '[data-ff="notes"]');
     if(hidden) hidden.value = stored;
-    const prev = row.querySelector("[data-notes-prev]");
-    if(prev) prev.textContent = mpNotesPreview(stored) || "Add notes…";
+    // v109: the tile shows a 🗒 button, not a preview — patch the state it does show, so
+    // the first note written on an item lights its icon without waiting for a redraw.
+    const ico = row.querySelector("[data-note-ico]");
+    if(ico && ico.classList) ico.classList.toggle("empty", !mpNotesPreview(stored));
   }
   return mpCommit(k.section);
 }

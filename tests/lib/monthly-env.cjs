@@ -116,6 +116,7 @@ function parseMpBody(html) {
       self.querySelector = (sel) => {
         const s = String(sel);
         if (s.includes("[data-notes-prev]")) return self.fields["notes-prev"] || null;
+        if (s.includes("[data-note-ico]")) return self.fields["note-ico"] || null;
         const f = /\[data-(ff|pf)="([^"]+)"\]/.exec(s);
         return f ? self.fields[f[1] + ":" + f[2]] || null : null;
       };
@@ -125,11 +126,23 @@ function parseMpBody(html) {
     }
     // v93: the notes preview <span data-notes-prev> is text, not a value-bearing field —
     // mpSaveNotes patches its textContent in place, so it needs to be reachable too.
+    // (v109 removed the preview from the tile; the branch stays because nothing else here
+    // guarantees a row can only hold value-bearing fields.)
     if ("data-notes-prev" in attrs && row) {
       const close = html.indexOf("</span>", tagEnd);
       const prev = fakeElement("notes-prev");
       prev.textContent = unesc(html.slice(tagEnd, close < 0 ? html.length : close));
       row.fields["notes-prev"] = prev;
+      continue;
+    }
+    // v109: the tile's 🗒 button. It carries no value — its CLASS is the state (quiet when
+    // the item has no note yet), and mpSaveNotes toggles that class in place, so the class
+    // list is seeded from the rendered markup rather than left empty.
+    if ("data-note-ico" in attrs && row) {
+      const ico = fakeElement("note-ico");
+      ico.getAttribute = (k) => (k in attrs ? attrs[k] : null);
+      String(attrs.class || "").split(/\s+/).filter(Boolean).forEach((c) => ico.classList.add(c));
+      row.fields["note-ico"] = ico;
       continue;
     }
     const ff = "data-ff" in attrs ? "ff:" + attrs["data-ff"] : "data-pf" in attrs ? "pf:" + attrs["data-pf"] : null;

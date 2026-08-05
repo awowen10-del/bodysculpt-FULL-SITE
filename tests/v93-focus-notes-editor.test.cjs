@@ -42,48 +42,40 @@ async function withItem(notes, extra) {
   const stamp = /<!-- build v(\d+) · [a-z0-9-]+ -->/.exec(HTML);
   assert.ok(stamp && Number(stamp[1]) >= 93, "build stamp is v93 or later");
 
-  /* ---------- 2. equal-width columns ---------- */
+  /* ---------- 2. the field cell can shrink ---------- */
   {
-    assert.ok(/\.mp-fields\{[^}]*grid-template-columns:1fr 1fr/.test(HTML), "the item fields are a two-column grid");
-    // the actual fix: without min-width:0 a grid item's min-width:auto lets the Rock
-    // <select>'s widest option push its column wider than Notes
-    assert.ok(/\.mp-f\{[^}]*min-width:0/.test(HTML), "columns can shrink, so 1fr means 1fr");
+    // v109 turned the two-column field grid into a one-column tile stack, so the pair of
+    // equal columns this section used to guard is gone. What survives is the fix underneath
+    // it: without min-width:0 a grid item's min-width:auto lets the Rock <select>'s widest
+    // option push its cell — and now its whole tile column — wider than its share.
+    assert.ok(/\.mp-f\{[^}]*min-width:0/.test(HTML), "a field cell can shrink, so 1fr means 1fr");
     const fields = /\.mp-f\{([^}]*)\}/.exec(HTML)[1];
-    assert.ok(!/width:/.test(fields.replace(/min-width:0;?/, "")), "neither column is given a fixed width");
-    // both controls share the same box metrics, so the two columns render identically
-    const select = /#mpBody input:not\(\[type=checkbox\]\), #mpBody select, #mpBody textarea\{([^}]*)\}/.exec(HTML)[1];
-    // the BASE .mp-notes-open rule (line-anchored) — later rules add height, not box metrics
-    const notes = /\n  \.mp-notes-open\{([^}]*)\}/.exec(HTML)[1];
-    ["padding:7px 9px", "border-radius:7px", "font-size:12.5px", "border:1px solid var(--line)"].forEach((d) => {
-      assert.ok(select.includes(d), "the Rock select declares " + d);
-      assert.ok(notes.includes(d), "the Notes control declares the same " + d);
-    });
-    assert.ok(/\.mp-notes-open\{[^}]*width:100%/.test(HTML), "the Notes control fills its column");
-
-    const env = await withItem("");
-    const html = env.body.innerHTML;
-    const grid = html.slice(html.indexOf('<div class="mp-fields'), html.indexOf('<div class="mp-focus-actions">'));
-    assert.strictEqual((grid.match(/<div class="mp-f">/g) || []).length, 2, "exactly two equal columns in the item");
-    assert.ok(grid.indexOf("Supports which Rock?") < grid.indexOf("Notes"), "Rock column first, Notes second");
+    assert.ok(!/width:/.test(fields.replace(/min-width:0;?/, "")), "…and is given no fixed width");
+    assert.ok(!/\.mp-notes-open/.test(HTML), "the resting notes control is gone from the stylesheet with it");
   }
 
-  /* ---------- 3. resting state is a preview that opens the modal ---------- */
+  /* ---------- 3. resting state is a button that opens the modal ---------- */
   {
     const env = await withItem("");
     const emptyRow = env.body.innerHTML;
-    assert.ok(/class="mp-notes-open empty"/.test(emptyRow), "an empty note shows the placeholder state");
-    assert.ok(emptyRow.includes(">Add notes…</span>"), "…with an inviting placeholder");
-    assert.ok(/onclick="mpOpenNotes\('f1'\)"/.test(emptyRow), "clicking Notes opens the editor for that item");
+    // v109: the note is reached from the tile's 🗒 button, never previewed on the tile face
+    assert.ok(/class="mp-note-ico empty" data-note-ico/.test(emptyRow), "an item with no note shows the quiet button");
+    assert.ok(!emptyRow.includes("Add notes…"), "…and no placeholder text takes up tile space");
+    assert.ok(/onclick="mpOpenNotes\('f1'\)"/.test(emptyRow), "clicking it opens the editor for that item");
     assert.ok(/<input type="hidden" data-ff="notes"/.test(emptyRow),
       "the stored value stays in the DOM, so mpSyncFromDom is unchanged");
 
-    // a long note is previewed on one line, not spilled into the row
+    // a long note never reaches the tile at all — only the lit button does
     const long = MARK + "<div>" + "Rebuild the onboarding call end to end. ".repeat(12) + "</div>";
     const env2 = await withItem(long);
-    const prev = row(env2, "f1").querySelector("[data-notes-prev]").textContent;
-    assert.ok(prev.length <= 140, "the resting preview is a one-liner (" + prev.length + " chars)");
-    assert.ok(prev.startsWith("Rebuild the onboarding call"), "…showing the start of the note");
-    assert.ok(/\.mp-notes-prev\{[^}]*text-overflow:ellipsis/.test(HTML), "…ellipsised rather than wrapped");
+    const ico = row(env2, "f1").querySelector("[data-note-ico]");
+    assert.ok(ico && !ico.classList.contains("empty"), "an item with a note shows the lit button");
+    // the note text is in the tile exactly once — inside the hidden field mpSyncFromDom
+    // reads. Strip that, and none of it is left to render.
+    const visible = env2.body.innerHTML.replace(/<input type="hidden" data-ff="notes"[^>]*>/g, "");
+    assert.ok(!visible.includes("Rebuild the onboarding call"),
+      "…and not one word of the note is rendered on the tile face");
+    assert.ok(!visible.includes("data-notes-prev"), "…there is no resting preview left at all");
 
     // opening
     env2.ctx.mpOpenNotes("f1");

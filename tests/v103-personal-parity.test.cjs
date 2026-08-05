@@ -207,10 +207,15 @@ async function setStatus(env, id, value) {
     const html = env.body.innerHTML;
     assert.ok(/data-pid="p1"[\s\S]{0,1600}<input type="hidden" data-pf="notes"/.test(html),
       "the stored note stays in the DOM, so the save path is unchanged");
-    assert.ok(html.includes("mpOpenNotesPersonal('p1')"), "clicking Notes opens the editor for that item");
-    const prev = pRow(env, "p1").querySelector("[data-notes-prev]").textContent;
-    assert.strictEqual(prev, "quotes in", "the resting state previews the note");
-    assert.ok(/data-pid="p2"[\s\S]{0,1600}Add notes…/.test(html), "an empty note shows the placeholder");
+    assert.ok(html.includes("mpOpenNotesPersonal('p1')"), "clicking the note button opens the editor for that item");
+    // v109 replaced the resting one-line preview with the tile's 🗒 button: an item that
+    // carries a note shows it lit, an item without one shows it quiet. The note text itself
+    // is only ever in the popup now — see tests/v109-focus-tile-grid.test.cjs.
+    const ico = pRow(env, "p1").querySelector("[data-note-ico]");
+    assert.ok(ico && !ico.classList.contains("empty"), "an item with a note shows a lit note button");
+    const icoEmpty = pRow(env, "p2").querySelector("[data-note-ico]");
+    assert.ok(icoEmpty && icoEmpty.classList.contains("empty"), "an item without one shows it quiet");
+    assert.ok(!html.includes("Add notes…"), "…and no note text is rendered on the tile face");
 
     // open: same modal, same editor, labelled for this side
     env.ctx.mpOpenNotesPersonal("p1");

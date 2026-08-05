@@ -55,8 +55,11 @@ const SEMANTIC = ["--teal", "--green", "--amber", "--red", "--blue", "--info", "
 
 (async () => {
   /* ================= 0. the build stamp ================= */
-  assert.ok(/<!-- build v108 · neutral-light-theme -->/.test(MONTHLY), "monthly.html stamped v108 · neutral-light-theme");
-  assert.ok(/build v108 · neutral-light-theme/.test(WEEKLY), "index.html carries the same stamp");
+  // v109 relaxed this from the pinned v108 stamp to "at least v108" — the newest version's
+  // test pins the exact stamp, older ones only assert the suite hasn't gone backwards.
+  const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(MONTHLY);
+  assert.ok(stamp && Number(stamp[1]) >= 108, "monthly.html stamped v108 or later");
+  assert.ok(WEEKLY.includes("build v" + stamp[1] + " · " + stamp[2]), "index.html carries the same stamp");
 
   /* ================= 1. the full variable set, on every page ================= */
   const lightBlocks = {};
