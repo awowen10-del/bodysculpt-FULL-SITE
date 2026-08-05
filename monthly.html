@@ -408,9 +408,15 @@
   .mp-add{background:var(--card-2);border:1px dashed var(--line);color:var(--ink-dim);border-radius:9px;
     padding:9px;width:100%;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;margin-top:2px;}
   .mp-add:hover{border-color:var(--orange);color:var(--ink);}
-  /* v109: in the grid the "+ Add …" control IS the last tile, so it takes a tile's height
-     rather than a row's, and the Rocks anchor's read-only cards lose their stacking margin. */
-  .mp-tiles .mp-add{margin-top:0;min-height:72px;}
+  /* v109: in the grid the "+ Add …" control IS the last cell, and the Rocks anchor's
+     read-only cards lose their stacking margin.
+     v110: the add cell opts OUT of the row stretch. Everything else in .mp-tiles stretches
+     to the tallest tile in its row (that is the point — no ragged bottoms), but an add
+     control stretched to a tall row reads as a big empty card rather than a button,
+     which is worst when it lands alone on the last row. align-self:start makes it size to
+     its own content instead; min-height only keeps it a comfortable tap target. This is
+     the ONE exception — no .mp-item may take an align-self, or the row goes ragged. */
+  .mp-tiles .mp-add{margin-top:0;align-self:start;min-height:44px;}
   .mp-tiles .mp-rock{margin-bottom:0;}
   .mp-week-btn{background:transparent;border:1px solid var(--line);color:var(--ink-dim);border-radius:7px;
     padding:5px 11px;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;}
@@ -492,7 +498,7 @@
 </style>
 </head>
 <body>
-<!-- build v109 · focus-tile-grid -->
+<!-- build v110 · add-tile-compact -->
 <header>
   <div class="htop">
     <div class="brand">
@@ -737,7 +743,7 @@
      after a monthly-only release. Same pill as the Weekly Dashboard's footer, and the two
      pages carry the SAME suite build string — a test fails if they ever drift apart. -->
 <footer class="mp-footer">
-  <span class="mp-stage">build v109 · focus-tile-grid</span>
+  <span class="mp-stage">build v110 · add-tile-compact</span>
 </footer>
 
 <!-- v93: focus-item notes editor — the v70 rich editor in a Today-modal-style dialog.

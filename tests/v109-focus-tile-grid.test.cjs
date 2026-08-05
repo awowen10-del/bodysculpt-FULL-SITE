@@ -49,8 +49,11 @@ const month = async (plan) => {
 
 (async () => {
   /* ================= 0. the build stamp ================= */
-  assert.ok(/<!-- build v109 · focus-tile-grid -->/.test(HTML), "monthly.html stamped v109 · focus-tile-grid");
-  assert.ok(/build v109 · focus-tile-grid/.test(WEEKLY), "index.html carries the same stamp");
+  // v110 relaxed this from the pinned v109 stamp to "at least v109" — the newest version's
+  // test pins the exact stamp, older ones only assert the suite hasn't gone backwards.
+  const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(HTML);
+  assert.ok(stamp && Number(stamp[1]) >= 109, "monthly.html stamped v109 or later");
+  assert.ok(WEEKLY.includes("build v" + stamp[1] + " · " + stamp[2]), "index.html carries the same stamp");
 
   /* ================= 1. three across, then two, then one ================= */
   {
@@ -132,7 +135,8 @@ const month = async (plan) => {
       "the focus add control is a cell of the grid");
     assert.ok(/<div class="mp-tiles">\$\{prTiles\}<button class="mp-add" onclick="mpAddPrio\(\)">/.test(HTML),
       "…and so is the personal one");
-    assert.ok(/\.mp-tiles \.mp-add\{[^}]*min-height/.test(styleOf(HTML)), "…tile-shaped, not row-shaped");
+    // (v110 sized the add cell to its own content instead of the row — see that test)
+    assert.ok(/\.mp-tiles \.mp-add\{/.test(styleOf(HTML)), "…and is styled as a cell of the grid");
     // the empty-state line stays OUT of the grid, or it renders as a lonely third of a row
     const empty = await month(Object.assign(PLAN(), { focus: [], priorities: [] }));
     assert.ok(/mp-rocks-empty">What are the 1–3 things[\s\S]*?<div class="mp-tiles">/.test(empty.body.innerHTML),
