@@ -92,8 +92,11 @@ async function open(campaign) {
 
 (async () => {
   /* ================= 0. the build stamp ================= */
-  assert.ok(/<!-- build v107 · midweek-check -->/.test(MONTHLY), "monthly.html stamped v107 · midweek-check");
-  assert.ok(/build v107 · midweek-check/.test(WEEKLY), "index.html carries the same stamp");
+  // v108 relaxed this from the pinned v107 stamp to "at least v107" — the newest version's
+  // test pins the exact stamp, older ones only assert the suite hasn't gone backwards.
+  const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(MONTHLY);
+  assert.ok(stamp && Number(stamp[1]) >= 107, "monthly.html stamped v107 or later");
+  assert.ok(WEEKLY.includes("build v" + stamp[1] + " · " + stamp[2]), "index.html carries the same stamp");
 
   /* ================= 1. the panel pre-fills from the SAVED figures ================= */
   {

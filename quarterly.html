@@ -20,8 +20,8 @@
   /* ===================== THEME TOKENS =====================
      Every colour in this stylesheet resolves to one of these — there are no literal
      colours below this block. Two themes, one set of names: the ":root,:root[data-theme=
-     "dark"]" block is the original dark navy, and ":root[data-theme="light"]" is the warm
-     paper light theme (the default — see the boot script at the top of <head>). Switching
+     "dark"]" block is the original dark navy, and ":root[data-theme="light"]" is the neutral
+     light theme (the default — see the boot script at the top of <head>). Switching
      themes is therefore only ever a change of values here, and reverting to dark-only is
      a matter of deleting the light block.
      The *-rgb tokens are bare "r,g,b" triples, so the many rgba(<accent>,<alpha>) tints
@@ -31,8 +31,11 @@
        green  = training + done           blue  = home location, buffer, decisions
        amber  = watch / warning           red   = problem / delete
        info   = acquisition + decision panels   loc-warrington = the other location badge
-     In light they are re-mapped (darkened and re-saturated), not merely reused: the dark
-     theme's tones are tuned for a navy background and would wash out on off-white. */
+     "orange" is a TOKEN NAME, not a promise of hue: v108 re-pointed the brand accent at a
+     muted slate-blue for the light theme (dark keeps its terracotta). The name was kept so
+     that the ~140 var(--orange*) references across the three pages stay one switch to flip.
+     In light they are re-mapped, not merely reused: the dark theme's tones are tuned for a
+     navy background and would wash out on a near-white card. */
   :root{
     /* metrics — not themed */
     --radius:16px;
@@ -69,33 +72,42 @@
   }
   :root[data-theme="light"]{
     color-scheme:light;
-    /* warm paper surfaces — off-white, never stark white; the card sits ABOVE the page */
-    --navy:#f7f3ec; --navy-2:#efe8dc; --card:#fffcf7; --card-2:#f5eee2;
-    --line:#e2d8c8; --line-rgb:196,180,158;
-    /* dark-but-soft ink — warm near-black, never #000 */
-    --ink:#332f29; --ink-dim:#6b6155; --ink-faint:#7f7362; --ink-strong:#1d1a16;
-    --ink-dim-rgb:107,97,85; --ink-faint-rgb:127,115,98;
+    /* THREE TIERS OF DEPTH, and they must stay three: the page (--navy) is a soft, slightly
+       cool grey; the card (--card) is near-white and therefore visibly LIFTS off it; --line
+       is a fine neutral hairline that draws the card's edge. Tone step + hairline do the
+       work — the shadows below are deliberately soft. --navy-2 is the recessed inset inside
+       a card (toolbars, sticky heads, sub-panels), so it sits BELOW the card, not above. */
+    --navy:#f2f4f8; --navy-2:#e8ecf3; --card:#ffffff; --card-2:#f7f9fc;
+    --line:#dde2ea; --line-rgb:203,211,223;
+    /* dark-but-soft ink — a cool near-black, never #000; --ink-dim/-faint are muted greys */
+    --ink:#1d2330; --ink-dim:#5a6474; --ink-faint:#6e7889; --ink-strong:#0d1119;
+    --ink-dim-rgb:90,100,116; --ink-faint-rgb:110,120,137;
     --on-accent:#fff;
-    --orange:#bd5417; --orange-soft:#a44a12; --orange-rgb:189,84,23;
+    /* the brand accent — a muted, low-strain SLATE-BLUE (see the note above about the name) */
+    --orange:#4a5f8a; --orange-soft:#3a4d73; --orange-rgb:74,95,138;
     --green:#17804d; --green-2:#0f6d40; --green-rgb:23,128,77; --green2-rgb:15,109,64;
     --amber:#9a6a05; --amber-2:#8a5e04; --amber-rgb:154,106,5; --amber2-rgb:138,94,4;
     --red:#b81e28; --red-2:#9c1b23; --red-rgb:184,30,40; --red2-rgb:156,27,35;
-    --teal:#0e7490; --teal-soft:#0b6379; --teal-bright:#075469; --teal-rgb:14,116,144;
-    --blue:#3455b0; --blue-soft:#2b4894; --blue-rgb:52,85,176;
-    --info:#1d6fbf; --info-rgb:29,111,191;
-    --loc-warrington:#7a4a1e; --grad-mid:#7d9c3f;
+    --teal:#0d7d8a; --teal-soft:#0a6873; --teal-bright:#08555e; --teal-rgb:13,125,138;
+    /* home/buffer moved to indigo and the Warrington badge to copper, so neither location
+       pill can be mistaken for the slate-blue brand now sitting on the tabs beside them */
+    --blue:#6247b5; --blue-soft:#513a99; --blue-rgb:98,71,181;
+    --info:#2b6cd9; --info-rgb:43,108,217;
+    --loc-warrington:#8a4b23; --grad-mid:#6d9a2e;
     /* on light these become the DEEP version of the accent — the chip behind them is a
        pale tint, so a pale text colour would vanish */
     --tint-red:#9c2f24; --tint-amber:#7a5504; --tint-green:#136540;
-    --tint-blue:#27488f; --tint-orange:#8f4212;
-    --panel-0:#fdf7ed; --panel-1:#f8f1e5; --panel-2:#f2eadc;
-    --hero-1:#fdf6ea; --hero-2:#f7efe1; --hero-3:#f1e7d6;
-    --mark-bg:#efe6d8; --chart-grid:#e4dac9;
-    /* a warm, light-toned scrim/shadow: light values at the stylesheet's existing alphas
-       read as gentle depth on paper, where black would read as grime */
-    --backdrop-rgb:120,102,84;
-    --shadow-rgb:171,150,124;
-    --lift-rgb:141,110,78;
+    --tint-blue:#46337f; --tint-orange:#33456b;
+    --panel-0:#f6f8fc; --panel-1:#f2f5fa; --panel-2:#ebeff7;
+    --hero-1:#f7f9fd; --hero-2:#f2f4f8; --hero-3:#eaeff6;
+    --mark-bg:#eef1f7; --chart-grid:#e3e8f0;
+    /* the stylesheet's alphas were tuned for a dark theme, so these carry the light theme's
+       half: a cool near-black scrim genuinely dims the page behind a modal, while the shadow
+       and the hover "lift" are mid-greys — at .015–.6 they read as definition, not grime.
+       --lift-rgb inverts (dark, so a hover DARKENS the surface it sits on). */
+    --backdrop-rgb:26,33,48;
+    --shadow-rgb:116,127,148;
+    --lift-rgb:24,35,56;
     --shadow:0 10px 30px rgba(var(--shadow-rgb),.35);
   }
   *{box-sizing:border-box;margin:0;padding:0;}

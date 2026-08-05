@@ -1,4 +1,4 @@
-// v106: a warm paper LIGHT theme for all three pages, alongside the original dark navy.
+// v106: a LIGHT theme for all three pages, alongside the original dark navy.
 //
 // The whole change is a theming layer: every colour in every stylesheet was pulled into one
 // token block per page, and the two themes are nothing but two sets of values for the same
@@ -8,6 +8,11 @@
 //   * the light values are a real RE-MAP: distinct from dark, and the meaning-carrying
 //     accents stay distinct FROM EACH OTHER and readable on the light surfaces
 //   * the toggle switches, remembers, defaults to light — and changes nothing else
+//
+// v108 replaced v106's warm-paper PALETTE with the neutral grey/near-white one, so this file
+// (renamed from v106-warm-light-theme) keeps only what is true of the theme SYSTEM whatever
+// values it carries. The claims specific to today's palette — cool surfaces, the three-tier
+// depth step, the slate-blue brand — belong to tests/v108-neutral-light-theme.test.cjs.
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
@@ -84,12 +89,11 @@ const MEANING = ["--orange", "--teal", "--green", "--amber", "--red", "--blue", 
     assert.deepStrictEqual(shared, ["--on-accent"],
       label + "every colour is re-mapped for light except --on-accent (white ON a solid accent fill, by design)");
 
-    /* ---- warm paper: light surfaces are light, ink is dark (and dark is the reverse) ---- */
+    /* ---- light surfaces are light, ink is dark (and dark is the reverse) ---- */
+    // the HUE of these is the palette's business, not the system's — v108 owns that.
     assert.ok(lum(rgbOf(light["--navy"])) > 0.8, label + "the light page background is a soft off-white");
     assert.ok(light["--navy"].toLowerCase() !== "#ffffff" && light["--navy"].toLowerCase() !== "#fff",
-      label + "…not stark white — it's paper");
-    const [pr, pg, pb] = rgbOf(light["--navy"]);
-    assert.ok(pr > pb + 4, label + "…and warm: more red than blue in the page background");
+      label + "…not stark white — the page is a tone, so a card can sit above it");
     assert.ok(lum(rgbOf(light["--card"])) > lum(rgbOf(light["--navy"])), label + "cards sit above the page");
     assert.ok(lum(rgbOf(light["--ink"])) < 0.1, label + "light ink is dark…");
     assert.ok(rgbOf(light["--ink"]).some((c) => c > 20), label + "…but soft, not pure black");
