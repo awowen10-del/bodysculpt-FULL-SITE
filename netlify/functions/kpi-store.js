@@ -199,6 +199,50 @@ const MONTHLY_FOCUS_STRINGS = {
   title: 400, notes: 20000, linkId: 160, sourceType: 40, monthlyOutcome: 400,
   milestone: 400, successMeasure: 400, sourceQuarter: 20, owner: 60, status: 40,
 };
+// v113: whitelist for a recurring task's optional monthly/quarterly cadence. Returns
+// { cadence, rule } only when BOTH the cadence and a fully-valid rule are present; anything
+// unrecognised returns null and the task stores as the plain weekly task it was. Field by
+// field, so an unknown extra key on a rule is dropped rather than persisted:
+//   monthly   { type:"dayOfMonth",     day:1..31|"last",                        slot }
+//             { type:"ordinalWeekday", ordinal:1..4|"last", weekday:"mon".."sun", slot }
+//   quarterly { type:"monthOfQuarter", month:1..3, day:1..31|"last",             slot }
+//             { type:"ordinalWeekday", ordinal, weekday, monthOfQuarter:1..3,    slot }
+const CADENCE_WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+function cleanRecurringCadence(t) {
+  const cadence = t && (t.cadence === "monthly" || t.cadence === "quarterly") ? t.cadence : "";
+  if (!cadence) return null;
+  const raw = cadence === "monthly" ? t.monthlyRule : t.quarterlyRule;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const slot = typeof raw.slot === "string" && raw.slot ? raw.slot.slice(0, 20) : "6-9";
+  const dayOf = (v) => {
+    if (v === "last") return "last";
+    const n = Math.floor(Number(v));
+    return Number.isFinite(n) && n >= 1 && n <= 31 ? n : null;
+  };
+  const moqOf = (v) => { const n = Math.floor(Number(v)); return n >= 1 && n <= 3 ? n : null; };
+  if (raw.type === "ordinalWeekday") {
+    let ordinal = null;
+    if (raw.ordinal === "last") ordinal = "last";
+    else { const n = Math.floor(Number(raw.ordinal)); if (n >= 1 && n <= 4) ordinal = n; }
+    if (ordinal === null || !CADENCE_WEEKDAYS.includes(raw.weekday)) return null;
+    const rule = { type: "ordinalWeekday", ordinal, weekday: raw.weekday, slot };
+    if (cadence === "quarterly") {
+      const m = moqOf(raw.monthOfQuarter);
+      if (m === null) return null;
+      rule.monthOfQuarter = m;
+    }
+    return { cadence, rule };
+  }
+  if (cadence === "monthly" && raw.type === "dayOfMonth") {
+    const day = dayOf(raw.day);
+    return day === null ? null : { cadence, rule: { type: "dayOfMonth", day, slot } };
+  }
+  if (cadence === "quarterly" && raw.type === "monthOfQuarter") {
+    const day = dayOf(raw.day), m = moqOf(raw.month);
+    return day === null || m === null ? null : { cadence, rule: { type: "monthOfQuarter", month: m, day, slot } };
+  }
+  return null;
+}
 function cleanMonthlyFocus(list) {
   const ref = (v) => (v === null || typeof v === "number" ? v : typeof v === "string" ? v.slice(0, 60) : "");
   return list
@@ -552,6 +596,16 @@ export default async (req) => {
           if (t.repeat === "weekdays" || t.repeat === "weekly") d.repeat = t.repeat; // legacy v63
           if (typeof t.time === "string" && t.time) d.time = t.time;
           if (typeof t.link === "string" && /^https?:\/\//i.test(t.link)) d.link = t.link;
+          // v113: the optional monthly/quarterly cadence. Same discipline as days/time — the
+          // cadence and a rule that fully validates are whitelisted together or not at all,
+          // field by field, so a malformed rule can never be stored half-applied. A cadence
+          // task has no day-set, so `days` is dropped when one lands.
+          const cadence = cleanRecurringCadence(t);
+          if (cadence) {
+            d.cadence = cadence.cadence;
+            d[cadence.cadence === "monthly" ? "monthlyRule" : "quarterlyRule"] = cadence.rule;
+            delete d.days;
+          }
           return d;
         });
       await store.set(RECURRING_DEFAULTS_KEY, JSON.stringify(clean));

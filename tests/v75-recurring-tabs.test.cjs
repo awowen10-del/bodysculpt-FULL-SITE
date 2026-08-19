@@ -3,7 +3,7 @@
 // is derived from its schedule (it.days), never a stored field. Asserts a 7-day task lands
 // in Daily; a 5-day weekday task and a 1-day task both land in Weekly; every task derives
 // into exactly one tab; the per-tab counts are right; Monthly/Quarterly render as empty
-// placeholders; switching tabs never mutates task data; and all the underlying recurring
+// their own tabs (empty here); switching tabs never mutates task data; and all the recurring
 // behaviour (scheduling, done-state, grid placement, rollover) is unchanged.
 const assert = require("assert");
 const { boot } = require("./lib/env.cjs");
@@ -68,18 +68,22 @@ const defaults = () => [
     assert.ok(html.includes(`Quarterly <span class="wp-ntab-count">0</span>`), "Quarterly count = 0");
   }
 
-  /* ---------- 4: Monthly & Quarterly render as empty placeholders ---------- */
+  /* ---------- 4: Monthly & Quarterly are their own tabs, holding only their own tasks ---------- */
+  // v113 superseded the "coming soon" placeholder these two tabs used to render: they are real
+  // tabs now, with their own add control and their own tasks (see v113-monthly-quarterly-
+  // recurring). What v75 still owns is the part that never changed — a tab is a pure DISPLAY
+  // FILTER, so a weekly/daily task must never appear under Monthly or Quarterly.
   {
     const { ctx } = await boot({ defaults: defaults(), plans: { [WEEK]: { weekEnding: WEEK, placements: {} } } });
     await ctx.loadWeeklyPlan(WEEK);
     for (const [tab, lbl] of [["monthly", "Monthly"], ["quarterly", "Quarterly"]]) {
       ctx.wpRecurSwitchTab(tab);
       const html = ctx.document.getElementById("wpBody").innerHTML;
-      assert.ok(html.includes("wp-rec-soon") && html.includes(`${lbl} recurring is coming soon.`), `${lbl} shows the coming-soon placeholder`);
-      // no recurring task ROWS (the grid chips for those tasks still render, as always), and
-      // no "+ Add" on placeholder tabs
-      assert.ok(!html.includes(`data-item-title="recurring:d1"`) && !html.includes(`data-item-title="recurring:w5"`), `${lbl} renders no task rows`);
-      assert.ok(!html.includes("+ Add recurring"), `${lbl} placeholder hides the + Add control`);
+      // no recurring task ROWS from the other tabs (the grid chips for those tasks still
+      // render, as always)
+      assert.ok(!html.includes(`data-item-title="recurring:d1"`) && !html.includes(`data-item-title="recurring:w5"`), `${lbl} renders no task rows from another tab`);
+      assert.ok(!html.includes("+ Add recurring"), `${lbl} does not offer the plain weekly add control`);
+      assert.ok(html.includes(`+ Add ${lbl.toLowerCase()} task`), `${lbl} offers its own add control instead`);
     }
   }
 
@@ -118,7 +122,7 @@ const defaults = () => [
     await ctx.wpToggleDoneRef("recurring:d1", true, "mon");
     assert.strictEqual(ctx.__wpState.plan.recurringDone["d1:mon"], true, "per-day done key written as usual");
     // the grid still renders its chip regardless of which recurring tab is active
-    ctx.wpRecurSwitchTab("quarterly"); // a placeholder tab
+    ctx.wpRecurSwitchTab("quarterly"); // a tab holding none of these tasks
     const html = ctx.document.getElementById("wpBody").innerHTML;
     assert.ok(html.includes("wpToggleDoneRef('recurring:d1'"), "grid chip for the daily task renders independent of the active recurring tab");
   }

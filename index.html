@@ -733,6 +733,19 @@
   .wp-txt-tag{font-size:10px;font-weight:700;color:var(--orange-soft);background:rgba(var(--orange-rgb),.12);
     border-radius:5px;padding:2px 7px;white-space:nowrap;cursor:pointer;}
   .wp-txt-tag.wp-from-monthly{color:var(--green);background:rgba(var(--green-rgb),.12);}
+  /* v113: the monthly/quarterly cadence badge. It sits next to the placement pill and says
+     what the RULE is ("Monthly · 1st", "Qtly · 1st Mon · M2") while the pill keeps saying
+     where the task sits THIS week. Teal to match the recurring card's accent, with the
+     quarterly one a shade bluer so the two cadences are tellable apart at a glance. */
+  .wp-cad-badge{font-size:10px;font-weight:800;letter-spacing:.2px;color:var(--teal-soft);
+    background:rgba(var(--teal-rgb),.14);border:1px solid rgba(var(--teal-rgb),.34);
+    border-radius:5px;padding:1px 7px;white-space:nowrap;cursor:pointer;flex:none;}
+  .wp-cad-badge:hover{border-color:var(--teal);}
+  .wp-cad-badge.wp-cad-quarterly{color:var(--blue-soft);background:rgba(var(--blue-rgb),.14);
+    border-color:rgba(var(--blue-rgb),.34);}
+  .wp-cad-badge.wp-cad-quarterly:hover{border-color:var(--blue);}
+  /* a cadence task not due in the week on screen: still listed, its pill just quiet */
+  .wp-txt-tag.wp-txt-tag-off{color:var(--ink-faint);background:transparent;border:1px dashed var(--line);}
   .wp-txt-del{background:transparent;border:none;color:var(--ink-faint);font-size:13px;cursor:pointer;padding:0 4px;opacity:.5;}
   .wp-txt-del:hover{color:var(--red);opacity:1;}
   /* v63: recurring tasks carry a quiet muted-teal accent — distinct from the orange
@@ -808,8 +821,19 @@
     padding:11px;box-shadow:0 10px 30px rgba(var(--shadow-rgb),.5);min-width:190px;}
   .wp-popup-h{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--orange-soft);margin-bottom:8px;}
   .wp-popup-row{display:flex;gap:6px;margin-bottom:9px;}
+  /* an author `display` beats the `hidden` attribute's UA rule, so the rule editor's
+     inactive field group needs this to actually disappear when you switch rule kind */
+  .wp-popup-row[hidden]{display:none;}
   .wp-popup-row select{flex:1;background:var(--navy);color:var(--ink);border:1px solid var(--line);border-radius:7px;
     padding:6px 8px;font-family:inherit;font-size:12px;}
+  /* v113: the rule editor is the same popup shell, a touch wider because its rows are
+     label + control rather than a row of day ticks. */
+  .wp-popup-cad{min-width:250px;border-color:var(--teal);}
+  .wp-popup-cad .wp-popup-h{color:var(--teal-soft);}
+  .wp-popup-cad .wp-popup-place{background:var(--teal);}
+  .wp-popup-cad .wp-popup-place:hover{background:var(--teal-soft);}
+  .wp-cad-lbl{flex:none;align-self:center;width:96px;font-size:10px;font-weight:800;
+    text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint);}
   .wp-popup-actions{display:flex;gap:6px;flex-wrap:wrap;}
   .wp-popup-place{background:var(--orange);color:var(--on-accent);border:none;border-radius:7px;padding:6px 12px;
     font-family:inherit;font-size:11.5px;font-weight:800;cursor:pointer;}
@@ -1434,7 +1458,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v112 · monthly-done-single-source</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v113 · monthly-quarterly-recurring</span>
   </footer>
 </div>
 
@@ -2024,6 +2048,17 @@ async function wpLoadDefaults(){
         }
         if(typeof d.time === "string" && d.time) it.time = d.time;
         if(typeof d.link === "string" && d.link) it.link = d.link;
+        // v113: the optional cadence. Applied ONLY when the cadence and a rule that fully
+        // validates are both present — anything else loads exactly as it did before, as a
+        // weekly days/time task. A cadence task carries no day-set: the rule is the schedule.
+        const cad = (d.cadence === "monthly" || d.cadence === "quarterly") ? d.cadence : "";
+        const rule = cad ? wpNormCadenceRule(cad, cad === "monthly" ? d.monthlyRule : d.quarterlyRule) : null;
+        if(cad && rule){
+          it.cadence = cad;
+          if(cad === "monthly") it.monthlyRule = rule; else it.quarterlyRule = rule;
+          delete it.days;
+          it.time = rule.slot;   // keep the plain slot field in step with the rule's
+        }
         return it;
       }
       if(typeof d === "string"){ minted = true; return { id:wpUid(), title:d }; }
@@ -2042,6 +2077,14 @@ async function wpSaveDefaults(){
     if(Array.isArray(d.days) && d.days.length) out.days = d.days;
     if(d.time) out.time = d.time;
     if(d.link) out.link = d.link;
+    // v113: the cadence + its rule travel together or not at all, and never alongside a
+    // day-set — the store whitelists the same three fields with the same discipline.
+    const cad = wpCadenceOf(d), rule = wpCadenceRule(d);
+    if(cad && rule){
+      out.cadence = cad;
+      if(cad === "monthly") out.monthlyRule = rule; else out.quarterlyRule = rule;
+      delete out.days;
+    }
     return out;
   });
   try{
@@ -2111,6 +2154,209 @@ function wpResolveRef(ref){
 function wpRecurDays(it){ return (it && Array.isArray(it.days) && it.days.length) ? it.days : null; }
 function wpMultiDay(it){ const d = wpRecurDays(it); return !!(d && d.length > 1); }
 
+/* ================= v113: MONTHLY & QUARTERLY RECURRING TASKS ================= */
+// An ADDITIVE cadence on a recurring task. Absent — or the literal "weekly" — is everything
+// that came before, untouched and unmigrated: item.days x item.time, in every week.
+//   cadence:"monthly"   + monthlyRule    — one occurrence per calendar month
+//   cadence:"quarterly" + quarterlyRule  — one occurrence per calendar quarter
+//
+//   monthlyRule    { type:"dayOfMonth",     day:1..31|"last",                        slot }
+//                  { type:"ordinalWeekday", ordinal:1..4|"last", weekday:"mon".."sun", slot }
+//   quarterlyRule  { type:"monthOfQuarter", month:1..3, day:1..31|"last",             slot }
+//                  { type:"ordinalWeekday", ordinal, weekday, monthOfQuarter:1..3,    slot }
+//
+// A cadence task carries NO days array — a rule resolves to one DATE, not a weekly pattern,
+// so the two are mutually exclusive and every writer keeps them that way. Its grid position
+// is DERIVED at render time exactly like a weekly one (v83): the rule resolves to a date, the
+// date resolves to a week, and the task appears only in that week, in that day's column, in
+// its slot. Nothing about it is ever frozen into a week's stored placements.
+const WP_ORDINALS = [["1","First"],["2","Second"],["3","Third"],["4","Fourth"],["last","Last"]];
+const WP_MONTHS_OF_QUARTER = [["1","1st month"],["2","2nd month"],["3","3rd month"]];
+// WP_DAYS keys -> getUTCDay() index (Sun=0 .. Sat=6). The inverse, index -> key, is WP_DAY_OF,
+// already defined for the Today modal — one mapping in each direction, shared.
+const WP_WEEKDAY_INDEX = { sun:0, mon:1, tue:2, wed:3, thu:4, fri:5, sat:6 };
+
+// A task's cadence, or "" for the weekly engine. Only a recognised value counts: a stored
+// "weekly", an unknown string and a missing field all mean "behave exactly as before".
+function wpCadenceOf(it){
+  const c = (it && typeof it.cadence === "string") ? it.cadence : "";
+  return (c === "monthly" || c === "quarterly") ? c : "";
+}
+// The rule object for that cadence, already normalised by the load path.
+function wpCadenceRule(it){
+  const c = wpCadenceOf(it);
+  if(!c) return null;
+  const r = (c === "monthly") ? (it && it.monthlyRule) : (it && it.quarterlyRule);
+  return (r && typeof r === "object" && !Array.isArray(r)) ? r : null;
+}
+// The preset time-row a cadence task lands in. The rule carries it; item.time is kept in
+// step by every writer, so any existing slot reader gets the same answer either way.
+function wpCadenceSlot(it){
+  const r = wpCadenceRule(it);
+  const s = (r && typeof r.slot === "string") ? r.slot : (it && it.time);
+  return (typeof s === "string" && WP_TIME_ROWS.some(t=>t[0]===s)) ? s : "6-9";
+}
+
+/* ---- the resolver: a rule -> an actual date ---- */
+// Days in a calendar month (month is 0-11). Day 0 of the NEXT month is the last of this one.
+function wpDaysInMonth(y, m){ return new Date(Date.UTC(y, m + 1, 0)).getUTCDate(); }
+// "Day of month", with the OVERFLOW CLAMP: the 31st of a 30-day month — or of February — is
+// that month's LAST day, never a silent roll into the next month (which is what a raw
+// Date.UTC(y, 1, 31) would do: it becomes 3 March). "last" is the last day by definition, so
+// a task set to the last day lands on the 28th, 29th, 30th or 31st as the month requires.
+function wpDayOfMonthDate(y, m, day){
+  const dim = wpDaysInMonth(y, m);
+  if(day === "last") return new Date(Date.UTC(y, m, dim));
+  const n = Math.floor(Number(day));
+  if(!isFinite(n) || n < 1) return null;
+  return new Date(Date.UTC(y, m, Math.min(n, dim)));   // 31 Feb -> 28/29 Feb
+}
+// "The nth <weekday> of the month". Not every month HAS a fifth Monday, and some have only
+// four of a given weekday, so an ordinal that doesn't exist in this month FALLS BACK TO THE
+// LAST occurrence of that weekday rather than dropping the task off the grid for the month.
+// "last" asks for that same last occurrence directly.
+function wpOrdinalWeekdayDate(y, m, ordinal, weekday){
+  const wd = WP_WEEKDAY_INDEX[weekday];
+  if(wd === undefined) return null;
+  const dim = wpDaysInMonth(y, m);
+  const firstWd = new Date(Date.UTC(y, m, 1)).getUTCDay();
+  const first = 1 + (((wd - firstWd) + 7) % 7);        // first date in the month on that weekday
+  const lastWd = new Date(Date.UTC(y, m, dim)).getUTCDay();
+  const last = dim - (((lastWd - wd) + 7) % 7);        // last date in the month on that weekday
+  if(ordinal === "last") return new Date(Date.UTC(y, m, last));
+  const n = Math.floor(Number(ordinal));
+  if(!isFinite(n) || n < 1) return null;
+  const d = first + 7 * (n - 1);
+  return new Date(Date.UTC(y, m, d > dim ? last : d)); // no 5th Monday -> the last Monday
+}
+// The month index (0-11) a quarter starts at, for the quarter containing month m.
+function wpQuarterStartMonth(m){ return Math.floor(m / 3) * 3; }
+function wpResolveMonthlyRule(rule, y, m){
+  if(!rule) return null;
+  if(rule.type === "ordinalWeekday") return wpOrdinalWeekdayDate(y, m, rule.ordinal, rule.weekday);
+  if(rule.type === "dayOfMonth") return wpDayOfMonthDate(y, m, rule.day);
+  return null;
+}
+// A quarterly rule names a month WITHIN its quarter (1..3), so the QUARTER is taken from the
+// month being resolved: resolving for any month of Q3 gives Q3's occurrence. That is what
+// makes it land in the right quarter for the week being viewed — including a week straddling
+// a quarter boundary, where both of the week's months get resolved and each brings its own
+// quarter with it.
+function wpResolveQuarterlyRule(rule, y, m){
+  if(!rule) return null;
+  const raw = (rule.type === "ordinalWeekday") ? rule.monthOfQuarter : rule.month;
+  const n = Math.floor(Number(raw));
+  const moq = (n >= 1 && n <= 3) ? n : 1;
+  const tm = wpQuarterStartMonth(m) + (moq - 1);       // stays inside the year: quarters never straddle one
+  if(rule.type === "ordinalWeekday") return wpOrdinalWeekdayDate(y, tm, rule.ordinal, rule.weekday);
+  if(rule.type === "monthOfQuarter") return wpDayOfMonthDate(y, tm, rule.day);
+  return null;
+}
+
+/* ---- the resolved date -> this week's cells ---- */
+// The occurrence date(s) of a cadence task that fall inside one Monday-started week, as
+// "YYYY-MM-DD". A week spans at most two calendar months (and, four times a year, two
+// quarters), so BOTH of its edge months are resolved and a date is kept only if it actually
+// lands inside the week — that single containment test IS "which week does this appear in".
+// Resolving both edges is what makes a month boundary work: the week of 30 Jan - 5 Feb has to
+// be able to show a "31st" (January's) and a "1st" (February's).
+function wpCadenceDatesInWeek(it, weekMonday){
+  const cadence = wpCadenceOf(it);
+  const rule = wpCadenceRule(it);
+  if(!cadence || !rule) return [];
+  const start = new Date(String(weekMonday || "") + "T00:00:00Z");
+  if(isNaN(start.getTime())) return [];
+  const end = new Date(start.getTime());
+  end.setUTCDate(end.getUTCDate() + 6);
+  const out = [], seen = {};
+  [start, end].forEach(edge=>{
+    const y = edge.getUTCFullYear(), m = edge.getUTCMonth();
+    const date = (cadence === "quarterly") ? wpResolveQuarterlyRule(rule, y, m) : wpResolveMonthlyRule(rule, y, m);
+    if(!date || isNaN(date.getTime())) return;
+    const iso = date.toISOString().slice(0, 10);
+    if(seen[iso]) return;                              // both edges resolved to one occurrence
+    seen[iso] = true;
+    if(date >= start && date <= end) out.push(iso);
+  });
+  return out.sort();
+}
+// This week's grid cells ("<slot>:<day>") for a cadence task — empty when its occurrence
+// isn't in this week, which is exactly how it stays out of the month's other weeks.
+function wpCadenceCells(it, weekMonday){
+  const slot = wpCadenceSlot(it);
+  return wpCadenceDatesInWeek(it, weekMonday).map(iso=>
+    slot + ":" + WP_DAY_OF[new Date(iso + "T00:00:00Z").getUTCDay()]);
+}
+
+/* ---- validation + labels ---- */
+// "1st", "2nd", "3rd", "11th", "21st", "31st"
+function wpOrdinalNum(n){
+  const v = Math.floor(Number(n));
+  if(!isFinite(v)) return "";
+  const t = v % 100, u = v % 10;
+  const suf = (t >= 11 && t <= 13) ? "th" : (u === 1 ? "st" : u === 2 ? "nd" : u === 3 ? "rd" : "th");
+  return v + suf;
+}
+// Normalise a stored/entered rule into EXACTLY the documented shape, or null. A rule that
+// doesn't validate is dropped whole rather than half-applied: a task with no valid rule is
+// simply an ordinary unscheduled recurring task, never one that lands on the wrong day.
+function wpNormCadenceRule(cadence, raw){
+  if(!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const slot = (typeof raw.slot === "string" && WP_TIME_ROWS.some(t=>t[0]===raw.slot)) ? raw.slot : "6-9";
+  const dayOf = v=>{
+    if(v === "last") return "last";
+    const n = Math.floor(Number(v));
+    return (isFinite(n) && n >= 1 && n <= 31) ? n : null;
+  };
+  const moqOf = v=>{ const n = Math.floor(Number(v)); return (n >= 1 && n <= 3) ? n : null; };
+  if(raw.type === "ordinalWeekday"){
+    let ordinal = null;
+    if(raw.ordinal === "last") ordinal = "last";
+    else { const n = Math.floor(Number(raw.ordinal)); if(n >= 1 && n <= 4) ordinal = n; }
+    const weekday = (WP_WEEKDAY_INDEX[raw.weekday] !== undefined) ? raw.weekday : null;
+    if(ordinal === null || !weekday) return null;
+    const out = { type:"ordinalWeekday", ordinal, weekday, slot };
+    if(cadence === "quarterly"){
+      const m = moqOf(raw.monthOfQuarter);
+      if(m === null) return null;
+      out.monthOfQuarter = m;
+    }
+    return out;
+  }
+  if(cadence === "monthly" && raw.type === "dayOfMonth"){
+    const day = dayOf(raw.day);
+    return (day === null) ? null : { type:"dayOfMonth", day, slot };
+  }
+  if(cadence === "quarterly" && raw.type === "monthOfQuarter"){
+    const day = dayOf(raw.day), m = moqOf(raw.month);
+    return (day === null || m === null) ? null : { type:"monthOfQuarter", month:m, day, slot };
+  }
+  return null;
+}
+function wpDefaultCadenceRule(cadence){
+  return (cadence === "quarterly")
+    ? { type:"monthOfQuarter", month:1, day:1, slot:"6-9" }
+    : { type:"dayOfMonth", day:1, slot:"6-9" };
+}
+// The badge on the card row — what the rule SAYS, in a few characters: "Monthly · 1st",
+// "Monthly · Last Fri", "Qtly · 1st Mon · M2". Independent of which week is on screen.
+function wpCadenceLabel(it){
+  const cadence = wpCadenceOf(it), rule = wpCadenceRule(it);
+  if(!cadence || !rule) return "";
+  const dayTxt = d=>(d === "last" ? "last day" : wpOrdinalNum(d));
+  const ordTxt = o=>(o === "last" ? "Last" : wpOrdinalNum(o));
+  let what;
+  if(rule.type === "ordinalWeekday"){
+    what = ordTxt(rule.ordinal) + " " + wpDayLabel(rule.weekday);
+    if(cadence === "quarterly") what += " · M" + rule.monthOfQuarter;
+  } else if(rule.type === "monthOfQuarter"){
+    what = "M" + rule.month + " " + dayTxt(rule.day);
+  } else {
+    what = dayTxt(rule.day);
+  }
+  return (cadence === "monthly" ? "Monthly" : "Qtly") + " · " + what;
+}
+
 // v75: the Recurring card is split into tabs (Daily · Weekly · Monthly · Quarterly). This
 // is a DISPLAY FILTER on the existing wpDefaults — which tab a task shows under is DERIVED
 // from its existing schedule (it.days), never a stored field. Edit the thresholds here.
@@ -2119,6 +2365,8 @@ function wpMultiDay(it){ const d = wpRecurDays(it); return !!(d && d.length > 1)
 //   monthly / quarterly — placeholders for now; nothing derives into them yet.
 const WP_RECUR_TABS = [["daily","Daily"],["weekly","Weekly"],["monthly","Monthly"],["quarterly","Quarterly"]];
 function wpRecurTab(it){
+  const cadence = wpCadenceOf(it);         // v113: an explicit cadence names its own tab
+  if(cadence) return cadence;
   const days = wpRecurDays(it);            // day-key array if scheduled, else null
   if(days && days.length >= 7) return "daily";
   return "weekly";                         // 1–6 day schedules and unscheduled one-offs
@@ -2330,18 +2578,29 @@ function wpCleanExceptions(raw){
 // week — nothing here is per-week, so a schedule edit shows up everywhere at once.
 function wpScheduledPlacements(){
   const out = {};
+  const put = (key, ref)=>{
+    out[key] = out[key] || [];
+    if(!out[key].includes(ref)) out[key].push(ref);
+  };
   const add = (source, list)=>{
     (list||[]).forEach(it=>{
       if(!it || !it.id) return;
+      const ref = wpItemRef(source, it.id);
+      // v113: a monthly/quarterly task resolves to at most one date, and contributes a cell
+      // ONLY in the week that date falls in — so it is absent from the month's other weeks
+      // by construction, not by a filter somewhere downstream. Everything after this point
+      // (exceptions, chips, done-state, drag, the Today modal, Copy Week) is the SAME shared
+      // path a weekly recurring task takes; nothing about it is forked for cadence.
+      if(wpCadenceOf(it)){
+        wpCadenceCells(it, wpWeekEnding).forEach(key=>put(key, ref));
+        return;
+      }
       const days = wpRecurDays(it);
       if(!days) return;                                   // no day set = one-off, not derived
       const slot = (typeof it.time === "string" && WP_TIME_ROWS.some(t=>t[0]===it.time)) ? it.time : "6-9";
-      const ref = wpItemRef(source, it.id);
       days.forEach(d=>{
         if(!WP_DAYS.some(w=>w[0]===d)) return;
-        const key = slot+":"+d;
-        out[key] = out[key] || [];
-        if(!out[key].includes(ref)) out[key].push(ref);
+        put(slot+":"+d, ref);
       });
     });
   };
@@ -2439,7 +2698,10 @@ function wpIsScheduledRef(ref){
   const source = String(ref).split(":")[0];
   if(!wpIsDefaultsSource(source)) return false;
   const item = wpResolveRef(ref);
-  return !!(item && wpRecurDays(item));
+  // v113: a cadence task is schedule-derived in exactly the same sense — its cell comes from
+  // its rule, not from a stored placement — so the v82 exception layer covers it too: its one
+  // occurrence can be moved or skipped for this week without rolling over to the next one.
+  return !!(item && (wpRecurDays(item) || wpCadenceOf(item)));
 }
 // The schedule-derived cell behind a cell you can see: if the chip you grabbed is itself the
 // result of a move exception, its base is that exception's `from`.
@@ -2629,7 +2891,9 @@ async function wpSeedRecurringPlacements(wk){
   const idxHere = NAV_WEEKS.indexOf(wk);
   if(idxHere < 0) return; // unknown position — don't risk seeding from an unrelated week
   const sources = [
-    { prefix: "recurring:", valid: new Set((wpDefaults||[]).filter(d=>!wpRecurDays(d)).map(d=>d.id)) }
+    // v113: a cadence task is derived like any other scheduled task, so — exactly as for a
+    // day-set task — there is nothing to seed and seeding it would freeze a stale cell.
+    { prefix: "recurring:", valid: new Set((wpDefaults||[]).filter(d=>!wpRecurDays(d) && !wpCadenceOf(d)).map(d=>d.id)) }
   ].filter(src => src.valid.size &&
     // Does THIS week already have any placement with this prefix? If so, respect it.
     !Object.keys(wpPlan.placements).some(key =>
@@ -2729,6 +2993,14 @@ function wpPlacedLabel(ref){
   // v83: a SCHEDULED task's pill reads straight off its live schedule (that's now where its
   // grid position comes from), so it's right in every week — including one that holds no
   // stored placement of its own. v64: a multi-day set is labelled as a set.
+  // v113: a cadence task's pill is about THIS week — where its one occurrence landed, or
+  // that it isn't due in the week you're looking at. The rule itself is on the badge.
+  if(item && wpCadenceOf(item)){
+    const cells = wpCadenceCells(item, wpWeekEnding);
+    if(!cells.length) return "Not this week";
+    const [slot, day] = cells[0].split(":");
+    return wpDayLabel(day) + " " + wpSlotLabel(slot);
+  }
   const days = item ? wpRecurDays(item) : null;
   if(days){
     const tl = wpSlotLabel(item.time || "6-9");
@@ -2754,13 +3026,23 @@ function wpRecurRow(it){
   // v77: the title is now editable inline (same behaviour + save shape as Project/Buffer/
   // Training) — the id is untouched, so placements/schedule/done-state/link all survive a
   // rename. Scheduling moves to a 📅 button (the name used to open the popup on click).
-  return `<div class="wp-txt-row wp-rec-row" data-rec-id="${it.id}">
+  // v113: a monthly/quarterly task wears a small badge of what its RULE says ("Monthly · 1st",
+  // "Qtly · 1st Mon · M2"), so the cadence is readable at a glance without opening the editor.
+  // The pill beside it stays what it always was — where the task sits — which for a cadence
+  // task is either this week's resolved day+slot, or a quiet "Not this week".
+  const cadence = wpCadenceOf(it);
+  const badge = cadence
+    ? `<span class="wp-cad-badge wp-cad-${cadence}" title="Repeats ${wpEsc(wpCadenceLabel(it))}" onclick="wpOpenPopup('recurring','${it.id}',this)">${wpEsc(wpCadenceLabel(it))}</span>`
+    : "";
+  const schedTitle = cadence ? "Edit the monthly/quarterly rule" : (sched ? "Edit schedule" : "Schedule — days + slot");
+  return `<div class="wp-txt-row wp-rec-row${cadence?" wp-rec-cadence":""}" data-rec-id="${it.id}">
     <input class="wp-drag-name wp-rec-name${done?" wp-done":""}" data-item-title="recurring:${it.id}" value="${wpEsc(it.title)}" placeholder="Recurring task"
       onkeydown="wpItemKey(event)" onblur="wpDefaultTitleBlur('recurring','${it.id}')">
     ${linkOut}
     <button class="wp-rec-linkbtn" title="${linkHref?"Edit link":"Add link"}" onclick="wpEditRecurLink('${it.id}')">🔗</button>
-    <button class="wp-rec-linkbtn wp-rec-sched" title="${sched?"Edit schedule":"Schedule — days + slot"}" onclick="wpOpenPopup('recurring','${it.id}',this)">📅</button>
-    ${placed?`<span class="wp-txt-tag" onclick="wpOpenPopup('recurring','${it.id}',this)">${placed}</span>`:""}
+    <button class="wp-rec-linkbtn wp-rec-sched" title="${schedTitle}" onclick="wpOpenPopup('recurring','${it.id}',this)">📅</button>
+    ${badge}
+    ${placed?`<span class="wp-txt-tag${cadence&&placed==="Not this week"?" wp-txt-tag-off":""}" onclick="wpOpenPopup('recurring','${it.id}',this)">${placed}</span>`:""}
     <button class="wp-txt-del" title="Remove" onclick="wpRemoveRecurring('${it.id}')">✕</button>
   </div>`;
 }
@@ -2839,19 +3121,27 @@ function wpRecurringBox(){
   defs.forEach(it=>{ counts[wpRecurTab(it)]++; });
   const tabBtns = WP_RECUR_TABS.map(([k,l])=>
     `<button type="button" class="wp-ntab${wpRecurTabSel===k?" active":""}" onclick="wpRecurSwitchTab('${k}')">${l} <span class="wp-ntab-count">${counts[k]}</span></button>`).join("");
-  const isPlaceholder = (wpRecurTabSel==="monthly" || wpRecurTabSel==="quarterly");
-  let bodyInner;
-  if(isPlaceholder){
-    const lbl = wpRecurTabSel==="monthly" ? "Monthly" : "Quarterly";
-    bodyInner = `<div class="wp-rec-soon">${lbl} recurring is coming soon.</div>`;
-  } else {
-    const list = defs.filter(it=>wpRecurTab(it)===wpRecurTabSel);
-    bodyInner = list.length ? list.map(it=>wpRecurRow(it)).join("") : `<div class="wp-empty">Nothing here yet.</div>`;
-  }
-  // The + Add control shows on the real (Daily/Weekly) tabs — a new task derives into
-  // Weekly, and wpAddRecurring switches there so you always see what you just added.
-  const addRow = isPlaceholder ? "" :
-    `<div class="wp-rec-actions"><button class="wp-rec-addbtn" onclick="wpAddRecurring()">+ Add recurring</button></div>`;
+  // v113: Monthly and Quarterly are real tabs now — the same wpRecurRow list as Daily and
+  // Weekly, filtered by the same wpRecurTab derivation. The only difference is which add
+  // button they offer, because a cadence task needs a rule the moment it exists.
+  const list = defs.filter(it=>wpRecurTab(it)===wpRecurTabSel);
+  const emptyHint = (wpRecurTabSel === "monthly")
+    ? "Nothing monthly yet — add a task that repeats on a day of the month, or an ordinal weekday."
+    : (wpRecurTabSel === "quarterly")
+      ? "Nothing quarterly yet — add a task that repeats once a quarter, in the month you choose."
+      : "Nothing here yet.";
+  const bodyInner = list.length
+    ? list.map(it=>wpRecurRow(it)).join("")
+    : `<div class="wp-empty">${wpEsc(emptyHint)}</div>`;
+  // The + Add control. Daily/Weekly add an unscheduled task into Weekly exactly as before;
+  // Monthly/Quarterly mint one already carrying a default rule for that cadence, so it lands
+  // in the tab you added it from and is immediately editable.
+  const addBtn = (wpRecurTabSel === "monthly")
+    ? `<button class="wp-rec-addbtn" onclick="wpAddCadence('monthly')">+ Add monthly task</button>`
+    : (wpRecurTabSel === "quarterly")
+      ? `<button class="wp-rec-addbtn" onclick="wpAddCadence('quarterly')">+ Add quarterly task</button>`
+      : `<button class="wp-rec-addbtn" onclick="wpAddRecurring()">+ Add recurring</button>`;
+  const addRow = `<div class="wp-rec-actions">${addBtn}</div>`;
   // v102: collapsed shows the header only — plus the per-tab counts, so you still know what
   // is in there without expanding. Everything inside the card is untouched when expanded.
   const toggle = `<button type="button" class="wp-rec-collapse" aria-expanded="${wpRecurCollapsed?"false":"true"}"
@@ -3953,6 +4243,57 @@ async function wpAddRecurring(){
   await wpSaveDefaults();
   renderWeeklyPlan();
 }
+// v113: add a monthly/quarterly task. It is minted WITH a default rule for its cadence
+// (1st of the month / 1st of the quarter's first month, 6–9), because a cadence task with no
+// rule has nowhere to land — you then edit the rule from the 📅 button, exactly as a weekly
+// task edits its days. Everything else about it is an ordinary recurring task: same list,
+// same id, same rename/delete/link, same done-state.
+async function wpAddCadence(cadence){
+  const c = (cadence === "quarterly") ? "quarterly" : "monthly";
+  const name = prompt(c === "monthly" ? "New monthly task:" : "New quarterly task:");
+  if(name==null) return;
+  const t = name.trim().replace(/^[-•]\s*/,"");
+  if(!t) return;
+  await wpLoadDefaults();
+  wpDefaults = wpDefaults || [];
+  const rule = wpDefaultCadenceRule(c);
+  const it = { id:wpUid(), title:t, cadence:c, time:rule.slot };
+  if(c === "monthly") it.monthlyRule = rule; else it.quarterlyRule = rule;
+  wpDefaults.push(it);
+  wpRecurTabSel = wpRecurTab(it);   // = the cadence — the tab you added it from
+  wpRecurCollapsed = false;
+  await wpSaveDefaults();
+  renderWeeklyPlan();
+}
+// THE cadence writer — the counterpart to wpSetRecurrence, and deliberately its mirror image:
+// it validates, clears the other kind of schedule, drops any stale stored placement/exception
+// and saves through the same two paths. A rule that doesn't validate CLEARS the cadence
+// (leaving a plain unscheduled recurring task) rather than storing something half-formed.
+async function wpSetCadence(id, cadence, rule){
+  await wpLoadDefaults();
+  const it = (wpDefaults||[]).find(x=>x.id===id);
+  if(!it || !wpPlan) return;
+  wpSyncFromDom();
+  const c = (cadence === "monthly" || cadence === "quarterly") ? cadence : "";
+  const clean = c ? wpNormCadenceRule(c, rule) : null;
+  const ref = wpItemRef("recurring", id);
+  // a cadence task is derived, so any stored placement of it is a stale mirror; and editing
+  // the rule supersedes a one-week exception the same way editing days does (v82).
+  wpRemoveRefEverywhere(ref);
+  delete wpExceptionsMap()[ref];
+  if(clean){
+    it.cadence = c;
+    if(c === "monthly"){ it.monthlyRule = clean; delete it.quarterlyRule; }
+    else { it.quarterlyRule = clean; delete it.monthlyRule; }
+    delete it.days;              // mutually exclusive: a rule is a date, not a weekly pattern
+    it.time = clean.slot;        // keep the plain slot field in step with the rule's
+  } else {
+    delete it.cadence; delete it.monthlyRule; delete it.quarterlyRule;
+  }
+  await wpSaveDefaults();
+  await wpSaveSection("timeBlocks");
+  renderWeeklyPlan();
+}
 // v82: `noConfirm` is passed when the v82 "Skip this week / Remove entirely" modal has
 // already asked — the deletion itself is unchanged (task gone from every week).
 async function wpRemoveRecurring(id, noConfirm){
@@ -4026,6 +4367,9 @@ async function wpSetRecurrence(id, days, time, source){
   if(typeof time === "string" && WP_TIME_ROWS.some(t=>t[0]===time)) it.time = time;
   if(ds.length){
     it.days = ds;
+    // v113: days and a cadence are mutually exclusive — setting a weekly pattern ends the
+    // monthly/quarterly rule rather than leaving two schedules on one task.
+    delete it.cadence; delete it.monthlyRule; delete it.quarterlyRule;
     // v83: THIS is the write that matters — days + time on the shared task, which every week
     // (past, present and future) now derives its grid position from. The placement entries
     // written below are only a same-week mirror kept for back-compat; rendering ignores them.
@@ -4114,6 +4458,9 @@ function wpOpenPopup(source, id, anchor){
   wpClosePopup();
   const ref = wpItemRef(source, id);
   const item = wpResolveRef(ref);
+  // v113: a cadence task's schedule is a RULE, not a set of weekdays, so it gets its own
+  // editor. One entry point either way — the 📅 button, the badge and the pill all land here.
+  if(item && wpCadenceOf(item)) return wpOpenCadencePopup(id, anchor);
   const keys = wpPlacementsOf(ref);
   // v83: for a scheduled task the schedule IS the position, so the editor opens on it (a
   // stored placement may be an older mirror). Unscheduled items still read their cell.
@@ -4152,6 +4499,83 @@ function wpOpenPopup(source, id, anchor){
   const pr = pop.getBoundingClientRect();
   if(pr.right > window.innerWidth-8) pop.style.left = (window.scrollX + window.innerWidth - pr.width - 8) + "px";
   setTimeout(()=>document.addEventListener("click", wpPopupOutside, true), 0);
+}
+
+/* ---- v113: the monthly / quarterly rule editor ---- */
+// The same tiny popup shell the day/slot editor uses, with the rule's fields instead of day
+// ticks: which KIND of rule, its values, and the preset slot. Both field groups are rendered
+// and one is hidden, so switching kind is instant and nothing is lost until you press Update.
+function wpCadOptions(list, cur){
+  return list.map(([v,l])=>`<option value="${wpEsc(v)}"${String(v)===String(cur)?" selected":""}>${wpEsc(l)}</option>`).join("");
+}
+function wpCadTypeSwitch(kind){
+  const dom = document.getElementById("wppop-cad-dom");
+  const ord = document.getElementById("wppop-cad-ord");
+  if(dom) dom.hidden = (kind === "ordinalWeekday");
+  if(ord) ord.hidden = (kind !== "ordinalWeekday");
+}
+function wpOpenCadencePopup(id, anchor){
+  wpClosePopup();
+  const it = (wpDefaults||[]).find(x=>x.id===id);
+  if(!it) return;
+  const cadence = wpCadenceOf(it) || "monthly";
+  const rule = wpCadenceRule(it) || wpDefaultCadenceRule(cadence);
+  const isOrd = rule.type === "ordinalWeekday";
+  const dayKind = (cadence === "monthly") ? "dayOfMonth" : "monthOfQuarter";
+  // 1..31 plus "Last day", so "the last day of the month" is a first-class choice rather than
+  // a 31 that happens to clamp.
+  const dayOpts = [["last","Last day"]].concat(
+    Array.from({length:31}, (_,i)=>[String(i+1), wpOrdinalNum(i+1)]));
+  const curDay = isOrd ? 1 : rule.day;
+  const curMoq = isOrd ? (rule.monthOfQuarter || 1) : (rule.month || 1);
+  const slotOpts = WP_TIME_ROWS.filter(([k])=>k!=="notes").map(([k,l])=>[k,l]);
+  const moqRow = (cadence === "quarterly")
+    ? `<div class="wp-popup-row"><label class="wp-cad-lbl">Month of quarter</label>
+        <select id="wppop-cad-moq">${wpCadOptions(WP_MONTHS_OF_QUARTER, curMoq)}</select></div>`
+    : "";
+  const pop = document.createElement("div");
+  pop.id = "wpPopup"; pop.className = "wp-popup wp-popup-cad";
+  pop.innerHTML = `<div class="wp-popup-h">${cadence === "monthly" ? "Repeats monthly" : "Repeats quarterly"}</div>
+    <div class="wp-popup-row"><label class="wp-cad-lbl">Rule</label>
+      <select id="wppop-cad-type" onchange="wpCadTypeSwitch(this.value)">
+        ${wpCadOptions([[dayKind,"Day of month"],["ordinalWeekday","Ordinal weekday"]], rule.type)}
+      </select></div>
+    <div id="wppop-cad-dom" class="wp-popup-row"${isOrd?" hidden":""}><label class="wp-cad-lbl">Day</label>
+      <select id="wppop-cad-day">${wpCadOptions(dayOpts, curDay)}</select></div>
+    <div id="wppop-cad-ord" class="wp-popup-row"${isOrd?"":" hidden"}><label class="wp-cad-lbl">Weekday</label>
+      <select id="wppop-cad-ord-n">${wpCadOptions(WP_ORDINALS, isOrd ? rule.ordinal : 1)}</select>
+      <select id="wppop-cad-ord-wd">${wpCadOptions(WP_DAYS, isOrd ? rule.weekday : "mon")}</select></div>
+    ${moqRow}
+    <div class="wp-popup-row"><label class="wp-cad-lbl">Slot</label>
+      <select id="wppop-cad-slot">${wpCadOptions(slotOpts, wpCadenceSlot(it))}</select></div>
+    <div class="wp-popup-actions">
+      <button class="wp-popup-place" onclick="wpApplyCadencePopup('${id}','${cadence}')">Update</button>
+    </div>`;
+  document.body.appendChild(pop);
+  const r = anchor.getBoundingClientRect();
+  pop.style.top = (window.scrollY + r.bottom + 6) + "px";
+  pop.style.left = (window.scrollX + r.left) + "px";
+  const pr = pop.getBoundingClientRect();
+  if(pr.right > window.innerWidth-8) pop.style.left = (window.scrollX + window.innerWidth - pr.width - 8) + "px";
+  setTimeout(()=>document.addEventListener("click", wpPopupOutside, true), 0);
+}
+// Read the popup's fields into a rule of the documented shape and hand it to the writer,
+// which validates again — the popup is a convenience, never the thing that decides.
+function wpApplyCadencePopup(id, cadence){
+  const val = k=>{ const el = document.getElementById(k); return el ? el.value : ""; };
+  const type = val("wppop-cad-type");
+  const slot = val("wppop-cad-slot") || "6-9";
+  let rule;
+  if(type === "ordinalWeekday"){
+    rule = { type:"ordinalWeekday", ordinal: val("wppop-cad-ord-n"), weekday: val("wppop-cad-ord-wd"), slot };
+    if(cadence === "quarterly") rule.monthOfQuarter = val("wppop-cad-moq");
+  } else if(cadence === "quarterly"){
+    rule = { type:"monthOfQuarter", month: val("wppop-cad-moq"), day: val("wppop-cad-day"), slot };
+  } else {
+    rule = { type:"dayOfMonth", day: val("wppop-cad-day"), slot };
+  }
+  wpClosePopup();
+  return wpSetCadence(id, cadence, rule);
 }
 /* ---- v84: the location display + its two popups ---- */
 // What a day's grid header shows after the day name. v86: not a filled pill — a subtle
