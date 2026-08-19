@@ -28,8 +28,11 @@ const ruleOf = (sel) => {
 
 (async () => {
   /* ================= 0. the build stamp ================= */
-  assert.ok(/<!-- build v110 · add-tile-compact -->/.test(HTML), "monthly.html stamped v110 · add-tile-compact");
-  assert.ok(/build v110 · add-tile-compact/.test(WEEKLY), "index.html carries the same stamp");
+  // ">= v110" — the exact stamp is the newest version's test to assert; both pages still have
+  // to agree on it (v101).
+  const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(HTML);
+  assert.ok(stamp && Number(stamp[1]) >= 110, "monthly.html stamped v110 or later");
+  assert.ok(WEEKLY.includes("build v" + stamp[1] + " · " + stamp[2]), "index.html carries the same stamp");
 
   /* ================= 1. the add cell opts out of the stretch ================= */
   {

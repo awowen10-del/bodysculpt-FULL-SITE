@@ -211,6 +211,9 @@ async function boot(opts = {}) {
     // v104: the monthly anchor's source record + the read-only notes viewer's open state
     " get monthFocus(){ return wpMonthFocus; }, set monthFocus(v){ wpMonthFocus = v; }," +
     " get monthProjects(){ return wpMonthProjects; }, set monthProjects(v){ wpMonthProjects = v; }," +
+    // v111: the month's "done on a week" index behind the Pull from Monthly dropdown. Derived
+    // state, rebuilt on every week load — writable so a test can prove the picker reads it.
+    " get monthWeeklyDone(){ return wpMonthWeeklyDone; }, set monthWeeklyDone(v){ wpMonthWeeklyDone = v; }," +
     " get anchorNotesOpen(){ return wpAnchorNotesOpen; }," +
     " get weekEnding(){ return wpWeekEnding; }," +
     " get navWeeks(){ return NAV_WEEKS; }," +

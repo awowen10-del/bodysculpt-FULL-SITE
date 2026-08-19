@@ -21,7 +21,11 @@ const AUG_WEEK = "2026-08-10", SEP_WEEK = "2026-09-07";
 const MONTH_FOCUS = {
   "2026-08": [
     { id: "f1", title: "Rebuild the onboarding call", rockRef: "1", notes: "", done: false },
-    { id: "f2", title: "Price review", rockRef: "", notes: "", done: true },
+    // v111: this item used to be planted done:true, to show the picker offered it regardless of
+    // done-state. That expectation is superseded — a done item is now deliberately withheld
+    // (see v111-pull-list-hides-done) — so it is open here and v105's own subject, "both lists
+    // are offered", is asserted exactly as before.
+    { id: "f2", title: "Price review", rockRef: "", notes: "", done: false },
     { id: "f3", title: "   ", rockRef: "", notes: "", done: false },        // untitled — never offered
   ],
   "2026-09": [{ id: "s1", title: "September business thing", done: false }],
@@ -70,7 +74,7 @@ async function week(opts) {
 
     // the regression itself — business focus items were missing entirely
     assert.ok(sel.includes("Rebuild the onboarding call"), "a business focus item is offered (the v97 regression)");
-    assert.ok(sel.includes("Price review"), "…including one already ticked done on Monthly");
+    assert.ok(sel.includes("Price review"), "…including the second one");
     assert.ok(sel.includes("Consistent wake/bed time") && sel.includes("Book the Italy trip"),
       "…and the personal items are still offered");
 
