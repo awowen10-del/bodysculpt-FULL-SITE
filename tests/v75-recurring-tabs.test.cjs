@@ -6,7 +6,9 @@
 // their own tabs (empty here); switching tabs never mutates task data; and all the recurring
 // behaviour (scheduling, done-state, grid placement, rollover) is unchanged.
 const assert = require("assert");
-const { boot } = require("./lib/env.cjs");
+const { boot, expandRecurring } = require("./lib/env.cjs");
+// v114: the card starts collapsed — every block here asserts on what is INSIDE it, so each
+// one opens it first, exactly as you would before working with the tabs.
 
 const WEEK = "2026-03-16"; // a Monday inside NAV_WEEKS
 const PREV = "2026-03-09";
@@ -29,6 +31,7 @@ const defaults = () => [
   {
     const { ctx } = await boot({ defaults: defaults(), plans: { [WEEK]: { weekEnding: WEEK, placements: {} } } });
     await ctx.loadWeeklyPlan(WEEK);
+    expandRecurring(ctx);
     assert.strictEqual(ctx.wpRecurTab({ days: ALL7.slice() }), "daily", "7-day task → Daily");
     assert.strictEqual(ctx.wpRecurTab({ days: WEEKDAYS.slice() }), "weekly", "5-day weekday task → Weekly");
     assert.strictEqual(ctx.wpRecurTab({ days: ["mon"] }), "weekly", "1-day task → Weekly");
@@ -42,6 +45,7 @@ const defaults = () => [
   {
     const { ctx } = await boot({ defaults: defaults(), plans: { [WEEK]: { weekEnding: WEEK, placements: {} } } });
     await ctx.loadWeeklyPlan(WEEK);
+    expandRecurring(ctx);
     const rows = { DailyStandup: "d1", WeekdayScorecard: "w5", MondayReview: "w1", UnscheduledTask: "u0" };
     const titles = Object.keys(rows);
     const seenIn = Object.fromEntries(titles.map((t) => [t, []]));
@@ -61,6 +65,7 @@ const defaults = () => [
   {
     const { ctx } = await boot({ defaults: defaults(), plans: { [WEEK]: { weekEnding: WEEK, placements: {} } } });
     await ctx.loadWeeklyPlan(WEEK);
+    expandRecurring(ctx);
     const html = ctx.document.getElementById("wpBody").innerHTML;
     assert.ok(html.includes(`Daily <span class="wp-ntab-count">1</span>`), "Daily count = 1");
     assert.ok(html.includes(`Weekly <span class="wp-ntab-count">3</span>`), "Weekly count = 3");
@@ -76,6 +81,7 @@ const defaults = () => [
   {
     const { ctx } = await boot({ defaults: defaults(), plans: { [WEEK]: { weekEnding: WEEK, placements: {} } } });
     await ctx.loadWeeklyPlan(WEEK);
+    expandRecurring(ctx);
     for (const [tab, lbl] of [["monthly", "Monthly"], ["quarterly", "Quarterly"]]) {
       ctx.wpRecurSwitchTab(tab);
       const html = ctx.document.getElementById("wpBody").innerHTML;
@@ -91,6 +97,7 @@ const defaults = () => [
   {
     const { ctx, posts } = await boot({ defaults: defaults(), plans: { [WEEK]: { weekEnding: WEEK, placements: {} } } });
     await ctx.loadWeeklyPlan(WEEK);
+    expandRecurring(ctx);
     const before = JSON.stringify(ctx.__wpState.defaults);
     const postsBefore = posts.length;
     ["daily", "weekly", "monthly", "quarterly", "daily", "weekly"].forEach((t) => ctx.wpRecurSwitchTab(t));
@@ -102,6 +109,7 @@ const defaults = () => [
   {
     const { ctx } = await boot({ defaults: defaults(), plans: { [WEEK]: { weekEnding: WEEK, placements: {} } } });
     await ctx.loadWeeklyPlan(WEEK);
+    expandRecurring(ctx);
     // promote the 1-day Weekly task to all 7 days via the unchanged recurrence writer
     await ctx.wpSetRecurrence("w1", ALL7.slice(), "10-12");
     assert.strictEqual(ctx.wpPlacementsOf("recurring:w1").length, 7, "scheduling placed the task on all 7 days");
@@ -118,6 +126,7 @@ const defaults = () => [
       plans: { [WEEK]: { weekEnding: WEEK, placements: { ["6-9:mon"]: ["recurring:d1"], ["6-9:tue"]: ["recurring:d1"] } } },
     });
     await ctx.loadWeeklyPlan(WEEK);
+    expandRecurring(ctx);
     // tick a per-day done on the daily task — same keys as before the tabs existed
     await ctx.wpToggleDoneRef("recurring:d1", true, "mon");
     assert.strictEqual(ctx.__wpState.plan.recurringDone["d1:mon"], true, "per-day done key written as usual");
@@ -135,6 +144,7 @@ const defaults = () => [
     };
     const { ctx } = await boot({ defaults: defaults(), plans });
     await ctx.loadWeeklyPlan(WEEK);
+    expandRecurring(ctx);
     // v83: derived from d1's live 7-day schedule at 6-9 rather than copied from PREV
     const E = ctx.wpEffectivePlacements();
     ALL7.forEach((d) => assert.ok((E["6-9:" + d] || []).includes("recurring:d1"), "daily task shows at 6-9:" + d + " in a fresh week"));
@@ -144,6 +154,7 @@ const defaults = () => [
   {
     const { ctx } = await boot({ defaults: defaults(), plans: { [WEEK]: { weekEnding: WEEK, placements: {} } } });
     await ctx.loadWeeklyPlan(WEEK);
+    expandRecurring(ctx);
     ctx.wpRecurSwitchTab("daily"); // sitting on a different tab than where the add will land
     ctx.prompt = () => "Brand New Task"; // the env stub returns null by default; supply a title
     await ctx.wpAddRecurring();

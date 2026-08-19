@@ -255,4 +255,12 @@ async function boot(opts = {}) {
   return { ctx: sandbox, posts, settle, monthly };
 }
 
-module.exports = { boot, sleep };
+// v114: the recurring card starts COLLAPSED, so a test that asserts on what is inside it
+// (tabs, task rows, the add control) has to open it first — exactly as you would. This is a
+// no-op if it is already open, so it is safe to call anywhere. Tests that own the collapse
+// behaviour itself drive wpToggleRecurCollapsed directly instead.
+function expandRecurring(ctx) {
+  if (ctx.__wpState.recurCollapsed) ctx.wpToggleRecurCollapsed();
+}
+
+module.exports = { boot, sleep, expandRecurring };

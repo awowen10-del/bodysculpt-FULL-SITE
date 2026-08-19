@@ -141,35 +141,24 @@ async function week(opts) {
     // earlier in the page, so search for the end AFTER the header)
     const recBox = (h) => { const a = h.indexOf("wp-rec-h"); const b = h.indexOf("wp-rec-actions", a); return h.slice(a, b < 0 ? undefined : b); };
 
-    // default: expanded, exactly as before
-    assert.strictEqual(env.ctx.__wpState.recurCollapsed, false, "the card starts expanded");
+    // v114 DEFAULT: the card starts COLLAPSED on load. It is the tallest thing above the week
+    // and only grew (v113 filled two more tabs), so the quiet state is the default one.
+    assert.strictEqual(env.ctx.__wpState.recurCollapsed, true, "the card starts collapsed");
     let h = html(env);
-    assert.ok(h.includes('class="wp-notes-tabs wp-rec-tabs"'), "the tabs render when expanded");
-    assert.ok(h.includes("wpRecurSwitchTab('daily')") && h.includes("wpRecurSwitchTab('quarterly')"),
-      "…all four of them");
-    assert.ok(h.includes("+ Add recurring"), "…with the add control");
-    assert.ok(h.includes("Scorecard") || h.includes("Payroll"), "…and the task rows");
-    assert.ok(!h.includes("wp-rec-collapsed"), "…and no collapsed shell");
-    assert.ok(/aria-expanded="true"/.test(h), "the toggle reports expanded");
-
-    // collapse
-    env.ctx.wpToggleRecurCollapsed();
-    await env.settle();
-    h = html(env);
-    assert.strictEqual(env.ctx.__wpState.recurCollapsed, true, "it collapses");
-    assert.ok(h.includes("wp-rec-collapsed"), "…to a header-only shell");
+    assert.ok(h.includes("wp-rec-collapsed"), "…as a header-only shell");
     assert.ok(/aria-expanded="false"/.test(h), "…reported on the toggle");
     assert.ok(!h.includes("wp-rec-tabs"), "the tabs are hidden when collapsed");
     assert.ok(!h.includes("+ Add recurring"), "…as is the add control");
     assert.ok(!/data-item-title="recurring:r2"/.test(h), "…and the task rows");  // no card body at all
 
-    // counts still visible: "Daily 1 · Weekly 2"
+    // …and the counts are STILL on the collapsed header, so you can see what is in there
+    // without opening it: "Daily 1 · Weekly 2"
     const summary = /<span class="wp-rec-summary">([^<]*)<\/span>/.exec(h);
     assert.ok(summary, "the collapsed header shows a summary");
     assert.strictEqual(summary[1], "Daily 1 · Weekly 2", "…the per-tab counts, so you know what's in there");
     assert.ok(h.includes(">Recurring <span"), "…next to the card's name");
 
-    // it stays collapsed across weeks (session state)
+    // it stays collapsed across weeks (session state) — the default is about a fresh LOAD
     await env.ctx.loadWeeklyPlan(SEP_WEEK);
     await env.settle();
     assert.strictEqual(env.ctx.__wpState.recurCollapsed, true, "…and stays collapsed when the week changes");
@@ -178,14 +167,34 @@ async function week(opts) {
     await env.settle();
     assert.ok(html(env).includes("wp-rec-collapsed"), "…and back again");
 
-    // expand: everything inside is exactly as it was
+    // a fresh load starts collapsed again — nothing about the state is remembered or stored
+    const reload = await week();
+    assert.strictEqual(reload.ctx.__wpState.recurCollapsed, true, "a fresh load starts collapsed too");
+    assert.ok(html(reload).includes("wp-rec-collapsed"), "…rendered that way");
+
+    // EXPAND: one click, and everything inside is exactly what it always was
     env.ctx.wpToggleRecurCollapsed();
     await env.settle();
     h = html(env);
-    assert.strictEqual(env.ctx.__wpState.recurCollapsed, false, "it expands again");
-    assert.ok(h.includes("wp-rec-tabs") && h.includes("+ Add recurring"), "the card is whole again");
+    assert.strictEqual(env.ctx.__wpState.recurCollapsed, false, "it expands");
+    assert.ok(h.includes('class="wp-notes-tabs wp-rec-tabs"'), "the tabs render when expanded");
+    assert.ok(h.includes("wpRecurSwitchTab('daily')") && h.includes("wpRecurSwitchTab('quarterly')"),
+      "…all four of them");
+    assert.ok(h.includes("+ Add recurring"), "…with the add control");
+    assert.ok(h.includes("Scorecard") || h.includes("Payroll"), "…and the task rows");
+    assert.ok(!h.includes("wp-rec-collapsed"), "…and no collapsed shell");
+    assert.ok(/aria-expanded="true"/.test(h), "the toggle reports expanded");
     assert.ok(/<span class="wp-ntab-count">1<\/span>/.test(h) && /<span class="wp-ntab-count">2<\/span>/.test(h),
       "…with the same per-tab counts on the tabs");
+
+    // …and it collapses again, so the toggle still works both ways within the session
+    env.ctx.wpToggleRecurCollapsed();
+    await env.settle();
+    assert.strictEqual(env.ctx.__wpState.recurCollapsed, true, "and collapses again");
+    assert.ok(html(env).includes("wp-rec-collapsed"), "…back to the header-only shell");
+    env.ctx.wpToggleRecurCollapsed();   // leave it open for the rest of this block
+    await env.settle();
+    h = html(env);
 
     // and the card still works: tab switching, rows, schedule, done-state, drag.
     // Scoped to the card — a scheduled task also appears as a chip in the grid below.
@@ -215,8 +224,7 @@ async function week(opts) {
   /* ---- adding a recurring task never lands in a card you can't see ---- */
   {
     const env = await week();
-    env.ctx.wpToggleRecurCollapsed();
-    await env.settle();
+    // v114: it already starts collapsed — no toggle needed to get into that state
     assert.strictEqual(env.ctx.__wpState.recurCollapsed, true, "collapsed");
     env.ctx.prompt = () => "Brand new task";
     await env.ctx.wpAddRecurring();

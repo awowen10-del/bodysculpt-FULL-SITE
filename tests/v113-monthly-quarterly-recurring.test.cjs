@@ -15,7 +15,7 @@
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
-const { boot } = require("./lib/env.cjs");
+const { boot, expandRecurring } = require("./lib/env.cjs");
 
 const WEEKLY = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 const MONTHLY = fs.readFileSync(path.join(__dirname, "..", "monthly.html"), "utf8");
@@ -52,9 +52,11 @@ async function week(wk, defaults, plan) {
 
 (async () => {
   /* ================= 0. the build stamp ================= */
-  assert.ok(/<!-- build v113 · monthly-quarterly-recurring -->/.test(MONTHLY),
-    "monthly.html stamped v113 · monthly-quarterly-recurring");
-  assert.ok(/build v113 · monthly-quarterly-recurring/.test(WEEKLY), "index.html carries the same stamp");
+  // ">= v113" — the exact stamp is the newest version's test to assert; both pages still have
+  // to agree on it (v101).
+  const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(MONTHLY);
+  assert.ok(stamp && Number(stamp[1]) >= 113, "monthly.html stamped v113 or later");
+  assert.ok(WEEKLY.includes("build v" + stamp[1] + " · " + stamp[2]), "index.html carries the same stamp");
 
   const env0 = await week("2026-03-16", []);
   const c = env0.ctx;
@@ -381,6 +383,7 @@ async function week(wk, defaults, plan) {
       quarterly("q1", "Quarter kickoff", { type: "ordinalWeekday", ordinal: 1, weekday: "mon", monthOfQuarter: 1, slot: "5-8" }),
     ];
     const env = await week("2026-01-26", defaults);
+    expandRecurring(env.ctx);   // v114: the card starts collapsed; this block reads inside it
 
     // counts, from the same derivation
     const h0 = html(env);

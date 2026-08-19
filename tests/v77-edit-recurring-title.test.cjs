@@ -5,7 +5,8 @@
 // task); that Escape cancels; that the new title shows on the card, grid chip and Today
 // modal; and that training titles are editable too and re-detect their title-derived emoji.
 const assert = require("assert");
-const { boot } = require("./lib/env.cjs");
+const { boot, expandRecurring } = require("./lib/env.cjs");
+// v114: the recurring card starts collapsed, so a block reading its ROWS opens it first.
 
 const WEEK = "2026-03-16"; // a Monday inside NAV_WEEKS
 const ALL_DAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
@@ -67,6 +68,7 @@ const setInputValue = (ctx, value) => { ctx.document.querySelector = () => ({ va
     const plans = { [TODAY_WEEK]: { weekEnding: TODAY_WEEK, placements: { ["6-9:" + TODAY]: ["recurring:r1"] } } };
     const { ctx } = await boot({ defaults, plans });
     await ctx.loadWeeklyPlan(TODAY_WEEK);
+    expandRecurring(ctx);
 
     setInputValue(ctx, "NewShinyName");
     await ctx.wpDefaultTitleBlur("recurring", "r1");
@@ -162,6 +164,7 @@ const setInputValue = (ctx, value) => { ctx.document.querySelector = () => ({ va
     const defaults = [{ id: "r1", title: "Task", days: ["mon"], time: "6-9" }];
     const { ctx } = await boot({ defaults, plans: { [WEEK]: { weekEnding: WEEK, placements: {} } } });
     await ctx.loadWeeklyPlan(WEEK);
+    expandRecurring(ctx);
     // the card row now carries an editable input + a 📅 schedule button that opens the popup
     const body = ctx.document.getElementById("wpBody").innerHTML;
     assert.ok(body.includes(`data-item-title="recurring:r1"`), "recurring title is an id-keyed inline input");

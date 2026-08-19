@@ -6,7 +6,7 @@
 // Intentions Around Food) save independently, sanitise, round-trip formatting, commit
 // on tab-switch, copy as clean plain text, and leave the Today modal reading Notes only.
 const assert = require("assert");
-const { boot } = require("./lib/env.cjs");
+const { boot, expandRecurring } = require("./lib/env.cjs");
 
 const MARK = "<!--wp:rich-->";
 const ALL_DAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
@@ -38,6 +38,7 @@ const notesPostsFor = (posts, field) =>
     const training = [{ id: "t1", title: "Leg day", days: ["mon", "thu"], time: "6-9" }, { id: "t2", title: "Yoga" }];
     const { ctx } = await boot({ defaults, training, plans: { [WEEK]: { weekEnding: WEEK, placements: {} } } });
     await ctx.loadWeeklyPlan(WEEK);
+    expandRecurring(ctx);   // v114: the card starts collapsed; this block reads its rows
     const st = ctx.__wpState;
 
     // the two underlying collections are distinct objects, no shared members

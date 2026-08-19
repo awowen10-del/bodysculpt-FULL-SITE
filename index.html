@@ -1458,7 +1458,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v113 · monthly-quarterly-recurring</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v114 · recurring-starts-collapsed</span>
   </footer>
 </div>
 
@@ -2376,9 +2376,14 @@ function wpRecurTab(it){
 let wpRecurTabSel = "weekly";
 // v102: the recurring card collapses — its tabbed list is tall and pushes the rest of the
 // week down the page. Session-only UI state, exactly like wpRecurTabSel above: it survives
-// moving between weeks and resets on a fresh load, and nothing about it is stored. Default
-// expanded, i.e. today's behaviour.
-let wpRecurCollapsed = false;
+// moving between weeks and resets on a fresh load, and nothing about it is stored.
+// v114: it now starts COLLAPSED. The list only got taller (v113 added two more populated
+// tabs), and it sits above the week itself — so the default is the quiet one, with the
+// per-tab counts still on the collapsed header so you can see what is in there without
+// opening it. Nothing else changed: expanding is one click, the state still survives moving
+// between weeks for the rest of the session, and it still resets on a fresh load — which is
+// the whole of "always starts collapsed", since nothing about it was ever stored.
+let wpRecurCollapsed = true;
 function wpToggleRecurCollapsed(){ wpRecurCollapsed = !wpRecurCollapsed; renderWeeklyPlan(); }
 
 // v78: the End-of-Week Review ritual — an ordered checklist worked through each week to close
