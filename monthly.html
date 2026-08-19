@@ -388,8 +388,7 @@
     font-size:12px;font-weight:700;color:var(--ink-dim);white-space:nowrap;cursor:pointer;user-select:none;}
   .mp-done:hover{border-color:var(--orange);color:var(--ink);}
   .mp-item.done .mp-done{border-color:rgba(var(--green-rgb),.5);background:rgba(var(--green-rgb),.14);color:var(--green);}
-  .mp-item.done{border-color:rgba(var(--green-rgb),.32);}
-  .mp-item.done input.mp-title{text-decoration:line-through;color:var(--ink-faint);}
+  /* the tile's own done styling is the v112 block further down — one definition, not two */
   /* v93: min-width:0 is what makes a field cell actually shrink — it defaults to
      min-width:auto, so the Rock <select>'s widest option would otherwise push the cell
      (and in v109 the whole tile column) wider than its share of the grid. */
@@ -443,6 +442,20 @@
   .mp-personal .mp-box-h{color:var(--green);}
   .mp-personal .mp-item{border-left:2px solid rgba(var(--green-rgb),.28);}
   .mp-personal .mp-add:hover{border-color:var(--green);}
+  /* ===== v112: a DONE item reads as done at a glance =====
+     Before this it was a hairline border tint and a struck title — and the strike was the
+     only part that actually landed, because the generic "#mpBody input" field styling below
+     (an ID selector) out-specifies ".mp-item.done input.mp-title" and painted the title back
+     to the standard field colours. A completed item consequently looked all but identical to
+     an open one. It now takes a green tint across the whole tile, a green edge, and a title
+     that is struck through AND dimmed — the same green the Done pill and the weekly app's
+     completed states already use, so "green = finished" means one thing everywhere.
+     These rules sit after .mp-personal's edge so a finished personal item reads as done
+     rather than keeping the plain personal accent. */
+  .mp-item.done{background:rgba(var(--green-rgb),.10);border-color:rgba(var(--green-rgb),.45);}
+  .mp-personal .mp-item.done{border-left-color:rgba(var(--green-rgb),.6);}
+  #mpBody .mp-item.done input.mp-title{background:rgba(var(--green-rgb),.08);
+    border-color:rgba(var(--green-rgb),.32);color:var(--ink-faint);text-decoration:line-through;}
   .mp-intro{font-size:12px;color:var(--ink-dim);line-height:1.5;margin-bottom:11px;}
   .mp-footer{margin-top:26px;padding-bottom:8px;text-align:center;}
   .mp-stage{display:inline-block;background:var(--card);border:1px solid var(--line);
@@ -498,7 +511,7 @@
 </style>
 </head>
 <body>
-<!-- build v111 · pull-list-hides-done -->
+<!-- build v112 · monthly-done-single-source -->
 <header>
   <div class="htop">
     <div class="brand">
@@ -743,7 +756,7 @@
      after a monthly-only release. Same pill as the Weekly Dashboard's footer, and the two
      pages carry the SAME suite build string — a test fails if they ever drift apart. -->
 <footer class="mp-footer">
-  <span class="mp-stage">build v111 · pull-list-hides-done</span>
+  <span class="mp-stage">build v112 · monthly-done-single-source</span>
 </footer>
 
 <!-- v93: focus-item notes editor — the v70 rich editor in a Today-modal-style dialog.

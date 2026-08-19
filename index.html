@@ -794,6 +794,11 @@
      as headings wherever the browser styles the popup itself rather than using the OS chrome */
   .wp-pull-sel optgroup{background:var(--navy-2);color:var(--ink-faint);font-style:normal;font-weight:800;}
   .wp-pull-sel option{background:var(--navy-2);color:var(--green);font-weight:700;}
+  /* v112: a finished monthly item stays on the list so you can see it is there, struck
+     through and greyed. `disabled` is what makes it unpickable and greys it natively; this
+     is the strike-through, for the browsers that style <option>s at all. */
+  .wp-pull-sel option.wp-pull-done{color:var(--ink-faint);font-weight:600;
+    text-decoration:line-through;opacity:.7;}
   .wp-rec-addbtn{background:var(--card-2);border:1px dashed var(--line);color:var(--ink-dim);border-radius:9px;
     padding:8px;width:100%;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;}
   .wp-rec-addbtn:hover{border-color:var(--orange);color:var(--ink);}
@@ -1429,7 +1434,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v111 · pull-list-hides-done</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v112 · monthly-done-single-source</span>
   </footer>
 </div>
 
@@ -1963,10 +1968,6 @@ let wpTraining = null;      // v71: personal training list — SEPARATE collecti
 let wpWeekEnding = null;
 let wpMonthFocus = null;   // this month's focus items (read-only anchor from Monthly)
 let wpMonthProjects = { ym:"", projects:[] };  // v61: this month's projects, for the weekly picker
-// v111: monthly items that were pulled into a week and ticked done THERE, collected from
-// the other weeks of the month being viewed. Derived state only — nothing is stored, and the
-// live week is read straight off wpPlan rather than from here (see wpPullDoneIds).
-let wpMonthWeeklyDone = { ym:"", ids:new Set() };
 let wpAnchorNotesOpen = false;      // v104: the anchor's read-only monthly-notes viewer
 let wpAnchorNotesCloseTimer = null; //       (declared up here so the render path is never in its TDZ)
 let wpCheckins = null;     // v80: daily check-in history — a map { "YYYY-MM-DD": entry }, loaded once
@@ -2604,9 +2605,6 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
 
   wpPlan = norm;
   await wpSeedRecurringPlacements(wk);
-  // v111: the month's "already ticked off on a week" set, for the Pull from Monthly dropdown.
-  // Read-only and derived — see wpLoadMonthWeeklyDone.
-  await wpLoadMonthWeeklyDone(wk);
   renderWeeklyPlan();
 }
 // v62: a recurring task's grid slot is stored per-week. A fresh week starts with no
@@ -3675,69 +3673,42 @@ function wpMonthlySourceIdOf(it){
   const m = /^monthly:\d{4}-\d{2}:(.+):\d{4}-\d{2}-\d{2}$/.exec(String(it.linkId||""));
   return m ? m[1] : "";
 }
-// The monthly ids ticked done on a weekly copy in the given plan.
-function wpWeeklyDoneSourceIds(plan){
-  return ((plan && plan.projectItems) || [])
-    .filter(it=>it && it.done)
-    .map(wpMonthlySourceIdOf)
-    .filter(Boolean);
+// The month a weekly copy came from: the stored sourceYm, else the month inside its linkId.
+function wpMonthlySourceYmOf(it){
+  if(!it) return "";
+  if(/^\d{4}-\d{2}$/.test(String(it.sourceYm||""))) return String(it.sourceYm);
+  const m = /^monthly:(\d{4}-\d{2}):.+:\d{4}-\d{2}-\d{2}$/.exec(String(it.linkId||""));
+  return m ? m[1] : "";
 }
-// The Mondays of a month, in order — the week keys a month's items can be pulled into (a week
-// is keyed by its Monday, and the pull always reads the month of the week key it is in).
-function wpMonthWeekKeys(ym){
-  const out = [];
-  if(!/^\d{4}-\d{2}$/.test(String(ym||""))) return out;
-  const d = new Date(ym + "-01T00:00:00Z");
-  if(isNaN(d.getTime())) return out;
-  const month = d.getUTCMonth();
-  while(d.getUTCDay() !== 1) d.setUTCDate(d.getUTCDate()+1);   // walk to the first Monday
-  while(d.getUTCMonth() === month){
-    out.push(d.toISOString().slice(0,10));
-    d.setUTCDate(d.getUTCDate()+7);
-  }
-  return out;
-}
-// v111: collect "done on the Weekly" across the month being viewed. The week on screen is
-// deliberately NOT fetched — it is read live from wpPlan at pick time (wpPullDoneIds), so a
-// tick you just made drops the item out of the dropdown without a reload. Read-only: nothing
-// here writes, and no copy of any of it is stored on either plan.
-async function wpLoadMonthWeeklyDone(wk){
-  const ym = String(wk||"").slice(0,7);
-  wpMonthWeeklyDone = { ym, ids:new Set() };
-  const others = wpMonthWeekKeys(ym).filter(w=>w !== wk);
-  if(!others.length) return;
-  const plans = await Promise.all(others.map(w=>
-    fetch(WP_STORE + "?weeklyplan=" + encodeURIComponent(w)).then(x=>x.json())
-      .then(r=>r && r.plan).catch(()=>null)));
-  plans.forEach(plan=>wpWeeklyDoneSourceIds(plan).forEach(id=>wpMonthWeeklyDone.ids.add(id)));
-}
-// Every monthly id that is done on SOME week: the other weeks of the month (fetched at load)
-// plus the week on screen (live, so it reacts to a tick immediately).
-function wpPullDoneIds(){
-  const ids = new Set(wpMonthWeeklyDone && wpMonthWeeklyDone.ids ? wpMonthWeeklyDone.ids : []);
-  wpWeeklyDoneSourceIds(wpPlan).forEach(id=>ids.add(id));
-  return ids;
-}
-// v111 fix: a monthly item that is DONE is no longer offered for pulling — it could otherwise
-// be re-added to week after week once it had been ticked off. Done means either measure:
-//   • done on the Monthly plan  — the item's own done-state (wpAnchorDone: the v98 focus tick,
-//     the v103 personal Status), read from the same monthly record the anchor renders from;
-//   • done on the Weekly        — a copy pulled into any week of this month was ticked there,
-//     matched back by sourceProjectId / linkId (wpPullDoneIds).
-// This ONLY narrows the dropdown. The item still renders on the Monthly plan (as done), any
-// weekly copies already in a week stay exactly as they are, and nothing is deleted or hidden.
+// v112: a DONE monthly item is still SHOWN in the dropdown — struck through, greyed and
+// disabled — instead of vanishing from it (v111 dropped it entirely, which hid the fact that
+// the month contained it at all). You can see it is there and finished; you cannot re-pull it.
+//
+// Done is ONE flag: the monthly item's own done-state, via wpAnchorDone — the v98 focus tick
+// or the v103 personal Status — read from the same monthly record the anchor renders from and
+// now also SET by a weekly tick (wpPropagateMonthlyDone). There is no second done-flag to
+// cross-reference, so the monthly plan, the anchor and this dropdown cannot disagree.
+//
+// An item already in THIS week is still excluded outright (v61/v105) — that is a duplicate,
+// not a completion, and re-listing it would say nothing useful.
 function wpMonthlyPickerHtml(){
   const already = new Set(((wpPlan && wpPlan.projectItems) || []).map(wpMonthlySourceIdOf).filter(Boolean));
-  const doneIds = wpPullDoneIds();
   // an item needs an id to be linked/de-duped; wpAnchorItems has already dropped untitled ones
   const groups = WP_PULL_GROUPS
-    .map(g=>({ kind:g.kind, label:g.label, items:wpAnchorItems(g.kind).filter(p=>
-      p && p.id && !already.has(String(p.id)) && !wpAnchorDone(g.kind, p) && !doneIds.has(String(p.id))) }))
+    .map(g=>({ kind:g.kind, label:g.label,
+      items:wpAnchorItems(g.kind).filter(p=>p && p.id && !already.has(String(p.id))) }))
     .filter(g=>g.items.length);
   if(!groups.length) return "";
   const opts = [`<option value="">Pull from Monthly…</option>`].concat(groups.map(g=>
-    `<optgroup label="${wpEsc(g.label)}">${g.items.map(p=>
-      `<option value="${wpEsc(g.kind + ":" + p.id)}">${wpEsc(p.title)}</option>`).join("")}</optgroup>`)).join("");
+    `<optgroup label="${wpEsc(g.label)}">${g.items.map(p=>{
+      const done = wpAnchorDone(g.kind, p);
+      // `disabled` is what actually makes it unpickable, and it greys the row natively in
+      // every popup. The class strikes it through where the browser styles <option>s, and
+      // the ✓ says "done" even where it doesn't (macOS native popups style almost nothing).
+      return done
+        ? `<option class="wp-pull-done" value="" disabled>\u2713 ${wpEsc(p.title)}</option>`
+        : `<option value="${wpEsc(g.kind + ":" + p.id)}">${wpEsc(p.title)}</option>`;
+    }).join("")}</optgroup>`)).join("");
   return `<select class="wp-pull-sel" onchange="wpPullMonthlyProject(this.value); this.value='';">${opts}</select>`;
 }
 // Add a chosen monthly item into this week's Projects bucket — same shape/linkId/tag as the
@@ -3754,12 +3725,16 @@ function wpPullMonthlyProject(value){
   const kind = cut > 0 ? s.slice(0, cut) : "";
   const projectId = cut > 0 ? s.slice(cut + 1) : s;
   const lists = (kind === "focus" || kind === "personal") ? [kind] : ["focus","personal"];
-  let proj = null;
+  let proj = null, foundIn = "";
   for(const k of lists){
     proj = wpAnchorItems(k).find(p=>p && p.id === projectId);
-    if(proj) break;
+    if(proj){ foundIn = k; break; }
   }
   if(!proj) return;
+  // v112: a done item's <option> is disabled, so this is belt-and-braces — but "a finished
+  // project is not re-pullable" is the rule, and it has to hold for every caller, not only
+  // for a click on a control that already refuses. Same done-state reader as everywhere else.
+  if(wpAnchorDone(foundIn, proj)) return;
   const ym = (wpMonthFocus && wpMonthFocus.ym) || wpMonthProjects.ym || String(wpWeekEnding||"").slice(0,7);
   const week = wpWeekEnding;
   const linkId = "monthly:"+ym+":"+projectId+":"+week;
@@ -4566,8 +4541,72 @@ function wpAskRemove(ref){
   });
 }
 
+// ---- v112: weekly tick → monthly done-state ----
+// The monthly item's own done-state is the single source of truth: the Monthly plan renders
+// from it, the weekly anchor renders from it, and the Pull from Monthly dropdown decides from
+// it. Ticking a pulled task on the Weekly therefore has to SET it — otherwise the two halves
+// hold different answers and the month never shows the work as finished (which is exactly the
+// bug: a task ticked off in the week still read as open everywhere on Monthly).
+//
+// Discipline, because this is the weekly app's only write into the monthly record:
+//   • the record is RE-FETCHED here rather than written from the in-memory copy — the weekly
+//     app filters the personal list down to items with an id and a title when it loads it, so
+//     writing that copy back would delete every other personal item. Nothing is derived from
+//     what this page happens to be holding.
+//   • ONLY the matched item's done-state changes. Every other field of that item, every other
+//     item in the list, and every other section of the record (notes, review, the list this
+//     item is NOT in) travels back exactly as it was stored.
+//   • it goes through the same monthlyPlan section-save path the Monthly page's own Done tick
+//     uses (v98), so the store applies the same whitelist and the same merge.
+// Symmetric: an untick clears it again. A focus item's boolean goes back to false; a personal
+// item's Status, which has no "not done" value of its own, goes to "In Progress" — it has
+// been worked on, and that is the honest opposite of Done for a task you just un-ticked.
+async function wpPropagateMonthlyDone(item, done){
+  const sourceId = wpMonthlySourceIdOf(item);
+  const ym = wpMonthlySourceYmOf(item);
+  if(!sourceId || !ym) return null;
+  let plan = null;
+  try{
+    const r = await fetch(WP_STORE + "?monthlyplan=" + encodeURIComponent(ym)).then(x=>x.json());
+    plan = r && r.plan;
+  }catch(e){ return null; }
+  if(!plan) return null;
+  const focus = Array.isArray(plan.focus) ? plan.focus : [];
+  const prios = Array.isArray(plan.priorities) ? plan.priorities : [];
+  const hit = f=>f && String(f.id||"") === sourceId;
+  let section = "", list = null;
+  const f = focus.find(hit);
+  if(f){
+    section = "focus"; list = focus;
+    if(!!f.done === !!done) return null;        // already says what we would say — no write
+    f.done = !!done;
+  } else {
+    const p = prios.find(hit);
+    if(!p) return null;                          // the monthly item is gone — nothing to mark
+    section = "priorities"; list = prios;
+    const isDone = String(p.status||"") === "Done";
+    if(isDone === !!done) return null;
+    p.status = done ? "Done" : "In Progress";
+  }
+  try{
+    const w = await fetch(WP_STORE, {method:"POST",headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ monthlyPlan: { ym, [section]: list } })}).then(x=>x.json());
+    if(!(w && w.ok)) return null;
+  }catch(e){ return null; }
+  // Keep the copies this page renders from in step, so the anchor and the dropdown show the
+  // new state on the next render instead of waiting for a reload. Same shape as the load path.
+  if(section === "focus" && wpMonthFocus && wpMonthFocus.ym === ym) wpMonthFocus.focus = focus;
+  if(section === "priorities" && wpMonthProjects && wpMonthProjects.ym === ym){
+    wpMonthProjects.projects = prios.filter(p=>p && p.id && p.title && p.title.trim());
+  }
+  return section;
+}
+
 // ---- done tick (from a grid chip) ----
 // v63: chips pass their cell's day so weekday tasks tick per-day; weekly items ignore it.
+// v112: a project task pulled/pushed from Monthly also writes its done-state back up to the
+// monthly item it is a copy of — see wpPropagateMonthlyDone. The week's own save happens
+// first and is never conditional on it, so a failed propagation can't lose the weekly tick.
 async function wpToggleDoneRef(ref, checked, day){
   const [source] = ref.split(":");
   const item = wpResolveRef(ref);
@@ -4578,6 +4617,7 @@ async function wpToggleDoneRef(ref, checked, day){
   // timeBlocks section carries both maps
   const section = wpIsDefaultsSource(source) ? "timeBlocks" : source;
   await wpSaveSection(section);
+  if(source === "project" && item.source === "monthly-project") await wpPropagateMonthlyDone(item, checked);
   renderWeeklyPlan();
 }
 

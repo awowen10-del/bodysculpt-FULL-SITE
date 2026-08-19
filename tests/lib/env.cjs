@@ -54,6 +54,14 @@ async function boot(opts = {}) {
   const training = opts.training || []; // v71: personal training list (separate collection)
   const checkins = Object.assign({}, opts.checkins || {}); // v80: daily check-in map (mutable, so save→reload round-trips)
   let locations = Object.assign({}, opts.locations || {}); // v84: default weekly location pattern (mutable, same reason)
+  // v112: the monthly-plan record, per ym, MUTABLE — the weekly app now writes a linked
+  // item's done-state back to it, so a test has to be able to read the write back out.
+  // Items are copied at boot so a shared fixture constant can't be mutated across boots.
+  const cloneList = (l) => (Array.isArray(l) ? l.map((x) => Object.assign({}, x)) : []);
+  const monthly = {};
+  const monthRec = (ym) => (monthly[ym] = monthly[ym] || { ym, focus: [], priorities: [] });
+  Object.keys(opts.monthFocus || {}).forEach((ym) => { monthRec(ym).focus = cloneList(opts.monthFocus[ym]); });
+  Object.keys(opts.monthPriorities || {}).forEach((ym) => { monthRec(ym).priorities = cloneList(opts.monthPriorities[ym]); });
   const posts = [];
   const els = new Map();
 
@@ -117,6 +125,15 @@ async function boot(opts = {}) {
         locations = { ...body.locationDefaults };
         return reply({ ok: true, locations });
       }
+      // v112: the weekly app's one write into the monthly record — a section save carrying
+      // only the list that changed. Mirrors kpi-store: merge the incoming sections over the
+      // stored record, leave every other section alone, echo the merged plan back.
+      if (body.monthlyPlan && body.monthlyPlan.ym) {
+        const rec = monthRec(body.monthlyPlan.ym);
+        if (Array.isArray(body.monthlyPlan.focus)) rec.focus = cloneList(body.monthlyPlan.focus);
+        if (Array.isArray(body.monthlyPlan.priorities)) rec.priorities = cloneList(body.monthlyPlan.priorities);
+        return reply({ ok: true, plan: { ...rec, lastUpdated: "2026-01-01T00:00:00.000Z" } });
+      }
       if (body.checkin && body.checkin.date) {
         // mirror kpi-store: merge into the date-keyed map, stamp updatedAt, echo the entry
         const entry = { ...body.checkin, updatedAt: "2026-01-01T00:00:00.000Z" };
@@ -138,14 +155,17 @@ async function boot(opts = {}) {
     // return [] exactly as before, so tests that never set it are unaffected.
     if (u.includes("monthfocus=")) {
       const ym = decodeURIComponent(u.split("monthfocus=")[1]);
-      return reply({ focus: (opts.monthFocus && opts.monthFocus[ym]) || [] });
+      return reply({ focus: cloneList(monthly[ym] && monthly[ym].focus) });
     }
     // v102: the weekly anchor's PERSONAL column comes from the same monthly-plan record's
     // priorities list. opts.monthPriorities maps "YYYY-MM" -> [items]; unknown months return
     // [] exactly as before.
+    // v112: the whole record, both lists — the weekly write-back re-reads it here so it can
+    // change one item's done-state and post the list back without touching anything else.
     if (u.includes("monthlyplan=")) {
       const ym = decodeURIComponent(u.split("monthlyplan=")[1]);
-      return reply({ plan: { priorities: (opts.monthPriorities && opts.monthPriorities[ym]) || [] } });
+      const rec = monthly[ym];
+      return reply({ plan: { ym, focus: cloneList(rec && rec.focus), priorities: cloneList(rec && rec.priorities) } });
     }
     if (u.includes("settings=1")) return reply({ settings: null });
     if (u.includes("reset=YES")) return reply({ ok: true });
@@ -211,9 +231,6 @@ async function boot(opts = {}) {
     // v104: the monthly anchor's source record + the read-only notes viewer's open state
     " get monthFocus(){ return wpMonthFocus; }, set monthFocus(v){ wpMonthFocus = v; }," +
     " get monthProjects(){ return wpMonthProjects; }, set monthProjects(v){ wpMonthProjects = v; }," +
-    // v111: the month's "done on a week" index behind the Pull from Monthly dropdown. Derived
-    // state, rebuilt on every week load — writable so a test can prove the picker reads it.
-    " get monthWeeklyDone(){ return wpMonthWeeklyDone; }, set monthWeeklyDone(v){ wpMonthWeeklyDone = v; }," +
     " get anchorNotesOpen(){ return wpAnchorNotesOpen; }," +
     " get weekEnding(){ return wpWeekEnding; }," +
     " get navWeeks(){ return NAV_WEEKS; }," +
@@ -233,7 +250,9 @@ async function boot(opts = {}) {
   const settle = async () => { await sleep(30); await sleep(30); };
   await settle(); // let the boot IIFE finish (it lands on the Weekly Plan tab)
 
-  return { ctx: sandbox, posts, settle };
+  // `monthly` is the served monthly-plan record, keyed by ym — the same object the fetch stub
+  // reads and the weekly write-back writes. A test asserts against it to prove a tick landed.
+  return { ctx: sandbox, posts, settle, monthly };
 }
 
 module.exports = { boot, sleep };

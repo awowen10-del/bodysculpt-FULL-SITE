@@ -130,8 +130,13 @@ async function tickDone(env, id, on) {
     ["<input", "onclick", "onchange", "contenteditable"].forEach((c) =>
       assert.ok(!anchor.includes(c), "the anchor stays read-only: no " + c));
     assert.ok(!env.posts.some((p) => p.body.monthlyPlan),
-      "the weekly app never writes to the monthly-plan record — one source, no divergence");
-    assert.ok(!/monthfocus[^)]*method:"POST"/.test(WEEKLY), "…and has no write path to it");
+      "loading a week and rendering the anchor writes nothing to the monthly record");
+    // v112 note: the weekly app DOES now write one thing back — a linked project task's
+    // done-state, and only when you tick one (see v112-monthly-done-single-source). That is
+    // what makes the monthly item the single source of truth rather than a second copy. The
+    // anchor itself is still what it was here: read-only, rendering only, no control, no save.
+    assert.ok(!/monthfocus[^)]*method:"POST"/.test(WEEKLY),
+      "…and the ?monthfocus= cascade read is still a read");
 
     // the anchor is derived state only — the week's own data is untouched by any of it
     const st = env.ctx.__wpState;
