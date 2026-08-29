@@ -232,6 +232,8 @@ async function boot(opts = {}) {
     " get monthFocus(){ return wpMonthFocus; }, set monthFocus(v){ wpMonthFocus = v; }," +
     " get monthProjects(){ return wpMonthProjects; }, set monthProjects(v){ wpMonthProjects = v; }," +
     " get anchorNotesOpen(){ return wpAnchorNotesOpen; }," +
+    // v117: which recurring task's notes editor is open ("" = closed)
+    " get recurNotesId(){ return wpRecurNotesId; }, set recurNotesId(v){ wpRecurNotesId = v; }," +
     " get weekEnding(){ return wpWeekEnding; }," +
     " get navWeeks(){ return NAV_WEEKS; }," +
     " get timer(){ return wpTimer; }, set timer(v){ wpTimer = v; }" +

@@ -299,6 +299,19 @@
   .entry-save{background:var(--orange);color:var(--on-accent);border:none;border-radius:10px;
     padding:11px 22px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;}
   .entry-save:active{transform:translateY(1px);}
+  .entry-import{background:var(--navy-2);color:var(--orange-soft);border:1px solid rgba(var(--orange-rgb),.55);
+    border-radius:10px;padding:10px 15px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;}
+  .entry-import:hover{border-color:var(--orange);background:rgba(var(--orange-rgb),.08);}
+  .entry-import:disabled{opacity:.55;cursor:wait;}
+  .entry-import-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;}
+  .entry-import-hint{font-size:12px;color:var(--ink-faint);line-height:1.45;}
+  .entry-paste{margin:-3px 0 15px;padding:13px;background:var(--navy-2);border:1px solid var(--line);border-radius:11px;}
+  .entry-paste label{font-size:12px;color:var(--ink-dim);font-weight:700;}
+  .entry-paste textarea{width:100%;min-height:92px;margin-top:7px;padding:10px 11px;resize:vertical;
+    background:var(--card);border:1px solid var(--line);border-radius:9px;color:var(--ink);font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;}
+  .entry-paste textarea:focus{outline:none;border-color:var(--orange);}
+  .entry-paste-actions{display:flex;align-items:center;gap:8px;margin-top:9px;}
+  .entry-paste-cancel{background:transparent;color:var(--ink-dim);border:0;padding:8px 10px;font:700 12px inherit;cursor:pointer;}
   .entry-msg{font-size:13px;font-weight:600;}
   .entry-msg.ok{color:var(--green);}
   .entry-msg.err{color:var(--red);}
@@ -703,6 +716,8 @@
     max-height:56vh;overflow-y:auto;overflow-wrap:anywhere;}
   .wp-anchor-notes-view input[type=checkbox]{pointer-events:none;}   /* nothing here is editable */
   .wp-anchor-notes-hint{font-size:11px;color:var(--ink-faint);font-style:italic;}
+  /* v117: the recurring-task notes editor — the shared rich editor, sized for a real list */
+  .wp-recur-notes-ed{min-height:230px;max-height:56vh;overflow-y:auto;font-size:13.5px;line-height:1.7;}
   .wp-item-done{ opacity:.85; }
   /* placed-task chips inside a grid cell — tidy pills that match the page aesthetic */
   .wp-cellchips{display:flex;flex-direction:column;gap:4px;padding:6px 6px 4px;}
@@ -776,6 +791,15 @@
   .wp-day-tick.on{color:var(--teal-soft);border-color:rgba(var(--teal-rgb),.6);background:rgba(var(--teal-rgb),.14);}
   .wp-rec-linkbtn{background:transparent;border:none;font-size:11px;cursor:pointer;padding:0 2px;opacity:.4;flex:none;}
   .wp-rec-linkbtn:hover{opacity:1;}
+  /* v117: the recurring task's notes folder. Deliberately quiet — a dim glyph you only
+     notice when you go looking, which warms to the recurring teal once the task actually
+     carries notes. Same monochrome-glyph trick as the v104 anchor note icon. */
+  .wp-rec-notebtn{background:transparent;border:0;padding:0 2px;margin-left:2px;font-family:inherit;
+    line-height:0;cursor:pointer;color:var(--ink-faint);opacity:.42;flex:none;}
+  .wp-rec-notebtn .wp-note-folder{display:block;fill:none;}
+  .wp-rec-notebtn:hover{opacity:1;color:var(--teal);}
+  .wp-rec-notebtn.has{opacity:1;color:var(--teal);}
+  .wp-rec-notebtn.has .wp-note-folder{fill:rgba(var(--teal-rgb),.18);}
   .wp-rec-sched{font-size:13px;}                 /* v77: the 📅 schedule button on a recurring row */
   .wp-rec-name{font-size:13px;}                  /* v77: inline-editable recurring title (shares .wp-drag-name) */
   .wp-rec-link{color:var(--teal-soft);text-decoration:none;font-size:13px;font-weight:800;padding:0 3px;flex:none;line-height:1;}
@@ -1261,17 +1285,31 @@
       </label>
       <div class="entry-range" id="e_rangeHint"></div>
     </div>
+    <div class="entry-import-row">
+      <button type="button" class="entry-import" id="ontraportImportBtn">Paste Ontraport KPIs</button>
+      <span class="entry-import-hint" id="ontraportImportMsg">Copies into the form only — review before saving.</span>
+    </div>
+    <div class="entry-paste" id="ontraportPasteFallback" hidden>
+      <label>Paste the Ontraport KPI data here
+        <textarea id="ontraportPasteText" spellcheck="false" placeholder="Click here, then press ⌘V"></textarea>
+      </label>
+      <div class="entry-paste-actions">
+        <button type="button" class="entry-import" id="ontraportPasteApply">Import pasted KPIs</button>
+        <button type="button" class="entry-paste-cancel" id="ontraportPasteCancel">Cancel</button>
+      </div>
+    </div>
+    <input type="hidden" id="e_ontraportLeads">
     <div class="entry-grid">
       <label>Trial Sales<input type="number" id="e_trialSales" inputmode="numeric" placeholder="0"></label>
       <label>New Members<input type="number" id="e_signups" inputmode="numeric" placeholder="0"></label>
       <label>Cancellations<input type="number" id="e_cancellations" inputmode="numeric" placeholder="0"></label>
+      <label>Paused Members<input type="number" id="e_paused" inputmode="numeric" placeholder="0"></label>
+      <label>Total Active Trialists<input type="number" id="e_trialists" inputmode="numeric" placeholder="0"></label>
     </div>
     <div class="entry-calc" id="e_recurringPreview">Recurring will calculate from last week.</div>
-    <div class="entry-note">Ad spend &amp; leads come from the Facebook step next — no need to enter them here.</div>
+    <div class="entry-note">Leads and sales belong to the Facebook Ads step. Total Active Trialists comes from the Ontraport Active Trialists contact group.</div>
     <div class="entry-sub">Optional extras</div>
     <div class="entry-grid">
-      <label>Paused Members<input type="number" id="e_paused" inputmode="numeric" placeholder="—"></label>
-      <label>Total Active Trialists<input type="number" id="e_trialists" inputmode="numeric" placeholder="—"></label>
       <label>Total Active<input type="number" id="e_totalActive" inputmode="numeric" placeholder="—"></label>
       <label>Attendance (%)<input type="number" id="e_attendance" inputmode="numeric" placeholder="—"></label>
     </div>
@@ -1296,6 +1334,19 @@
     </div>
     <p style="font-size:12px;color:var(--ink-faint);margin-bottom:14px;line-height:1.5;">
       Enter each campaign you ran this week. Spend &amp; leads roll up to feed your main KPIs.</p>
+    <div class="entry-import-row">
+      <button type="button" class="entry-import" id="facebookImportBtn">Paste Facebook Ads KPIs</button>
+      <span class="entry-import-hint" id="facebookImportMsg">Copies spend, impressions, link clicks, leads and sales — review before saving.</span>
+    </div>
+    <div class="entry-paste" id="facebookPasteFallback" hidden>
+      <label>Paste the Facebook Ads KPI data here
+        <textarea id="facebookPasteText" spellcheck="false" placeholder="Click here, then press ⌘V"></textarea>
+      </label>
+      <div class="entry-paste-actions">
+        <button type="button" class="entry-import" id="facebookPasteApply">Import pasted KPIs</button>
+        <button type="button" class="entry-paste-cancel" id="facebookPasteCancel">Cancel</button>
+      </div>
+    </div>
     <div id="fbCampaignBlocks"></div>
     <button class="fb-addcamp" id="fbAddCampaign">+ Add another campaign</button>
     <p class="fb-addhint">Ran more than one campaign this week? Add each one separately — they roll up together for your top-line numbers.</p>
@@ -1458,7 +1509,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v114 · recurring-starts-collapsed</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v117 · recurring-task-notes</span>
   </footer>
 </div>
 
@@ -1494,6 +1545,23 @@
       <button class="wp-today-close" title="Close (Esc)" onclick="wpCloseAnchorNotes()">✕</button>
     </div>
     <div class="wp-today-body" id="wpAnchorNotesBody"></div>
+  </div>
+</div>
+
+<!-- v117: EDITOR for a recurring task's own notes. Same modal shell again (✕ / Esc /
+     backdrop, blurred backdrop), but this one writes: it hosts the shared v70 rich editor
+     and saves through wpSaveDefaults onto the task itself. Lives outside #wpBody so a
+     weekly re-render can't disturb it mid-edit. -->
+<div id="wpRecurNotesOverlay" class="wp-today-overlay" hidden onclick="if(event.target===this)wpCloseRecurNotes()">
+  <div class="wp-today-modal" role="dialog" aria-modal="true" aria-labelledby="wpRecurNotesTitle">
+    <div class="wp-today-h">
+      <div>
+        <div class="wp-today-title">Task notes</div>
+        <div class="wp-today-date" id="wpRecurNotesTitle"></div>
+      </div>
+      <button class="wp-today-close" title="Close (Esc)" onclick="wpCloseRecurNotes()">✕</button>
+    </div>
+    <div class="wp-today-body" id="wpRecurNotesBody"></div>
   </div>
 </div>
 
@@ -1994,6 +2062,9 @@ let wpMonthFocus = null;   // this month's focus items (read-only anchor from Mo
 let wpMonthProjects = { ym:"", projects:[] };  // v61: this month's projects, for the weekly picker
 let wpAnchorNotesOpen = false;      // v104: the anchor's read-only monthly-notes viewer
 let wpAnchorNotesCloseTimer = null; //       (declared up here so the render path is never in its TDZ)
+let wpRecurNotesId = "";            // v117: id of the recurring task whose notes are open ("" = closed)
+let wpRecurNotesCloseTimer = null;  //       (same reason — the row renderer reads the state)
+let wpRecurNotesDirty = false;      //       did this editing session actually write anything?
 let wpCheckins = null;     // v80: daily check-in history — a map { "YYYY-MM-DD": entry }, loaded once
 let wpLocDefaults = null;  // v84: the DEFAULT weekly location pattern { day: locationKey }, loaded once
 
@@ -2048,6 +2119,9 @@ async function wpLoadDefaults(){
         }
         if(typeof d.time === "string" && d.time) it.time = d.time;
         if(typeof d.link === "string" && d.link) it.link = d.link;
+        // v117: the task's own notes — one string, either notes format, carried through
+        // verbatim exactly as the monthly focus item's notes are. Never rewritten on load.
+        if(typeof d.notes === "string" && d.notes) it.notes = d.notes;
         // v113: the optional cadence. Applied ONLY when the cadence and a rule that fully
         // validates are both present — anything else loads exactly as it did before, as a
         // weekly days/time task. A cadence task carries no day-set: the rule is the schedule.
@@ -2077,6 +2151,7 @@ async function wpSaveDefaults(){
     if(Array.isArray(d.days) && d.days.length) out.days = d.days;
     if(d.time) out.time = d.time;
     if(d.link) out.link = d.link;
+    if(typeof d.notes === "string" && d.notes) out.notes = d.notes;   // v117
     // v113: the cadence + its rule travel together or not at all, and never alongside a
     // day-set — the store whitelists the same three fields with the same discipline.
     const cad = wpCadenceOf(d), rule = wpCadenceRule(d);
@@ -3016,6 +3091,12 @@ function wpPlacedLabel(ref){
   return wpDayLabel(day)+" "+wpSlotLabel(time);
 }
 
+// v117: the recurring task's notes folder. One definition, drawn from currentColor so the
+// two states are pure CSS (faint outline = nothing written yet, filled teal = it has notes).
+const WP_NOTE_FOLDER_SVG = '<svg class="wp-note-folder" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" focusable="false">' +
+  '<path d="M1.7 4.3a1.1 1.1 0 0 1 1.1-1.1h3l1.3 1.6h6.2a1.1 1.1 0 0 1 1.1 1.1v6.2a1.1 1.1 0 0 1-1.1 1.1H2.8a1.1 1.1 0 0 1-1.1-1.1Z" ' +
+  'stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"/></svg>';
+
 // ---- list-item renderer (Project / Buffer / Recurring share this) ----
 // Recurring: a plain, texty line. Click the name to open a tiny day/time popup.
 function wpRecurRow(it){
@@ -3040,9 +3121,20 @@ function wpRecurRow(it){
     ? `<span class="wp-cad-badge wp-cad-${cadence}" title="Repeats ${wpEsc(wpCadenceLabel(it))}" onclick="wpOpenPopup('recurring','${it.id}',this)">${wpEsc(wpCadenceLabel(it))}</span>`
     : "";
   const schedTitle = cadence ? "Edit the monthly/quarterly rule" : (sched ? "Edit schedule" : "Schedule — days + slot");
+  // v117: the notes folder, sitting right beside the name. Quiet by design — a faint empty
+  // folder while the task has nothing written on it, a filled teal one once it has, so the
+  // card reads exactly as it always did until you actually use the feature. Drawn as an
+  // inline SVG rather than an emoji so it takes the theme's colours (a colour emoji can't
+  // be tinted, and renders differently on every platform).
+  const hasNotes = wpHasNotes(it);
+  const noteBtn = `<button type="button" class="wp-rec-notebtn${hasNotes?" has":""}"
+      title="${hasNotes?"Notes for this task":"Add notes for this task"}"
+      aria-label="${hasNotes?"Open the notes for ":"Add notes for "}${wpEsc(it.title)}"
+      onclick="wpOpenRecurNotes('${it.id}')">${WP_NOTE_FOLDER_SVG}</button>`;
   return `<div class="wp-txt-row wp-rec-row${cadence?" wp-rec-cadence":""}" data-rec-id="${it.id}">
     <input class="wp-drag-name wp-rec-name${done?" wp-done":""}" data-item-title="recurring:${it.id}" value="${wpEsc(it.title)}" placeholder="Recurring task"
       onkeydown="wpItemKey(event)" onblur="wpDefaultTitleBlur('recurring','${it.id}')">
+    ${noteBtn}
     ${linkOut}
     <button class="wp-rec-linkbtn" title="${linkHref?"Edit link":"Add link"}" onclick="wpEditRecurLink('${it.id}')">🔗</button>
     <button class="wp-rec-linkbtn wp-rec-sched" title="${schedTitle}" onclick="wpOpenPopup('recurring','${it.id}',this)">📅</button>
@@ -3398,6 +3490,7 @@ document.addEventListener("click", (e)=>{
   // v71: route the save to whichever notes field this editor edits (modal = weekly notes)
   // v80: check-in editors (id prefix "wpCk") save through the check-in path instead.
   if(ed.id === "wpTodayNotes") wpTodaySaveNotes();
+  else if(ed.id === "wpRecurNotesEd") wpRecurNotesCommit();   // v117: recurring task's own notes
   else if(ed.id && ed.id.indexOf("wpCk") === 0) wpCheckinSaveFromEditors();
   else wpSaveSection((ed.getAttribute && ed.getAttribute("data-field")) === "foodNotes" ? "foodNotes" : "notes");
 });
@@ -3825,10 +3918,12 @@ function wpAnchorItems(kind){
   }
   return (wpMonthFocus.focus||[]).filter(f=>f && f.title && f.title.trim());
 }
-// Does this monthly item actually carry note content? Reuses the plain-text projection, so
-// both stored formats (legacy plain, v70 rich) are judged on real content — an empty string,
+// Does this item actually carry note content? Reuses the plain-text projection, so both
+// stored formats (legacy plain, v70 rich) are judged on real content — an empty string,
 // whitespace, or empty rich blocks all read as "no notes", and no icon is rendered.
-function wpAnchorHasNotes(it){
+// v117: shared by the monthly anchor (v104) and the recurring row's notes folder — one
+// reader, so the two can never disagree about what counts as "has notes".
+function wpHasNotes(it){
   return wpNotesToPlainText(it && typeof it.notes === "string" ? it.notes : "").trim() !== "";
 }
 // v111: each monthly list's DONE-STATE reader lives here, next to its noun — one definition
@@ -3856,7 +3951,7 @@ function wpAnchorCol(heading, kind, items, cls){
   const body = items.length
     ? `<ul class="wp-anchor-list">${items.map((it,i)=>{
         const done = wpAnchorDone(kind, it);
-        const note = wpAnchorHasNotes(it)
+        const note = wpHasNotes(it)
           ? `<button type="button" class="wp-anchor-note" title="Read this item's notes from the Monthly Plan" aria-label="Read the notes for ${wpEsc(it.title)}" onclick="wpOpenAnchorNotes('${kind}',${i})">\u{1F5D2}</button>`
           : "";
         return `<li class="wp-anchor-item${done?" wp-anchor-done":""}">${done?`<span class="wp-anchor-tick">\u2713</span>`:""}${wpEsc(it.title)}${note}</li>`;
@@ -3897,6 +3992,63 @@ function wpCloseAnchorNotes(){
   document.body.style.overflow = "";
   ov.classList.remove("open");
   wpAnchorNotesCloseTimer = setTimeout(()=>{ ov.hidden = true; wpAnchorNotesCloseTimer = null; }, 200);
+}
+
+/* ================= v117: NOTES ON A RECURRING TASK ================= */
+// A reminder of what the task actually means — "Plan next week's content" wants a list, not
+// a title. Additive: one optional `notes` string on the recurring defaults item, in the same
+// dual format as every other notes field (legacy plain, or the v70 rich marker + sanitised
+// HTML), on the same blob key, saved through the same wpSaveDefaults. The editor is the
+// SHARED v70 rich editor — no second implementation, sanitise on save AND on render.
+function wpRecurNotesBodyHtml(it){
+  return `${wpNotesToolbarHtml("wpRecurNotesEd")}
+    <div class="wp-notes-editor wp-recur-notes-ed" id="wpRecurNotesEd" contenteditable="true"
+      data-ph="What actually needs doing…" onblur="wpRecurNotesCommit()" onkeydown="wpNotesKeydown(event)">${wpNotesToEditorHtml(it.notes)}</div>
+    <div class="wp-anchor-notes-hint">Saved as you type. ⌘B bold · • bullets · ☑ checkboxes.</div>`;
+}
+function wpOpenRecurNotes(id){
+  const it = (wpDefaults||[]).find(x=>x.id===id);
+  const ov = document.getElementById("wpRecurNotesOverlay");
+  if(!it || !ov) return;
+  wpRecurNotesId = id;
+  wpRecurNotesDirty = false;
+  const t = document.getElementById("wpRecurNotesTitle");
+  if(t) t.textContent = String(it.title||"").trim() || "Untitled";
+  const body = document.getElementById("wpRecurNotesBody");
+  if(body) body.innerHTML = wpRecurNotesBodyHtml(it);
+  if(wpRecurNotesCloseTimer){ clearTimeout(wpRecurNotesCloseTimer); wpRecurNotesCloseTimer = null; }
+  ov.hidden = false;
+  document.body.style.overflow = "hidden";   // the page behind must not scroll
+  requestAnimationFrame(()=>requestAnimationFrame(()=>ov.classList.add("open")));
+}
+// The one writer. Reads the editor through the shared sanitise-on-save path, and writes
+// ONLY when the stored value actually changed — an idle blur costs nothing. Empty notes
+// drop the field rather than storing "", so a task never carries a hollow one.
+async function wpRecurNotesCommit(){
+  const it = wpRecurNotesId ? (wpDefaults||[]).find(x=>x.id===wpRecurNotesId) : null;
+  const ed = document.getElementById("wpRecurNotesEd");
+  if(!it || !ed || typeof ed.innerHTML !== "string") return false;
+  const stored = wpNotesFromEditor(ed);
+  if(stored === (typeof it.notes === "string" ? it.notes : "")) return false;
+  if(stored) it.notes = stored; else delete it.notes;
+  wpRecurNotesDirty = true;
+  await wpSaveDefaults();
+  return true;
+}
+// ✕ / Esc / backdrop all land here. Commits whatever is on screen first (a ✕ click blurs
+// the editor, which usually commits already — this is the belt-and-braces pass), then
+// re-renders the card ONLY if this session wrote something, so the folder catches up.
+async function wpCloseRecurNotes(){
+  const ov = document.getElementById("wpRecurNotesOverlay");
+  if(!ov || !wpRecurNotesId) return;
+  await wpRecurNotesCommit();
+  const wrote = wpRecurNotesDirty;
+  wpRecurNotesId = "";
+  wpRecurNotesDirty = false;
+  document.body.style.overflow = "";
+  ov.classList.remove("open");
+  wpRecurNotesCloseTimer = setTimeout(()=>{ ov.hidden = true; wpRecurNotesCloseTimer = null; }, 200);
+  if(wrote && wpPlan){ wpSyncFromDom(); renderWeeklyPlan(); }
 }
 // ---- per-section save ----
 const WP_SECTION_FIELDS = {
@@ -5173,12 +5325,14 @@ async function wpTodayToggleDone(ref, checked, day){
 }
 
 // Escape closes the v82 question first (it sits above everything), then any open location
-// popup (v84), then the v104 anchor notes viewer (opened from the page behind the Today
-// modal, so it is the topmost thing whenever it is open), then the Today modal.
+// popup (v84), then the v117 recurring-notes editor and the v104 anchor notes viewer (both
+// opened from the page behind the Today modal, so whichever is open is the topmost thing),
+// then the Today modal.
 document.addEventListener("keydown", (e)=>{
   if(e.key!=="Escape") return;
   if(wpAskResolve){ wpCloseAsk(null); return; }
   if(document.getElementById("wpLocPopup")){ wpCloseLocPopup(); return; }
+  if(wpRecurNotesId){ wpCloseRecurNotes(); return; }   // v117: the recurring-notes editor
   if(wpAnchorNotesOpen){ wpCloseAnchorNotes(); return; }
   if(wpTodayOpen) wpCloseToday();
 });
@@ -6569,6 +6723,90 @@ function wireReports(){
 
 /* ===== ENTRY PANEL ===== */
 function num(id){ const v=document.getElementById(id).value; return v===''?null:Number(v); }
+const ONTRAPORT_IMPORT_FIELDS = [
+  {id:'e_trialSales', key:'trialSales', label:'Trial Sales', aliases:['trialSales','trialSignUps']},
+  {id:'e_signups', key:'signups', label:'New Members', aliases:['signups','newMembers','memberSignUps']},
+  {id:'e_cancellations', key:'cancellations', label:'Cancellations', aliases:['cancellations']},
+  {id:'e_paused', key:'paused', label:'Paused Members', aliases:['paused','pausedMembers']},
+  {id:'e_trialists', key:'trialists', label:'Total Active Trialists', aliases:['totalActiveTrialists','activeTrialists','trialists']}
+];
+function parseOntraportImport(raw){
+  let data;
+  try{ data=JSON.parse(String(raw||'').trim()); }
+  catch(e){ return {ok:false,error:'Clipboard does not contain a valid Ontraport KPI import.'}; }
+  if(!data || typeof data!=='object' || Array.isArray(data)) return {ok:false,error:'Ontraport KPI import must be a JSON object.'};
+  if(data.source && String(data.source).toLowerCase()!=='ontraport') return {ok:false,error:'This clipboard data is not marked as an Ontraport import.'};
+  const values={};
+  for(const field of ONTRAPORT_IMPORT_FIELDS){
+    const alias=field.aliases.find(k=>Object.prototype.hasOwnProperty.call(data,k));
+    if(!alias) return {ok:false,error:`Missing ${field.label}.`};
+    const value=Number(data[alias]);
+    if(!Number.isInteger(value) || value<0) return {ok:false,error:`${field.label} must be a whole number of zero or more.`};
+    values[field.key]=value;
+  }
+  let weekEnding=null;
+  if(data.weekEnding!=null){
+    weekEnding=String(data.weekEnding);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(weekEnding)) return {ok:false,error:'Week ending must use YYYY-MM-DD.'};
+    const parts=weekEnding.split('-').map(Number);
+    const d=new Date(Date.UTC(parts[0],parts[1]-1,parts[2]));
+    if(d.getUTCFullYear()!==parts[0] || d.getUTCMonth()!==parts[1]-1 || d.getUTCDate()!==parts[2] || d.getUTCDay()!==6)
+      return {ok:false,error:'Week ending must be a real Saturday date.'};
+  }
+  return {ok:true,weekEnding,values};
+}
+function applyOntraportImport(parsed){
+  if(!parsed || !parsed.ok) return parsed||{ok:false,error:'Invalid Ontraport KPI import.'};
+  const targets=ONTRAPORT_IMPORT_FIELDS.map(field=>({id:field.id,label:field.label,value:String(parsed.values[field.key])}));
+  if(parsed.weekEnding) targets.unshift({id:'e_weekEnding',label:'Week ending',value:parsed.weekEnding});
+  const conflicts=targets.filter(t=>{
+    const current=document.getElementById(t.id).value;
+    return current!=='' && current!==t.value;
+  });
+  if(conflicts.length && !confirm(`Replace ${conflicts.map(x=>x.label).join(', ')} with the Ontraport values?`))
+    return {ok:false,cancelled:true,error:'Import cancelled — existing values were left unchanged.'};
+  targets.forEach(t=>{ document.getElementById(t.id).value=t.value; });
+  updateRangeHint();
+  updateRecurringPreview();
+  autoTotalActive();
+  return {ok:true,count:ONTRAPORT_IMPORT_FIELDS.length};
+}
+function setOntraportImportMessage(text,state){
+  const msg=document.getElementById('ontraportImportMsg');
+  msg.textContent=text;
+  msg.className='entry-import-hint'+(state?' entry-msg '+state:'');
+}
+function showOntraportPasteFallback(){
+  const box=document.getElementById('ontraportPasteFallback');
+  box.hidden=false;
+  const text=document.getElementById('ontraportPasteText');
+  text.focus();
+  setOntraportImportMessage('Direct clipboard access is blocked here. Paste below instead.','err');
+}
+function hideOntraportPasteFallback(){
+  document.getElementById('ontraportPasteFallback').hidden=true;
+  document.getElementById('ontraportPasteText').value='';
+}
+function importOntraportText(raw){
+  const parsed=parseOntraportImport(raw);
+  const result=parsed.ok?applyOntraportImport(parsed):parsed;
+  if(!result.ok){ setOntraportImportMessage(result.error,'err'); return false; }
+  hideOntraportPasteFallback();
+  setOntraportImportMessage('Five Ontraport KPIs pasted ✓ Review them, then save.','ok');
+  return true;
+}
+async function importOntraportFromClipboard(){
+  const btn=document.getElementById('ontraportImportBtn');
+  if(!navigator.clipboard || typeof navigator.clipboard.readText!=='function'){
+    showOntraportPasteFallback(); return false;
+  }
+  btn.disabled=true; setOntraportImportMessage('Reading copied KPIs…','');
+  try{
+    return importOntraportText(await navigator.clipboard.readText());
+  }catch(e){
+    showOntraportPasteFallback(); return false;
+  }finally{ btn.disabled=false; }
+}
 function lastRecurring(){
   // most recent stored week's recurring value
   if(!WEEKS.length) return null;
@@ -6629,12 +6867,25 @@ function updateRecurringPreview(){
   if(base==null){ el.innerHTML='Recurring will start from this week (no prior week).'; return; }
   el.innerHTML=`Recurring: ${base} + ${s} new − ${c} cancelled = <b>${base+s-c}</b>`;
 }
+// Total Active auto-fills from (calculated recurring + active trialists), but stays editable.
+// Kept outside wireEntry so the Ontraport clipboard importer can refresh it too.
+function autoTotalActive(){
+  const ta=document.getElementById('e_totalActive');
+  if(ta.dataset.touched==='1') return;
+  const iso=document.getElementById('e_weekEnding').value;
+  const base=iso?lastRecurringBefore(iso):lastRecurring();
+  const s=num('e_signups')||0, c=num('e_cancellations')||0, ov=num('e_recurringOverride');
+  const rec=ov!=null?ov:(base!=null?base+s-c:null);
+  const tri=num('e_trialists');
+  if(rec!=null || tri!=null) ta.value=(rec||0)+(tri||0);
+}
 function prefillEntryFrom(weekEnding){
   // load a saved week's values into the entry form (for editing). Returns true if found.
   const w=WEEKS.find(x=>x.weekEnding===weekEnding);
   const set=(id,v)=>{ document.getElementById(id).value=(v==null?'':v); };
   set('e_weekEnding',weekEnding);
   if(w){
+    set('e_ontraportLeads',w.ontraportLeads);
     set('e_trialSales',w.trialSales);
     set('e_signups',w.signups);
     set('e_cancellations',w.cancellations);
@@ -6654,7 +6905,7 @@ function openEntry(weekEnding, isEdit){
   const title=panel.querySelector('.entry-h strong');
   if(weekEnding){ prefillEntryFrom(weekEnding); }
   else { document.getElementById('e_weekEnding').value=nextWeekEnding();
-    ['e_trialSales','e_signups','e_cancellations','e_paused','e_trialists','e_totalActive','e_attendance','e_recurringOverride']
+    ['e_ontraportLeads','e_trialSales','e_signups','e_cancellations','e_paused','e_trialists','e_totalActive','e_attendance','e_recurringOverride']
       .forEach(id=>document.getElementById(id).value='');
     updateRecurringPreview(); updateRangeHint(); }
   if(title) title.textContent = isEdit ? 'Edit week' : 'Enter a week';
@@ -6673,6 +6924,14 @@ function wireEntry(){
   if(!openBtn) return;
 
   openBtn.addEventListener('click',()=>openEntry(null,false));
+  const importBtn=document.getElementById('ontraportImportBtn');
+  if(importBtn) importBtn.addEventListener('click',importOntraportFromClipboard);
+  const pasteApply=document.getElementById('ontraportPasteApply');
+  if(pasteApply) pasteApply.addEventListener('click',()=>importOntraportText(document.getElementById('ontraportPasteText').value));
+  const pasteCancel=document.getElementById('ontraportPasteCancel');
+  if(pasteCancel) pasteCancel.addEventListener('click',()=>{
+    hideOntraportPasteFallback(); setOntraportImportMessage('Copies into the form only — review before saving.','');
+  });
   // Edit dropdown menu (collapses "Edit this week" + "Edit Facebook ads" into one button)
   const editMenuBtn=document.getElementById('editMenuBtn');
   const editMenu=document.getElementById('editMenu');
@@ -6704,17 +6963,6 @@ function wireEntry(){
   });
   ['e_signups','e_cancellations','e_recurringOverride'].forEach(id=>
     document.getElementById(id).addEventListener('input',updateRecurringPreview));
-  // Total Active auto-fills from (calculated recurring + trialists), but stays editable.
-  function autoTotalActive(){
-    const ta=document.getElementById('e_totalActive');
-    if(ta.dataset.touched==='1') return; // user typed their own — don't overwrite
-    const iso=document.getElementById('e_weekEnding').value;
-    const base=iso?lastRecurringBefore(iso):lastRecurring();
-    const s=num('e_signups')||0, c=num('e_cancellations')||0, ov=num('e_recurringOverride');
-    const rec = ov!=null ? ov : (base!=null ? base+s-c : null);
-    const tri = num('e_trialists');
-    if(rec!=null || tri!=null) ta.value=(rec||0)+(tri||0);
-  }
   ['e_signups','e_cancellations','e_trialists','e_recurringOverride'].forEach(id=>
     document.getElementById(id).addEventListener('input',autoTotalActive));
   document.getElementById('e_totalActive').addEventListener('input',function(){ this.dataset.touched='1'; });
@@ -6742,6 +6990,7 @@ function wireEntry(){
 
     const week={
       weekEnding,
+      ontraportLeads:num('e_ontraportLeads'),
       trialSales:num('e_trialSales')||0,
       signups:s,
       cancellations:c,
@@ -6761,7 +7010,7 @@ function wireEntry(){
       await reloadAndRender(weekEnding);
       const wasEdit = panel.dataset.mode==='edit';
       setTimeout(()=>{ panel.hidden=true; saveBtn.disabled=false;
-        ['e_trialSales','e_signups','e_cancellations','e_paused','e_trialists','e_totalActive','e_attendance','e_recurringOverride']
+        ['e_ontraportLeads','e_trialSales','e_signups','e_cancellations','e_paused','e_trialists','e_totalActive','e_attendance','e_recurringOverride']
           .forEach(id=>document.getElementById(id).value='');
         document.getElementById('e_totalActive').dataset.touched='';
         // entering a fresh week -> chain into Facebook step; editing -> just close
@@ -6957,6 +7206,94 @@ function addFbBlock(prefill){
   const rm=div.querySelector('.fb-rm');
   if(rm) rm.addEventListener('click',()=>div.remove());
 }
+function parseFacebookImport(raw){
+  let data;
+  try{ data=JSON.parse(String(raw||'').trim()); }
+  catch(e){ return {ok:false,error:'Clipboard does not contain a valid Facebook Ads KPI import.'}; }
+  if(!data || typeof data!=='object' || Array.isArray(data)) return {ok:false,error:'Facebook Ads KPI import must be a JSON object.'};
+  if(data.source && !['facebook','meta'].includes(String(data.source).toLowerCase()))
+    return {ok:false,error:'This clipboard data is not marked as a Facebook or Meta import.'};
+  const adSpend=Number(data.adSpend);
+  const impressions=Number(data.impressions);
+  const linkClicks=Number(data.linkClicks);
+  const leads=Number(data.leads);
+  const sales=Number(data.sales);
+  if(!Number.isFinite(adSpend) || adSpend<0) return {ok:false,error:'Ad Spend must be zero or more.'};
+  if(!Number.isInteger(impressions) || impressions<0) return {ok:false,error:'Impressions must be a whole number of zero or more.'};
+  if(!Number.isInteger(linkClicks) || linkClicks<0) return {ok:false,error:'Link Clicks must be a whole number of zero or more.'};
+  if(!Number.isInteger(leads) || leads<0) return {ok:false,error:'Leads must be a whole number of zero or more.'};
+  if(!Number.isInteger(sales) || sales<0) return {ok:false,error:'Sales must be a whole number of zero or more.'};
+  let weekEnding=null;
+  if(data.weekEnding!=null){
+    weekEnding=String(data.weekEnding);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(weekEnding)) return {ok:false,error:'Week ending must use YYYY-MM-DD.'};
+    const parts=weekEnding.split('-').map(Number);
+    const d=new Date(Date.UTC(parts[0],parts[1]-1,parts[2]));
+    if(d.getUTCFullYear()!==parts[0] || d.getUTCMonth()!==parts[1]-1 || d.getUTCDate()!==parts[2] || d.getUTCDay()!==6)
+      return {ok:false,error:'Week ending must be a real Saturday date.'};
+  }
+  const campaign=data.campaign==null?'':String(data.campaign).trim();
+  return {ok:true,weekEnding,campaign,values:{adSpend,impressions,linkClicks,leads,sales}};
+}
+function applyFacebookImport(parsed){
+  if(!parsed || !parsed.ok) return parsed||{ok:false,error:'Invalid Facebook Ads KPI import.'};
+  const panel=document.getElementById('fbPanel');
+  if(parsed.weekEnding && panel.dataset.weekEnding && parsed.weekEnding!==panel.dataset.weekEnding)
+    return {ok:false,error:`These figures are for week ending ${parsed.weekEnding}, not ${panel.dataset.weekEnding}.`};
+  let block=document.querySelector('#fbCampaignBlocks .fb-block');
+  if(!block){ addFbBlock(null); block=document.querySelector('#fbCampaignBlocks .fb-block'); }
+  const targets=[
+    {el:block.querySelector('.fb-adSpend'),label:'Ad Spend',value:String(parsed.values.adSpend)},
+    {el:block.querySelector('.fb-impressions'),label:'Impressions',value:String(parsed.values.impressions)},
+    {el:block.querySelector('.fb-linkClicks'),label:'Link Clicks',value:String(parsed.values.linkClicks)},
+    {el:block.querySelector('.fb-leads'),label:'Leads',value:String(parsed.values.leads)},
+    {el:block.querySelector('.fb-sales'),label:'Sales',value:String(parsed.values.sales)}
+  ];
+  const conflicts=targets.filter(t=>t.el.value!=='' && t.el.value!==t.value);
+  if(conflicts.length && !confirm(`Replace ${conflicts.map(x=>x.label).join(', ')} with the Facebook Ads values?`))
+    return {ok:false,cancelled:true,error:'Import cancelled — existing values were left unchanged.'};
+  targets.forEach(t=>{ t.el.value=t.value; });
+  if(parsed.campaign){
+    const sel=block.querySelector('.fb-campaign-sel');
+    const existing=[...sel.options].find(o=>o.value===parsed.campaign);
+    const input=block.querySelector('.fb-campaign-new');
+    if(existing){ sel.value=parsed.campaign; input.style.display='none'; input.value=''; }
+    else{ sel.value='__new__'; input.style.display='block'; input.value=parsed.campaign; }
+  }
+  return {ok:true,count:5};
+}
+function setFacebookImportMessage(text,state){
+  const msg=document.getElementById('facebookImportMsg');
+  msg.textContent=text;
+  msg.className='entry-import-hint'+(state?' entry-msg '+state:'');
+}
+function showFacebookPasteFallback(){
+  document.getElementById('facebookPasteFallback').hidden=false;
+  document.getElementById('facebookPasteText').focus();
+  setFacebookImportMessage('Direct clipboard access is blocked here. Paste below instead.','err');
+}
+function hideFacebookPasteFallback(){
+  document.getElementById('facebookPasteFallback').hidden=true;
+  document.getElementById('facebookPasteText').value='';
+}
+function importFacebookText(raw){
+  const parsed=parseFacebookImport(raw);
+  const result=parsed.ok?applyFacebookImport(parsed):parsed;
+  if(!result.ok){ setFacebookImportMessage(result.error,'err'); return false; }
+  hideFacebookPasteFallback();
+  setFacebookImportMessage('Facebook Ads KPIs pasted ✓ Review them, then save.','ok');
+  return true;
+}
+async function importFacebookFromClipboard(){
+  const btn=document.getElementById('facebookImportBtn');
+  if(!navigator.clipboard || typeof navigator.clipboard.readText!=='function'){
+    showFacebookPasteFallback(); return false;
+  }
+  btn.disabled=true; setFacebookImportMessage('Reading copied KPIs…','');
+  try{ return importFacebookText(await navigator.clipboard.readText()); }
+  catch(e){ showFacebookPasteFallback(); return false; }
+  finally{ btn.disabled=false; }
+}
 function openFbPanel(weekEnding, isEdit){
   const panel=document.getElementById('fbPanel');
   document.getElementById('fbReports').hidden=true; // reports reveal only after save
@@ -6981,6 +7318,11 @@ function wireFb(){
   if(!closeBtn) return;
   closeBtn.addEventListener('click',()=>{ panel.hidden=true; });
   addBtn.addEventListener('click',()=>addFbBlock(null));
+  document.getElementById('facebookImportBtn').addEventListener('click',importFacebookFromClipboard);
+  document.getElementById('facebookPasteApply').addEventListener('click',()=>importFacebookText(document.getElementById('facebookPasteText').value));
+  document.getElementById('facebookPasteCancel').addEventListener('click',()=>{
+    hideFacebookPasteFallback(); setFacebookImportMessage('Copies spend, impressions, link clicks, leads and sales — review before saving.','');
+  });
   saveBtn.addEventListener('click',async()=>{
     const weekEnding=panel.dataset.weekEnding;
     const blocks=[...document.querySelectorAll('#fbCampaignBlocks .fb-block')];

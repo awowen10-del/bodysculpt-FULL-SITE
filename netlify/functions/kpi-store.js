@@ -596,6 +596,10 @@ export default async (req) => {
           if (t.repeat === "weekdays" || t.repeat === "weekly") d.repeat = t.repeat; // legacy v63
           if (typeof t.time === "string" && t.time) d.time = t.time;
           if (typeof t.link === "string" && /^https?:\/\//i.test(t.link)) d.link = t.link;
+          // v117: the task's own notes — one string, the same rich-notes field the monthly
+          // focus item carries, capped the same way. The client sanitises on both save and
+          // render; this only bounds the length so a runaway paste can't bloat the blob.
+          if (typeof t.notes === "string" && t.notes) d.notes = t.notes.slice(0, 20000);
           // v113: the optional monthly/quarterly cadence. Same discipline as days/time — the
           // cadence and a rule that fully validates are whitelisted together or not at all,
           // field by field, so a malformed rule can never be stored half-applied. A cadence

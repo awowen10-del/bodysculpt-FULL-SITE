@@ -38,9 +38,11 @@ async function week(wk) {
 
 (async () => {
   /* ================= 0. the build stamp ================= */
-  assert.ok(/<!-- build v114 · recurring-starts-collapsed -->/.test(MONTHLY),
-    "monthly.html stamped v114 · recurring-starts-collapsed");
-  assert.ok(/build v114 · recurring-starts-collapsed/.test(WEEKLY), "index.html carries the same stamp");
+  // ">= v114" — the exact stamp is asserted by the newest version's test; both pages still
+  // have to agree on it (v101).
+  const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(MONTHLY);
+  assert.ok(stamp && Number(stamp[1]) >= 114, "monthly.html stamped v114 or later");
+  assert.ok(WEEKLY.includes("build v" + stamp[1] + " · " + stamp[2]), "index.html carries the same stamp");
 
   /* ================= 1. THE CHANGE: collapsed on load ================= */
   {
