@@ -77,9 +77,11 @@ const item = (env, id) => Array.from(env.ctx.__wpState.defaults).find((t) => t.i
 
 (async () => {
   /* ================= 0. the build stamp ================= */
-  assert.ok(/<!-- build v117 · recurring-task-notes -->/.test(MONTHLY),
-    "monthly.html stamped v117 · recurring-task-notes");
-  assert.ok(WEEKLY.includes("build v117 · recurring-task-notes"), "index.html carries the same stamp");
+  // ">= v117" — the exact stamp is asserted by the newest version's test; both pages still
+  // have to agree on it (v101).
+  const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(MONTHLY);
+  assert.ok(stamp && Number(stamp[1]) >= 117, "monthly.html stamped v117 or later");
+  assert.ok(WEEKLY.includes("build v" + stamp[1] + " · " + stamp[2]), "index.html carries the same stamp");
 
   /* ================= 1. the folder: on every task, loud only when it holds something ====== */
   {

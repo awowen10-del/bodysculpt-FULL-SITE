@@ -1509,7 +1509,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v117 · recurring-task-notes</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v118 · quarter-summary-cpa</span>
   </footer>
 </div>
 
@@ -5904,7 +5904,11 @@ function renderScorecard(quarter){
     ['Leads', w=>w.leads||0, null, ()=>totLeads],
     ['Cost Per Lead', w=>w.leads?gbp(w.cpl):'—', null, ()=>totLeads?gbp(totSpend/totLeads):'—'],
     ['Trial Sales', w=>w.trialSales||0, w=>flag('trialSales',w.trialSales), ()=>totTrials],
-    ['Cost Per Acquisition', w=>w.cpa!=null?gbp(w.cpa):'—', null, ()=>totSignups?gbp(totSpend/totSignups):'—'],
+    // v118: the quarter cell must be the same metric as the weekly cells beside it —
+    // derive() defines a week's CPA as adSpend / TRIAL SALES, so the quarter's is the
+    // quarter's spend over the quarter's trial sales. It used to divide by membership
+    // sign-ups, which is a different metric entirely and read far worse than reality.
+    ['Cost Per Acquisition', w=>w.cpa!=null?gbp(w.cpa):'—', null, ()=>totTrials?gbp(totSpend/totTrials):'—'],
     ['Membership Sign Ups', w=>w.signups||0, w=>flag('signups',w.signups), ()=>totSignups],
     ['Cancellations', w=>w.cancellations||0, w=>w.cancellations>0?'amber':null, ()=>sum('cancellations')],
     ['Net Gain', w=>{const n=w.netGain;return (n>0?'+':'')+n;}, w=>w.netGain>0?'good':(w.netGain<0?'red':null), ()=>{const n=sum('netGain');return (n>0?'+':'')+n;}],
