@@ -17,6 +17,7 @@ const MONTHLY = read("monthly.html");
 const QUARTERLY = read("quarterly.html");
 
 const WEEK = "2026-03-16"; // a Monday inside NAV_WEEKS
+const NEXT = "2026-03-23"; // the week the review is planning INTO
 const IDS = ["training", "food", "priorities", "reflect", "todo", "motivation", "copyai"];
 const plain = (o) => JSON.parse(JSON.stringify(o));
 const planSaves = (posts, key) => posts.filter((p) => p.body.weeklyPlan && key in p.body.weeklyPlan);
@@ -253,24 +254,90 @@ const planSaves = (posts, key) => posts.filter((p) => p.body.weeklyPlan && key i
     assert.deepStrictEqual(plain(ctx.__wpState.plan.reviewChecklist), { food: true }, "…and the tick landed");
   }
 
-  /* ================= 11. the training step reads the real training list ================= */
+  /* ========= 11. the training step reads NEXT WEEK's diary, not the task's defaults =========
+     The review is done on the Sunday FOR the Monday, so "diarised" means diarised in the week
+     being planned. v119.2 fixed a bug where this read the task's standing day/slot instead:
+     a session hand-placed onto next week's grid still read "No day set", and one placed only
+     on THIS week read as diarised when next week had nothing. ========================= */
   {
-    const { ctx } = await boot({
-      plans: { [WEEK]: { weekEnding: WEEK, placements: {} } },
-      training: [
-        { id: "t1", title: "Lower body", days: ["mon", "thu"], time: "6-9" },
-        { id: "t2", title: "Swim", days: [], time: "" },
-      ],
+    const TRAINING = [
+      { id: "t1", title: "Lower body", days: ["mon", "thu"], time: "6-9" },   // a standing slot
+      { id: "t2", title: "Swim", days: [], time: "" },                        // hand-placed only
+      { id: "t3", title: "Yoga", days: [], time: "" },                        // placed on THIS week only
+      { id: "t4", title: "Boxing", days: [], time: "" },                      // nowhere
+    ];
+    const { ctx, settle } = await boot({
+      training: TRAINING,
+      plans: {
+        [WEEK]: { weekEnding: WEEK, placements: { "5-8:wed": ["training:t3"] } },
+        [NEXT]: { weekEnding: NEXT, placements: { "10-12:tue": ["training:t2"] } },
+      },
     });
     await ctx.loadWeeklyPlan(WEEK);
     ctx.wpEowOpen();
     ctx.wpEowGo(0);
+    // before next week's plan lands, the step says so rather than guessing from the defaults
+    assert.ok(ctx.document.getElementById("wpEowBody").innerHTML.includes("Checking next week"),
+      "the step waits for next week's plan instead of answering from the task's defaults");
+    await settle();
+
     const body = ctx.document.getElementById("wpEowBody").innerHTML;
-    assert.ok(body.includes("Lower body") && body.includes("Swim"), "every session is listed");
-    assert.ok(body.includes("Mon Thu"), "a booked session shows its days");
-    assert.ok(body.includes("No day set"), "one without a day is called out");
-    assert.ok(body.includes("wp-eow-li-warn"), "…and flagged");
-    assert.ok(!body.includes("<input type=\"checkbox\" onchange=\"wpToggleDone"), "the step is read-only about training");
+    assert.ok(body.includes("Next week ·"), "the step says which week it is asking about");
+    const rowOf = (title) => {
+      const at = body.indexOf(title);
+      assert.ok(at !== -1, "row rendered: " + title);
+      return body.slice(body.lastIndexOf("<li", at), body.indexOf("</li>", at));
+    };
+    assert.ok(rowOf("Lower body").includes("Mon Thu · 6 – 9"), "a standing slot shows its days next week");
+    assert.ok(rowOf("Swim").includes("Tue · 9 – 11.30"), "a session dragged onto NEXT week reads as diarised");
+    assert.ok(!rowOf("Swim").includes("wp-eow-li-warn"), "…and is not flagged");
+    assert.ok(rowOf("Yoga").includes("Not in next week"), "a session placed only on THIS week is not diarised for next");
+    assert.ok(rowOf("Yoga").includes("wp-eow-li-warn"), "…and is flagged");
+    assert.ok(rowOf("Boxing").includes("Not in next week"), "a session with no slot anywhere is not diarised");
+    assert.ok(body.includes("<b>2</b> sessions not in next week"), "the count matches the flagged rows");
+    const list = body.slice(body.indexOf("<ul"), body.indexOf("</ul>"));
+    assert.ok(!/<input|onclick|onchange/.test(list), "the training list itself is read-only");
+
+    // reading next week never writes to it
+    const { posts } = await boot({});
+    assert.ok(!posts.some((p) => p.body.weeklyPlan && p.body.weeklyPlan.weekEnding === NEXT),
+      "nothing is written to next week's record by the flow");
+  }
+
+  /* ========= 12. it uses the SAME reader as the grid, so a skip next week counts ========= */
+  {
+    const { ctx, settle } = await boot({
+      training: [{ id: "t1", title: "Lower body", days: ["mon"], time: "6-9" }],
+      plans: {
+        [WEEK]: { weekEnding: WEEK, placements: {} },
+        // next week: that one occurrence is skipped
+        [NEXT]: { weekEnding: NEXT, placements: {}, exceptions: { "training:t1": { type: "skip", from: "6-9:mon" } } },
+      },
+    });
+    await ctx.loadWeeklyPlan(WEEK);
+    ctx.wpEowOpen();
+    ctx.wpEowGo(0);
+    await settle();
+    const body = ctx.document.getElementById("wpEowBody").innerHTML;
+    assert.ok(body.includes("Not in next week"), "a session skipped next week is not diarised for it");
+    // …while THIS week is unaffected: the same task still derives its Monday cell here
+    assert.ok((ctx.wpEffectivePlacements()["6-9:mon"] || []).includes("training:t1"),
+      "this week's grid is untouched by next week's exception");
+  }
+
+  /* ========= 13. the parameterised reader defaults to the week on screen ========= */
+  {
+    // every pre-v119.2 caller passes nothing — that path has to stay identical
+    const { ctx } = await boot({
+      training: [{ id: "t1", title: "Lower body", days: ["tue"], time: "5-8" }],
+      plans: { [WEEK]: { weekEnding: WEEK, placements: { "6-9:fri": ["project:p1"] } } },
+    });
+    await ctx.loadWeeklyPlan(WEEK);
+    const bare = ctx.wpEffectivePlacements();
+    const explicit = ctx.wpEffectivePlacements(ctx.__wpState.plan, ctx.__wpState.weekEnding);
+    assert.deepStrictEqual(Object.keys(bare).sort(), Object.keys(explicit).sort(),
+      "passing the current plan explicitly gives the same cells as passing nothing");
+    assert.ok((bare["5-8:tue"] || []).includes("training:t1"), "…and the schedule still derives");
   }
 
   console.log("v119-eow-review-flow.test: all assertions passed");

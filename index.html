@@ -2722,10 +2722,14 @@ function wpValidCellKey(k){
 }
 // The week's exception map, created lazily (an untouched week keeps no field at all until
 // something is actually excepted).
-function wpExceptionsMap(){
-  if(!wpPlan) return {};
-  if(!wpPlan.exceptions || typeof wpPlan.exceptions !== "object" || Array.isArray(wpPlan.exceptions)) wpPlan.exceptions = {};
-  return wpPlan.exceptions;
+// v119.2: `plan` is optional and defaults to the week on screen — the only callers that pass
+// one are read-only lookups against ANOTHER week's plan (the review flow asking what next week
+// looks like). Every existing call site passes nothing and is unchanged.
+function wpExceptionsMap(plan){
+  const p = plan || wpPlan;
+  if(!p) return {};
+  if(!p.exceptions || typeof p.exceptions !== "object" || Array.isArray(p.exceptions)) p.exceptions = {};
+  return p.exceptions;
 }
 // Validate one entry. Returns a clean {type, from?, to} or null (unknown shapes are ignored,
 // never thrown away silently mid-render — the load path does the pruning).
@@ -2757,7 +2761,8 @@ function wpCleanExceptions(raw){
 // v83: every scheduled task's cells, derived from the LIVE schedule (days × slot) of both
 // shared collections. This is the source of truth for where a scheduled task sits, in every
 // week — nothing here is per-week, so a schedule edit shows up everywhere at once.
-function wpScheduledPlacements(){
+function wpScheduledPlacements(weekEnding){
+  const wk = weekEnding || wpWeekEnding;
   const out = {};
   const put = (key, ref)=>{
     out[key] = out[key] || [];
@@ -2773,7 +2778,7 @@ function wpScheduledPlacements(){
       // (exceptions, chips, done-state, drag, the Today modal, Copy Week) is the SAME shared
       // path a weekly recurring task takes; nothing about it is forked for cadence.
       if(wpCadenceOf(it)){
-        wpCadenceCells(it, wpWeekEnding).forEach(key=>put(key, ref));
+        wpCadenceCells(it, wk).forEach(key=>put(key, ref));
         return;
       }
       const days = wpRecurDays(it);
@@ -2795,9 +2800,10 @@ function wpScheduledPlacements(){
 // the ref (the schedule has since moved), is stale — the schedule simply wins.
 // One-off placements are carried through untouched; only SCHEDULED refs are re-derived, so a
 // week that never had a scheduled task in it renders exactly as it always did.
-function wpEffectivePlacements(){
-  const base = (wpPlan && wpPlan.placements) || {};
-  const derived = wpScheduledPlacements();
+function wpEffectivePlacements(plan, weekEnding){
+  const p = plan || wpPlan;
+  const base = (p && p.placements) || {};
+  const derived = wpScheduledPlacements(weekEnding || wpWeekEnding);
   const out = {};
   // stored copies of scheduled refs are a stale mirror of an older schedule — drop them
   Object.keys(base).forEach(k=>{ out[k] = (base[k]||[]).filter(r=>!wpIsScheduledRef(r)); });
@@ -2805,7 +2811,7 @@ function wpEffectivePlacements(){
     out[k] = out[k] || [];
     derived[k].forEach(r=>{ if(!out[k].includes(r)) out[k].push(r); });
   });
-  const ex = wpExceptionsMap();
+  const ex = wpExceptionsMap(p);
   Object.keys(ex).forEach(ref=>{
     const e = wpNormException(ref, ex[ref]);
     if(!e || !wpResolveRef(ref)) return;                        // unknown / deleted task
@@ -2818,8 +2824,8 @@ function wpEffectivePlacements(){
     }
   });
   // v89: LAST — order within each cell. Purely a sort of what the two steps above produced.
-  Object.keys(wpCellOrderMap()).forEach(key=>{
-    if(out[key] && out[key].length > 1) out[key] = wpOrderCellRefs(key, out[key]);
+  Object.keys(wpCellOrderMap(p)).forEach(key=>{
+    if(out[key] && out[key].length > 1) out[key] = wpOrderCellRefs(key, out[key], p);
   });
   return out;
 }
@@ -2843,10 +2849,11 @@ function wpValidRef(ref){
   if(parts.length !== 2 || !parts[1]) return null;
   return ["project","buffer","recurring","training"].includes(parts[0]) ? ref : null;
 }
-function wpCellOrderMap(){
-  if(!wpPlan) return {};
-  if(!wpPlan.cellOrder || typeof wpPlan.cellOrder !== "object" || Array.isArray(wpPlan.cellOrder)) wpPlan.cellOrder = {};
-  return wpPlan.cellOrder;
+function wpCellOrderMap(plan){
+  const p = plan || wpPlan;
+  if(!p) return {};
+  if(!p.cellOrder || typeof p.cellOrder !== "object" || Array.isArray(p.cellOrder)) p.cellOrder = {};
+  return p.cellOrder;
 }
 function wpCleanCellOrder(raw){
   const out = {};
@@ -2864,8 +2871,8 @@ function wpCleanCellOrder(raw){
 }
 // Sort one cell's refs by its hint. Hinted refs first in hint order, everything else after in
 // its existing (derived) order — a stable sort, so nothing can be lost or duplicated.
-function wpOrderCellRefs(key, refs){
-  const hint = wpCellOrderMap()[key];
+function wpOrderCellRefs(key, refs, plan){
+  const hint = wpCellOrderMap(plan)[key];
   if(!Array.isArray(hint) || !hint.length || !refs || refs.length < 2) return refs;
   const at = {};
   hint.forEach((r,i)=>{ if(!(r in at)) at[r] = i; });
@@ -4230,7 +4237,7 @@ function wpToggleReviewChecklist(id){
 // item can never break the flow.
 const WP_EOW_STEPS = {
   training: {
-    kicker: "Every session in the diary, and your coach knows the plan. Anything without a day isn't real yet.",
+    kicker: "Next week's sessions in the diary, and your coach knows the plan. Anything without a slot isn't real yet.",
     body: ()=>wpEowTrainingBodyHtml()
   },
   food: {
@@ -4267,6 +4274,63 @@ const WP_EOW_REVIEW_FIELDS = [
 let wpEowIsOpen = false;   // session-only: the flow has no stored state of its own
 let wpEowStep = 0;
 let wpEowCloseTimer = null;
+// v119.2: the review closes out the week on screen and SETS UP THE NEXT ONE, so the steps
+// that ask "is it planned?" have to look at next week, not this one. Next week's plan is
+// fetched READ-ONLY when the flow opens (re-fetched every open, because the usual shape of
+// this is: open the flow, go and diarise next week, come back). Nothing is ever written to
+// it from here — Finish week is still the only thing that touches next week's record.
+let wpEowNextWeek = "";
+let wpEowNextPlan = null;   // null = not loaded yet; {} = loaded, nothing saved for that week
+async function wpEowLoadNextWeek(){
+  if(!wpWeekEnding) return;
+  const wk = wpNextWeekEnding(wpWeekEnding);
+  wpEowNextWeek = wk;
+  wpEowNextPlan = null;
+  let plan = {};
+  try{
+    const r = await fetch(WP_STORE + "?weeklyplan=" + encodeURIComponent(wk)).then(x=>x.json());
+    if(r && r.plan && typeof r.plan === "object") plan = r.plan;
+  }catch(e){ plan = {}; }
+  if(wpEowNextWeek !== wk) return;            // the week moved under us — drop this answer
+  wpEowNextPlan = plan;
+  wpEowRender();
+}
+// Where next week's grid actually puts a task — the SAME reader the grid itself uses, run
+// against next week's plan, so the flow can't disagree with what that week will show. Covers
+// both ways a session gets diarised: a standing day/slot on the task, and a one-off chip
+// dragged onto that week only.
+function wpEowNextWeekCells(){
+  return wpEffectivePlacements(wpEowNextPlan || {}, wpEowNextWeek || wpNextWeekEnding(wpWeekEnding || ""));
+}
+// "Mon Thu · 6 – 9", or per-day when the slots differ.
+function wpEowCellsLabel(keys){
+  const parts = keys.map(k=>String(k).split(":"));
+  const days = WP_DAYS.map(d=>d[0]).filter(d=>parts.some(p=>p[1]===d));
+  const slots = Array.from(new Set(parts.map(p=>p[0])));
+  if(!days.length) return "";
+  if(slots.length === 1){
+    const sl = wpEowSlotLabel(slots[0]);
+    return wpDaysLabel(days) + (sl ? " · " + sl : "");
+  }
+  return days.map(d=>{
+    const lbl = (WP_DAYS.find(w=>w[0]===d)||[])[1] || d;
+    const sl = parts.filter(p=>p[1]===d).map(p=>wpEowSlotLabel(p[0])).filter(Boolean).join(" / ");
+    return sl ? (lbl + " " + sl) : lbl;
+  }).join(", ");
+}
+// "1 – 7 Sep" for the week the flow is planning into.
+function wpEowNextWeekLabel(){
+  const wk = wpEowNextWeek || (wpWeekEnding ? wpNextWeekEnding(wpWeekEnding) : "");
+  if(!wk) return "next week";
+  try{
+    const dates = wpWeekDates(wk);
+    const f = (iso, opts)=>new Date(iso+"T00:00:00Z").toLocaleDateString("en-GB", opts);
+    // both months when the week straddles one ("31 Aug – 6 Sep"), otherwise just the end
+    const sameMonth = dates[0].slice(0,7) === dates[6].slice(0,7);
+    return f(dates[0], sameMonth ? {day:"numeric"} : {day:"numeric", month:"short"})
+      + " – " + f(dates[6], {day:"numeric", month:"short"});
+  }catch(e){ return "next week"; }
+}
 
 function wpEowSteps(){
   return WP_REVIEW_CHECKLIST.concat([{ id: WP_EOW_FINISH_ID, label: "Finish the week" }]);
@@ -4284,6 +4348,7 @@ function wpEowOpen(){
   ov.hidden = false;
   document.body.style.overflow = "hidden";   // the page behind must not scroll
   wpEowRender();
+  wpEowLoadNextWeek();   // async — the training step re-renders itself when it lands
   requestAnimationFrame(()=>requestAnimationFrame(()=>ov.classList.add("open")));
 }
 // Closing commits whatever the open step was editing — an Esc or a backdrop click doesn't
@@ -4376,22 +4441,32 @@ function wpEowSlotLabel(time){
   const row = WP_TIME_ROWS.find(r=>r[0]===time);
   return row ? row[1] : "";
 }
-// Training: the week's sessions with the day/slot they're booked into. Read-only — the
-// Training card is still where a session is added or moved.
+// Training: the sessions and where NEXT week's diary puts them — this step is about the week
+// being planned, not the one being closed out (you do this on the Sunday for the Monday).
+// v119.2 fixed exactly that: it used to read the task's standing day/slot, so a session
+// hand-placed onto next week's grid still read "No day set", and one placed only on THIS
+// week read as diarised when it wasn't. It now asks next week's plan through the SAME
+// reader the grid uses. Read-only — the Training card and the grid are still where a
+// session is added or moved.
 function wpEowTrainingBodyHtml(){
   const items = (wpTraining||[]).filter(it=>it && String(it.title||"").trim());
   if(!items.length) return `<div class="wp-eow-empty">No training set up yet — add it on the Training card.</div>`;
+  if(!wpEowNextPlan) return `<div class="wp-eow-empty">Checking next week's diary…</div>`;
+  const cells = wpEowNextWeekCells();
   const rows = items.map(it=>{
-    const days = Array.isArray(it.days) ? it.days : [];
-    const slot = it.time ? wpEowSlotLabel(it.time) : "";
-    const when = days.length ? (wpDaysLabel(days) + (slot ? " · " + slot : "")) : "No day set";
-    return `<li class="wp-eow-li${days.length?"":" wp-eow-li-warn"}">
+    const ref = wpItemRef("training", it.id);
+    const where = Object.keys(cells).filter(k=>(cells[k]||[]).includes(ref));
+    const when = where.length ? wpEowCellsLabel(where) : "Not in next week";
+    return `<li class="wp-eow-li${where.length?"":" wp-eow-li-warn"}">
       <span class="wp-eow-li-t">${wpTrainingEmoji(it)} ${wpEsc(it.title)}</span>
       <span class="wp-eow-li-m">${wpEsc(when)}</span></li>`;
   }).join("");
-  const loose = items.filter(it=>!(Array.isArray(it.days) && it.days.length)).length;
-  return `<ul class="wp-eow-list">${rows}</ul>` +
-    (loose ? `<div class="wp-eow-hint"><b>${loose}</b> session${loose===1?"":"s"} still without a day — set it on the Training card before you tick this off.</div>` : "");
+  const loose = items.filter(it=>!Object.keys(cells).some(k=>(cells[k]||[]).includes(wpItemRef("training", it.id)))).length;
+  return `<div class="wp-eow-col-h">Next week · ${wpEsc(wpEowNextWeekLabel())}</div>
+    <ul class="wp-eow-list">${rows}</ul>` +
+    (loose
+      ? `<div class="wp-eow-hint"><b>${loose}</b> session${loose===1?"":"s"} not in next week's diary yet — give it a day with 📅 on the Training card, or drag it onto next week's grid.</div>`
+      : `<div class="wp-eow-hint">Every session has a slot next week. Check in with your coach and tick this off.</div>`);
 }
 // Food: the prompt Ash asked for, writing STRAIGHT into the Intentions Around Food tab that
 // sits next to the brain dump. Same field, same sanitiser, same save — no copy anywhere.
