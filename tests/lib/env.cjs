@@ -234,6 +234,9 @@ async function boot(opts = {}) {
     " get anchorNotesOpen(){ return wpAnchorNotesOpen; }," +
     // v117: which recurring task's notes editor is open ("" = closed)
     " get recurNotesId(){ return wpRecurNotesId; }, set recurNotesId(v){ wpRecurNotesId = v; }," +
+    // v119: the guided End-of-Week Review's session state. READ-ONLY — a test drives the
+    // flow through its own functions (wpEowOpen/wpEowNext/…), never by poking the step.
+    " get eowOpen(){ return wpEowIsOpen; }, get eowStep(){ return wpEowStep; }," +
     " get weekEnding(){ return wpWeekEnding; }," +
     " get navWeeks(){ return NAV_WEEKS; }," +
     " get timer(){ return wpTimer; }, set timer(v){ wpTimer = v; }" +

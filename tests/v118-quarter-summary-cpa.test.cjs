@@ -71,9 +71,11 @@ function weekCells(ctx, label) {
 
 (async () => {
   /* ================= 0. the build stamp ================= */
-  assert.ok(/<!-- build v118 · quarter-summary-cpa -->/.test(MONTHLY),
-    "monthly.html stamped v118 · quarter-summary-cpa");
-  assert.ok(WEEKLY.includes("build v118 · quarter-summary-cpa"), "index.html carries the same stamp");
+  // v119 relaxed this: the newest release's test pins the exact stamp, older ones only
+  // check the build never goes backwards and that the two pages agree.
+  const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(MONTHLY);
+  assert.ok(stamp && Number(stamp[1]) >= 118, "monthly.html stamped v118 or later");
+  assert.ok(WEEKLY.includes("build v" + stamp[1] + " · " + stamp[2]), "index.html carries the same stamp");
 
   const env = await boot({ weeks: WEEKS, plans: {} });
   await env.settle();

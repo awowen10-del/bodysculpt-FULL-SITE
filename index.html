@@ -16,6 +16,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
 <title>Bodysculpt KPI Dashboard</title>
+<!-- v119: Inter, the one typeface for the whole suite. The system stack stays behind it
+     as the fallback, so an offline/blocked load renders exactly as it did before. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   /* ===================== THEME TOKENS =====================
      Every colour in this stylesheet resolves to one of these — there are no literal
@@ -112,7 +117,7 @@
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
   html,body{background:var(--navy);color:var(--ink);}
-  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  body{font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     line-height:1.5;padding:env(safe-area-inset-top) 0 calc(env(safe-area-inset-bottom) + 40px);
     -webkit-font-smoothing:antialiased;}
   /* v65: widened from 1100px so the 7-column Time Blocks grid gets roomier cells
@@ -1197,6 +1202,82 @@
     font-variant-numeric:tabular-nums;}
   .wp-nnw-head .wp-nnw-cell{background:transparent;border-color:transparent;font-size:9.5px;
     text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint);}
+  /* v119: the non-negotiables are their own card under the calendar now — the card frame
+     supplies the border and padding, so the tracker inside it drops its own. */
+  .wp-nn-box .wp-nnw{margin-bottom:0;border:none;padding:0;background:transparent;max-width:560px;}
+  .wp-nn-box-hint{margin-top:9px;font-size:11px;color:var(--ink-faint);}
+  /* ===== v119: the End-of-Week Review as a guided flow ===== */
+  /* the way in, at the top of the review card */
+  .wp-eow-launch{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;padding:12px 14px;
+    border:1px solid rgba(var(--orange-rgb),.35);border-radius:10px;
+    background:linear-gradient(180deg,rgba(var(--orange-rgb),.10),rgba(var(--orange-rgb),.03));}
+  .wp-eow-launch-txt{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;}
+  .wp-eow-launch-txt b{font-size:13px;font-weight:800;color:var(--ink-strong);}
+  .wp-eow-launch-txt span{font-size:11.5px;font-weight:700;color:var(--ink-dim);}
+  .wp-eow-start{background:var(--orange);border:1px solid var(--orange);color:var(--on-accent);border-radius:9px;
+    padding:9px 16px;font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer;flex:none;}
+  .wp-eow-start:hover{background:var(--orange-soft);border-color:var(--orange-soft);}
+  /* the modal — the Today shell, wider, with a progress bar and a fixed footer */
+  .wp-eow-modal{width:min(680px,100%);}
+  .wp-eow-bar{height:3px;background:var(--navy-2);}
+  .wp-eow-bar-fill{display:block;height:100%;width:0;background:var(--orange);transition:width .2s ease;}
+  .wp-eow-body{gap:12px;}
+  .wp-eow-step{display:flex;flex-direction:column;gap:11px;}
+  .wp-eow-kicker{font-size:13px;line-height:1.55;color:var(--ink-dim);}
+  .wp-eow-prompt{font-size:13px;font-weight:800;color:var(--ink-strong);}
+  .wp-eow-hint{font-size:11.5px;line-height:1.5;color:var(--ink-faint);}
+  .wp-eow-hint b{color:var(--ink-dim);}
+  .wp-eow-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px;}
+  .wp-eow-li{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--ink);
+    border:1px solid var(--line);border-radius:8px;background:var(--navy);padding:8px 10px;line-height:1.4;}
+  .wp-eow-li.done{color:var(--ink-faint);text-decoration:line-through;}
+  .wp-eow-li-t{min-width:0;overflow:hidden;text-overflow:ellipsis;}
+  .wp-eow-li-m{flex:none;font-size:11px;font-weight:800;color:var(--ink-dim);white-space:nowrap;}
+  .wp-eow-li-warn{border-color:rgba(var(--amber-rgb),.45);}
+  .wp-eow-li-warn .wp-eow-li-m{color:var(--amber);}
+  .wp-eow-jump{cursor:pointer;}
+  .wp-eow-jump:hover{border-color:var(--orange);color:var(--orange-soft);}
+  .wp-eow-empty{font-size:12px;color:var(--ink-faint);}
+  .wp-eow-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  @media(max-width:620px){ .wp-eow-cols{grid-template-columns:1fr;} }
+  .wp-eow-col-h{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;
+    color:var(--orange-soft);margin-bottom:6px;}
+  .wp-eow-f{display:flex;flex-direction:column;gap:4px;}
+  .wp-eow-f label{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint);font-weight:700;}
+  .wp-eow-f textarea{background:var(--navy);color:var(--ink);border:1px solid var(--line);border-radius:8px;
+    padding:9px 11px;font-family:inherit;font-size:13px;line-height:1.5;min-height:76px;resize:vertical;}
+  .wp-eow-f textarea:focus{outline:none;border-color:var(--orange);}
+  .wp-eow-ed{min-height:160px;}
+  .wp-eow-act{background:rgba(var(--orange-rgb),.12);border:1px solid rgba(var(--orange-rgb),.45);color:var(--orange-soft);
+    border-radius:9px;padding:9px 14px;font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer;align-self:flex-start;}
+  .wp-eow-act:hover{background:var(--orange);border-color:var(--orange);color:var(--on-accent);}
+  .wp-eow-score{font-size:15px;font-weight:800;color:var(--ink-strong);}
+  .wp-eow-allgood{font-size:13px;font-weight:800;color:var(--green);}
+  .wp-eow-tick{display:flex;align-items:center;gap:9px;cursor:pointer;font-size:12.5px;font-weight:800;
+    color:var(--ink-dim);border-top:1px solid var(--line);padding-top:12px;margin-top:2px;}
+  .wp-eow-tick input{appearance:none;-webkit-appearance:none;flex:none;width:17px;height:17px;margin:0;
+    border:1.5px solid var(--ink-faint);border-radius:5px;background:transparent;cursor:pointer;position:relative;transition:all .12s;}
+  .wp-eow-tick input:hover{border-color:var(--green);}
+  .wp-eow-tick input:checked{background:var(--green);border-color:var(--green);}
+  .wp-eow-tick input:checked::after{content:"✓";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    color:var(--on-accent);font-size:11px;font-weight:900;line-height:1;}
+  .wp-eow-tick.on{color:var(--green);}
+  .wp-eow-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    border-top:1px solid var(--line);background:var(--navy-2);padding:12px 18px;}
+  .wp-eow-count{font-size:10.5px;font-weight:800;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.6px;}
+  .wp-eow-foot-r{margin-left:auto;display:flex;align-items:center;gap:10px;}
+  .wp-eow-back{background:transparent;border:1px solid var(--line);color:var(--ink-dim);border-radius:8px;
+    padding:8px 13px;font-family:inherit;font-size:12px;font-weight:800;cursor:pointer;}
+  .wp-eow-back:hover:not(:disabled){border-color:var(--orange);color:var(--orange-soft);}
+  .wp-eow-back:disabled{opacity:.35;cursor:default;}
+  .wp-eow-skip{background:transparent;border:none;color:var(--ink-faint);font-family:inherit;font-size:12px;
+    font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:2px;padding:0;}
+  .wp-eow-skip:hover{color:var(--ink-dim);}
+  .wp-eow-next{background:var(--orange);border:1px solid var(--orange);color:var(--on-accent);border-radius:9px;
+    padding:9px 15px;font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer;}
+  .wp-eow-next:hover{background:var(--orange-soft);border-color:var(--orange-soft);}
+  .wp-eow-next.is-done{background:transparent;color:var(--green);border-color:rgba(var(--green-rgb),.5);}
+  .wp-eow-next.is-done:hover{background:rgba(var(--green-rgb),.14);color:var(--green);}
   /* ===== v68: focus timer inside the Today modal ===== */
   .wp-today-timer{border:1px solid var(--line);border-radius:10px;background:var(--navy-2);padding:10px 12px;}
   .wp-timer-boxdone{border-color:rgba(var(--green-rgb),.5);background:rgba(var(--green-rgb),.07);}
@@ -1509,7 +1590,7 @@
 
   <footer>
     <span class="stage" id="srcPill">● Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v118 · quarter-summary-cpa</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v119 · eow-review-flow</span>
   </footer>
 </div>
 
@@ -1562,6 +1643,26 @@
       <button class="wp-today-close" title="Close (Esc)" onclick="wpCloseRecurNotes()">✕</button>
     </div>
     <div class="wp-today-body" id="wpRecurNotesBody"></div>
+  </div>
+</div>
+
+<!-- v119: THE END-OF-WEEK REVIEW, AS A GUIDED FLOW. One step on screen at a time instead of
+     the whole card at once. Same modal shell as Today (✕ / Esc / backdrop, scroll lock),
+     wider, with a progress bar and a fixed footer. Lives outside #wpBody so a weekly
+     re-render can't disturb a review in progress. The header, body and footer are all
+     rendered from wpEowRender() — there is no static step content here. -->
+<div id="wpEowOverlay" class="wp-today-overlay wp-eow-overlay" hidden onclick="if(event.target===this)wpEowClose()">
+  <div class="wp-today-modal wp-eow-modal" role="dialog" aria-modal="true" aria-labelledby="wpEowTitle">
+    <div class="wp-today-h">
+      <div>
+        <div class="wp-today-title">End-of-Week Review</div>
+        <div class="wp-today-date" id="wpEowTitle"></div>
+      </div>
+      <button class="wp-today-close" title="Close (Esc)" onclick="wpEowClose()">✕</button>
+    </div>
+    <div class="wp-eow-bar"><span class="wp-eow-bar-fill" id="wpEowBarFill"></span></div>
+    <div class="wp-today-body wp-eow-body" id="wpEowBody"></div>
+    <div class="wp-eow-foot" id="wpEowFoot"></div>
   </div>
 </div>
 
@@ -3492,6 +3593,10 @@ document.addEventListener("click", (e)=>{
   if(ed.id === "wpTodayNotes") wpTodaySaveNotes();
   else if(ed.id === "wpRecurNotesEd") wpRecurNotesCommit();   // v117: recurring task's own notes
   else if(ed.id && ed.id.indexOf("wpCk") === 0) wpCheckinSaveFromEditors();
+  // v119: the guided review's editors write through the card first — saving them the plain
+  // way would let wpSyncFromDom re-read the card's stale value straight back over the tick.
+  else if(ed.id === "wpEowFoodEd") wpEowSaveNotesField("foodNotes","wpEowFoodEd");
+  else if(ed.id === "wpEowNotesEd") wpEowSaveNotesField("notes","wpEowNotesEd");
   else wpSaveSection((ed.getAttribute && ed.getAttribute("data-field")) === "foodNotes" ? "foodNotes" : "notes");
 });
 
@@ -3864,12 +3969,21 @@ function renderWeeklyPlan(){
       <span class="wp-rc-progress">${rcDone} of ${WP_REVIEW_CHECKLIST.length}</span></div>
     <ol class="wp-rc-list">${rcRows}</ol>
   </div>`;
+  // v119: the way IN to the review is now the guided flow — one step on screen at a time.
+  // The card below it is unchanged and still fully usable: the flow writes through the exact
+  // same fields and save paths, so the two are two views of one thing, never two copies.
+  const rcAll = rcDone === WP_REVIEW_CHECKLIST.length;
+  const launchBox = `<div class="wp-eow-launch">
+    <div class="wp-eow-launch-txt"><b>Work the review one step at a time</b>
+      <span>${rcDone} of ${WP_REVIEW_CHECKLIST.length} steps done${rcAll?" \u2014 the week is closed out.":""}</span></div>
+    <button type="button" class="wp-eow-start" onclick="wpEowOpen()">${rcDone?(rcAll?"Run it again \u2192":"Continue review \u2192"):"Start review \u2192"}</button>
+  </div>`;
 
   const reviewBox = `<div class="wp-box">
     ${wpBoxHeader("End-of-Week Review","review",`<span class="wp-ssaved" id="wpmsg-copyweek"></span><button type="button" class="wp-copyweek-btn" title="Copy the whole week as plain text (paste into an AI chat for feedback)" onclick="wpCopyWeek()">Copy week</button>`)}
     <div class="wp-box-body">
+      ${launchBox}
       ${checklistBox}
-      ${wpHabitTrackerHtml()}
       <div class="wp-review-grid">
         <div class="wp-f"><label>Wins this week</label><textarea data-review="wins" onblur="wpSaveSection('review')">${wpEsc(r.wins)}</textarea></div>
         <div class="wp-f"><label>What didn't get done?</label><textarea data-review="notDone" onblur="wpSaveSection('review')">${wpEsc(r.notDone)}</textarea></div>
@@ -3904,7 +4018,8 @@ function renderWeeklyPlan(){
     }
   }
 
-  document.getElementById("wpBody").innerHTML = anchorBox + topRow + gridBox + reviewBox;
+  // v119: the non-negotiables card sits between the calendar and the review
+  document.getElementById("wpBody").innerHTML = anchorBox + topRow + gridBox + wpHabitCardHtml() + reviewBox;
 }
 
 // v104: the two anchor lists, derived from the SAME monthly-plan record the anchor renders
@@ -4091,6 +4206,296 @@ function wpToggleReviewChecklist(id){
   else wpPlan.reviewChecklist[id] = true;
   renderWeeklyPlan();
   return wpSaveSection("review");
+}
+
+/* ================= v119: THE END-OF-WEEK REVIEW, AS A GUIDED FLOW =================
+   The review used to be a card with everything on it at once. It is now a process: a modal
+   that walks one step at a time, in WP_REVIEW_CHECKLIST order, and only shows you the thing
+   you are doing right now.
+
+   NOTHING NEW IS STORED. Every step writes through an existing field and an existing save
+   path — reviewChecklist (the ticks), review.wins/notDone/blockers, notes, foodNotes — so
+   the flow and the card underneath are two views of ONE set of data, never two copies, and
+   the store has no idea the flow exists.
+
+   THE TRAP THIS CREATES: wpSaveSection() calls wpSyncFromDom(), which re-reads those fields
+   from the CARD inside #wpBody. A modal edit that only updated wpPlan would be clobbered by
+   the card's stale value on the very next save. So every write from this modal follows the
+   v67 wpTodaySaveNotes pattern — wpPlan field, THEN the matching element inside #wpBody,
+   THEN the section save — which is what wpEowSaveNotesField / wpEowSaveReview do below. */
+
+// The steps are the checklist, plus a closing screen. WP_REVIEW_CHECKLIST stays the single
+// source of truth for what the steps ARE; this map only says what each one puts on screen.
+// An id with no entry here still gets a step (its label + the tick), so adding a checklist
+// item can never break the flow.
+const WP_EOW_STEPS = {
+  training: {
+    kicker: "Every session in the diary, and your coach knows the plan. Anything without a day isn't real yet.",
+    body: ()=>wpEowTrainingBodyHtml()
+  },
+  food: {
+    kicker: "Last week's food, honestly — then what you're actually fixing this week.",
+    body: ()=>wpEowFoodBodyHtml()
+  },
+  priorities: {
+    kicker: "What does the month need from this week? Business and personal, side by side.",
+    body: ()=>wpEowPrioritiesBodyHtml()
+  },
+  reflect: {
+    kicker: "Last week as it actually went — wins first, then what slipped and why.",
+    body: ()=>wpEowReflectBodyHtml()
+  },
+  todo: {
+    kicker: "Get it all out of your head and onto the brain dump. Tidy it later.",
+    body: ()=>wpEowTodoBodyHtml()
+  },
+  motivation: {
+    kicker: "One thing in for you — a chapter, a podcast, a talk. Then tick it.",
+    body: ()=>`<div class="wp-eow-hint">Nothing to fill in here. This step is just the reminder that the week doesn't close until you've put something back in.</div>`
+  },
+  copyai: {
+    kicker: "Copy the whole week out and let AI tell you what you're not seeing.",
+    body: ()=>wpEowCopyBodyHtml()
+  }
+};
+const WP_EOW_FINISH_ID = "__finish";           // the closing screen — never a checklist tick
+const WP_EOW_REVIEW_FIELDS = [
+  { key:"wins",     label:"Wins this week" },
+  { key:"notDone",  label:"What didn't get done?" },
+  { key:"blockers", label:"Issues / blockers" }
+];
+let wpEowIsOpen = false;   // session-only: the flow has no stored state of its own
+let wpEowStep = 0;
+let wpEowCloseTimer = null;
+
+function wpEowSteps(){
+  return WP_REVIEW_CHECKLIST.concat([{ id: WP_EOW_FINISH_ID, label: "Finish the week" }]);
+}
+// Open on the first step that isn't ticked yet — pick up where the week left off. Everything
+// ticked lands you on the closing screen.
+function wpEowOpen(){
+  const ov = document.getElementById("wpEowOverlay");
+  if(!ov || !wpPlan) return;
+  const rc = wpPlan.reviewChecklist || {};
+  const first = WP_REVIEW_CHECKLIST.findIndex(it=>!rc[it.id]);
+  wpEowStep = first === -1 ? WP_REVIEW_CHECKLIST.length : first;
+  if(wpEowCloseTimer){ clearTimeout(wpEowCloseTimer); wpEowCloseTimer = null; }
+  wpEowIsOpen = true;
+  ov.hidden = false;
+  document.body.style.overflow = "hidden";   // the page behind must not scroll
+  wpEowRender();
+  requestAnimationFrame(()=>requestAnimationFrame(()=>ov.classList.add("open")));
+}
+// Closing commits whatever the open step was editing — an Esc or a backdrop click doesn't
+// blur a field, so this is the catch for an uncommitted edit.
+function wpEowClose(){
+  const ov = document.getElementById("wpEowOverlay");
+  if(!ov || !wpEowIsOpen) return;
+  wpEowCommit();
+  wpEowIsOpen = false;
+  document.body.style.overflow = "";
+  ov.classList.remove("open");
+  wpEowCloseTimer = setTimeout(()=>{ ov.hidden = true; wpEowCloseTimer = null; }, 200);
+  if(wpPlan) renderWeeklyPlan();   // the card underneath picks up whatever the flow changed
+}
+function wpEowSet(n){
+  const steps = wpEowSteps();
+  wpEowStep = Math.max(0, Math.min(steps.length - 1, n));
+  wpEowRender();
+}
+function wpEowGo(n){ wpEowCommit(); wpEowSet(n); }
+function wpEowSkip(){ wpEowCommit(); wpEowSet(wpEowStep + 1); }
+// The primary action: commit what's on screen, tick the step off if it isn't already, move on.
+function wpEowNext(){
+  const s = wpEowSteps()[wpEowStep];
+  wpEowCommit();
+  if(s && s.id !== WP_EOW_FINISH_ID && !((wpPlan && wpPlan.reviewChecklist) || {})[s.id]) wpToggleReviewChecklist(s.id);
+  wpEowSet(wpEowStep + 1);
+}
+// The tick itself is the EXISTING per-week toggle (same map, same review save path) — the
+// flow just re-renders itself afterwards so the step's state follows.
+function wpEowToggle(id){
+  if(!wpPlan) return;
+  const r = wpToggleReviewChecklist(id);
+  wpEowRender();
+  return r;
+}
+async function wpEowFinishWeek(){
+  wpEowClose();
+  await wpCommitFinish();   // the existing roll-forward — carry tray into next week, then jump
+}
+
+/* ---- the write-through paths (see the trap in the header comment) ---- */
+// One notes field, edited in the modal: wpPlan, then the card's editor, then the section save.
+function wpEowSaveNotesField(field, edId){
+  if(!wpPlan || !WP_NOTES_TABS[field]) return;
+  const el = document.getElementById(edId);
+  if(!el || typeof el.innerHTML !== "string") return;
+  const stored = wpNotesFromEditor(el);
+  if(stored === wpPlan[field]) return;
+  wpPlan[field] = stored;
+  const wb = document.getElementById("wpBody");
+  const weekEl = wb && wb.querySelector && wb.querySelector('[data-field="' + field + '"]');
+  if(weekEl) weekEl.innerHTML = wpNotesToEditorHtml(stored);   // so wpSyncFromDom can't re-read a stale value
+  return wpSaveSection(field);
+}
+// The three review fields, same rule — mirrored into the card's textareas before the save.
+function wpEowSaveReview(){
+  if(!wpPlan) return;
+  const wb = document.getElementById("wpBody");
+  let changed = false;
+  WP_EOW_REVIEW_FIELDS.forEach(f=>{
+    const el = document.getElementById("wpEowRev_" + f.key);
+    if(!el || typeof el.value !== "string" || el.value === wpPlan.review[f.key]) return;
+    wpPlan.review[f.key] = el.value;
+    const card = wb && wb.querySelector && wb.querySelector('[data-review="' + f.key + '"]');
+    if(card) card.value = el.value;
+    changed = true;
+  });
+  if(changed) return wpSaveSection("review");
+}
+// Commit whatever the CURRENT step has on screen. Scoped to the step on purpose: a field
+// that isn't rendered is never read, so an absent element can never write an empty value.
+function wpEowCommit(){
+  if(!wpEowIsOpen || !wpPlan) return;
+  const s = wpEowSteps()[wpEowStep];
+  if(!s) return;
+  if(s.id === "food")    return wpEowSaveNotesField("foodNotes","wpEowFoodEd");
+  if(s.id === "todo")    return wpEowSaveNotesField("notes","wpEowNotesEd");
+  if(s.id === "reflect") return wpEowSaveReview();
+}
+
+/* ---- the steps ---- */
+function wpEowSlotLabel(time){
+  const row = WP_TIME_ROWS.find(r=>r[0]===time);
+  return row ? row[1] : "";
+}
+// Training: the week's sessions with the day/slot they're booked into. Read-only — the
+// Training card is still where a session is added or moved.
+function wpEowTrainingBodyHtml(){
+  const items = (wpTraining||[]).filter(it=>it && String(it.title||"").trim());
+  if(!items.length) return `<div class="wp-eow-empty">No training set up yet — add it on the Training card.</div>`;
+  const rows = items.map(it=>{
+    const days = Array.isArray(it.days) ? it.days : [];
+    const slot = it.time ? wpEowSlotLabel(it.time) : "";
+    const when = days.length ? (wpDaysLabel(days) + (slot ? " · " + slot : "")) : "No day set";
+    return `<li class="wp-eow-li${days.length?"":" wp-eow-li-warn"}">
+      <span class="wp-eow-li-t">${wpTrainingEmoji(it)} ${wpEsc(it.title)}</span>
+      <span class="wp-eow-li-m">${wpEsc(when)}</span></li>`;
+  }).join("");
+  const loose = items.filter(it=>!(Array.isArray(it.days) && it.days.length)).length;
+  return `<ul class="wp-eow-list">${rows}</ul>` +
+    (loose ? `<div class="wp-eow-hint"><b>${loose}</b> session${loose===1?"":"s"} still without a day — set it on the Training card before you tick this off.</div>` : "");
+}
+// Food: the prompt Ash asked for, writing STRAIGHT into the Intentions Around Food tab that
+// sits next to the brain dump. Same field, same sanitiser, same save — no copy anywhere.
+function wpEowFoodBodyHtml(){
+  return `<div class="wp-eow-prompt">What needs fixing this week?</div>
+    ${wpNotesToolbarHtml("wpEowFoodEd")}
+    <div class="wp-notes-editor wp-eow-ed" id="wpEowFoodEd" contenteditable="true"
+      data-ph="What went well? What didn't? Intentions going into the new week…"
+      onblur="wpEowSaveNotesField('foodNotes','wpEowFoodEd')" onkeydown="wpNotesKeydown(event)">${wpNotesToEditorHtml(wpPlan.foodNotes)}</div>
+    <div class="wp-eow-hint">Lands on the <b>Intentions Around Food</b> tab, next to the brain dump.</div>`;
+}
+// Priorities: the month, read-only, as the thing the week has to serve. Same reader as the
+// weekly anchor (wpAnchorItems/wpAnchorDone), so it can't disagree with it.
+function wpEowPrioritiesBodyHtml(){
+  const col = (heading, kind)=>{
+    const items = wpAnchorItems(kind);
+    return `<div class="wp-eow-col"><div class="wp-eow-col-h">${wpEsc(heading)}</div>${
+      items.length
+        ? `<ul class="wp-eow-list">${items.map(it=>`<li class="wp-eow-li${wpAnchorDone(kind,it)?" done":""}">${wpEsc(it.title)}</li>`).join("")}</ul>`
+        : `<div class="wp-eow-empty">Nothing set for this month.</div>`}</div>`;
+  };
+  const proj = (wpPlan.projectItems||[]).length, buf = (wpPlan.bufferItems||[]).length;
+  return `<div class="wp-eow-cols">${col("This month — business","focus")}${col("This month — personal","personal")}</div>
+    <div class="wp-eow-hint">This week's lists hold <b>${proj}</b> project task${proj===1?"":"s"} and <b>${buf}</b> buffer task${buf===1?"":"s"}. Close the flow to add more.</div>`;
+}
+// Reflect: the three review fields plus the week's non-negotiables, so the reflection is
+// written against what actually happened rather than from memory.
+function wpEowReflectBodyHtml(){
+  const fields = WP_EOW_REVIEW_FIELDS.map(f=>`<div class="wp-eow-f"><label>${f.label}</label>
+    <textarea id="wpEowRev_${f.key}" onblur="wpEowSaveReview()">${wpEsc(wpPlan.review[f.key]||"")}</textarea></div>`).join("");
+  return fields + `<div class="wp-eow-col-h">Daily non-negotiables</div>` + wpHabitTrackerHtml();
+}
+// To-do: the brain dump itself, same field as the Notes tab on the card.
+function wpEowTodoBodyHtml(){
+  return `<div class="wp-eow-prompt">Everything that's on your mind for next week</div>
+    ${wpNotesToolbarHtml("wpEowNotesEd")}
+    <div class="wp-notes-editor wp-eow-ed" id="wpEowNotesEd" contenteditable="true"
+      data-ph="Things to think about, ideas for next week, observations, stuff to discuss with the team…"
+      onblur="wpEowSaveNotesField('notes','wpEowNotesEd')" onkeydown="wpNotesKeydown(event)">${wpNotesToEditorHtml(wpPlan.notes)}</div>
+    <div class="wp-eow-hint">Lands on the <b>Notes / Brain Dump</b> tab. Use ☑ for things you want as checkboxes.</div>`;
+}
+function wpEowCopyBodyHtml(){
+  return `<button type="button" class="wp-eow-act" onclick="wpEowCopyWeek()">Copy the week</button>
+    <span class="wp-ssaved" id="wpEowCopyMsg"></span>
+    <div class="wp-eow-hint">Copies the whole week as plain text — tasks, time blocks, notes, this review — ready to paste into an AI chat and ask what you're missing.</div>`;
+}
+// The v81 copy, driven from the modal. Commits the open step first so the copied week
+// includes what was just typed into it.
+async function wpEowCopyWeek(){
+  if(!wpPlan) return;
+  wpEowCommit();
+  wpSyncFromDom();
+  const ok = await copyText(wpBuildWeekText());
+  const msg = document.getElementById("wpEowCopyMsg");
+  if(msg){ msg.textContent = ok ? "Copied ✓" : "Copy failed"; msg.className = "wp-ssaved ok"; }
+}
+// The closing screen: the score, anything still open (click to jump back to it), and the
+// existing Finish week roll-forward.
+function wpEowFinishBodyHtml(){
+  const rc = (wpPlan && wpPlan.reviewChecklist) || {};
+  const left = WP_REVIEW_CHECKLIST.filter(it=>!rc[it.id]);
+  const done = WP_REVIEW_CHECKLIST.length - left.length;
+  const body = left.length
+    ? `<div class="wp-eow-hint">Still open — click one to go back to it:</div>
+       <ul class="wp-eow-list">${left.map(it=>{
+          const i = WP_REVIEW_CHECKLIST.findIndex(x=>x.id===it.id);
+          return `<li class="wp-eow-li wp-eow-jump" onclick="wpEowGo(${i})">${wpEsc(it.label)}</li>`;
+        }).join("")}</ul>`
+    : `<div class="wp-eow-allgood">Every step done. The week is closed out.</div>`;
+  return `<div class="wp-eow-score">${done} of ${WP_REVIEW_CHECKLIST.length} steps done</div>${body}
+    <div class="wp-eow-hint"><b>Finish week</b> moves anything in the carry-forward tray into next week, then jumps you forward.</div>`;
+}
+
+/* ---- render ---- */
+function wpEowBodyHtml(s){
+  if(s.id === WP_EOW_FINISH_ID) return `<div class="wp-eow-step">${wpEowFinishBodyHtml()}</div>`;
+  const def = WP_EOW_STEPS[s.id] || {};
+  const on = !!((wpPlan && wpPlan.reviewChecklist) || {})[s.id];
+  return `<div class="wp-eow-step">
+    ${def.kicker ? `<div class="wp-eow-kicker">${def.kicker}</div>` : ""}
+    ${def.body ? def.body() : ""}
+    <label class="wp-eow-tick${on?" on":""}">
+      <input type="checkbox" ${on?"checked":""} onchange="wpEowToggle('${s.id}')">
+      <span>${on?"Done ✓":"Mark this step done"}</span></label>
+  </div>`;
+}
+function wpEowFootHtml(){
+  const steps = wpEowSteps(), i = wpEowStep, s = steps[i];
+  const last = i === steps.length - 1;
+  const on = !last && !!((wpPlan && wpPlan.reviewChecklist) || {})[s.id];
+  const right = last
+    ? `<button type="button" class="wp-eow-skip" onclick="wpEowClose()">Close</button>
+       <button type="button" class="wp-eow-next" onclick="wpEowFinishWeek()">Finish week →</button>`
+    : `<button type="button" class="wp-eow-skip" onclick="wpEowSkip()">Skip for now</button>
+       <button type="button" class="wp-eow-next${on?" is-done":""}" onclick="wpEowNext()">${on?"Next →":"Mark done →"}</button>`;
+  return `<button type="button" class="wp-eow-back" ${i===0?"disabled":""} onclick="wpEowGo(${i-1})">← Back</button>
+    <span class="wp-eow-count">Step ${i+1} of ${steps.length}</span>
+    <span class="wp-eow-foot-r">${right}</span>`;
+}
+function wpEowRender(){
+  if(!wpEowIsOpen || !wpPlan) return;
+  const steps = wpEowSteps(), s = steps[wpEowStep];
+  const t = document.getElementById("wpEowTitle");
+  if(t) t.textContent = s.label;
+  const bar = document.getElementById("wpEowBarFill");
+  if(bar) bar.style.width = Math.round(((wpEowStep + 1) / steps.length) * 100) + "%";
+  const body = document.getElementById("wpEowBody");
+  if(body) body.innerHTML = wpEowBodyHtml(s);
+  const foot = document.getElementById("wpEowFoot");
+  if(foot) foot.innerHTML = wpEowFootHtml();
 }
 
 // ---- project/buffer per-week items ----
@@ -5327,13 +5732,14 @@ async function wpTodayToggleDone(ref, checked, day){
 // Escape closes the v82 question first (it sits above everything), then any open location
 // popup (v84), then the v117 recurring-notes editor and the v104 anchor notes viewer (both
 // opened from the page behind the Today modal, so whichever is open is the topmost thing),
-// then the Today modal.
+// then the v119 review flow and the Today modal.
 document.addEventListener("keydown", (e)=>{
   if(e.key!=="Escape") return;
   if(wpAskResolve){ wpCloseAsk(null); return; }
   if(document.getElementById("wpLocPopup")){ wpCloseLocPopup(); return; }
   if(wpRecurNotesId){ wpCloseRecurNotes(); return; }   // v117: the recurring-notes editor
   if(wpAnchorNotesOpen){ wpCloseAnchorNotes(); return; }
+  if(wpEowIsOpen){ wpEowClose(); return; }             // v119: the guided End-of-Week Review
   if(wpTodayOpen) wpCloseToday();
 });
 
@@ -5568,7 +5974,9 @@ function wpHabitWeekStats(){
   });
   return { per, dates, total: per.reduce((n,p)=>n+p.done,0), max: WP_HABITS.length * WP_DAYS.length };
 }
-// The weekly tracker in the End-of-Week Review — a read-only summary of the per-date data.
+// The week's grid of habit ticks — a read-only summary of the per-date data. It renders in
+// TWO places, so it carries no header of its own: its own card under the calendar (v119)
+// and the "Reflect on last week" step of the guided review.
 function wpHabitTrackerHtml(){
   const st = wpHabitWeekStats();
   const head = `<div class="wp-nnw-row wp-nnw-head"><span class="wp-nnw-name"></span>
@@ -5578,10 +5986,20 @@ function wpHabitTrackerHtml(){
     ${p.cells.map(c=>`<span class="wp-nnw-cell${c.done?" on":(c.future?" future":"")}" title="${wpEsc(c.date)}">${c.done?"✓":(c.future?"·":"")}</span>`).join("")}
     <span class="wp-nnw-count">${p.done}/${WP_DAYS.length}</span>
   </div>`).join("");
-  return `<div class="wp-nnw">
-    <div class="wp-nnw-h"><span class="wp-nnw-title">Daily non-negotiables</span>
-      <span class="wp-nnw-total">${st.total} of ${st.max} this week</span></div>
-    ${head}${rows}
+  return `<div class="wp-nnw">${head}${rows}</div>`;
+}
+// v119: the non-negotiables are their OWN card, sitting directly under the calendar instead
+// of being buried in the End-of-Week Review — they are a daily thing, not a Sunday thing.
+// Still read-only here: the ticks are made in the Today check-in, which is where the day is
+// actually worked. Same stats, same store, no new state.
+function wpHabitCardHtml(){
+  const st = wpHabitWeekStats();
+  return `<div class="wp-box wp-nn-box">
+    <div class="wp-box-h"><span>Daily non-negotiables</span>
+      <span class="wp-sec-save"><span class="wp-nnw-total">${st.total} of ${st.max} this week</span></span></div>
+    <div class="wp-box-body">${wpHabitTrackerHtml()}
+      <div class="wp-nn-box-hint">Ticked off day by day in the Today check-in.</div>
+    </div>
   </div>`;
 }
 

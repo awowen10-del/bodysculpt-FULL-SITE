@@ -172,11 +172,13 @@ const checkinPosts = (posts) => posts.filter((p) => p.body && p.body.checkin);
     assert.strictEqual(st.per[0].cells[0].date, dateAt(0), "cells align Monday-first with the viewed week");
 
     const html = ctx.document.getElementById("wpBody").innerHTML;
-    assert.ok(html.includes("wp-nnw"), "the tracker renders in the End-of-Week Review");
+    assert.ok(html.includes("wp-nnw"), "the tracker renders");
     assert.ok(html.includes("3/7") && html.includes("1/7") && html.includes("0/7"), "per-habit counts shown");
     assert.ok(html.includes("4 of 21 this week"), "week total shown");
-    // read-only: no inputs, no handlers in the tracker block
-    const block = html.slice(html.indexOf('<div class="wp-nnw">'), html.indexOf('<div class="wp-review-grid">'));
+    // read-only: no inputs, no handlers in the tracker block. v119 moved the tracker out of
+    // the End-of-Week Review into its own card under the calendar, so the block now ends
+    // where the review card starts rather than at the review grid.
+    const block = html.slice(html.indexOf('<div class="wp-nnw">'), html.indexOf("End-of-Week Review"));
     assert.ok(!/<input|onclick|onchange/.test(block), "the tracker is a read-only summary");
 
     // a different week reads its own dates (no leakage)
