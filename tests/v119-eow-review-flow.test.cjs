@@ -236,7 +236,24 @@ const planSaves = (posts, key) => posts.filter((p) => p.body.weeklyPlan && key i
     assert.strictEqual(ctx.__wpState.plan.foodNotes, "keep me", "a closed flow writes nothing");
   }
 
-  /* ================= 10. the training step reads the real training list ================= */
+  /* ================= 10. ticking a step commits what's on it first ================= */
+  {
+    // wpEowToggle re-renders the step in place (progress, the Done label), which rebuilds the
+    // body from wpPlan. Anything typed and not yet committed has to be captured BEFORE that,
+    // or the re-render throws it away.
+    const { ctx } = await boot({ plans: { [WEEK]: { weekEnding: WEEK, placements: {} } } });
+    await ctx.loadWeeklyPlan(WEEK);
+    ctx.document.getElementById("wpWeekFoodEd").innerHTML = "";
+    ctx.wpEowOpen();
+    ctx.wpEowGo(1);
+    ctx.document.getElementById("wpEowFoodEd").innerHTML = "more protein at breakfast";  // typed, never blurred
+    await ctx.wpEowToggle("food");
+    assert.ok(ctx.__wpState.plan.foodNotes.includes("more protein at breakfast"),
+      "typing survives ticking the step off");
+    assert.deepStrictEqual(plain(ctx.__wpState.plan.reviewChecklist), { food: true }, "…and the tick landed");
+  }
+
+  /* ================= 11. the training step reads the real training list ================= */
   {
     const { ctx } = await boot({
       plans: { [WEEK]: { weekEnding: WEEK, placements: {} } },

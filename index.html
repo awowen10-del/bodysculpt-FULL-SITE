@@ -4316,6 +4316,12 @@ function wpEowNext(){
 // flow just re-renders itself afterwards so the step's state follows.
 function wpEowToggle(id){
   if(!wpPlan) return;
+  // Commit FIRST. This is the one path that re-renders the step without navigating, and
+  // wpEowRender rebuilds the body from wpPlan — so anything typed into the step's editor
+  // and not yet committed would be discarded by the re-render. (A click blurs the editor
+  // first in a real browser, which saves it, but that is the browser's ordering doing the
+  // work, not ours.) Every other path here already commits before it re-renders.
+  wpEowCommit();
   const r = wpToggleReviewChecklist(id);
   wpEowRender();
   return r;
