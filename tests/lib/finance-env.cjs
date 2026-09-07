@@ -12,7 +12,7 @@ function fakeElement(id) {
   const el = {
     id, dataset: {}, style: {}, value: "", textContent: "", innerHTML: "",
     hidden: false, disabled: false, checked: false, files: [],
-    children: [], onclick: null, onchange: null, oninput: null,
+    children: [], options: [], onclick: null, onchange: null, oninput: null,
     getAttribute(k) { return k in attrs ? attrs[k] : null; },
     setAttribute(k, v) { attrs[k] = String(v); },
     hasAttribute(k) { return k in attrs; },
@@ -108,9 +108,9 @@ async function boot(opts = {}) {
   // to the extracted source — same trick as env.cjs — rather than adding test-only
   // code to the page. It runs in the same script scope, so it can see the binding.
   vm.runInContext(extract(path.join(__dirname, "..", "..", "finances.html"))
-    + "\n;globalThis.__S = S;", ctx);
+    + "\n;globalThis.__S = S; globalThis.__WZ = WZ;", ctx);
   await settle(); await settle(); await settle(); await settle();
-  return { ctx, S: ctx.__S, els, store, posts, settle, el: (id) => els.get(id) };
+  return { ctx, S: ctx.__S, WZ: ctx.__WZ, els, store, posts, settle, el: (id) => els.get(id) };
 }
 
 module.exports = { boot };

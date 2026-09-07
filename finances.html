@@ -677,6 +677,50 @@
   .action-card.calm .action-line{color:var(--tint-green);}
   .action-card.warn .action-line{color:var(--tint-amber);}
   .action-card.stop .action-line{color:var(--tint-red);}
+
+  /* v122.1: THE TAB BAR HAS TO STAY REACHABLE.
+     .appbar is position:sticky with z-index 60 and #tabBar is a normal-flow sibling
+     directly beneath it, so the moment the page scrolled the app bar pinned to the top
+     and sat ON the tabs: they stayed visible, looked clickable, and every click landed
+     on the app bar. Worse here than on the planning pages, because the two-group nav
+     wraps to a second row under about 1100px and makes the app bar 102px tall.
+     The fix is to pin the header as ONE unit, so the two can never overlap — and the
+     tabs are then always on screen, which is what you want of a cockpit anyway. */
+  header{position:sticky;top:0;z-index:60;background:var(--navy);padding-bottom:var(--sp-4);}
+  .appbar{position:static;}
+  .viewtoggle{margin-bottom:0;}
+
+  /* --- the sort-out wizard --- */
+  .wz-back{position:fixed;inset:0;z-index:200;background:rgba(var(--backdrop-rgb),.55);
+    display:flex;align-items:center;justify-content:center;padding:20px;}
+  .wz{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);
+    box-shadow:var(--shadow-lift);width:min(560px,100%);max-height:90vh;display:flex;flex-direction:column;}
+  .wz-head{display:flex;gap:12px;align-items:flex-start;padding:18px 18px 14px;border-bottom:1px solid var(--line);}
+  .wz-head>div:first-child{flex:1;min-width:0;}
+  .wz-step{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;color:var(--ink-faint);}
+  .wz-name{font-size:20px;font-weight:800;letter-spacing:-.02em;color:var(--ink-strong);margin-top:3px;
+    word-break:break-word;}
+  .wz-meta{font-size:12.5px;color:var(--ink-dim);margin-top:4px;}
+  .wz-body{padding:14px 18px;overflow-y:auto;}
+  .wz-egs{background:var(--card-2);border:1px solid var(--line);border-radius:var(--r-sm);
+    padding:9px 11px;font-size:11.5px;color:var(--ink-dim);line-height:1.6;margin-bottom:14px;
+    max-height:110px;overflow-y:auto;}
+  .wz-lab{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;
+    color:var(--ink-faint);margin:12px 0 8px;}
+  .wz-opts{display:flex;flex-wrap:wrap;gap:6px;}
+  .wz-opt{font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;color:var(--ink);
+    background:var(--card);border:1px solid var(--line);border-radius:var(--r-pill);padding:8px 14px;
+    transition:border-color var(--tap),background var(--tap),color var(--tap);}
+  .wz-opt:hover{border-color:var(--orange);color:var(--tint-orange);}
+  .wz-opt.on{background:var(--orange);border-color:var(--orange);color:var(--on-accent);}
+  .wz-foot{display:flex;gap:12px;align-items:center;padding:14px 18px;border-top:1px solid var(--line);
+    flex-wrap:wrap;}
+  @media(max-width:560px){ .wz-name{font-size:17px;} .wz-opt{font-size:12.5px;padding:7px 12px;} }
+
+  /* --- the report --- */
+  .repbox{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;
+    line-height:1.65;color:var(--ink);white-space:pre-wrap;word-break:break-word;margin:0;
+    max-height:70vh;overflow-y:auto;}
 </style>
 </head>
 <body>
@@ -717,7 +761,7 @@
 <symbol id="ic-walk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4.2" r="2"/><path d="M9.5 21l2.5-5.5V11L9 13"/><path d="M12 15.5l3 5.5M12 9l3 2 2.5-.8M12 9l-3 1.5"/></symbol>
 <symbol id="ic-yoga" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.2" r="2"/><path d="M12 7v6M12 13l-5 6M12 13l5 6M4 10.5l8 1.5 8-1.5"/></symbol>
 </defs></svg>
-<!-- build v122 · finances -->
+<!-- build v123 · sort-and-report -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -742,6 +786,7 @@
     <button class="vt" data-view="import">Import</button>
     <button class="vt" data-view="txns">Transactions</button>
     <button class="vt" data-view="breakdown">Breakdown</button>
+    <button class="vt" data-view="report">Report</button>
     <button class="vt" data-view="settings">Settings</button>
   </div>
 </header>
@@ -863,6 +908,7 @@
         <button class="fchip" data-f="out">Expenses</button>
         <button class="fchip" data-f="in">Income</button>
         <input class="fin-in" id="txSearch" placeholder="Search description…" style="max-width:230px;width:auto;">
+        <button class="abtn primary" id="sortBtn" hidden><svg class="ic"><use href="#ic-flag"/></svg><span>Sort these out</span></button>
         <span class="msg" id="txMsg" style="margin-left:auto;"></span>
       </div>
       <div class="fin-tw"><table class="fin" id="txTbl"></table></div>
@@ -954,6 +1000,52 @@
       </div>
     </div>
   </section>
+</div>
+
+<!-- ============================== REPORT ============================== -->
+<div class="view" id="v-report" hidden>
+  <section>
+    <div class="card">
+      <div class="ctitle">Report for review</div>
+      <div class="filters">
+        <select class="fin-in" id="repRange" style="max-width:190px;width:auto;"></select>
+        <button class="abtn primary" id="repCopy"><svg class="ic"><use href="#ic-link"/></svg><span>Copy for Claude</span></button>
+        <button class="abtn" id="repCopyPlain"><span>Copy figures only</span></button>
+        <span class="msg" id="repMsg"></span>
+      </div>
+      <div class="hint">"Copy for Claude" puts the whole thing on your clipboard with the
+        question already written at the top — paste it straight into a chat and you will get
+        a review aimed at cutting cost, not a description of your own numbers back at you.</div>
+    </div>
+  </section>
+  <section>
+    <div class="card"><pre class="repbox" id="repText"></pre></div>
+  </section>
+</div>
+
+<!-- the sort-out wizard: one question per MERCHANT, answered once, remembered forever -->
+<div class="wz-back" id="wzBack" hidden>
+  <div class="wz">
+    <div class="wz-head">
+      <div>
+        <div class="wz-step" id="wzStep"></div>
+        <div class="wz-name" id="wzName"></div>
+        <div class="wz-meta" id="wzMeta"></div>
+      </div>
+      <button class="iconbtn" id="wzClose" title="Finish later"><svg class="ic ic-lg"><use href="#ic-close"/></svg></button>
+    </div>
+    <div class="wz-body">
+      <div class="wz-egs" id="wzEgs"></div>
+      <div class="wz-lab">What is this?</div>
+      <div class="wz-opts" id="wzCats"></div>
+      <div class="wz-lab">Could you cut it?</div>
+      <div class="wz-opts" id="wzKms"></div>
+    </div>
+    <div class="wz-foot">
+      <button class="abtn ghost" id="wzSkip">Skip this one</button>
+      <span class="msg" id="wzHint">Pick a category and it is remembered — you will never be asked about this one again.</span>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -1566,10 +1658,20 @@ async function commitImport() {
     byMonth[ym].push({ ...r, importedAt: new Date().toISOString() });
     added++;
   }
+  // Ask about anything new BEFORE writing, so the answers are saved with the import and
+  // there is no half-sorted state on disk. One question per merchant, not per row.
+  const fresh = [];
+  for (const ym of Object.keys(byMonth)) for (const r of byMonth[ym]) if (added && !r.cat) fresh.push(r);
+  $("importMsg").textContent = "";
+  await new Promise((resolve) => {
+    if (!openWizard(fresh, () => resolve())) resolve();
+  });
+
   try {
     for (const ym of Object.keys(byMonth)) {
       await post({ finTxns: { ym, rows: byMonth[ym] } });
     }
+    if (S.rules.length) await post({ finRules: S.rules });
   } catch (e) { $("importMsg").textContent = "Could not save: " + e.message; $("doImport").disabled = false; return; }
   S.pending = null;
   // The six-month table caches a month's rows once fetched. An import can touch several
@@ -1807,6 +1909,11 @@ function renderTxns() {
   const needs = S.rows.filter((r) => r.dir === "out" && !r.cat).length;
   $("txMsg").textContent = rows.length + " of " + S.rows.length + " shown"
     + (needs ? " · " + needs + " need a category" : "");
+  const groups = needs ? unknownGroups(S.rows).length : 0;
+  const sb = $("sortBtn");
+  sb.hidden = !groups;
+  if (groups) sb.querySelector("span").textContent =
+    "Sort these out — " + groups + " question" + (groups === 1 ? "" : "s");
   if (!rows.length) {
     $("txTbl").innerHTML = `<tbody><tr><td><div class="fin-empty">${
       S.rows.length ? "Nothing matches that filter." : "No transactions for " + esc(ymLabel(S.ym)) + " yet — import a bank export."
@@ -1936,6 +2043,277 @@ async function renderTrend() {
 }
 
 /* =====================================================================
+   THE SORT-OUT WIZARD
+   The point of this page is that you do as little as possible. An import that
+   leaves 46 unknown rows is 46 pieces of work only if you look at it as rows —
+   as MERCHANTS it is far fewer, because the same shop turns up again and again.
+   So the wizard asks once per merchant, applies the answer to every matching row
+   at once, and saves it as a rule so the question never comes back.
+   ===================================================================== */
+const WZ = { queue: [], i: 0, rows: null, cat: "", km: "", done: 0, after: null };
+
+/* Group unknown expenses by merchant, dearest first — so the money that matters
+   most is dealt with while you are still interested. */
+function unknownGroups(rows) {
+  const map = new Map();
+  for (const r of rows) {
+    if (r.dir !== "out" || r.cat) continue;
+    const m = merchantOf(r.desc);
+    if (!m || m.length < 3) continue;
+    if (!map.has(m)) map.set(m, []);
+    map.get(m).push(r);
+  }
+  return [...map.entries()]
+    .map(([merchant, rs]) => ({ merchant, rows: rs, total: rs.reduce((a, r) => a + r.amount, 0) }))
+    .sort((a, b) => b.total - a.total);
+}
+
+/* rows: the full set the answers should be applied to (a whole month, or everything
+   an import just brought in). after: run when the wizard closes, however it closes. */
+function openWizard(rows, after) {
+  const groups = unknownGroups(rows);
+  if (!groups.length) { if (after) after(0); return false; }
+  WZ.queue = groups; WZ.i = 0; WZ.rows = rows; WZ.done = 0; WZ.after = after || null;
+  $("wzBack").hidden = false;
+  renderWizard();
+  return true;
+}
+
+function closeWizard() {
+  $("wzBack").hidden = true;
+  const n = WZ.done;
+  WZ.queue = []; WZ.rows = null;
+  const after = WZ.after; WZ.after = null;
+  if (after) after(n);
+}
+
+function renderWizard() {
+  if (WZ.i >= WZ.queue.length) { closeWizard(); return; }
+  const g = WZ.queue[WZ.i];
+  WZ.cat = ""; WZ.km = "";
+  $("wzStep").textContent = (WZ.i + 1) + " of " + WZ.queue.length
+    + (WZ.done ? " · " + WZ.done + " sorted" : "");
+  $("wzName").textContent = g.merchant;
+  $("wzMeta").textContent = g.rows.length + " payment" + (g.rows.length === 1 ? "" : "s")
+    + " · " + money(g.total) + (g.rows.length > 1 ? " in total" : "");
+  // the real descriptions, so an unfamiliar name is still recognisable
+  $("wzEgs").innerHTML = g.rows.slice(0, 4)
+    .map((r) => `${dmy(r.date)} &nbsp; <strong>${money(r.amount)}</strong> &nbsp; ${esc(r.desc)}`)
+    .join("<br>") + (g.rows.length > 4 ? `<br>… and ${g.rows.length - 4} more` : "");
+  const cats = (S.settings.categories || DEFAULT_CATS).filter((c) => c !== TRANSFER).concat([TRANSFER]);
+  $("wzCats").innerHTML = cats.map((c) =>
+    `<button class="wz-opt" data-cat="${esc(c)}">${esc(c)}</button>`).join("");
+  $("wzKms").innerHTML = KEYMAPS.map((k) =>
+    `<button class="wz-opt" data-km="${esc(k)}">${esc(k)}</button>`).join("");
+  $("wzCats").querySelectorAll("[data-cat]").forEach((b) => {
+    b.onclick = () => {
+      WZ.cat = b.dataset.cat;
+      $("wzCats").querySelectorAll("[data-cat]").forEach((x) => x.classList.toggle("on", x === b));
+      // A category alone is enough — the keymap is a bonus, so don't hold the answer
+      // hostage to it. Give a moment to add one, then move on.
+      $("wzHint").textContent = "Saved. Add a cut/keep if you want, or it moves on.";
+      clearTimeout(WZ.t); WZ.t = setTimeout(applyWizard, 900);
+    };
+  });
+  $("wzKms").querySelectorAll("[data-km]").forEach((b) => {
+    b.onclick = () => {
+      WZ.km = b.dataset.km;
+      $("wzKms").querySelectorAll("[data-km]").forEach((x) => x.classList.toggle("on", x === b));
+      if (WZ.cat) { clearTimeout(WZ.t); applyWizard(); }
+      else $("wzHint").textContent = "Now pick a category and it is saved.";
+    };
+  });
+  $("wzHint").textContent = "Pick a category and it is remembered — you will never be asked about this one again.";
+}
+
+function applyWizard() {
+  clearTimeout(WZ.t);
+  const g = WZ.queue[WZ.i];
+  if (!g || !WZ.cat) return;
+  // apply to every row the merchant matches, not just the ones in this group
+  const key = g.merchant;
+  for (const r of WZ.rows) {
+    if (r.dir === "out" && !r.cat && r.desc.toUpperCase().includes(key)) {
+      r.cat = WZ.cat; r.km = WZ.km || r.km || "";
+    }
+  }
+  const i = S.rules.findIndex((x) => x.match === key);
+  const rule = { match: key, cat: WZ.cat, km: WZ.km || "" };
+  if (i >= 0) S.rules[i] = rule; else S.rules.push(rule);
+  bustRules();
+  WZ.done++;
+  WZ.i++;
+  renderWizard();
+}
+
+/* =====================================================================
+   THE REPORT
+   Written to be pasted into a chat and argued with. It leads with what can be
+   cut, names the recurring charges, and shows the direction of travel — because
+   "here is my spending" gets you a summary back, and what is wanted is a list of
+   things to stop paying for.
+   ===================================================================== */
+function reportMonths() {
+  const idx = S.months.indexOf(S.ym);
+  const end = idx < 0 ? S.months.length : idx + 1;
+  const n = Number(($("repRange") && $("repRange").value) || 3);
+  return S.months.slice(Math.max(0, end - n), end);
+}
+
+async function buildReport(forClaude) {
+  const span = reportMonths();
+  if (!span.length) return "Nothing imported yet — import a bank export first.";
+  await Promise.all(span.map(async (ym) => {
+    if (!S.trend[ym]) S.trend[ym] = (await api("fintxns=" + ym)).rows || [];
+  }));
+  S.trend[S.ym] = S.rows;
+
+  const all = [];
+  for (const ym of span) for (const r of S.trend[ym]) all.push({ ...r, ym });
+  const outs = all.filter((r) => r.dir === "out" && !isTransfer(r));
+  const ins = all.filter((r) => r.dir === "in" && !isTransfer(r));
+  const L = [];
+  const P = (s) => L.push(s == null ? "" : s);
+  const gbp = (n) => "£" + Math.round(n).toLocaleString("en-GB");
+  const pct = (n, d) => (d ? Math.round(n / d * 100) : 0) + "%";
+
+  if (forClaude) {
+    P("I run a gym — Bodysculpt in Warrington. Below is my income and expenditure straight");
+    P("out of my bank. I want to cut cost and keep more of what comes in.");
+    P("");
+    P("Please go through it and tell me:");
+    P("  1. The specific things to stop paying for, in order of what they save me a year.");
+    P("  2. Anything I appear to be paying for twice, or paying for and not using.");
+    P("  3. Any charge that is drifting up month on month without me noticing.");
+    P("  4. What you would NOT cut, because it is making the money.");
+    P("Be blunt and give me numbers. Do not just summarise what I have sent you.");
+    P("");
+    P("=".repeat(64));
+    P("");
+  }
+
+  P("BODYSCULPT WARRINGTON — INCOME & EXPENDITURE");
+  P(span.length === 1 ? ymLabel(span[0]) : ymLabel(span[0]) + " to " + ymLabel(span[span.length - 1])
+    + "  (" + span.length + " months)");
+  P("");
+
+  /* ---- the shape of it ---- */
+  const tin = ins.reduce((a, r) => a + r.amount, 0);
+  const tout = outs.reduce((a, r) => a + r.amount, 0);
+  P("MONEY");
+  P("  In            " + gbp(tin).padStart(10) + "     (" + gbp(tin / span.length) + " a month)");
+  P("  Out           " + gbp(tout).padStart(10) + "     (" + gbp(tout / span.length) + " a month)");
+  P("  Net           " + gbp(tin - tout).padStart(10) + "     (" + gbp((tin - tout) / span.length) + " a month)");
+  P("");
+
+  /* ---- what is discretionary ---- */
+  const km = { Essential: 0, Optional: 0, "Can Cut": 0, "Not marked": 0 };
+  for (const r of outs) km[KEYMAPS.includes(r.km) ? r.km : "Not marked"] += r.amount;
+  P("HOW MUCH OF THE SPENDING IS DISCRETIONARY");
+  for (const k of ["Essential", "Optional", "Can Cut", "Not marked"]) {
+    if (!km[k]) continue;
+    P("  " + k.padEnd(13) + gbp(km[k]).padStart(10) + "     " + pct(km[k], tout).padStart(4)
+      + "     " + gbp(km[k] / span.length) + " a month");
+  }
+  P("");
+
+  /* ---- by category, with the trend ---- */
+  const cats = {};
+  for (const r of outs) { const c = r.cat || "Uncategorised"; (cats[c] = cats[c] || []).push(r); }
+  const order = Object.keys(cats).sort((a, b) =>
+    cats[b].reduce((x, r) => x + r.amount, 0) - cats[a].reduce((x, r) => x + r.amount, 0));
+  P("WHERE IT GOES" + (span.length > 1 ? "   (" + span.map(ymLabel).join(" · ") + ")" : ""));
+  for (const c of order) {
+    const t = cats[c].reduce((a, r) => a + r.amount, 0);
+    const per = span.map((ym) => gbp(cats[c].filter((r) => r.ym === ym).reduce((a, r) => a + r.amount, 0)));
+    P("  " + c.padEnd(15) + gbp(t).padStart(10) + "  " + pct(t, tout).padStart(4)
+      + (span.length > 1 ? "   " + per.map((x) => x.padStart(8)).join(" ") : ""));
+  }
+  P("");
+
+  /* ---- the recurring charges: the whole point of the exercise ---- */
+  const byMerchant = {};
+  for (const r of outs) { const m = merchantOf(r.desc); (byMerchant[m] = byMerchant[m] || []).push(r); }
+  const recurring = Object.entries(byMerchant)
+    .map(([m, rs]) => ({ m, rs, months: new Set(rs.map((r) => r.ym)).size,
+      total: rs.reduce((a, r) => a + r.amount, 0), cat: rs[0].cat || "Uncategorised" }))
+    .filter((x) => x.months >= Math.min(2, span.length) && x.rs.length >= 2)
+    .sort((a, b) => b.total - a.total);
+  if (recurring.length) {
+    P("REGULAR PAYMENTS — anything here is a subscription or a standing cost");
+    P("  " + "who".padEnd(30) + "total".padStart(9) + "  per mth".padStart(9) + "   n   category");
+    for (const x of recurring.slice(0, 40)) {
+      P("  " + x.m.slice(0, 29).padEnd(30) + gbp(x.total).padStart(9)
+        + gbp(x.total / span.length).padStart(10) + "  " + String(x.rs.length).padStart(3)
+        + "   " + x.cat);
+    }
+    P("");
+  }
+
+  /* ---- single biggest payments ---- */
+  P("BIGGEST SINGLE PAYMENTS");
+  for (const r of outs.slice().sort((a, b) => b.amount - a.amount).slice(0, 15)) {
+    P("  " + dmy(r.date) + "  " + gbp(r.amount).padStart(8) + "  " + (r.cat || "—").padEnd(13)
+      + "  " + r.desc.slice(0, 52));
+  }
+  P("");
+
+  /* ---- where the income comes from ---- */
+  const src = {};
+  for (const r of ins) { const k = r.src || sourceOf(r.desc); src[k] = (src[k] || 0) + r.amount; }
+  P("WHERE THE INCOME COMES FROM");
+  for (const [k, v] of Object.entries(src).sort((a, b) => b[1] - a[1])) {
+    P("  " + k.padEnd(13) + gbp(v).padStart(10) + "     " + pct(v, tin).padStart(4));
+  }
+  P("");
+
+  /* ---- profit first ---- */
+  const s = S.settings;
+  P("PROFIT FIRST");
+  P("  " + s.potTaxPct + "% of card takings goes to a tax pot, " + s.potInvestPct + "% to investment,");
+  P("  taken weekly off Stripe and GoCardless only.");
+  const alloc = ins.filter((r) => (s.allocatable || ["stripe", "gocardless"]).includes(r.src || sourceOf(r.desc)))
+    .reduce((a, r) => a + r.amount, 0);
+  P("  Allocatable over the period  " + gbp(alloc));
+  P("    tax pot        " + gbp(alloc * s.potTaxPct / 100).padStart(10));
+  P("    investment     " + gbp(alloc * s.potInvestPct / 100).padStart(10));
+  P("");
+
+  const unk = outs.filter((r) => !r.cat);
+  if (unk.length) {
+    P("NOTE: " + unk.length + " payment" + (unk.length === 1 ? " is" : "s are") + " still uncategorised, "
+      + gbp(unk.reduce((a, r) => a + r.amount, 0)) + " in total.");
+  }
+  return L.join("\n");
+}
+
+async function renderReport() {
+  const sel = $("repRange");
+  if (!sel.options.length) {
+    sel.innerHTML = [1, 3, 6, 12].map((n) =>
+      `<option value="${n}" ${n === 3 ? "selected" : ""}>Last ${n} month${n === 1 ? "" : "s"}</option>`).join("");
+  }
+  $("repText").textContent = "Building…";
+  $("repText").textContent = await buildReport(false);
+}
+
+async function copyReport(forClaude) {
+  const text = await buildReport(forClaude);
+  try {
+    await navigator.clipboard.writeText(text);
+    $("repMsg").textContent = "Copied — " + text.split("\n").length + " lines. Paste it into Claude.";
+    toast("Copied to your clipboard");
+  } catch {
+    // clipboard blocked (an insecure context, or permission refused): select it instead
+    const el = $("repText");
+    el.textContent = text;
+    const range = document.createRange(); range.selectNodeContents(el);
+    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+    $("repMsg").textContent = "Could not reach the clipboard — the report is selected, press Cmd+C.";
+  }
+}
+
+/* =====================================================================
    SETTINGS
    ===================================================================== */
 function renderSettings() {
@@ -2015,9 +2393,10 @@ async function saveSettings() {
 function setView(v) {
   S.view = v;
   document.querySelectorAll("#tabBar .vt").forEach((b) => b.classList.toggle("active", b.dataset.view === v));
-  ["cockpit", "import", "txns", "breakdown", "settings"].forEach((k) => { $("v-" + k).hidden = k !== v; });
+  ["cockpit", "import", "txns", "breakdown", "report", "settings"].forEach((k) => { $("v-" + k).hidden = k !== v; });
   if (v === "txns") renderTxns();
   if (v === "breakdown") renderBreakdown();
+  if (v === "report") renderReport();
   if (v === "settings") renderSettings();
   try { localStorage.setItem("fin.view", v); } catch {}
 }
@@ -2093,6 +2472,29 @@ function wire() {
     toast(moved ? "Logged — pots moved" : "Unmarked");
   };
 
+  // The sort-out wizard.
+  $("sortBtn").onclick = () => {
+    openWizard(S.rows, async (n) => {
+      renderTxns(); renderStats();
+      if (!n) return;
+      try {
+        await post({ finTxns: { ym: S.ym, rows: S.rows } });
+        await post({ finRules: S.rules });
+        toast(n + " sorted — and remembered");
+      } catch (e) { toast("Could not save: " + e.message); }
+    });
+  };
+  $("wzClose").onclick = closeWizard;
+  $("wzSkip").onclick = () => { clearTimeout(WZ.t); WZ.i++; renderWizard(); };
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !$("wzBack").hidden) closeWizard();
+  });
+
+  // The report.
+  $("repRange").onchange = renderReport;
+  $("repCopy").onclick = () => copyReport(true);
+  $("repCopyPlain").onclick = () => copyReport(false);
+
   // Settings.
   $("saveSettings").onclick = saveSettings;
   $("ruleSearch").oninput = renderRules;
@@ -2124,7 +2526,7 @@ async function init() {
   await loadWeek();
   let v = "cockpit";
   try { v = localStorage.getItem("fin.view") || "cockpit"; } catch {}
-  setView(["cockpit", "import", "txns", "breakdown", "settings"].includes(v) ? v : "cockpit");
+  setView(["cockpit", "import", "txns", "breakdown", "report", "settings"].includes(v) ? v : "cockpit");
   if (!S.months.length) setView("import");
 }
 init();

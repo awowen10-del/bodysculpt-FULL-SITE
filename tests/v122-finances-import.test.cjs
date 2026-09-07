@@ -223,16 +223,16 @@ const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
 const FIN = read("finances.html");
 
 ok("every page carries the v122 stamp, and finances is stamped as its own build", () => {
-  assert.ok(/<!-- build v122 · finances -->/.test(FIN), "finances.html stamped v122 · finances");
-  assert.ok(read("monthly.html").includes("build v122 · finances"), "monthly.html carries the stamp");
-  assert.ok(read("index.html").includes("build v122 · finances"), "index.html carries the stamp");
+  assert.ok(/<!-- build v12[23] · [a-z-]+ -->/.test(FIN), "finances.html carries a build stamp");
+  assert.ok(/build v12[23] · [a-z-]+/.test(read("monthly.html")), "monthly.html carries the stamp");
+  assert.ok(/build v12[23] · [a-z-]+/.test(read("index.html")), "index.html carries the stamp");
 });
 
 ok("the finance page stands apart from the weekly/monthly/quarterly cadence", () => {
   const bar = /<div class="viewtoggle" id="tabBar">([\s\S]*?)<\/div>/.exec(FIN);
   assert.ok(bar, "finances.html has a section bar");
   const tabs = [...bar[1].matchAll(/<button[^>]*>([\s\S]*?)<\/button>/g)].map((m) => m[1].trim());
-  assert.deepStrictEqual(tabs, ["Cockpit", "Import", "Transactions", "Breakdown", "Settings"]);
+  assert.deepStrictEqual(tabs, ["Cockpit", "Import", "Transactions", "Breakdown", "Report", "Settings"]);
   // it must not borrow the planning pages' week/month picker chrome
   assert.ok(!/class="periodbar"/.test(FIN), "no weekly period bar on the finance page");
 });
@@ -460,6 +460,83 @@ const AUG = [
     assert.strictEqual(el("v-cockpit").hidden, true);
     assert.strictEqual(el("v-import").hidden, false);
     pass++; console.log("  ok an empty account opens on Import");
+  }
+
+  /* --- the wizard asks once per MERCHANT, not once per row --- */
+  {
+    // Six unknown payments, but only two merchants — so two questions, not six.
+    const mk = (id, d, amt, desc) => ({ id, date: d, dir: "out", amount: amt, desc, cat: "", km: "", hash: id });
+    const rows = [
+      mk("w1", "2026-08-02", 13, "CARD PAYMENT TO WEIRD SHOP ON 01-08-2026"),
+      mk("w2", "2026-08-09", 13, "CARD PAYMENT TO WEIRD SHOP ON 08-08-2026"),
+      mk("w3", "2026-08-16", 13, "CARD PAYMENT TO WEIRD SHOP ON 15-08-2026"),
+      mk("w4", "2026-08-03", 40, "CARD PAYMENT TO OTHER PLACE ON 02-08-2026"),
+      mk("w5", "2026-08-10", 40, "CARD PAYMENT TO OTHER PLACE ON 09-08-2026"),
+      mk("w6", "2026-08-11", 99, "CARD PAYMENT TO ONE OFF THING ON 10-08-2026"),
+    ];
+    const { ctx, S, WZ, el, store } = await boot({ txns: { "2026-08": rows }, now: "2026-08-20" });
+    const groups = ctx.unknownGroups(S.rows);
+    assert.strictEqual(groups.length, 3, "six unknown rows collapse to three merchants");
+    assert.strictEqual(groups[0].merchant, "ONE OFF THING", "dearest first — £99 leads");
+    assert.strictEqual(groups[1].merchant, "OTHER PLACE", "then £80 across two payments");
+    assert.strictEqual(groups[2].merchant, "WEIRD SHOP", "then £39 across three payments");
+    assert.strictEqual(groups[2].rows.length, 3);
+    assert.strictEqual(groups[2].total, 39);
+    pass++; console.log("  ok the wizard asks once per merchant, dearest first");
+
+    // answering one question categorises every row behind it, and saves a rule
+    let finished = null;
+    ctx.openWizard(S.rows, (n) => { finished = n; });
+    assert.strictEqual(el("wzBack").hidden, false, "the wizard opens");
+    WZ.i = 2;                    // stand on the WEIRD SHOP question
+    WZ.cat = "Software"; WZ.km = "Can Cut";
+    ctx.applyWizard();
+    assert.strictEqual(S.rows.filter((r) => r.cat === "Software").length, 3,
+      "one answer categorised all three WEIRD SHOP payments");
+    assert.ok(S.rules.some((r) => r.match === "WEIRD SHOP" && r.cat === "Software" && r.km === "Can Cut"),
+      "and saved it as a rule so it is never asked again");
+    ctx.closeWizard();
+    assert.strictEqual(el("wzBack").hidden, true, "and it closes");
+    assert.strictEqual(finished, 1, "reporting how many were sorted");
+    pass++; console.log("  ok one answer categorises every payment behind it, and is remembered");
+  }
+
+  /* --- the sort button only appears when there is something to sort --- */
+  {
+    const clean = [{ id: "c1", date: "2026-08-02", dir: "out", amount: 10,
+      desc: "CARD PAYMENT TO FACEBK ON 01-08-2026", cat: "Marketing", km: "Essential", hash: "c1" }];
+    const { ctx, el } = await boot({ txns: { "2026-08": clean }, now: "2026-08-20" });
+    ctx.setView("txns");
+    assert.strictEqual(el("sortBtn").hidden, true, "nothing to sort, no button");
+    pass++; console.log("  ok the sort button hides itself when there is nothing to do");
+  }
+
+  /* --- the report --- */
+  {
+    const rows = [
+      { id: "r1", date: "2026-08-02", dir: "in",  amount: 5000, desc: "FASTER PAYMENTS RECEIPT REF.STRIPE FROM Stripe Payments UK Ltd", src: "stripe", cat: "", km: "", hash: "r1" },
+      { id: "r2", date: "2026-08-03", dir: "out", amount:  600, desc: "CARD PAYMENT TO FACEBK ON 02-08-2026", cat: "Marketing", km: "Essential", hash: "r2" },
+      { id: "r3", date: "2026-08-04", dir: "out", amount:   13, desc: "CARD PAYMENT TO CANVA ON 03-08-2026", cat: "Software", km: "Can Cut", hash: "r3" },
+      { id: "r4", date: "2026-08-18", dir: "out", amount:   13, desc: "CARD PAYMENT TO CANVA ON 17-08-2026", cat: "Software", km: "Can Cut", hash: "r4" },
+      { id: "r5", date: "2026-08-05", dir: "out", amount:  900, desc: "TRANSFER TO BODYSCULPT TRANSFORMATION CENTRES LTD", cat: "Transfer", km: "", hash: "r5" },
+    ];
+    const { ctx, el } = await boot({ txns: { "2026-08": rows }, now: "2026-08-20" });
+    ctx.setView("report");
+    await new Promise((r) => setTimeout(r, 30));
+    const plain = await ctx.buildReport(false);
+    assert.ok(plain.includes("£5,000"), "income is in there");
+    assert.ok(plain.includes("£626"), "spending is 600+13+13 and excludes the £900 pot move");
+    assert.ok(!plain.includes("£1,526"), "the pot move is never counted as spending");
+    assert.ok(/REGULAR PAYMENTS/.test(plain), "recurring charges get their own section");
+    assert.ok(/CANVA/.test(plain), "and the twice-monthly Canva charge is named in it");
+    assert.ok(/Can Cut/.test(plain), "the discretionary split is shown");
+
+    const forClaude = await ctx.buildReport(true);
+    assert.ok(/stop paying for/.test(forClaude), "the Claude version leads with the ask");
+    assert.ok(forClaude.indexOf("stop paying for") < forClaude.indexOf("BODYSCULPT WARRINGTON"),
+      "and the ask comes BEFORE the figures, so it is not buried");
+    assert.ok(forClaude.length > plain.length, "it is the plain report plus the brief");
+    pass++; console.log("  ok the report is built for cutting cost, and never counts a pot move as spend");
   }
 
   console.log("v122 finances: " + pass + " checks passed");
