@@ -21,7 +21,7 @@ const ctx = {
   document: { getElementById: () => null, querySelectorAll: () => [], addEventListener() {} },
   localStorage: { getItem: () => null, setItem() {} },
   fetch: () => Promise.reject(new Error("no network in tests")),
-  setTimeout, clearTimeout,
+  setTimeout, clearTimeout, TextDecoder, File, Blob,
 };
 ctx.window = ctx; ctx.globalThis = ctx;
 vm.createContext(ctx);
@@ -30,7 +30,11 @@ const { parseDelimited, readTable, guessMapping, buildRows, toAmount, toDate,
         merchantOf, categorise, weekStartOf, dropEmptyCols, findHeader } = ctx;
 
 let pass = 0;
-const ok = (name, fn) => { fn(); pass++; console.log("  ok " + name); };
+// a check may be async (the file decoder is); await what it returns
+const pending = [];
+const ok = (name, fn) => { const r = fn();
+  if (r && typeof r.then === "function") pending.push(r.then(() => { pass++; console.log("  ok " + name); }));
+  else { pass++; console.log("  ok " + name); } };
 
 console.log("v122 finances:");
 
@@ -43,6 +47,38 @@ ok("reads every amount format a UK bank emits", () => {
   assert.strictEqual(toAmount("(12.34)"), -12.34);
   assert.strictEqual(toAmount(""), null);
   assert.strictEqual(toAmount("Balance"), null);
+});
+
+/* ---------- encoding ----------
+   Santander's export is ISO-8859-1. File.text() assumes UTF-8, so its "£" byte is
+   invalid UTF-8 and arrived as U+FFFD — which no amount parser could read, so every
+   single row was discarded and the import came back empty with a correct-looking
+   column mapping. Two defences: decode properly, and do not let one odd character
+   next to a number throw the number away. */
+ok("a mis-decoded currency symbol does not throw the amount away", () => {
+  assert.strictEqual(toAmount("\uFFFD 3.44"), 3.44);
+  assert.strictEqual(toAmount("\uFFFD1,763.29"), 1763.29);
+  assert.strictEqual(toAmount("\u00a3 2,958.19"), 2958.19, "and a properly decoded one still works");
+});
+
+ok("but text and dates are still refused, so no column is mistaken for the amount", () => {
+  assert.strictEqual(toAmount("Balance"), null);
+  assert.strictEqual(toAmount("07/09/2026"), null, "a date must never read as a number");
+  assert.strictEqual(toAmount("2026-09-07"), null);
+  assert.strictEqual(toAmount("Money Out"), null);
+  assert.strictEqual(toAmount(""), null);
+});
+
+ok("an ISO-8859-1 file is decoded as ISO-8859-1, not as UTF-8", async () => {
+  // the exact bytes Santander sends for "£ 3.44": 0xA3 is a valid latin-1 pound and an
+  // invalid UTF-8 lead byte
+  const bytes = new Uint8Array([0xA3, 0x20, 0x33, 0x2E, 0x34, 0x34]);
+  const file = new ctx.File([bytes], "s.xls");
+  assert.ok((await file.text()).includes("\uFFFD"), "the naive read really does mangle it");
+  const text = await ctx.readFileText(file);
+  assert.ok(!text.includes("\uFFFD"), "readFileText produces no replacement characters");
+  assert.strictEqual(text, "\u00a3 3.44", "and recovers the pound sign");
+  assert.strictEqual(toAmount(text), 3.44);
 });
 
 /* ---------- dates ---------- */
@@ -223,9 +259,9 @@ const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
 const FIN = read("finances.html");
 
 ok("every page carries the v122 stamp, and finances is stamped as its own build", () => {
-  assert.ok(/<!-- build v123 · sort-and-report -->/.test(FIN), "finances.html stamped v123 · sort-and-report");
-  assert.ok(read("monthly.html").includes("build v123 · sort-and-report"), "monthly.html carries the stamp");
-  assert.ok(read("index.html").includes("build v123 · sort-and-report"), "index.html carries the stamp");
+  assert.ok(/<!-- build v124 · encoding -->/.test(FIN), "finances.html stamped v124 · encoding");
+  assert.ok(read("monthly.html").includes("build v124 · encoding"), "monthly.html carries the stamp");
+  assert.ok(read("index.html").includes("build v124 · encoding"), "index.html carries the stamp");
 });
 
 ok("the finance page stands apart from the weekly/monthly/quarterly cadence", () => {
@@ -266,6 +302,8 @@ const AUG = [
 ];
 
 (async () => {
+  await Promise.all(pending);   // the async checks above (the file decoder) settle first
+
   /* --- it boots, and the four headline numbers are right --- */
   {
     const { ctx, S, el } = await boot({ txns: { "2026-08": AUG }, now: "2026-08-10" });

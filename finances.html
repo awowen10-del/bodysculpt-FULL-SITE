@@ -770,7 +770,7 @@
 <symbol id="ic-walk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4.2" r="2"/><path d="M9.5 21l2.5-5.5V11L9 13"/><path d="M12 15.5l3 5.5M12 9l3 2 2.5-.8M12 9l-3 1.5"/></symbol>
 <symbol id="ic-yoga" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.2" r="2"/><path d="M12 7v6M12 13l-5 6M12 13l5 6M4 10.5l8 1.5 8-1.5"/></symbol>
 </defs></svg>
-<!-- build v123 · sort-and-report -->
+<!-- build v124 · encoding -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -1415,6 +1415,25 @@ function parseKeyValue(text) {
   return { headers: keys, rows: rows.map((r) => keys.map((k) => r[k] || "")) };
 }
 
+/* Read a dropped file as text, in the encoding it is ACTUALLY in.
+   File.text() always assumes UTF-8. Santander's export is ISO-8859-1, so its "£" is a
+   byte that is not valid UTF-8 and arrives as U+FFFD — which no amount parser can read,
+   so every row was silently discarded and the import came back empty. Decode as the
+   document declares, else UTF-8; if either produces replacement characters, fall back to
+   windows-1252, which maps all 256 bytes and so can never produce them. */
+async function readFileText(file) {
+  const buf = await file.arrayBuffer();
+  const dec = (enc) => { try { return new TextDecoder(enc).decode(buf); } catch { return null; } };
+  const head = dec("utf-8");
+  const declared = head && (/charset\s*=\s*["']?([\w-]+)/i.exec(head.slice(0, 4000)) || [])[1];
+  for (const enc of [declared, "utf-8"]) {
+    if (!enc) continue;
+    const t = dec(enc);
+    if (t && !t.includes("\uFFFD")) return t;
+  }
+  return dec("windows-1252") || head || "";
+}
+
 function readTable(text) {
   if (/<\s*table/i.test(text) || /^\s*<(!doctype|html)/i.test(text)) {
     const t = parseHtmlTable(text); if (t && t.rows.length) return t;
@@ -1433,7 +1452,11 @@ function toAmount(v) {
   if (/^\(.*\)$/.test(s)) { sign = -1; s = s.slice(1, -1); }
   if (/\bCR\b/i.test(s)) sign = Math.abs(sign);
   if (/\bDR\b/i.test(s)) sign = -Math.abs(sign);
-  s = s.replace(/[£$€,\s]/g, "").replace(/\b(CR|DR)\b/gi, "");
+  // Strip the CR/DR marker, then every character that cannot be part of a number —
+  // EXCEPT letters and / : , which are kept on purpose so that "Balance" and
+  // "07/09/2026" still fail the check below rather than being read as amounts.
+  // Naming currency symbols one by one was what broke on a mis-decoded "£".
+  s = s.replace(/\b(CR|DR)\b/gi, "").replace(/[^\dA-Za-z.,+\-\/:]/g, "").replace(/,/g, "");
   if (s.startsWith("+")) s = s.slice(1);
   if (s.startsWith("-")) { sign = -sign; s = s.slice(1); }
   if (!/^\d*\.?\d+$/.test(s)) return null;
@@ -1579,7 +1602,7 @@ async function loadMonthsFor(rows) {
 async function handleFiles(files) {
   const texts = [];
   for (const f of files) {
-    try { texts.push({ name: f.name, text: await f.text() }); }
+    try { texts.push({ name: f.name, text: await readFileText(f) }); }
     catch { toast("Could not read " + f.name); }
   }
   if (!texts.length) return;
@@ -1625,6 +1648,8 @@ async function refreshPreview() {
     $("prevCard").hidden = false;
     $("prevCount").textContent = "nothing readable";
     $("prevTbl").innerHTML = "";
+    $("doImport").disabled = true;
+    $("doImport").querySelector("span").textContent = "Nothing to import";
     $("mapNote").textContent = "No rows came out with that mapping. Check the Date and Amount columns above.";
     return;
   }
