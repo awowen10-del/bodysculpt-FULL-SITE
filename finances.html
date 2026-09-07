@@ -721,6 +721,15 @@
   .repbox{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;
     line-height:1.65;color:var(--ink);white-space:pre-wrap;word-break:break-word;margin:0;
     max-height:70vh;overflow-y:auto;}
+
+  /* v123.1: HIDDEN MUST MEAN HIDDEN.
+     The browser hides [hidden] with display:none from its OWN stylesheet, which any
+     author rule beats. .wz-back sets display:flex and .abtn sets display:inline-flex, so
+     `<div class="wz-back" hidden>` and `<button class="abtn" hidden>` were both fully
+     visible: the sort-out modal showed itself on every page load, and because it is
+     position:fixed inset:0 it covered the page and swallowed every click.
+     One rule, last in the sheet, so nothing added later can reintroduce it. */
+  [hidden]{display:none!important;}
 </style>
 </head>
 <body>
@@ -761,7 +770,7 @@
 <symbol id="ic-walk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4.2" r="2"/><path d="M9.5 21l2.5-5.5V11L9 13"/><path d="M12 15.5l3 5.5M12 9l3 2 2.5-.8M12 9l-3 1.5"/></symbol>
 <symbol id="ic-yoga" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.2" r="2"/><path d="M12 7v6M12 13l-5 6M12 13l5 6M4 10.5l8 1.5 8-1.5"/></symbol>
 </defs></svg>
-<!-- build v123 · sort-and-report -->
+<!-- build v122 · finances -->
 <header>
   <div class="appbar">
     <div class="brand">

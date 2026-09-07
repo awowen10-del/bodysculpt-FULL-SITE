@@ -736,6 +736,11 @@
     font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;}
   .qtt-saveall-btn:hover{background:var(--orange-soft);}
   .qtt-saveall-btn:disabled{opacity:.5;cursor:wait;}
+  /* v123: hidden must mean hidden. The browser's own [hidden] rule is display:none, and
+     any author rule that sets display beats it — so .qstrip{display:grid} and .stagebar
+     rendered even while their hidden property was true. The JS was right all along; only
+     the paint was wrong. One rule, last in the sheet. */
+  [hidden]{display:none!important;}
 </style>
 </head>
 <body>
