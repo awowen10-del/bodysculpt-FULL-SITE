@@ -259,9 +259,9 @@ const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
 const FIN = read("finances.html");
 
 ok("every page carries the v122 stamp, and finances is stamped as its own build", () => {
-  assert.ok(/<!-- build v124 · encoding -->/.test(FIN), "finances.html stamped v124 · encoding");
-  assert.ok(read("monthly.html").includes("build v124 · encoding"), "monthly.html carries the stamp");
-  assert.ok(read("index.html").includes("build v124 · encoding"), "index.html carries the stamp");
+  assert.ok(/<!-- build v125 · wizard-waits -->/.test(FIN), "finances.html stamped v125 · wizard-waits");
+  assert.ok(read("monthly.html").includes("build v125 · wizard-waits"), "monthly.html carries the stamp");
+  assert.ok(read("index.html").includes("build v125 · wizard-waits"), "index.html carries the stamp");
 });
 
 ok("the finance page stands apart from the weekly/monthly/quarterly cadence", () => {
@@ -537,6 +537,35 @@ const AUG = [
     assert.strictEqual(el("wzBack").hidden, true, "and it closes");
     assert.strictEqual(finished, 1, "reporting how many were sorted");
     pass++; console.log("  ok one answer categorises every payment behind it, and is remembered");
+  }
+
+  /* --- the wizard waits for you; it never advances on a timer --- */
+  {
+    // An earlier build moved on 900ms after the category was picked, on the theory that
+    // the cut/keep was optional. What it actually did was take the second choice away
+    // before it could be made.
+    const rows = [
+      { id: "z1", date: "2026-08-02", dir: "out", amount: 30, desc: "CARD PAYMENT TO PLACE ONE ON 01-08-2026", cat: "", km: "", hash: "z1" },
+      { id: "z2", date: "2026-08-03", dir: "out", amount: 20, desc: "CARD PAYMENT TO PLACE TWO ON 02-08-2026", cat: "", km: "", hash: "z2" },
+    ];
+    const { ctx, S, WZ } = await boot({ txns: { "2026-08": rows }, now: "2026-08-20" });
+    ctx.openWizard(S.rows, () => {});
+    const at = WZ.i;
+    ctx.wizardChoose("cat", "Software");
+    assert.strictEqual(WZ.i, at, "a category alone does not advance");
+    assert.strictEqual(WZ.cat, "Software", "the choice is held");
+    await new Promise((r) => setTimeout(r, 1200));
+    assert.strictEqual(WZ.i, at, "still there a second later — there is no timer");
+    ctx.wizardChoose("km", "Can Cut");
+    assert.strictEqual(WZ.i, at + 1, "answering both moves on");
+    assert.strictEqual(S.rows.find((r) => r.id === "z1").km, "Can Cut", "and the cut/keep was saved");
+    // a misclick is recoverable: clicking the same option again clears it
+    ctx.wizardChoose("cat", "Retail");
+    ctx.wizardChoose("cat", "Retail");
+    assert.strictEqual(WZ.cat, "", "clicking a chosen option again unpicks it");
+    assert.strictEqual(WZ.i, at + 1, "and unpicking never advances");
+    ctx.closeWizard();
+    pass++; console.log("  ok the wizard waits for both answers, and a misclick is undoable");
   }
 
   /* --- the sort button only appears when there is something to sort --- */

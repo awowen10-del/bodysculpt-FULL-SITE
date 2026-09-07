@@ -770,7 +770,7 @@
 <symbol id="ic-walk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4.2" r="2"/><path d="M9.5 21l2.5-5.5V11L9 13"/><path d="M12 15.5l3 5.5M12 9l3 2 2.5-.8M12 9l-3 1.5"/></symbol>
 <symbol id="ic-yoga" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.2" r="2"/><path d="M12 7v6M12 13l-5 6M12 13l5 6M4 10.5l8 1.5 8-1.5"/></symbol>
 </defs></svg>
-<!-- build v124 · encoding -->
+<!-- build v125 · wizard-waits -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -1051,8 +1051,9 @@
       <div class="wz-opts" id="wzKms"></div>
     </div>
     <div class="wz-foot">
+      <button class="abtn primary" id="wzNext" hidden><svg class="ic"><use href="#ic-arrow-right"/></svg><span>Next</span></button>
       <button class="abtn ghost" id="wzSkip">Skip this one</button>
-      <span class="msg" id="wzHint">Pick a category and it is remembered — you will never be asked about this one again.</span>
+      <span class="msg" id="wzHint"></span>
     </div>
   </div>
 </div>
@@ -2140,28 +2141,41 @@ function renderWizard() {
   $("wzKms").innerHTML = KEYMAPS.map((k) =>
     `<button class="wz-opt" data-km="${esc(k)}">${esc(k)}</button>`).join("");
   $("wzCats").querySelectorAll("[data-cat]").forEach((b) => {
-    b.onclick = () => {
-      WZ.cat = b.dataset.cat;
-      $("wzCats").querySelectorAll("[data-cat]").forEach((x) => x.classList.toggle("on", x === b));
-      // A category alone is enough — the keymap is a bonus, so don't hold the answer
-      // hostage to it. Give a moment to add one, then move on.
-      $("wzHint").textContent = "Saved. Add a cut/keep if you want, or it moves on.";
-      clearTimeout(WZ.t); WZ.t = setTimeout(applyWizard, 900);
-    };
+    b.onclick = () => wizardChoose("cat", b.dataset.cat);
   });
   $("wzKms").querySelectorAll("[data-km]").forEach((b) => {
-    b.onclick = () => {
-      WZ.km = b.dataset.km;
-      $("wzKms").querySelectorAll("[data-km]").forEach((x) => x.classList.toggle("on", x === b));
-      if (WZ.cat) { clearTimeout(WZ.t); applyWizard(); }
-      else $("wzHint").textContent = "Now pick a category and it is saved.";
-    };
+    b.onclick = () => wizardChoose("km", b.dataset.km);
   });
-  $("wzHint").textContent = "Pick a category and it is remembered — you will never be asked about this one again.";
+  paintWizardChoice();
+}
+
+/* One place where a choice is registered, so the rule about when the wizard moves on
+   lives in exactly one spot.
+   It moves on when BOTH questions are answered — never on a timer. An earlier version
+   advanced 900ms after the category was picked, on the theory that the cut/keep was
+   optional and should not hold the answer up; what it actually did was take the second
+   choice away before it could be made. If you only want to set the category, Next. */
+function wizardChoose(kind, value) {
+  if (kind === "cat") WZ.cat = WZ.cat === value ? "" : value;
+  else WZ.km = WZ.km === value ? "" : value;
+  paintWizardChoice();
+  if (WZ.cat && WZ.km) applyWizard();
+}
+
+function paintWizardChoice() {
+  $("wzCats").querySelectorAll("[data-cat]").forEach((x) =>
+    x.classList.toggle("on", x.dataset.cat === WZ.cat));
+  $("wzKms").querySelectorAll("[data-km]").forEach((x) =>
+    x.classList.toggle("on", x.dataset.km === WZ.km));
+  const next = $("wzNext");
+  next.disabled = !WZ.cat;
+  next.hidden = !WZ.cat;
+  $("wzHint").textContent = !WZ.cat
+    ? "Pick a category and a cut/keep — it is remembered, so you will not be asked about this one again."
+    : (WZ.km ? "" : "Now say whether you could cut it — or press Next to leave that blank.");
 }
 
 function applyWizard() {
-  clearTimeout(WZ.t);
   const g = WZ.queue[WZ.i];
   if (!g || !WZ.cat) return;
   // apply to every row the merchant matches, not just the ones in this group
@@ -2519,9 +2533,13 @@ function wire() {
     });
   };
   $("wzClose").onclick = closeWizard;
-  $("wzSkip").onclick = () => { clearTimeout(WZ.t); WZ.i++; renderWizard(); };
+  $("wzSkip").onclick = () => { WZ.i++; renderWizard(); };
+  $("wzNext").onclick = () => { if (WZ.cat) applyWizard(); };
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !$("wzBack").hidden) closeWizard();
+    if ($("wzBack").hidden) return;
+    if (e.key === "Escape") closeWizard();
+    // Enter moves on once a category is set, so a fast pass is category, cut/keep, Enter
+    else if (e.key === "Enter" && WZ.cat) { e.preventDefault(); applyWizard(); }
   });
 
   // The report.
