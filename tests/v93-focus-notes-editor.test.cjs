@@ -92,8 +92,9 @@ async function withItem(notes, extra) {
     env2.ctx.mpCloseNotes();
     assert.strictEqual(env2.ctx.__mpState.notesId, null, "✕ closes the modal");
     assert.strictEqual(env2.ctx.document.body.style.overflow, "", "…and releases the scroll lock");
-    assert.ok(/<button class="mp-modal-close" title="Close \(Esc\)" onclick="mpCloseNotes\(\)">✕<\/button>/.test(HTML),
-      "the ✕ button calls the close path");
+    // v121: the ✕ glyph became the sprite's close icon; the handler is unchanged.
+  assert.ok(/<button class="mp-modal-close" title="Close \(Esc\)" onclick="mpCloseNotes\(\)"><svg class="ic"><use href="#ic-close"\/><\/svg><\/button>/.test(HTML),
+      "the close button calls the close path");
 
     env2.ctx.mpOpenNotes("f1");
     env2.fire("keydown", { key: "Escape" });

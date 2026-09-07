@@ -155,7 +155,9 @@ const month = async (plan) => {
       "an item without one shows it quiet…");
     assert.ok(html.includes("mpOpenNotes('f2')"),
       "…still clickable, because it is now the only way to write a first note");
-    assert.ok(/data-note-ico[^>]*>🗒</.test(html), "the glyph is the weekly app's 🗒");
+    // v121: the 🗒 emoji became the sprite's note icon, so it takes the theme's colours.
+    assert.ok(/data-note-ico[^>]*><svg class="ic"><use href="#ic-note"\/><\/svg></.test(html),
+      "the glyph is the suite's note icon");
 
     // no note text, and no notes field, anywhere on the face
     const visible = html.replace(/<input type="hidden" data-(ff|pf)="notes"[^>]*>/g, "");

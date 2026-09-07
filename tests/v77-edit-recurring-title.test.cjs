@@ -140,7 +140,7 @@ const setInputValue = (ctx, value) => { ctx.document.querySelector = () => ({ va
     await ctx.loadWeeklyPlan(TODAY_WEEK);
 
     // sanity: starts as a barbell
-    assert.strictEqual(ctx.wpTrainingEmoji(ctx.wpResolveRef("training:t1")), "🏋️", "starts 🏋️ (Gym)");
+    assert.strictEqual(ctx.wpTrainingIcon(ctx.wpResolveRef("training:t1")), "lift", "starts as the barbell (Gym)");
 
     setInputValue(ctx, "Morning swim");
     await ctx.wpDefaultTitleBlur("training", "t1");
@@ -149,11 +149,11 @@ const setInputValue = (ctx, value) => { ctx.document.querySelector = () => ({ va
     assert.strictEqual(item.id, "t1", "same id kept");
     assert.strictEqual(item.title, "Morning swim", "training title updated");
     assert.deepStrictEqual(Array.from(item.days), [TODAY], "training schedule preserved across rename");
-    assert.strictEqual(ctx.wpTrainingEmoji(item), "🏊", "emoji re-detected from the new title → 🏊");
+    assert.strictEqual(ctx.wpTrainingIcon(item), "swim", "icon re-detected from the new title → swim");
 
     const body = ctx.document.getElementById("wpBody").innerHTML;
-    assert.ok(body.includes(`🏊 Morning swim`), "grid chip shows the new title + re-detected 🏊");
-    assert.ok(body.includes(`<span class="wp-train-emoji" aria-hidden="true">🏊</span>`), "card row emoji re-detected to 🏊");
+    assert.ok(body.includes(`<svg class="ic"><use href="#ic-swim"/></svg> Morning swim`), "grid chip shows the new title + the re-detected swim icon");
+    assert.ok(body.includes(`<span class="wp-train-emoji" aria-hidden="true"><svg class="ic"><use href="#ic-swim"/></svg></span>`), "card row icon re-detected to swim");
     // persisted through the training defaults path
     const tSave = posts.filter((p) => Array.isArray(p.body.trainingDefaults)).pop();
     assert.strictEqual(tSave.body.trainingDefaults.find((t) => t.id === "t1").title, "Morning swim", "training rename round-trips to the store");

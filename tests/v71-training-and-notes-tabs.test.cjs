@@ -1,7 +1,7 @@
 // v71 harness — (1) the personal Training card and (2) the two-tab Notes card.
 // Asserts training is a fully separate collection sharing the recurring engine, that a
 // one-off training item behaves like a buffer task while a scheduled one places on its
-// exact days and rolls over, that training carries its distinct 🏋️/green styling in
+// exact days and rolls over, that training carries its distinct barbell/green styling in
 // card + grid + Today modal, and that the two rich-text note tabs (Brain Dump /
 // Intentions Around Food) save independently, sanitise, round-trip formatting, commit
 // on tab-switch, copy as clean plain text, and leave the Today modal reading Notes only.
@@ -145,7 +145,9 @@ const notesPostsFor = (posts, field) =>
     await ctx.loadWeeklyPlan(TODAY_WEEK);
     // card row: green accent class + emoji + schedule button
     const body = ctx.document.getElementById("wpBody").innerHTML;
-    assert.ok(body.includes("wp-train-row") && body.includes("🏋️"), "training card row carries the green class + 🏋️");
+    // v121: the emoji became a sprite icon (#ic-lift), drawn in currentColor.
+    assert.ok(body.includes("wp-train-row") && body.includes('href="#ic-lift"'),
+      "training card row carries the green class + the barbell icon");
     assert.ok(body.includes(`wpOpenPopup('training','t1'`), "training row opens the shared day/slot popup");
     // grid chip: green chip class + emoji, distinct from recurring's teal wp-recur
     assert.ok(body.includes("wp-cellchip") && body.includes("wp-train"), "training grid chip carries the wp-train accent");
@@ -153,7 +155,8 @@ const notesPostsFor = (posts, field) =>
     // Today modal: same chip styling via the shared renderer
     ctx.wpOpenToday();
     const modal = ctx.document.getElementById("wpTodayBody").innerHTML;
-    assert.ok(modal.includes("wp-train") && modal.includes("🏋️"), "training chip keeps 🏋️/green in the Today modal");
+    assert.ok(modal.includes("wp-train") && modal.includes('href="#ic-lift"'),
+      "training chip keeps the barbell icon + green in the Today modal");
     assert.ok(modal.includes(`wpTodayToggleDone('training:t1'`), "training placed today is tickable in the modal");
     ctx.wpCloseToday();
   }

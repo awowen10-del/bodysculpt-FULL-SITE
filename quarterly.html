@@ -1,16 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>
-/* v106 theme boot — runs before the stylesheet is parsed, so the page never flashes the
-   wrong theme. Light is the default; the choice is remembered in localStorage and shared
-   by all three pages. Deleting this script (and the light token block) reverts to dark. */
-(function(){
-  var t = "light";
-  try{ var s = localStorage.getItem("bodysculpt:theme"); if(s === "dark" || s === "light") t = s; }catch(e){}
-  try{ document.documentElement.setAttribute("data-theme", t); }catch(e){}
-})();
-</script>
 <meta charset="UTF-8">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -24,121 +14,157 @@
 <style>
   /* ===================== THEME TOKENS =====================
      Every colour in this stylesheet resolves to one of these — there are no literal
-     colours below this block. Two themes, one set of names: the ":root,:root[data-theme=
-     "dark"]" block is the original dark navy, and ":root[data-theme="light"]" is the neutral
-     light theme (the default — see the boot script at the top of <head>). Switching
-     themes is therefore only ever a change of values here, and reverting to dark-only is
-     a matter of deleting the light block.
+     colours below this block. ONE theme: the neutral light palette. (v106 shipped a
+     dark/light pair and v108 re-cut the light half; v121 dropped dark entirely, because
+     it was never used. Every token NAME is unchanged, so all ~140 var(--x) references
+     across the three pages still resolve.)
      The *-rgb tokens are bare "r,g,b" triples, so the many rgba(<accent>,<alpha>) tints
      throughout the stylesheet stay tied to the same single source of truth.
-     The accents CARRY MEANING and must stay distinct from each other in both themes:
+     The accents CARRY MEANING and must stay distinct from each other:
        orange = business / brand          teal  = recurring
        green  = training + done           blue  = home location, buffer, decisions
        amber  = watch / warning           red   = problem / delete
        info   = acquisition + decision panels   loc-warrington = the other location badge
-     "orange" is a TOKEN NAME, not a promise of hue: v108 re-pointed the brand accent at a
-     muted slate-blue for the light theme (dark keeps its terracotta). The name was kept so
-     that the ~140 var(--orange*) references across the three pages stay one switch to flip.
-     In light they are re-mapped, not merely reused: the dark theme's tones are tuned for a
-     navy background and would wash out on a near-white card. */
+     "orange" is a TOKEN NAME, not a promise of hue. Renaming it would touch every one of
+     those references across three files, so the name stayed. */
   :root{
-    /* metrics — not themed */
-    --radius:16px;
+    /* ===== METRICS — not colours =====
+       v121 put the ad-hoc numbers on scales. Radius was six values (8/10/12/16/20/pill)
+       often nested inside each other; it is now three plus the pill. Spacing was 14/16/26
+       used interchangeably for the same job; it is now a 4-based ramp. --radius is kept as
+       the old name for the card radius so existing rules keep resolving. */
+    --r-sm:6px;      /* chips, inputs, the small stuff inside a control */
+    --r-md:10px;     /* buttons, selects, toolbars */
+    --r-lg:14px;     /* cards, panels, modals */
+    --r-pill:999px;
+    --radius:var(--r-lg);
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px; --sp-7:48px;
+    /* motion + focus. Every interactive element takes --focus on :focus-visible. */
+    --tap:.12s ease;
+    --chev-mask:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>');
+    --focus:0 0 0 2px var(--card), 0 0 0 4px rgba(var(--orange-rgb),.55);
   }
-  :root,:root[data-theme="dark"]{
-    color-scheme:dark;
-    /* surfaces */
-    --navy:#0f1b2d; --navy-2:#16273f; --card:#1b2c45; --card-2:#203552;
-    --line:#2c405e; --line-rgb:44,64,94;
-    /* ink */
-    --ink:#eaf0f8; --ink-dim:#9fb1c7; --ink-faint:#6b7f99; --ink-strong:#fff;
-    --ink-dim-rgb:159,177,199; --ink-faint-rgb:107,127,153;
-    --on-accent:#fff;              /* text sitting ON a solid accent fill */
-    /* accents */
-    --orange:#e8732a; --orange-soft:#f0935a; --orange-rgb:232,115,42;
-    --green:#3fbf7f; --green-2:#43c088; --green-rgb:63,191,127; --green2-rgb:67,192,136;
-    --amber:#e8a93a; --amber-2:#f0b73a; --amber-rgb:232,169,58; --amber2-rgb:240,183,58;
-    --red:#e25555; --red-2:#e0574f; --red-rgb:226,85,85; --red2-rgb:214,77,77;
-    --teal:#4fa3b8; --teal-soft:#7fc4d6; --teal-bright:#a9dbe8; --teal-rgb:79,163,184;
-    --blue:#7fa3d4; --blue-soft:#8fb4e8; --blue-rgb:108,150,214;
-    --info:#6aa3e8; --info-rgb:120,170,255;
-    --loc-warrington:#d08c52; --grad-mid:#a9cf6e;
-    /* text on a tinted (translucent-accent) chip */
-    --tint-red:#f3a0a0; --tint-amber:#f0cd86; --tint-green:#d6f5e6;
-    --tint-blue:#d8e6fb; --tint-orange:#fbdcc4;
-    /* panels, hero, chrome */
-    --panel-0:#1a2b47; --panel-1:#15233b; --panel-2:#13203a;
-    --hero-1:#12203a; --hero-2:#0f1b2d; --hero-3:#0d1626;
-    --mark-bg:#000; --chart-grid:#22344e;
-    --backdrop-rgb:8,14,24;        /* modal scrim */
-    --shadow-rgb:0,0,0;            /* every box-shadow */
-    --lift-rgb:255,255,255;        /* hover / zebra lift over a surface */
-    --shadow:0 10px 30px rgba(var(--shadow-rgb),.35);
-  }
-  :root[data-theme="light"]{
+  :root{
     color-scheme:light;
     /* THREE TIERS OF DEPTH, and they must stay three: the page (--navy) is a soft, slightly
        cool grey; the card (--card) is near-white and therefore visibly LIFTS off it; --line
        is a fine neutral hairline that draws the card's edge. Tone step + hairline do the
        work — the shadows below are deliberately soft. --navy-2 is the recessed inset inside
-       a card (toolbars, sticky heads, sub-panels), so it sits BELOW the card, not above. */
-    --navy:#f2f4f8; --navy-2:#e8ecf3; --card:#ffffff; --card-2:#f7f9fc;
-    --line:#dde2ea; --line-rgb:203,211,223;
-    /* dark-but-soft ink — a cool near-black, never #000; --ink-dim/-faint are muted greys */
-    --ink:#1d2330; --ink-dim:#5a6474; --ink-faint:#6e7889; --ink-strong:#0d1119;
-    --ink-dim-rgb:90,100,116; --ink-faint-rgb:110,120,137;
+       a card (toolbars, sticky heads, sub-panels), so it sits BELOW the card, not above.
+       v121 deepened the page a step and tightened the hairline, so a white card reads as an
+       object on the page rather than blending into it. */
+    --navy:#eef0f4; --navy-2:#e4e8ef; --card:#ffffff; --card-2:#f6f8fb;
+    --line:#d9dee7; --line-rgb:217,222,231;
+    /* dark-but-soft ink — a cool near-black, never #000; --ink-dim/-faint are muted greys.
+       The ramp runs strong → ink → dim → faint, lightening at every step. */
+    --ink:#171b22; --ink-dim:#59616f; --ink-faint:#737c8a; --ink-strong:#0b0e14;
+    --ink-dim-rgb:89,97,111; --ink-faint-rgb:115,124,138;
     --on-accent:#fff;
-    /* the brand accent — a muted, low-strain SLATE-BLUE (see the note above about the name) */
-    --orange:#4a5f8a; --orange-soft:#3a4d73; --orange-rgb:74,95,138;
+    /* THE BRAND. v108 pointed this at a muted slate-blue, which was safe and completely
+       anonymous — near enough the framework default that the app read as unbranded. v121
+       brings back the terracotta the dark theme always had, deepened so it holds its own
+       on a near-white card (5.44:1 on --card, and white on the solid fill is the same). */
+    --orange:#b4471b; --orange-soft:#93380f; --orange-rgb:180,71,27; --orange-soft-rgb:147,56,15;
     --green:#17804d; --green-2:#0f6d40; --green-rgb:23,128,77; --green2-rgb:15,109,64;
-    --amber:#9a6a05; --amber-2:#8a5e04; --amber-rgb:154,106,5; --amber2-rgb:138,94,4;
-    --red:#b81e28; --red-2:#9c1b23; --red-rgb:184,30,40; --red2-rgb:156,27,35;
+    /* amber shifted yellower and red shifted toward crimson: both had to clear the brand by
+       85 of summed RGB distance once the brand went warm, or "watch" and "problem" would
+       have read as shades of the brand instead of as states. */
+    --amber:#96700a; --amber-2:#85620a; --amber-rgb:150,112,10; --amber2-rgb:133,98,10;
+    --red:#ab1338; --red-2:#911029; --red-rgb:171,19,56; --red2-rgb:145,16,41;
     --teal:#0d7d8a; --teal-soft:#0a6873; --teal-bright:#08555e; --teal-rgb:13,125,138;
-    /* home/buffer moved to indigo and the Warrington badge to copper, so neither location
-       pill can be mistaken for the slate-blue brand now sitting on the tabs beside them */
+    /* home/buffer is indigo; the Warrington badge moved off copper to plum in v121, because
+       copper existed only to dodge a blue brand and now sat right on top of a warm one. */
     --blue:#6247b5; --blue-soft:#513a99; --blue-rgb:98,71,181;
     --info:#2b6cd9; --info-rgb:43,108,217;
-    --loc-warrington:#8a4b23; --grad-mid:#6d9a2e;
-    /* on light these become the DEEP version of the accent — the chip behind them is a
-       pale tint, so a pale text colour would vanish */
-    --tint-red:#9c2f24; --tint-amber:#7a5504; --tint-green:#136540;
-    --tint-blue:#46337f; --tint-orange:#33456b;
-    --panel-0:#f6f8fc; --panel-1:#f2f5fa; --panel-2:#ebeff7;
-    --hero-1:#f7f9fd; --hero-2:#f2f4f8; --hero-3:#eaeff6;
-    --mark-bg:#eef1f7; --chart-grid:#e3e8f0;
-    /* the stylesheet's alphas were tuned for a dark theme, so these carry the light theme's
-       half: a cool near-black scrim genuinely dims the page behind a modal, while the shadow
-       and the hover "lift" are mid-greys — at .015–.6 they read as definition, not grime.
-       --lift-rgb inverts (dark, so a hover DARKENS the surface it sits on). */
-    --backdrop-rgb:26,33,48;
-    --shadow-rgb:116,127,148;
-    --lift-rgb:24,35,56;
-    --shadow:0 10px 30px rgba(var(--shadow-rgb),.35);
+    --loc-warrington:#7a3363; --grad-mid:#6d9a2e;
+    /* the DEEP version of each accent — the chip behind them is a pale tint of the same
+       hue, so a pale text colour would vanish */
+    --tint-red:#8f1030; --tint-amber:#6f5308; --tint-green:#136540;
+    --tint-blue:#46337f; --tint-orange:#8f3813;
+    --panel-0:#f4f6fa; --panel-1:#eff2f8; --panel-2:#e8ecf4;
+    --hero-1:#f6f8fc; --hero-2:#eef0f4; --hero-3:#e6eaf2;
+    --mark-bg:#eaedf4; --chart-grid:#dfe4ee;
+    /* a cool near-black scrim genuinely dims the page behind a modal; the shadow and the
+       hover "lift" are the ink tone at low alpha, so a hover DARKENS the surface it sits on. */
+    --backdrop-rgb:20,26,38;
+    --shadow-rgb:23,27,34;
+    --lift-rgb:23,27,34;
+    /* TWO shadow steps, not one. A single large soft shadow on every card reads as haze on
+       a light page: --shadow just separates a card from the ground, --shadow-lift is for
+       things that genuinely float (modals, popovers, the week picker). */
+    --shadow:0 1px 2px rgba(var(--shadow-rgb),.04), 0 1px 3px rgba(var(--shadow-rgb),.07);
+    --shadow-lift:0 4px 6px -1px rgba(var(--shadow-rgb),.06), 0 12px 24px -6px rgba(var(--shadow-rgb),.14);
   }
+  /* v121: every icon in the suite. Sized in em so it always matches its text, and drawn
+     in currentColor so it always matches its colour — the whole reason the emoji went. */
+  .ic{width:1em;height:1em;display:inline-block;vertical-align:-.135em;flex:0 0 auto;}
+  .ic-lg{width:1.25em;height:1.25em;}
+  /* v121: there was no :focus-visible styling anywhere in the suite. One ring, everywhere. */
+  a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,
+  textarea:focus-visible,[tabindex]:focus-visible,[contenteditable]:focus-visible{
+    outline:none;box-shadow:var(--focus);border-radius:var(--r-sm);}
+  @media (prefers-reduced-motion:reduce){ *,*::before,*::after{
+    animation-duration:.01ms!important;animation-iteration-count:1!important;
+    transition-duration:.01ms!important;scroll-behavior:auto!important;} }
+  /* v121: the collapse caret is one icon that rotates, not two different glyphs. */
+  .chev .ic,.qsnap-chev .ic,.mp-chev .ic{transition:transform var(--tap);transform:rotate(-90deg);}
+  .chev.open .ic,.open>.chev .ic,.qsnap-chev.open .ic{transform:rotate(0deg);}
+  /* carets that used to be a " ▾" in a ::after. Masked so they still follow currentColor. */
+  .chev-after::after{content:"";display:inline-block;width:.62em;height:.62em;margin-left:.34em;
+    background:currentColor;vertical-align:.02em;
+    -webkit-mask:var(--chev-mask) center/contain no-repeat;mask:var(--chev-mask) center/contain no-repeat;}
   *{box-sizing:border-box;margin:0;padding:0;}
   html,body{background:var(--navy);color:var(--ink);}
   body{font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    -webkit-font-smoothing:antialiased;line-height:1.4;padding:0 16px 64px;max-width:1080px;margin:0 auto;}
-  h1{font-size:20px;font-weight:700;letter-spacing:-.2px;}
-  .sub{font-size:12px;color:var(--ink-dim);margin-top:2px;}
+    -webkit-font-smoothing:antialiased;line-height:1.4;padding:0 20px 64px;max-width:1500px;margin:0 auto;}
+  h1{font-size:14.5px;font-weight:600;letter-spacing:-.012em;line-height:1.15;}
+  .sub{font-size:10.5px;color:var(--ink-faint);font-weight:500;letter-spacing:.05em;
+    text-transform:uppercase;margin-top:1px;}
   header{padding:18px 0 8px;}
   .htop{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
-  .brand{display:flex;align-items:center;gap:12px;}
-  .mark{width:46px;height:46px;border-radius:12px;overflow:hidden;flex:0 0 auto;border:1px solid var(--line);background:var(--mark-bg);}
-  /* PROMINENT TOP NAV */
-  .topnav{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;background:var(--navy-2);
-    border:1px solid var(--line);border-radius:14px;padding:6px;}
-  .topnav a{flex:1;min-width:120px;text-align:center;text-decoration:none;font-size:14px;font-weight:700;
-    color:var(--ink-dim);padding:12px 14px;border-radius:10px;letter-spacing:.2px;
-    display:flex;align-items:center;justify-content:center;gap:7px;transition:none;}
-  .topnav a:hover{color:var(--ink);background:var(--card);}
-  .topnav a.active{background:var(--orange);color:var(--on-accent);}
-  .topnav a .ico{font-size:13px;opacity:.85;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .mark{width:32px;height:32px;border-radius:var(--r-md);overflow:hidden;flex:0 0 auto;
+    border:1px solid var(--line);background:var(--mark-bg);}
+  /* ===================== v121: THE APP BAR =====================
+     Until v120 the header was TWO identical full-width pill bars stacked on top of each
+     other — same shape, same weight, same filled active state — so nothing said which was
+     the product and which was the page. Now there are two clearly different treatments:
+       .appbar  — sticky chrome: the brand, then a compact segmented control for the three
+                  PERIODS (Weekly / Monthly / Quarterly), sized to its content;
+       .viewtoggle — quiet underline tabs for the SECTIONS inside the page.
+     .topnav and #tabBar keep their names and their handlers; only the dress changed. */
+  .appbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:var(--sp-5);
+    background:var(--card);border:1px solid var(--line);border-bottom:0;
+    border-radius:var(--r-lg) var(--r-lg) 0 0;padding:0 var(--sp-4);min-height:60px;flex-wrap:wrap;}
+  .appbar .brand{flex:0 0 auto;}
+  /* this page navigates its sections with the stage bar, not a tab row, so the app bar has
+     nothing sitting under it and closes its own bottom edge. */
+  .appbar{border-bottom:1px solid var(--line);border-radius:var(--r-lg);margin-bottom:var(--sp-4);}
+  .appbar-right{flex:0 0 auto;margin-left:auto;display:flex;align-items:center;gap:var(--sp-2);}
+  .topnav{display:flex;gap:2px;background:var(--navy-2);border:1px solid var(--line);
+    border-radius:var(--r-pill);padding:3px;margin:0 auto;}
+  .topnav a{text-decoration:none;font-size:13.5px;font-weight:500;color:var(--ink-dim);
+    padding:7px 20px;border-radius:var(--r-pill);letter-spacing:-.005em;white-space:nowrap;
+    transition:color var(--tap),background var(--tap);}
+  .topnav a:hover{color:var(--ink);}
+  .topnav a.active{background:var(--card);color:var(--ink);font-weight:600;box-shadow:var(--shadow);}
+  .topnav a:focus-visible{outline:none;box-shadow:var(--focus);}
+  .viewtoggle{display:flex;gap:2px;background:var(--card);border:1px solid var(--line);
+    border-top:0;border-radius:0 0 var(--r-lg) var(--r-lg);padding:0 var(--sp-4);
+    margin:0 0 var(--sp-4);overflow-x:auto;}
+  .viewtoggle .vt{flex:0 0 auto;font-family:inherit;font-size:13.5px;font-weight:500;
+    color:var(--ink-dim);background:transparent;border:0;border-bottom:2px solid transparent;
+    border-radius:0;padding:12px 15px 10px;cursor:pointer;white-space:nowrap;
+    letter-spacing:-.005em;transition:color var(--tap),border-color var(--tap);}
+  .viewtoggle .vt:hover{color:var(--ink);}
+  .viewtoggle .vt.active{color:var(--ink);font-weight:600;border-bottom-color:var(--orange);}
+  .viewtoggle .vt:focus-visible{outline:none;box-shadow:var(--focus);border-radius:var(--r-sm);}
+  @media(max-width:720px){
+    .appbar{min-height:0;padding:var(--sp-3) var(--sp-3) 0;gap:var(--sp-3);}
+    .topnav{margin:0 0 var(--sp-3);width:100%;}
+    .topnav a{flex:1;text-align:center;padding:7px 8px;}
+  }
   /* v106: theme toggle — a quiet chip at the end of the top nav, same family as the links */
-  .themebtn{flex:0 0 auto;background:transparent;border:1px solid var(--line);color:var(--ink-dim);
-    border-radius:10px;padding:12px 14px;font-family:inherit;font-size:12.5px;font-weight:800;
-    letter-spacing:.2px;cursor:pointer;display:flex;align-items:center;gap:6px;}
-  .themebtn:hover{color:var(--ink);background:var(--card);border-color:var(--orange);}
   .yhead{margin-top:16px;}
   .ctitle-white{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--ink-strong);font-weight:700;}
   .rule-pill{display:inline-block;font-size:10px;color:var(--ink-faint);background:var(--navy-2);
@@ -706,21 +732,55 @@
 </style>
 </head>
 <body>
+<!-- ===================== v121: THE ICON SET =====================
+     One sprite, injected on every page, replacing the emoji and typographic glyphs the
+     suite used to use as icons (✕ ▸ ▾ ▲ ▼ 📅 📍 🗒 🔥 ⚠ ↻ and the training set).
+     Emoji rendered differently on every OS, could not take an accent colour and could not
+     be sized reliably. These are one 24px grid at 1.7 stroke, drawn in currentColor — so
+     an icon is always exactly the colour of the text it sits in, at any size.
+     Use: <svg class="ic"><use href="#ic-close"/></svg>. Prose keeps its typography: the
+     → in "Thinking Time → AI Analysis", the · separators and the • bullets are text. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="ic-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></symbol>
+<symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></symbol>
+<symbol id="ic-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></symbol>
+<symbol id="ic-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></symbol>
+<symbol id="ic-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+<symbol id="ic-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+<symbol id="ic-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.6 7-11a7 7 0 10-14 0c0 5.4 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></symbol>
+<symbol id="ic-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h9l7-7V5a2 2 0 00-2-2z"/><path d="M14 21v-5a2 2 0 012-2h5M8 8h8M8 12h5"/></symbol>
+<symbol id="ic-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.4v5.2M12 16.3v.1"/></symbol>
+<symbol id="ic-flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c3.9 0 7-2.9 7-6.6 0-4.3-3.4-6.6-4.6-10.4-1.5 1-2.2 2.5-2.2 4.2C10.6 7.5 9.4 5.7 9.4 3.7 6.9 5.7 5 9.1 5 15.4 5 19.1 8.1 22 12 22z"/></symbol>
+<symbol id="ic-trend-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></symbol>
+<symbol id="ic-trend-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6 6 4-4 8 8"/><path d="M15 17h6v-6"/></symbol>
+<symbol id="ic-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3.2-6.9"/><path d="M21 4v5h-5"/></symbol>
+<symbol id="ic-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="ic-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></symbol>
+<symbol id="ic-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 018 0v3"/></symbol>
+<symbol id="ic-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 3.5L16 11H5"/></symbol>
+<symbol id="ic-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 13.5a4 4 0 006 .4l2.5-2.5a4.2 4.2 0 00-6-6l-1.4 1.4"/><path d="M13.5 10.5a4 4 0 00-6-.4L5 12.6a4.2 4.2 0 006 6l1.4-1.4"/></symbol>
+<symbol id="ic-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.3l3.4 2"/></symbol>
+<symbol id="ic-dot" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="12" r="5"/></symbol>
+<!-- the training set: wpDetectTrainingEmoji picks one of these from the task's title -->
+<symbol id="ic-lift" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6M6 6.5v11M18 6.5v11M21 9v6M6 12h12"/></symbol>
+<symbol id="ic-run" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="15.5" cy="4.5" r="2"/><path d="M8 21l2.6-4.6.9-4.4L8.5 14 6 12.4"/><path d="M11.5 12l3.6-3.4 2.4 3 2.5.9"/><path d="M15.1 8.6L12 7.2 8.8 8.4"/></symbol>
+<symbol id="ic-bike" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17" r="3.5"/><circle cx="18.5" cy="17" r="3.5"/><path d="M5.5 17l4-9h4M9.5 8l4 9h5M14 5h3"/></symbol>
+<symbol id="ic-swim" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="17" cy="7" r="1.8"/><path d="M3 12.5l3.5-2.5 4 3 3.5-2.5"/><path d="M2 18.5c1.7 0 1.7 1.4 3.3 1.4s1.7-1.4 3.4-1.4 1.7 1.4 3.3 1.4 1.7-1.4 3.4-1.4 1.7 1.4 3.3 1.4 1.7-1.4 3.3-1.4"/></symbol>
+<symbol id="ic-walk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4.2" r="2"/><path d="M9.5 21l2.5-5.5V11L9 13"/><path d="M12 15.5l3 5.5M12 9l3 2 2.5-.8M12 9l-3 1.5"/></symbol>
+<symbol id="ic-yoga" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.2" r="2"/><path d="M12 7v6M12 13l-5 6M12 13l5 6M4 10.5l8 1.5 8-1.5"/></symbol>
+</defs></svg>
 <header>
-  <div class="htop">
+  <div class="appbar">
     <div class="brand">
       <div class="mark"><img src="data:image/png;base64,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" alt="Bodysculpt" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;"></div>
-      <div><h1>Bodysculpt Quarterly Review</h1><div class="sub">Warrington · quarterly performance</div></div>
+      <div><h1>Bodysculpt</h1><div class="sub">Warrington</div></div>
     </div>
+    <nav class="topnav">
+      <a href="/index.html">Weekly</a>
+      <a href="/monthly.html">Monthly</a>
+      <a href="/quarterly.html" class="active">Quarterly</a>
+    </nav>
   </div>
-  <nav class="topnav">
-    <!-- EDIT THIS: point to your actual Bodysculpt HQ launcher URL -->
-    <a href="https://bodysculptdashboard.netlify.app"><span class="ico">←</span> Bodysculpt HQ</a>
-    <a href="/index.html">Weekly Dashboard</a>
-    <a href="/monthly.html">Monthly Report</a>
-    <a href="/quarterly.html" class="active">Quarterly Review</a>
-  <button type="button" class="themebtn" id="themeToggle" onclick="bsToggleTheme()" aria-pressed="false" title="Switch theme">☾ Dark</button>
-  </nav>
   <div class="yhead">
     <div class="ctitle-white">Quarterly review — <span class="year-nav"><button class="year-btn" onclick="changeYear(-1)" title="Previous year">‹</button><span id="yearLabel"></span><button class="year-btn" onclick="changeYear(1)" title="Next year">›</button></span></div>
     <!-- build v59 · merge-priorities-into-rocks -->
@@ -786,35 +846,6 @@
 </div>
 <script>
 "use strict";
-/* ===================== v106: LIGHT / DARK THEME =====================
-   Purely visual. The palette lives in the token blocks at the top of the stylesheet; this
-   only flips the data-theme attribute on <html>, remembers the choice, and keeps the
-   toggle's label in step. No render path, no data, no behaviour depends on it. */
-function bsTheme(){
-  try{ return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light"; }
-  catch(e){ return "light"; }
-}
-function bsSetTheme(t){
-  const next = t === "dark" ? "dark" : "light";
-  try{ document.documentElement.setAttribute("data-theme", next); }catch(e){}
-  try{ localStorage.setItem("bodysculpt:theme", next); }catch(e){}
-  // pages that bake colours into generated markup (monthly.html's SVG charts) repaint here
-  if(typeof bsThemeRepaint === "function"){ try{ bsThemeRepaint(); }catch(e){} }
-  bsSyncThemeBtn();
-  return next;
-}
-function bsToggleTheme(){ return bsSetTheme(bsTheme() === "dark" ? "light" : "dark"); }
-// The button offers the theme you'd switch TO, so its label always names the next state.
-function bsSyncThemeBtn(){
-  const b = document.getElementById("themeToggle");
-  if(!b) return;
-  const dark = bsTheme() === "dark";
-  b.textContent = dark ? "☀ Light" : "☾ Dark";
-  b.title = dark ? "Switch to the light theme" : "Switch to the dark theme";
-  if(b.setAttribute) b.setAttribute("aria-pressed", dark ? "true" : "false");
-}
-bsSyncThemeBtn();
-
 /* Bodysculpt Quarterly Review — reads the shared monthly store, rolls months into quarters. */
 const STORE = "/.netlify/functions/kpi-store";
 const MENTOR = "/.netlify/functions/mentor-ai";
@@ -1100,7 +1131,7 @@ function panel(id, title, count, introHtml, bodyHtml, badgeHtml){
   return `<div class="panel${isOpen?" open":""}" data-panel="${id}">
     <div class="panel-h" onclick="togglePanel('${id}')">
       <div class="pt"><span class="n">${esc2(title)}</span>${countPill}${badgeHtml||""}</div>
-      <span class="chev">▸</span>
+      <span class="chev"><svg class="ic"><use href="#ic-chevron"/></svg></span>
     </div>
     <div class="panel-body">
       ${introHtml?`<div class="panel-intro">${introHtml}</div>`:""}
@@ -2587,8 +2618,8 @@ function qttTileFor(kind, qi){
     let caveat = "";
     if(prev){
       const bits=[];
-      if(roll.conversion!=null && prev.conversion!=null) bits.push("conversion "+(roll.conversion>=prev.conversion?"▲":"▼")+" vs "+QUARTERS[qi-1].name);
-      if(roll.retention!=null && prev.retention!=null) bits.push("retention "+(roll.retention>=prev.retention?"▲":"▼")+" vs "+QUARTERS[qi-1].name);
+      if(roll.conversion!=null && prev.conversion!=null) bits.push("conversion "+(roll.conversion>=prev.conversion?"up":"down")+" vs "+QUARTERS[qi-1].name);
+      if(roll.retention!=null && prev.retention!=null) bits.push("retention "+(roll.retention>=prev.retention?"up":"down")+" vs "+QUARTERS[qi-1].name);
       caveat = bits.join(" · ");
     }
     return { type:"confirmed", title:"Key ratios", period:qLabel, fig:parts.join(" · "), caveat };
@@ -2831,7 +2862,7 @@ function qttRenderSnapshot(){
   let trailingHtml = "";
   if(ev.trailing.available){
     trailingHtml = `<div class="qsnap-proxy">
-      <div class="qsnap-proxy-h">◐ Proxy / indicative <span class="qsnap-proxy-badge">INDICATIVE</span></div>
+      <div class="qsnap-proxy-h"><svg class="ic"><use href="#ic-alert"/></svg> Proxy / indicative <span class="qsnap-proxy-badge">INDICATIVE</span></div>
       <div class="qsnap-proxy-fig">${ev.trailing.trialSales} trials → ${ev.trailing.signups} signups (gap ${ev.trailing.gap})</div>
       <div class="qsnap-proxy-period">${qttEsc(ev.trailing.period)}</div>
       <div class="qsnap-proxy-caveat">${qttEsc(ev.trailing.caveat)}</div>
@@ -2884,7 +2915,7 @@ function qttRenderSnapshot(){
       <button class="qsnap-toggle" onclick="qttToggleSnapshot()">
         <span class="qsnap-toggle-t">Quarter Snapshot</span>
         <span class="qsnap-toggle-sub">${qttEsc(ev.reviewLabel)} evidence — review before you reflect</span>
-        <span class="qsnap-chev">▸</span>
+        <span class="qsnap-chev"><svg class="ic"><use href="#ic-chevron"/></svg></span>
       </button>
       <div class="qsnap-body">
         <div class="qsnap-section"><div class="qsnap-s-h">Goals this quarter</div>${goalsHtml}</div>
@@ -4331,7 +4362,7 @@ function qfApplyLockBanner(){
     if(locked && !banner){
       banner = document.createElement("div");
       banner.className = "qf-lock-banner";
-      banner.innerHTML = `🔒 ${qttEsc(qttTag)} is finalised and locked (read-only). Reopen it from the Finalise stage to edit.`;
+      banner.innerHTML = `<svg class="ic"><use href="#ic-lock"/></svg> ${qttEsc(qttTag)} is finalised and locked (read-only). Reopen it from the Finalise stage to edit.`;
       el.insertBefore(banner, el.firstChild);
     } else if(!locked && banner){ banner.remove(); }
   });
@@ -4567,7 +4598,7 @@ function renderThinkingTime(){
     const t = qttTileFor(q.tile, qi);
     if(t){
       tileHtml = `<div class="qtt-tile ${t.type}">
-        <div class="qtt-tile-h">${t.type==="proxy"?"◐ Proxy / indicative":"● Confirmed data"}
+        <div class="qtt-tile-h">${t.type==="proxy"?'<svg class="ic"><use href="#ic-alert"/></svg> Proxy / indicative':'<svg class="ic"><use href="#ic-check"/></svg> Confirmed data'}
           <span class="qtt-tile-badge">${t.type==="proxy"?"INDICATIVE":"CONFIRMED"}</span></div>
         <div><span class="qtt-tile-fig">${qttEsc(t.fig)}</span><span class="qtt-tile-period">${qttEsc(t.period)}</span></div>
         ${t.caveat?`<div class="qtt-tile-caveat">${qttEsc(t.caveat)}</div>`:""}

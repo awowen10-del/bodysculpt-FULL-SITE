@@ -24,8 +24,11 @@ const planSaves = (posts, key) => posts.filter((p) => p.body.weeklyPlan && key i
 
 (async () => {
   /* ================= 0. the build stamp ================= */
-  assert.ok(/<!-- build v119 · eow-review-flow -->/.test(MONTHLY), "monthly.html stamped v119 · eow-review-flow");
-  assert.ok(WEEKLY.includes("build v119 · eow-review-flow"), "index.html carries the same stamp");
+  // v120 relaxed this: the newest release's test pins the exact stamp, older ones only
+  // check the build never goes backwards and that the two pages agree.
+  const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(MONTHLY);
+  assert.ok(stamp && Number(stamp[1]) >= 119, "monthly.html stamped v119 or later");
+  assert.ok(WEEKLY.includes("build v" + stamp[1] + " · " + stamp[2]), "index.html carries the same stamp");
 
   /* ================= 1. Inter, on all three pages ================= */
   for (const [label, src] of [["index.html", WEEKLY], ["monthly.html", MONTHLY], ["quarterly.html", QUARTERLY]]) {

@@ -31,13 +31,14 @@ const weeklyPosts = (posts) => posts.filter((p) => p.body && p.body.weeklyPlan);
 
     const html = ctx.document.getElementById("wpBody").innerHTML;
     assert.ok(html.includes(`wpOpenLocPopup('mon',this)`), "the day header is the click target");
-    // v86: the header location is quiet text (divider + 📍 + place), not a filled pill
+    // v86: the header location is quiet text (divider + pin + place), not a filled pill
+    // v121: the 📍 emoji became the sprite's pin icon, so it takes the accent colour.
     assert.ok(html.includes(`class="wp-loctext wp-loc-warrington"`), "Warrington rendered with its own colour class");
     assert.ok(html.includes(`class="wp-loctext wp-loc-home"`), "Home rendered with its own colour class");
-    assert.ok(html.includes("📍") && html.includes(`class="wp-loclbl">Warrington<`), "pin + plain place text");
+    assert.ok(html.includes('href="#ic-pin"') && html.includes(`class="wp-loclbl">Warrington<`), "pin + plain place text");
     assert.ok(html.includes(`class="wp-locset"`), "unset days show only the click-to-set affordance");
-    assert.ok(!/class="wp-locset[^"]*"[^>]*>[^<]*📍/.test(html), "…with no stray pin");
-    assert.ok(html.includes("📍 Locations"), "the default-pattern control is in the grid header");
+    assert.ok(!/class="wp-locset[^"]*"[^>]*>[^<]*ic-pin/.test(html), "…with no stray pin");
+    assert.ok(html.includes(`<svg class="ic"><use href="#ic-pin"/></svg> Locations`), "the default-pattern control is in the grid header");
   }
 
   // ---------- 2: a per-week override applies to that week only ----------

@@ -54,7 +54,8 @@ const STAMP = /build v(\d+) · ([a-z0-9-]+)/;
   }
 
   /* ---------- 4. nothing else moved ---------- */
-  assert.ok(/<span class="stage" id="srcPill">● Your data<\/span>/.test(WEEKLY),
+  // v121 swapped the ● glyph for the sprite's dot icon; the pill itself is unchanged.
+  assert.ok(/<span class="stage" id="srcPill"><svg class="ic"><use href="#ic-dot"\/><\/svg> Your data<\/span>/.test(WEEKLY),
     "the weekly footer's data pill is unchanged");
   assert.strictEqual((MONTHLY.match(/build v\d+ · [a-z0-9-]+/g) || []).length, 2,
     "monthly.html declares its build in exactly two places (comment + visible)");
