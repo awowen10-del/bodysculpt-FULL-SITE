@@ -223,9 +223,9 @@ const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
 const FIN = read("finances.html");
 
 ok("every page carries the v122 stamp, and finances is stamped as its own build", () => {
-  assert.ok(/<!-- build v12[23] · [a-z-]+ -->/.test(FIN), "finances.html carries a build stamp");
-  assert.ok(/build v12[23] · [a-z-]+/.test(read("monthly.html")), "monthly.html carries the stamp");
-  assert.ok(/build v12[23] · [a-z-]+/.test(read("index.html")), "index.html carries the stamp");
+  assert.ok(/<!-- build v123 · sort-and-report -->/.test(FIN), "finances.html stamped v123 · sort-and-report");
+  assert.ok(read("monthly.html").includes("build v123 · sort-and-report"), "monthly.html carries the stamp");
+  assert.ok(read("index.html").includes("build v123 · sort-and-report"), "index.html carries the stamp");
 });
 
 ok("the finance page stands apart from the weekly/monthly/quarterly cadence", () => {
