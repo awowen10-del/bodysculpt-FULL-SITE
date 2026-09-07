@@ -12,6 +12,8 @@ const SOURCES = [
   ["monthly.html", path.join(__dirname, "..", "monthly.html")],
   // v106: quarterly.html joined the syntax check when the theming change started touching it
   ["quarterly.html", path.join(__dirname, "..", "quarterly.html")],
+  // v122: the Finances page is a fourth single-file app and gets the same check
+  ["finances.html", path.join(__dirname, "..", "finances.html")],
 ];
 for (const [label, file] of SOURCES) {
   const tmp = path.join(os.tmpdir(), "bodysculpt-extracted-" + process.pid + "-" + label + ".js");

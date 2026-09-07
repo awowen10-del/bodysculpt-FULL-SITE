@@ -304,6 +304,89 @@ function defaultMonthlyPlan(ym) {
   };
 }
 
+
+// ===================== FINANCES (Income & Expenses) =====================
+// v122. The finance module replaces the Google Sheet "Finance Cockpit 2026". It is
+// deliberately its OWN set of keys, so nothing here can touch weeks/planning/plans.
+//   finance-txns-YYYY-MM  — one month of transactions  { ym, rows:[...], lastUpdated }
+//   finance-settings      — pot percentages, income-source keywords, category list
+//   finance-rules         — learned "description contains X -> category" rules
+//   finance-week-YYYY-MM-DD — one Thu→Wed week's pot move (marked done, amounts, note)
+// Per-month and per-week keys for the same reason planning uses per-quarter keys:
+// Blobs is last-write-wins within ONE key, so two months must never share one.
+const FIN_TXN_PREFIX = "finance-txns-";      // + "YYYY-MM"
+const FIN_SETTINGS_KEY = "finance-settings";
+const FIN_RULES_KEY = "finance-rules";
+const FIN_WEEK_PREFIX = "finance-week-";     // + "YYYY-MM-DD" (the Thursday it starts)
+function finTxnKeyOf(ym) { return FIN_TXN_PREFIX + ym; }
+function finWeekKeyOf(d) { return FIN_WEEK_PREFIX + d; }
+
+// The expense categories carried over from the sheet's SUMMARY block, in its order.
+const FIN_CATEGORIES = ["Wages","Pensions","Rent","Accounting","Software","Marketing",
+  "Cleaning","Lease","Bills","Website","Retail","Other","Travel","Mentorship","Charges",
+  "Owners Pay","Tax","Transfer"];
+const FIN_KEYMAPS = ["Essential","Optional","Can Cut"];
+
+function defaultFinanceSettings() {
+  return {
+    // Profit First. The sheet ran Tax 15% / Investment 4% of Stripe+GoCardless income.
+    potTaxPct: 15,
+    potInvestPct: 4,
+    // The sheet's cash traffic light was hardcoded: >= £2,000 net "Comfortable",
+    // >= 0 "Tight", below 0 "Protect cash". The threshold is a judgement about this
+    // business, not a fact, so it is a setting — the default is what the sheet used.
+    cashBuffer: 2000,
+    // Week runs Thursday → Wednesday. 4 = Thursday (0=Sun). The closing Thursday is
+    // excluded on purpose in the sheet — its payments are still landing — so it rolls
+    // into the next week. Kept as a setting rather than a constant so it can move.
+    weekStartDow: 4,
+    // Which descriptions count as which income source. Matched case-insensitively.
+    sources: { stripe: "STRIPE", gocardless: "GC C1", sumup: "SUMUP", nutraprep: "NUTRAPREP" },
+    // How a move between the user's OWN Santander accounts is recognised. Those rows
+    // are categorised "Transfer" and left out of every total — they are the weekly pot
+    // move, not spending, and counting them would double-count the same money.
+    transferKeyword: "BODYSCULPT TRANSFORMATION CENTRES",
+    // Only these sources are allocatable to pots (card takings, not loans or refunds).
+    allocatable: ["stripe", "gocardless"],
+    categories: FIN_CATEGORIES,
+    lastUpdated: ""
+  };
+}
+
+const FIN_CAP = 4000; // rows per month — far above a real month, but bounds a bad import
+
+function finStr(v, n) { return typeof v === "string" ? v.slice(0, n) : ""; }
+function finNum(v) { const x = Number(v); return Number.isFinite(x) ? Math.round(x * 100) / 100 : 0; }
+// Whitelist + coerce one transaction. `dir` is "in" or "out"; `amount` is always positive.
+// `hash` is the client's dedupe key (date|desc|amount|dir) — kept so a re-import of an
+// overlapping statement updates rows instead of duplicating them.
+function cleanTxn(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const date = finStr(raw.date, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const dir = raw.dir === "in" ? "in" : "out";
+  const amount = Math.abs(finNum(raw.amount));
+  if (!amount) return null;
+  return {
+    id: finStr(raw.id, 40) || (date + "-" + Math.random().toString(36).slice(2, 10)),
+    date, dir, amount,
+    desc: finStr(raw.desc, 300),
+    cat: dir === "out" ? finStr(raw.cat, 40) : "",
+    km: FIN_KEYMAPS.includes(raw.km) ? raw.km : "",
+    src: finStr(raw.src, 24),
+    note: finStr(raw.note, 500),
+    hash: finStr(raw.hash, 120),
+    importedAt: finStr(raw.importedAt, 30) || new Date().toISOString(),
+  };
+}
+function cleanRule(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const match = finStr(raw.match, 80).trim().toUpperCase();
+  if (match.length < 3) return null;
+  return { match, cat: finStr(raw.cat, 40), km: FIN_KEYMAPS.includes(raw.km) ? raw.km : "" };
+}
+function validYmd(d) { return typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d); }
+
 export default async (req) => {
   // Strong consistency: a read is guaranteed to return the most recent write.
   // Without this, Netlify Blobs is eventually consistent, so a refresh right after
@@ -382,6 +465,48 @@ export default async (req) => {
     return Response.json({ locations });
   }
 
+  // ---------- FINANCES ----------
+  // GET ?fintxns=YYYY-MM  → { ym, rows } for that month (empty when never imported).
+  if (req.method === "GET" && url.searchParams.get("fintxns")) {
+    const ym = url.searchParams.get("fintxns");
+    if (!validYm(ym)) return new Response("Bad month (expected YYYY-MM)", { status: 400 });
+    const saved = (await store.get(finTxnKeyOf(ym), { type: "json" })) || null;
+    return Response.json({ ym, rows: (saved && Array.isArray(saved.rows)) ? saved.rows : [],
+      lastUpdated: (saved && saved.lastUpdated) || "" });
+  }
+
+  // GET ?finmonths=1 → { months:["2026-06",...] } — every month that has data, oldest
+  // first. Listed from the blob keys, so nothing has to maintain a separate index.
+  if (req.method === "GET" && url.searchParams.get("finmonths") === "1") {
+    let months = [];
+    try {
+      const { blobs } = await store.list({ prefix: FIN_TXN_PREFIX });
+      months = (blobs || []).map((b) => b.key.slice(FIN_TXN_PREFIX.length))
+        .filter(validYm).sort();
+    } catch { months = []; }
+    return Response.json({ months });
+  }
+
+  // GET ?finsettings=1 → { settings } (pot %, income-source keywords, categories).
+  if (req.method === "GET" && url.searchParams.get("finsettings") === "1") {
+    const saved = (await store.get(FIN_SETTINGS_KEY, { type: "json" })) || null;
+    return Response.json({ settings: { ...defaultFinanceSettings(), ...(saved || {}) } });
+  }
+
+  // GET ?finrules=1 → { rules } — the learned description→category rules.
+  if (req.method === "GET" && url.searchParams.get("finrules") === "1") {
+    const rules = (await store.get(FIN_RULES_KEY, { type: "json" })) || [];
+    return Response.json({ rules: Array.isArray(rules) ? rules : [] });
+  }
+
+  // GET ?finweek=YYYY-MM-DD → { week } — one Thu→Wed pot move (empty default when new).
+  if (req.method === "GET" && url.searchParams.get("finweek")) {
+    const d = url.searchParams.get("finweek");
+    if (!validYmd(d)) return new Response("Bad week start (expected YYYY-MM-DD)", { status: 400 });
+    const saved = (await store.get(finWeekKeyOf(d), { type: "json" })) || null;
+    return Response.json({ week: saved || { weekStart: d, moved: false, tax: 0, invest: 0, note: "", checklist: {}, lastUpdated: "" } });
+  }
+
   // Monthly Plan: GET ?monthlyplan=YYYY-MM → { plan, quarterTag, rocks }
   if (req.method === "GET" && url.searchParams.get("monthlyplan")) {
     const ym = url.searchParams.get("monthlyplan");
@@ -450,6 +575,62 @@ export default async (req) => {
     let body;
     try { body = await req.json(); }
     catch { return new Response("Bad JSON", { status: 400 }); }
+
+    // ---------- FINANCES ----------
+    // Save one month of transactions. Body { finTxns: { ym, rows:[...] } }.
+    // Rows REPLACE the month wholesale — the client always holds the full month and
+    // merges imports locally, so a partial write can never half-erase a month.
+    if (body.finTxns && body.finTxns.ym) {
+      const ym = body.finTxns.ym;
+      if (!validYm(ym)) return new Response("Bad month (expected YYYY-MM)", { status: 400 });
+      const rows = (Array.isArray(body.finTxns.rows) ? body.finTxns.rows : [])
+        .map(cleanTxn).filter(Boolean).slice(0, FIN_CAP)
+        .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+      const rec = { ym, rows, lastUpdated: new Date().toISOString() };
+      await store.set(finTxnKeyOf(ym), JSON.stringify(rec));
+      return Response.json({ ok: true, ym, count: rows.length, lastUpdated: rec.lastUpdated });
+    }
+
+    // Save finance settings (merged over the defaults, so a partial save is safe).
+    if (body.finSettings && typeof body.finSettings === "object") {
+      const prev = (await store.get(FIN_SETTINGS_KEY, { type: "json" })) || {};
+      const next = { ...defaultFinanceSettings(), ...prev, ...body.finSettings,
+        lastUpdated: new Date().toISOString() };
+      next.potTaxPct = Math.max(0, Math.min(100, finNum(next.potTaxPct)));
+      next.potInvestPct = Math.max(0, Math.min(100, finNum(next.potInvestPct)));
+      next.cashBuffer = Math.max(0, finNum(next.cashBuffer));
+      await store.set(FIN_SETTINGS_KEY, JSON.stringify(next));
+      return Response.json({ ok: true, settings: next });
+    }
+
+    // Save the learned rules table wholesale. Body { finRules: [{match,cat,km}] }.
+    if (Array.isArray(body.finRules)) {
+      const rules = body.finRules.map(cleanRule).filter(Boolean).slice(0, 1000);
+      await store.set(FIN_RULES_KEY, JSON.stringify(rules));
+      return Response.json({ ok: true, count: rules.length, rules });
+    }
+
+    // Save one week's pot move. Body { finWeek: { weekStart, moved, tax, invest, note, checklist } }.
+    if (body.finWeek && body.finWeek.weekStart) {
+      const d = body.finWeek.weekStart;
+      if (!validYmd(d)) return new Response("Bad week start", { status: 400 });
+      const prev = (await store.get(finWeekKeyOf(d), { type: "json" })) || {};
+      const cl = {};
+      const rawCl = body.finWeek.checklist;
+      if (rawCl && typeof rawCl === "object" && !Array.isArray(rawCl)) {
+        for (const k of Object.keys(rawCl).slice(0, 40)) {
+          if (typeof rawCl[k] === "boolean") cl[finStr(k, 40)] = rawCl[k];
+        }
+      }
+      const week = { ...prev, weekStart: d,
+        moved: !!body.finWeek.moved,
+        tax: finNum(body.finWeek.tax), invest: finNum(body.finWeek.invest),
+        note: finStr(body.finWeek.note, 2000),
+        checklist: { ...(prev.checklist || {}), ...cl },
+        lastUpdated: new Date().toISOString() };
+      await store.set(finWeekKeyOf(d), JSON.stringify(week));
+      return Response.json({ ok: true, week });
+    }
 
     // Save settings (targets).
     if (body.settings) {

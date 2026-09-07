@@ -1,4 +1,11 @@
-// v120 — the top menu is trimmed to the three periods.
+// v120 — the top menu is trimmed, and (v122) grouped.
+//
+// v122 UPDATE: the menu is no longer a flat row of three. It is two labelled groups —
+// Planning (Weekly / Monthly / Quarterly) and Finances (Income & Expenses) — because
+// the finance page is not a step in the weekly→quarterly cadence and must not read as
+// one. What this test was actually protecting is unchanged and still checked: no HQ
+// launcher link, links labelled by period, exactly one active link per page, and the
+// section bar (#tabBar) untouched.
 //
 // The "Bodysculpt HQ" back-link (a hardcoded pointer at bodysculptdashboard.netlify.app)
 // is gone from all three pages, and the three remaining links are labelled by PERIOD
@@ -20,6 +27,7 @@ const PAGES = [
   ["index.html", WEEKLY, "/index.html"],
   ["monthly.html", MONTHLY, "/monthly.html"],
   ["quarterly.html", QUARTERLY, "/quarterly.html"],
+  ["finances.html", read("finances.html"), "/finances.html"],
 ];
 
 (async () => {
@@ -37,23 +45,28 @@ const PAGES = [
     assert.ok(!/EDIT THIS: point to your actual/.test(src), label + " dropped the stale placeholder comment");
   }
 
-  /* ================= 2. exactly three links, labelled by period ================= */
+  /* ============ 2. two groups, labelled by period, one active ============ */
   for (const [label, src, self] of PAGES) {
     const nav = /<nav class="topnav">([\s\S]*?)<\/nav>/.exec(src);
     assert.ok(nav, label + " still has a .topnav block");
 
+    // the group headings, in order
+    const groups = [...nav[1].matchAll(/<span class="navgroup">([^<]+)<\/span>/g)].map((m) => m[1].trim());
+    assert.deepStrictEqual(groups, ["Planning", "Finances"], label + " names the two groups");
+    assert.ok(/<span class="navsep"><\/span>/.test(nav[1]), label + " rules the groups apart");
+
     const links = [...nav[1].matchAll(/<a href="([^"]+)"([^>]*)>([\s\S]*?)<\/a>/g)];
-    assert.strictEqual(links.length, 3, label + " top menu has exactly three links");
+    assert.strictEqual(links.length, 4, label + " top menu has the three periods plus finances");
 
     assert.deepStrictEqual(
       links.map((m) => m[1]),
-      ["/index.html", "/monthly.html", "/quarterly.html"],
-      label + " links to the three pages in period order"
+      ["/index.html", "/monthly.html", "/quarterly.html", "/finances.html"],
+      label + " links to the three periods in order, then finances"
     );
     assert.deepStrictEqual(
       links.map((m) => m[3].trim()),
-      ["Weekly", "Monthly", "Quarterly"],
-      label + " labels the links by period alone"
+      ["Weekly", "Monthly", "Quarterly", "Income &amp; Expenses"],
+      label + " labels the periods by period alone"
     );
 
     // no stray markup left inside a label (the HQ link carried a <span class="ico">)

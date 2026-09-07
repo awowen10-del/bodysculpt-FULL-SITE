@@ -141,6 +141,13 @@
      nothing sitting under it and closes its own bottom edge. */
   .appbar{border-bottom:1px solid var(--line);border-radius:var(--r-lg);margin-bottom:var(--sp-4);}
   .appbar-right{flex:0 0 auto;margin-left:auto;display:flex;align-items:center;gap:var(--sp-2);}
+  /* v122: the nav is now two GROUPS, not one flat row of three. Planning (the
+     weekly→monthly→quarterly cadence) and Finances are different kinds of work, and
+     the label + rule says so without adding a second bar. */
+  .navgroup{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;font-weight:700;
+    color:var(--ink-faint);padding:0 10px 0 12px;align-self:center;white-space:nowrap;}
+  .navsep{width:1px;align-self:stretch;background:var(--line);margin:5px 6px;flex:0 0 auto;}
+  @media(max-width:720px){ .navgroup{padding:0 6px 0 8px;} .navsep{margin:5px 2px;} }
   .topnav{display:flex;gap:2px;background:var(--navy-2);border:1px solid var(--line);
     border-radius:var(--r-pill);padding:3px;margin:0 auto;}
   .topnav a{text-decoration:none;font-size:13.5px;font-weight:500;color:var(--ink-dim);
@@ -776,9 +783,13 @@
       <div><h1>Bodysculpt</h1><div class="sub">Warrington</div></div>
     </div>
     <nav class="topnav">
+      <span class="navgroup">Planning</span>
       <a href="/index.html">Weekly</a>
       <a href="/monthly.html">Monthly</a>
       <a href="/quarterly.html" class="active">Quarterly</a>
+      <span class="navsep"></span>
+      <span class="navgroup">Finances</span>
+      <a href="/finances.html">Income &amp; Expenses</a>
     </nav>
   </div>
   <div class="yhead">

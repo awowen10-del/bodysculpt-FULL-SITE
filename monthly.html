@@ -155,6 +155,13 @@
     border-radius:var(--r-lg) var(--r-lg) 0 0;padding:0 var(--sp-4);min-height:60px;flex-wrap:wrap;}
   .appbar .brand{flex:0 0 auto;}
   .appbar-right{flex:0 0 auto;margin-left:auto;display:flex;align-items:center;gap:var(--sp-2);}
+  /* v122: the nav is now two GROUPS, not one flat row of three. Planning (the
+     weekly→monthly→quarterly cadence) and Finances are different kinds of work, and
+     the label + rule says so without adding a second bar. */
+  .navgroup{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;font-weight:700;
+    color:var(--ink-faint);padding:0 10px 0 12px;align-self:center;white-space:nowrap;}
+  .navsep{width:1px;align-self:stretch;background:var(--line);margin:5px 6px;flex:0 0 auto;}
+  @media(max-width:720px){ .navgroup{padding:0 6px 0 8px;} .navsep{margin:5px 2px;} }
   .topnav{display:flex;gap:2px;background:var(--navy-2);border:1px solid var(--line);
     border-radius:var(--r-pill);padding:3px;margin:0 auto;}
   .topnav a{text-decoration:none;font-size:13.5px;font-weight:500;color:var(--ink-dim);
@@ -577,7 +584,7 @@
 <symbol id="ic-walk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4.2" r="2"/><path d="M9.5 21l2.5-5.5V11L9 13"/><path d="M12 15.5l3 5.5M12 9l3 2 2.5-.8M12 9l-3 1.5"/></symbol>
 <symbol id="ic-yoga" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.2" r="2"/><path d="M12 7v6M12 13l-5 6M12 13l5 6M4 10.5l8 1.5 8-1.5"/></symbol>
 </defs></svg>
-<!-- build v121 · design-pass -->
+<!-- build v122 · finances -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -585,9 +592,13 @@
       <div><h1>Bodysculpt</h1><div class="sub">Warrington</div></div>
     </div>
     <nav class="topnav">
+      <span class="navgroup">Planning</span>
       <a href="/index.html">Weekly</a>
       <a href="/monthly.html" class="active">Monthly</a>
       <a href="/quarterly.html">Quarterly</a>
+      <span class="navsep"></span>
+      <span class="navgroup">Finances</span>
+      <a href="/finances.html">Income &amp; Expenses</a>
     </nav>
     <div class="appbar-right">
       <div class="monthpick"><span>Month</span><select id="monthSel"></select></div>
@@ -821,7 +832,7 @@
      after a monthly-only release. Same pill as the Weekly Dashboard's footer, and the two
      pages carry the SAME suite build string — a test fails if they ever drift apart. -->
 <footer class="mp-footer">
-  <span class="mp-stage">build v121 · design-pass</span>
+  <span class="mp-stage">build v122 · finances</span>
 </footer>
 
 <!-- v93: focus-item notes editor — the v70 rich editor in a Today-modal-style dialog.

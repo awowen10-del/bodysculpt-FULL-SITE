@@ -70,8 +70,12 @@ function stripComments(src) {
 
 (async () => {
   /* ================= 0. the build stamp ================= */
-  assert.ok(/<!-- build v121 · design-pass -->/.test(MONTHLY), "monthly.html stamped v121 · design-pass");
-  assert.ok(WEEKLY.includes("build v121 · design-pass"), "index.html carries the same stamp");
+  // Same rule this file applied to v120: once a newer release ships, the older test
+  // stops pinning its own stamp and only checks the build never goes backwards and
+  // that the pages agree. v122's test pins the exact current stamp.
+  const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(MONTHLY);
+  assert.ok(stamp && Number(stamp[1]) >= 121, "monthly.html stamped v121 or later");
+  assert.ok(WEEKLY.includes("build v" + stamp[1] + " · " + stamp[2]), "index.html carries the same stamp");
 
   /* ================= 1. dark mode is gone, not merely off ================= */
   for (const f of FILES) {

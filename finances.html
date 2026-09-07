@@ -1,0 +1,2134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<title>Bodysculpt Finances</title>
+<!-- v119: Inter, the one typeface for the whole suite. The system stack stays behind it
+     as the fallback, so an offline/blocked load renders exactly as it did before. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  /* ===================== THEME TOKENS =====================
+     Every colour in this stylesheet resolves to one of these — there are no literal
+     colours below this block. ONE theme: the neutral light palette. (v106 shipped a
+     dark/light pair and v108 re-cut the light half; v121 dropped dark entirely, because
+     it was never used. Every token NAME is unchanged, so all ~140 var(--x) references
+     across the three pages still resolve.)
+     The *-rgb tokens are bare "r,g,b" triples, so the many rgba(<accent>,<alpha>) tints
+     throughout the stylesheet stay tied to the same single source of truth.
+     The accents CARRY MEANING and must stay distinct from each other:
+       orange = business / brand          teal  = recurring
+       green  = training + done           blue  = home location, buffer, decisions
+       amber  = watch / warning           red   = problem / delete
+       info   = acquisition + decision panels   loc-warrington = the other location badge
+     "orange" is a TOKEN NAME, not a promise of hue. Renaming it would touch every one of
+     those references across three files, so the name stayed. */
+  :root{
+    /* ===== METRICS — not colours =====
+       v121 put the ad-hoc numbers on scales. Radius was six values (8/10/12/16/20/pill)
+       often nested inside each other; it is now three plus the pill. Spacing was 14/16/26
+       used interchangeably for the same job; it is now a 4-based ramp. --radius is kept as
+       the old name for the card radius so existing rules keep resolving. */
+    --r-sm:6px;      /* chips, inputs, the small stuff inside a control */
+    --r-md:10px;     /* buttons, selects, toolbars */
+    --r-lg:14px;     /* cards, panels, modals */
+    --r-pill:999px;
+    --radius:var(--r-lg);
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px; --sp-7:48px;
+    /* motion + focus. Every interactive element takes --focus on :focus-visible. */
+    --tap:.12s ease;
+    --chev-mask:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>');
+    --focus:0 0 0 2px var(--card), 0 0 0 4px rgba(var(--orange-rgb),.55);
+  }
+  :root{
+    color-scheme:light;
+    /* THREE TIERS OF DEPTH, and they must stay three: the page (--navy) is a soft, slightly
+       cool grey; the card (--card) is near-white and therefore visibly LIFTS off it; --line
+       is a fine neutral hairline that draws the card's edge. Tone step + hairline do the
+       work — the shadows below are deliberately soft. --navy-2 is the recessed inset inside
+       a card (toolbars, sticky heads, sub-panels), so it sits BELOW the card, not above.
+       v121 deepened the page a step and tightened the hairline, so a white card reads as an
+       object on the page rather than blending into it. */
+    --navy:#eef0f4; --navy-2:#e4e8ef; --card:#ffffff; --card-2:#f6f8fb;
+    --line:#d9dee7; --line-rgb:217,222,231;
+    /* dark-but-soft ink — a cool near-black, never #000; --ink-dim/-faint are muted greys.
+       The ramp runs strong → ink → dim → faint, lightening at every step. */
+    --ink:#171b22; --ink-dim:#59616f; --ink-faint:#737c8a; --ink-strong:#0b0e14;
+    --ink-dim-rgb:89,97,111; --ink-faint-rgb:115,124,138;
+    --on-accent:#fff;
+    /* THE BRAND. v108 pointed this at a muted slate-blue, which was safe and completely
+       anonymous — near enough the framework default that the app read as unbranded. v121
+       brings back the terracotta the dark theme always had, deepened so it holds its own
+       on a near-white card (5.44:1 on --card, and white on the solid fill is the same). */
+    --orange:#b4471b; --orange-soft:#93380f; --orange-rgb:180,71,27; --orange-soft-rgb:147,56,15;
+    --green:#17804d; --green-2:#0f6d40; --green-rgb:23,128,77; --green2-rgb:15,109,64;
+    /* amber shifted yellower and red shifted toward crimson: both had to clear the brand by
+       85 of summed RGB distance once the brand went warm, or "watch" and "problem" would
+       have read as shades of the brand instead of as states. */
+    --amber:#96700a; --amber-2:#85620a; --amber-rgb:150,112,10; --amber2-rgb:133,98,10;
+    --red:#ab1338; --red-2:#911029; --red-rgb:171,19,56; --red2-rgb:145,16,41;
+    --teal:#0d7d8a; --teal-soft:#0a6873; --teal-bright:#08555e; --teal-rgb:13,125,138;
+    /* home/buffer is indigo; the Warrington badge moved off copper to plum in v121, because
+       copper existed only to dodge a blue brand and now sat right on top of a warm one. */
+    --blue:#6247b5; --blue-soft:#513a99; --blue-rgb:98,71,181;
+    --info:#2b6cd9; --info-rgb:43,108,217;
+    --loc-warrington:#7a3363; --grad-mid:#6d9a2e;
+    /* the DEEP version of each accent — the chip behind them is a pale tint of the same
+       hue, so a pale text colour would vanish */
+    --tint-red:#8f1030; --tint-amber:#6f5308; --tint-green:#136540;
+    --tint-blue:#46337f; --tint-orange:#8f3813;
+    --panel-0:#f4f6fa; --panel-1:#eff2f8; --panel-2:#e8ecf4;
+    --hero-1:#f6f8fc; --hero-2:#eef0f4; --hero-3:#e6eaf2;
+    --mark-bg:#eaedf4; --chart-grid:#dfe4ee;
+    /* a cool near-black scrim genuinely dims the page behind a modal; the shadow and the
+       hover "lift" are the ink tone at low alpha, so a hover DARKENS the surface it sits on. */
+    --backdrop-rgb:20,26,38;
+    --shadow-rgb:23,27,34;
+    --lift-rgb:23,27,34;
+    /* TWO shadow steps, not one. A single large soft shadow on every card reads as haze on
+       a light page: --shadow just separates a card from the ground, --shadow-lift is for
+       things that genuinely float (modals, popovers, the week picker). */
+    --shadow:0 1px 2px rgba(var(--shadow-rgb),.04), 0 1px 3px rgba(var(--shadow-rgb),.07);
+    --shadow-lift:0 4px 6px -1px rgba(var(--shadow-rgb),.06), 0 12px 24px -6px rgba(var(--shadow-rgb),.14);
+  }
+  /* v121: every icon in the suite. Sized in em so it always matches its text, and drawn
+     in currentColor so it always matches its colour — the whole reason the emoji went. */
+  .ic{width:1em;height:1em;display:inline-block;vertical-align:-.135em;flex:0 0 auto;}
+  .ic-lg{width:1.25em;height:1.25em;}
+  /* v121: there was no :focus-visible styling anywhere in the suite. One ring, everywhere. */
+  a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,
+  textarea:focus-visible,[tabindex]:focus-visible,[contenteditable]:focus-visible{
+    outline:none;box-shadow:var(--focus);border-radius:var(--r-sm);}
+  @media (prefers-reduced-motion:reduce){ *,*::before,*::after{
+    animation-duration:.01ms!important;animation-iteration-count:1!important;
+    transition-duration:.01ms!important;scroll-behavior:auto!important;} }
+  /* v121: the collapse caret is one icon that rotates, not two different glyphs. */
+  .chev .ic,.qsnap-chev .ic,.mp-chev .ic{transition:transform var(--tap);transform:rotate(-90deg);}
+  .chev.open .ic,.open>.chev .ic,.qsnap-chev.open .ic{transform:rotate(0deg);}
+  /* carets that used to be a " ▾" in a ::after. Masked so they still follow currentColor. */
+  .chev-after::after{content:"";display:inline-block;width:.62em;height:.62em;margin-left:.34em;
+    background:currentColor;vertical-align:.02em;
+    -webkit-mask:var(--chev-mask) center/contain no-repeat;mask:var(--chev-mask) center/contain no-repeat;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{background:var(--navy);color:var(--ink);}
+  /* v94: the same container as the Weekly Dashboard's .wrap — max-width:1500px, centred,
+     20px gutters — so the two pages render at one width. Weekly puts this on a .wrap div;
+     here the body IS the container, so the same numbers live on it. Keep them in step. */
+  body{font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;line-height:1.4;padding:0 20px 64px;max-width:1500px;margin:0 auto;}
+  a{color:inherit;}
+  h1{font-size:14.5px;font-weight:600;letter-spacing:-.012em;line-height:1.15;}
+  .sub{font-size:10.5px;color:var(--ink-faint);font-weight:500;letter-spacing:.05em;
+    text-transform:uppercase;margin-top:1px;}
+  header{padding:18px 0 8px;}
+  .htop{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .mark{width:32px;height:32px;border-radius:var(--r-md);overflow:hidden;flex:0 0 auto;
+    border:1px solid var(--line);background:var(--mark-bg);}
+  .monthpick{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-dim);}
+  .periodbar{display:flex;align-items:center;gap:10px;margin-top:12px;background:var(--navy-2);
+    border:1px solid var(--line);border-radius:12px;padding:8px 10px;}
+  .pb-arrow{background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:8px;
+    width:38px;height:36px;font-size:16px;font-weight:800;cursor:pointer;flex:0 0 auto;}
+  .pb-arrow:hover:not(:disabled){border-color:var(--orange);color:var(--orange-soft);}
+  .pb-arrow:disabled{opacity:.35;cursor:not-allowed;}
+  .pb-label{flex:1;text-align:center;font-size:15px;font-weight:800;color:var(--ink-strong);letter-spacing:-.2px;}
+  .pb-jump{background:var(--card);border:1px solid var(--line);color:var(--ink-dim);border-radius:8px;
+    padding:8px 13px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;flex:0 0 auto;}
+  .pb-jump:hover{border-color:var(--orange);color:var(--ink);}
+  .monthpick select{font-family:inherit;background:var(--card);color:var(--ink);border:1px solid var(--line);
+    border-radius:10px;padding:8px 10px;font-size:13px;font-weight:600;}
+  /* ===================== v121: THE APP BAR =====================
+     Until v120 the header was TWO identical full-width pill bars stacked on top of each
+     other — same shape, same weight, same filled active state — so nothing said which was
+     the product and which was the page. Now there are two clearly different treatments:
+       .appbar  — sticky chrome: the brand, then a compact segmented control for the three
+                  PERIODS (Weekly / Monthly / Quarterly), sized to its content;
+       .viewtoggle — quiet underline tabs for the SECTIONS inside the page.
+     .topnav and #tabBar keep their names and their handlers; only the dress changed. */
+  .appbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:var(--sp-5);
+    background:var(--card);border:1px solid var(--line);border-bottom:0;
+    border-radius:var(--r-lg) var(--r-lg) 0 0;padding:0 var(--sp-4);min-height:60px;flex-wrap:wrap;}
+  .appbar .brand{flex:0 0 auto;}
+  .appbar-right{flex:0 0 auto;margin-left:auto;display:flex;align-items:center;gap:var(--sp-2);}
+  /* v122: the nav is now two GROUPS, not one flat row of three. Planning (the
+     weekly→monthly→quarterly cadence) and Finances are different kinds of work, and
+     the label + rule says so without adding a second bar. */
+  .navgroup{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;font-weight:700;
+    color:var(--ink-faint);padding:0 10px 0 12px;align-self:center;white-space:nowrap;}
+  .navsep{width:1px;align-self:stretch;background:var(--line);margin:5px 6px;flex:0 0 auto;}
+  @media(max-width:720px){ .navgroup{padding:0 6px 0 8px;} .navsep{margin:5px 2px;} }
+  .topnav{display:flex;gap:2px;background:var(--navy-2);border:1px solid var(--line);
+    border-radius:var(--r-pill);padding:3px;margin:0 auto;}
+  .topnav a{text-decoration:none;font-size:13.5px;font-weight:500;color:var(--ink-dim);
+    padding:7px 20px;border-radius:var(--r-pill);letter-spacing:-.005em;white-space:nowrap;
+    transition:color var(--tap),background var(--tap);}
+  .topnav a:hover{color:var(--ink);}
+  .topnav a.active{background:var(--card);color:var(--ink);font-weight:600;box-shadow:var(--shadow);}
+  .topnav a:focus-visible{outline:none;box-shadow:var(--focus);}
+  .viewtoggle{display:flex;gap:2px;background:var(--card);border:1px solid var(--line);
+    border-top:0;border-radius:0 0 var(--r-lg) var(--r-lg);padding:0 var(--sp-4);
+    margin:0 0 var(--sp-4);overflow-x:auto;}
+  .viewtoggle .vt{flex:0 0 auto;font-family:inherit;font-size:13.5px;font-weight:500;
+    color:var(--ink-dim);background:transparent;border:0;border-bottom:2px solid transparent;
+    border-radius:0;padding:12px 15px 10px;cursor:pointer;white-space:nowrap;
+    letter-spacing:-.005em;transition:color var(--tap),border-color var(--tap);}
+  .viewtoggle .vt:hover{color:var(--ink);}
+  .viewtoggle .vt.active{color:var(--ink);font-weight:600;border-bottom-color:var(--orange);}
+  .viewtoggle .vt:focus-visible{outline:none;box-shadow:var(--focus);border-radius:var(--r-sm);}
+  @media(max-width:720px){
+    .appbar{min-height:0;padding:var(--sp-3) var(--sp-3) 0;gap:var(--sp-3);}
+    .topnav{margin:0 0 var(--sp-3);width:100%;}
+    .topnav a{flex:1;text-align:center;padding:7px 8px;}
+  }
+  /* v106: theme toggle — a quiet chip at the end of the top nav, same family as the links */
+  .actionbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px;}
+  .abtn{font-family:inherit;font-size:13px;font-weight:500;color:var(--ink);background:var(--card);
+    border:1px solid var(--line);border-radius:var(--r-md);padding:9px 14px;cursor:pointer;
+    display:inline-flex;align-items:center;gap:7px;letter-spacing:-.005em;box-shadow:var(--shadow);
+    transition:border-color var(--tap),background var(--tap);}
+  .abtn:hover{border-color:var(--ink-faint);}
+  .abtn.primary{background:var(--orange);color:var(--on-accent);border-color:transparent;font-weight:600;}
+  .abtn.ghost{background:transparent;color:var(--ink-dim);}
+  .abtn.primary{background:var(--orange);border-color:var(--orange);color:var(--on-accent);}
+  .msg{font-size:12px;color:var(--ink-faint);}
+  section{margin-top:18px;}
+  .view[hidden]{display:none;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;box-shadow:var(--shadow);}
+  .card + .card{margin-top:14px;}
+  .ctitle{font-size:11.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-faint);
+    font-weight:700;margin-bottom:12px;}
+  .ctitle-white{color:var(--ink);}
+  .home-head{margin-top:18px;}
+  .home-head .rule-pill{display:inline-block;margin-top:4px;}
+  .hsec{margin-top:22px;}
+  .hsec-title{font-size:15px;font-weight:800;letter-spacing:-.2px;color:var(--ink-strong);margin-bottom:12px;}
+  /* Growth: tiles left, chart right */
+  .gpair{display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:18px;align-items:start;
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);}
+  .gpair-chart{min-width:0;}
+  .ytiles{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+  .ycell{background:var(--navy-2);border:1px solid var(--line);border-radius:8px;padding:7px 6px;text-align:center;}
+  .ycell .ym{font-size:8.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint);font-weight:700;}
+  .ycell .yv{font-size:14px;font-weight:800;margin-top:2px;letter-spacing:-.3px;}
+  .ycell .yd{font-size:9px;font-weight:600;margin-top:1px;}
+  .ycell.cur{border-color:var(--orange);}
+  @media (max-width:760px){
+    .gpair{grid-template-columns:1fr;}
+  }
+  /* scoreboard */
+  .scoreboard{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:16px;}
+  .score{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;}
+  .score .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);font-weight:700;}
+  .score .val{font-size:28px;font-weight:800;letter-spacing:-.5px;margin-top:6px;}
+  .score .delta{font-size:12px;font-weight:600;margin-top:4px;}
+  .up{color:var(--green);} .down{color:var(--red);} .flat{color:var(--ink-faint);}
+  /* glance tiles */
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;}
+  .tile{background:var(--navy-2);border:1px solid var(--line);border-radius:12px;padding:12px;}
+  .tile .lbl{font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-dim);font-weight:700;}
+  .tile .val{font-size:21px;font-weight:800;margin-top:5px;color:var(--ink-strong);}
+  .tile .sub{font-size:11px;color:var(--ink-dim);margin-top:2px;}
+  .tile .tdelta{font-size:11px;font-weight:700;margin-top:5px;display:inline-block;}
+  .tile .tdelta.up{color:var(--green);}
+  .tile .tdelta.down{color:var(--red);}
+  .tile .tdelta.flat{color:var(--ink-faint);font-weight:600;}
+  /* entry grid */
+  .entry{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-top:16px;}
+  .entry-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .entry-close{background:transparent;border:0;color:var(--ink-faint);font-size:18px;cursor:pointer;font-family:inherit;}
+  .egrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
+  .egrid.cols3{grid-template-columns:repeat(auto-fit,minmax(130px,1fr));}
+  label.f{display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--ink-dim);font-weight:600;}
+  label.f input{font-family:inherit;background:var(--navy-2);color:var(--ink);border:1px solid var(--line);
+    border-radius:10px;padding:10px;font-size:15px;}
+  label.f input:focus{outline:none;border-color:var(--orange);}
+  label.f.over input{border-color:var(--amber);}
+  label.f.calc{color:var(--ink-faint);}
+  label.f.calc input{background:var(--navy);border-style:dashed;color:var(--orange-soft);font-weight:700;cursor:default;}
+  .calc-tag{display:inline-block;font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;
+    color:var(--orange-soft);background:rgba(var(--orange-rgb),.14);border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:1px;}
+  .calc-hint{font-size:9.5px;color:var(--ink-faint);font-weight:600;margin-top:1px;}
+  .esub{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);font-weight:700;margin:16px 0 8px;}
+  .esub-total{font-size:14px;font-weight:800;color:var(--orange-soft);margin:12px 0 4px;}
+  .erow-actions{display:flex;gap:10px;align-items:center;margin-top:16px;flex-wrap:wrap;}
+  .save{font-family:inherit;background:var(--orange);border:0;color:var(--on-accent);font-weight:700;font-size:14px;
+    border-radius:10px;padding:11px 18px;cursor:pointer;}
+  .ghostbtn{font-family:inherit;background:transparent;border:1px solid var(--line);color:var(--ink-dim);
+    font-weight:600;font-size:13px;border-radius:10px;padding:10px 14px;cursor:pointer;}
+  /* tables */
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:12px;}
+  table{border-collapse:collapse;width:100%;font-size:12px;white-space:nowrap;}
+  th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line);}
+  th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--card);font-weight:600;z-index:1;}
+  thead th{position:sticky;top:0;background:var(--navy-2);color:var(--ink-dim);font-weight:700;
+    text-transform:uppercase;letter-spacing:.4px;font-size:10px;}
+  tbody tr:hover td{background:var(--card-2);}
+  /* expense comparison table — readability pass */
+  .cmp-table{border-collapse:separate;border-spacing:0;}
+  .cmp-table th, .cmp-table td{font-variant-numeric:tabular-nums;}
+  .cmp-table thead th{font-size:10px;padding:10px 14px;background:transparent;border-bottom:1px solid var(--line);}
+  .cmp-table thead th:not(:first-child){text-align:right;}
+  .cmp-table td{padding:11px 14px;border-bottom:1px solid rgba(var(--line-rgb),.45);font-size:13px;}
+  .cmp-table td:not(:first-child){text-align:right;}
+  .cmp-table td:first-child{color:var(--ink);font-weight:600;font-size:12px;}
+  .cmp-table tbody tr:nth-child(even) td{background:rgba(var(--lift-rgb),.015);}
+  .cmp-table tbody tr:hover td{background:rgba(var(--lift-rgb),.04);}
+  /* past months: quiet reference, value only */
+  .cmp-table .past{color:var(--ink-faint);font-weight:400;}
+  /* current month: the anchor */
+  .cmp-table thead th.cur-col{color:var(--orange-soft);font-weight:700;
+    background:rgba(var(--orange-rgb),.10);border-bottom:2px solid var(--orange);}
+  .cmp-table td.cur-col{background:rgba(var(--orange-rgb),.08);color:var(--ink);font-weight:700;font-size:14px;
+    border-left:1px solid rgba(var(--orange-rgb),.25);border-right:1px solid rgba(var(--orange-rgb),.25);}
+  .cmp-table tbody tr:nth-child(even) td.cur-col{background:rgba(var(--orange-rgb),.11);}
+  .cmp-table tbody tr:hover td.cur-col{background:rgba(var(--orange-rgb),.15);}
+  /* the single delta lives only in the current column */
+  .vsdelta{display:inline-block;font-size:10px;font-weight:700;margin-left:7px;
+    padding:1px 5px;border-radius:5px;vertical-align:1px;}
+  .vsdelta.up{color:var(--red);background:rgba(var(--red-rgb),.12);}
+  .vsdelta.down{color:var(--green);background:rgba(var(--green-rgb),.12);}
+  .vsdelta.flat{color:var(--ink-faint);background:transparent;}
+  .vsdelta.vd-good{color:var(--green);background:rgba(var(--green-rgb),.12);}
+  .vsdelta.vd-bad{color:var(--red);background:rgba(var(--red-rgb),.12);}
+  .vsdelta.vd-flat{color:var(--ink-faint);background:transparent;}
+  .cmp-table .sect-row td{background:var(--navy-2);color:var(--ink-faint);text-transform:uppercase;
+    letter-spacing:.5px;font-size:10px;font-weight:700;padding:8px 14px;}
+  /* total row */
+  .cmp-table .totrow td{border-top:2px solid var(--line);border-bottom:none;
+    background:var(--navy-2);font-weight:800;font-size:14px;padding-top:14px;padding-bottom:14px;}
+  .cmp-table .totrow td:first-child{color:var(--ink);text-transform:uppercase;letter-spacing:.5px;font-size:11px;}
+  .cmp-table .totrow td.cur-col{background:rgba(var(--orange-rgb),.16);}
+  /* charts */
+  .chart-wrap{width:100%;overflow:hidden;}
+  svg{display:block;width:100%;height:auto;}
+  .legend{display:flex;gap:16px;font-size:11px;color:var(--ink-dim);margin-bottom:8px;flex-wrap:wrap;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .swatch{width:12px;height:12px;border-radius:3px;display:inline-block;}
+  /* retention tiles */
+  .ret-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;}
+  .ret{background:var(--navy-2);border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center;}
+  .ret .m{font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);font-weight:700;}
+  .ret .p{font-size:18px;font-weight:800;margin-top:3px;}
+  .ret .d{font-size:10px;font-weight:600;margin-top:2px;}
+  /* AI mentor */
+  .mentor-ai{margin:16px 0 4px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--card);}
+  .mentor-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;}
+  .mentor-title{display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px;}
+  .mentor-dot{width:9px;height:9px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 4px rgba(var(--orange-rgb),.18);}
+  .mentor-verdict{font-size:13px;color:var(--ink-dim);padding:0 16px 16px;line-height:1.6;white-space:pre-wrap;}
+  .mentor-body{padding:0 16px 16px;border-top:1px solid var(--line);}
+  .mentor-body[hidden]{display:none;}
+  .mentor-text{font-size:13px;line-height:1.7;white-space:pre-wrap;color:var(--ink);margin-top:14px;}
+  .chev{color:var(--ink-faint);font-size:13px;}
+  .loading{font-size:12px;color:var(--ink-faint);font-style:italic;}
+  .empty{font-size:13px;color:var(--ink-dim);text-align:center;padding:28px 16px;line-height:1.6;}
+  .note{font-size:11px;color:var(--ink-faint);margin-top:10px;line-height:1.5;}
+  .rule-pill{display:inline-block;font-size:10px;color:var(--ink-faint);background:var(--navy-2);
+    border:1px solid var(--line);border-radius:999px;padding:4px 9px;margin-top:8px;}
+  @media (max-width:520px){
+    .score .val{font-size:24px;}
+    h1{font-size:18px;}
+  }
+  /* ===== MONTHLY PLAN ===== */
+  /* v96: the header stack is heading → rule pill → "Last saved" → first panel. The pill is
+     an inline-block, so its line box left a loose gap beneath it, while the saved line had
+     no margin at all and sat flush against the panel below. Now: even 8px steps through the
+     header (which keeps the saved line grouped with the heading it reports on), then a
+     slightly larger 14px step to separate the header from the content. Scoped to .mp-head so
+     the KPIs/Expenses/Growth headers are untouched. */
+  .mp-head{margin-top:18px;margin-bottom:14px;}
+  .mp-head .ctitle{margin-bottom:8px;}
+  .mp-head .rule-pill{display:block;width:fit-content;margin-top:0;}
+  .mp-head .mp-saved{margin-top:8px;}
+  .mp-head .mp-saved:empty{display:none;}   /* before the first save, no orphaned gap */
+  .mp-saved{font-size:12px;color:var(--ink-faint);}
+  .mp-saved.ok{color:var(--green-2);}
+  .mp-loading{font-size:13px;color:var(--ink-dim);font-style:italic;padding:20px 0;}
+  .mp-box{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);
+    overflow:hidden;margin-bottom:var(--sp-4);box-shadow:var(--shadow);}
+  /* v121: was 12px/800 uppercase in the brand colour on every card — four of them stacked,
+     all shouting at the same volume. Sentence case, ink, and the section rule above them is
+     now the only uppercase level on the page. */
+  .mp-box-h{background:var(--card-2);border-bottom:1px solid var(--line);padding:11px 14px;
+    font-size:14px;font-weight:600;letter-spacing:-.008em;color:var(--ink);
+    display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .mp-box-h .mp-hint{font-size:11.5px;font-weight:400;letter-spacing:0;color:var(--ink-faint);}
+  .mp-sec-save{display:flex;align-items:center;gap:9px;}
+  .mp-ssave{background:var(--card);color:var(--ink-dim);border:1px solid var(--line);
+    border-radius:var(--r-sm);padding:5px 12px;box-shadow:var(--shadow);
+    font-family:inherit;font-size:11.5px;font-weight:500;letter-spacing:0;cursor:pointer;
+    transition:border-color var(--tap),color var(--tap);}
+  .mp-ssave:hover{border-color:var(--orange);color:var(--orange);}
+  .mp-ssave:disabled{opacity:.5;cursor:wait;}
+  .mp-ssaved{font-size:10.5px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink-faint);}
+  .mp-ssaved.ok{color:var(--green-2);}
+  .mp-box-body{padding:14px;}
+  .mp-rock{display:flex;align-items:flex-start;gap:10px;padding:9px 11px;background:var(--navy);
+    border:1px solid var(--line);border-radius:9px;margin-bottom:8px;}
+  .mp-rock:last-child{margin-bottom:0;}
+  .mp-rock-num{width:20px;height:20px;flex:none;border-radius:5px;background:rgba(var(--orange-rgb),.16);
+    color:var(--orange-soft);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:1px;}
+  .mp-rock-body{flex:1;}
+  .mp-rock-title{font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.4;}
+  .mp-rock-meta{font-size:11px;color:var(--ink-faint);margin-top:2px;}
+  .mp-rocks-empty{font-size:12.5px;color:var(--ink-faint);line-height:1.6;}
+  .mp-rocks-empty a{color:var(--orange-soft);cursor:pointer;text-decoration:underline;}
+  .mp-item{background:var(--card-2);border:1px solid var(--line);border-radius:10px;padding:11px;margin-bottom:9px;}
+  .mp-item input.mp-title{font-weight:600;}
+  /* ===== v109: focus / personal items are TILES in a 3-across grid =====
+     Three columns at full width, two on a narrow desktop, one on a phone. The counts are
+     set explicitly rather than by auto-fit, because "3 across" is the ask, not whatever
+     falls out of the container width (auto-fit gives 4–5 columns at this page's 1500px).
+     minmax(0,1fr) is what makes the columns actually equal — a grid item's min-width:auto
+     otherwise lets a long <select> option push its column wider, the same trap v93 hit.
+     Grid rows stretch by default, so every tile in a row is as tall as the tallest one;
+     the tile is a flex COLUMN whose footer takes margin-top:auto, so the controls sit on
+     the bottom edge instead of floating mid-tile and the row reads as a row. That is the
+     v79 idiom from the weekly app's side-by-side Buffer/Training cards. */
+  .mp-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:stretch;}
+  @media(max-width:1080px){ .mp-tiles{grid-template-columns:repeat(2,minmax(0,1fr));} }
+  @media(max-width:700px){ .mp-tiles{grid-template-columns:minmax(0,1fr);} }
+  /* the tile itself: same card as the row it replaces, now a column with a pinned footer */
+  .mp-tiles .mp-item{margin-bottom:0;display:flex;flex-direction:column;gap:8px;min-width:0;
+    box-shadow:0 1px 2px rgba(var(--shadow-rgb),.05);}
+  .mp-tile-foot{margin-top:auto;display:flex;flex-direction:column;gap:7px;}
+  .mp-tile-ctl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .mp-tile-ctl .mp-del{margin-left:auto;}
+  /* provenance/link tags live under the controls; the row collapses when there are none */
+  .mp-tile-tags{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .mp-tile-tags:empty{display:none;}
+  /* v109: the note is never on the tile face — this is the door to the v93 popup. Quiet
+     when the item has no note yet, accented once it has one, so a glance down the grid
+     shows which items carry thinking without any of it taking up tile space. */
+  .mp-note-ico{flex:none;width:30px;height:30px;padding:0;line-height:1;font-size:14px;cursor:pointer;
+    display:inline-flex;align-items:center;justify-content:center;border-radius:8px;
+    background:rgba(var(--orange-rgb),.12);border:1px solid rgba(var(--orange-rgb),.28);color:var(--orange-soft);}
+  .mp-note-ico:hover{border-color:var(--orange);}
+  .mp-note-ico.empty{background:transparent;border:1px solid var(--line);color:var(--ink-faint);opacity:.85;}
+  .mp-note-ico.empty:hover{opacity:1;color:var(--ink-dim);}
+  .mp-personal .mp-note-ico{background:rgba(var(--green-rgb),.12);border-color:rgba(var(--green-rgb),.3);color:var(--green);}
+  .mp-personal .mp-note-ico:hover{border-color:var(--green);}
+  .mp-personal .mp-note-ico.empty{background:transparent;border-color:var(--line);color:var(--ink-faint);}
+  /* v90: the Done toggle. It used to be crushed by the generic "#mpBody input{width:100%}"
+     rule below (id specificity beat the old .mp-chk sizing), which stretched the checkbox
+     and squeezed the word "Done" out of its box. Checkboxes now opt out of that rule and
+     the toggle is a proper 30px pill, the same height as the Rock badge beside it. */
+  .mp-done,.mp-linktag{height:30px;box-sizing:border-box;display:inline-flex;align-items:center;flex:none;}
+  .mp-done{gap:8px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy);
+    font-size:12px;font-weight:700;color:var(--ink-dim);white-space:nowrap;cursor:pointer;user-select:none;}
+  .mp-done:hover{border-color:var(--orange);color:var(--ink);}
+  .mp-item.done .mp-done{border-color:rgba(var(--green-rgb),.5);background:rgba(var(--green-rgb),.14);color:var(--green);}
+  /* the tile's own done styling is the v112 block further down — one definition, not two */
+  /* v93: min-width:0 is what makes a field cell actually shrink — it defaults to
+     min-width:auto, so the Rock <select>'s widest option would otherwise push the cell
+     (and in v109 the whole tile column) wider than its share of the grid. */
+  .mp-f{display:flex;flex-direction:column;gap:3px;min-width:0;}
+  .mp-f label{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint);font-weight:700;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #mpBody input:not([type=checkbox]), #mpBody select, #mpBody textarea{background:var(--navy);color:var(--ink);border:1px solid var(--line);
+    border-radius:7px;padding:7px 9px;font-family:inherit;font-size:12.5px;width:100%;}
+  #mpBody .mp-done input[type=checkbox]{width:16px;height:16px;min-width:16px;flex:none;margin:0;padding:0;
+    accent-color:var(--green);cursor:pointer;}
+  #mpBody textarea{resize:vertical;min-height:44px;line-height:1.5;}
+  #mpBody input:not([type=checkbox]):focus,#mpBody select:focus,#mpBody textarea:focus{outline:none;border-color:var(--orange);}
+  .mp-del{background:transparent;border:1px solid var(--line);color:var(--ink-faint);border-radius:6px;
+    padding:3px 8px;font-size:10.5px;font-weight:700;cursor:pointer;white-space:nowrap;}
+  .mp-del:hover{border-color:var(--red-2);color:var(--red-2);}
+  .mp-add{background:var(--card-2);border:1px dashed var(--line);color:var(--ink-dim);border-radius:9px;
+    padding:9px;width:100%;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;margin-top:2px;}
+  .mp-add:hover{border-color:var(--orange);color:var(--ink);}
+  /* v109: in the grid the "+ Add …" control IS the last cell, and the Rocks anchor's
+     read-only cards lose their stacking margin.
+     v110: the add cell opts OUT of the row stretch. Everything else in .mp-tiles stretches
+     to the tallest tile in its row (that is the point — no ragged bottoms), but an add
+     control stretched to a tall row reads as a big empty card rather than a button,
+     which is worst when it lands alone on the last row. align-self:start makes it size to
+     its own content instead; min-height only keeps it a comfortable tap target. This is
+     the ONE exception — no .mp-item may take an align-self, or the row goes ragged. */
+  .mp-tiles .mp-add{margin-top:0;align-self:start;min-height:44px;}
+  .mp-tiles .mp-rock{margin-bottom:0;}
+  .mp-week-btn{background:transparent;border:1px solid var(--line);color:var(--ink-dim);border-radius:7px;
+    padding:5px 11px;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;}
+  .mp-week-btn:hover{border-color:var(--orange);color:var(--orange-soft);}
+  .mp-linktag{font-size:10.5px;font-weight:700;color:var(--orange-soft);background:rgba(var(--orange-rgb),.12);
+    border:1px solid rgba(var(--orange-rgb),.28);border-radius:7px;padding:0 10px;white-space:nowrap;}
+  /* v90: push-forward provenance marker, result note, and the inline month picker. v109
+     moved the first two into the tile's tag row; the picker still opens under the item. */
+  .mp-pushed{font-size:10.5px;font-weight:700;color:var(--ink-dim);background:rgba(var(--ink-dim-rgb),.10);
+    border:1px solid var(--line);border-radius:999px;padding:3px 9px;white-space:nowrap;}
+  .mp-pushnote{font-size:11px;font-weight:700;color:var(--green);}
+  .mp-pushnote.warn{color:var(--amber);}
+  .mp-push{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;padding:9px 10px;
+    background:var(--navy);border:1px solid var(--orange);border-radius:9px;}
+  .mp-push .mp-push-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint);font-weight:700;}
+  #mpBody .mp-push select{width:auto;flex:1 1 150px;min-width:140px;}
+  .mp-week-btn.go{background:var(--orange);border-color:var(--orange);color:var(--on-accent);}
+  .mp-week-btn.go:hover{background:var(--orange-soft);border-color:var(--orange-soft);color:var(--on-accent);}
+  /* ===== v97: the personal counterpart to This Month's Focus. Mirrors the weekly app's
+     business/personal split (Recurring vs Training, Notes vs Intentions Around Food): the
+     same navy shell, with a quiet green accent in place of the business orange. Nothing
+     louder than an edge and a heading colour — the Focus card above stays the loud one. */
+  .mp-personal{border-left:3px solid rgba(var(--green-rgb),.45);}
+  .mp-personal .mp-box-h{color:var(--green);}
+  .mp-personal .mp-item{border-left:2px solid rgba(var(--green-rgb),.28);}
+  .mp-personal .mp-add:hover{border-color:var(--green);}
+  /* ===== v112: a DONE item reads as done at a glance =====
+     Before this it was a hairline border tint and a struck title — and the strike was the
+     only part that actually landed, because the generic "#mpBody input" field styling below
+     (an ID selector) out-specifies ".mp-item.done input.mp-title" and painted the title back
+     to the standard field colours. A completed item consequently looked all but identical to
+     an open one. It now takes a green tint across the whole tile, a green edge, and a title
+     that is struck through AND dimmed — the same green the Done pill and the weekly app's
+     completed states already use, so "green = finished" means one thing everywhere.
+     These rules sit after .mp-personal's edge so a finished personal item reads as done
+     rather than keeping the plain personal accent. */
+  .mp-item.done{background:rgba(var(--green-rgb),.10);border-color:rgba(var(--green-rgb),.45);}
+  .mp-personal .mp-item.done{border-left-color:rgba(var(--green-rgb),.6);}
+  #mpBody .mp-item.done input.mp-title{background:rgba(var(--green-rgb),.08);
+    border-color:rgba(var(--green-rgb),.32);color:var(--ink-faint);text-decoration:line-through;}
+  .mp-intro{font-size:12px;color:var(--ink-dim);line-height:1.5;margin-bottom:11px;}
+  .mp-footer{margin-top:26px;padding-bottom:8px;text-align:center;}
+  .mp-stage{display:inline-block;background:var(--card);border:1px solid var(--line);
+    border-radius:20px;padding:5px 13px;font-size:11px;color:var(--ink-dim);font-weight:600;opacity:.5;}
+  .mp-review-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  /* ===== v93: focus-item notes — the modal editor =====
+     v109 removed the resting one-line preview from the item: on a ~1/3-width tile it was
+     the control that made everything else cramped. The note is reached from the tile's
+     🗒 button (.mp-note-ico above) and lives entirely in this modal. */
+  /* Modal: same shape as the weekly app's v67 Today modal — blurred backdrop, scale/fade in. */
+  .mp-modal-overlay{position:fixed;inset:0;z-index:10000;display:flex;align-items:flex-start;justify-content:center;
+    padding:6vh 16px 40px;overflow-y:auto;background:rgba(var(--backdrop-rgb),.62);
+    -webkit-backdrop-filter:blur(7px);backdrop-filter:blur(7px);
+    opacity:0;transition:opacity .18s ease;}
+  .mp-modal-overlay[hidden]{display:none;}
+  .mp-modal-overlay.open{opacity:1;}
+  .mp-modal{width:min(620px,100%);background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:0 24px 70px rgba(var(--shadow-rgb),.6);overflow:hidden;
+    transform:scale(.96) translateY(10px);transition:transform .18s ease;}
+  .mp-modal-overlay.open .mp-modal{transform:scale(1) translateY(0);}
+  .mp-modal-h{background:var(--navy-2);border-bottom:1px solid var(--line);padding:13px 18px;
+    display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  .mp-modal-kicker{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--orange-soft);}
+  .mp-modal-title{font-size:14px;font-weight:800;color:var(--ink-strong);letter-spacing:-.2px;margin-top:1px;}
+  .mp-modal-close{background:transparent;border:1px solid var(--line);color:var(--ink-dim);border-radius:8px;
+    width:30px;height:30px;font-size:13px;font-weight:700;cursor:pointer;flex:none;line-height:1;padding:0;}
+  .mp-modal-close:hover{border-color:var(--orange);color:var(--orange-soft);}
+  .mp-modal-body{padding:14px 18px 18px;}
+  /* Editor chrome — the v70 rich-notes styles, same values as the weekly app. */
+  .mp-nt-bar{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;}
+  .mp-nt-btn{background:var(--navy-2);border:1px solid var(--line);color:var(--ink-dim);border-radius:6px;
+    width:28px;height:26px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;line-height:1;padding:0;}
+  .mp-nt-btn:hover{border-color:var(--orange);color:var(--orange-soft);}
+  .mp-notes-editor{background:var(--navy);color:var(--ink);border:1px solid var(--line);border-radius:8px;
+    padding:10px 11px;font-family:inherit;font-size:13px;line-height:1.6;min-height:260px;max-height:56vh;
+    overflow-y:auto;white-space:pre-wrap;word-break:break-word;}
+  .mp-notes-editor:focus{outline:none;border-color:var(--orange);}
+  .mp-notes-editor:empty::before{content:attr(data-ph);color:var(--ink-faint);pointer-events:none;}
+  .mp-notes-editor ul,.mp-notes-editor ol{margin:4px 0;padding-left:22px;}
+  .mp-notes-editor input[type=checkbox]{appearance:none;-webkit-appearance:none;width:14px;height:14px;
+    min-width:14px;border:1px solid var(--line);border-radius:4px;background:var(--card-2);vertical-align:-2px;
+    position:relative;cursor:pointer;padding:0;margin:0 2px 0 0;}
+  .mp-notes-editor input[type=checkbox]:hover{border-color:var(--orange);}
+  .mp-notes-editor input[type=checkbox]:checked{background:var(--orange);border-color:var(--orange);}
+  .mp-notes-editor input[type=checkbox]:checked::after{content:"✓";position:absolute;top:50%;left:50%;
+    transform:translate(-50%,-50%);font-size:10px;color:var(--on-accent);line-height:1;}
+  /* Same class name as the weekly app: the stored format is identical, so a note written
+     in either place renders the same in both. */
+  .wp-note-todo{margin:2px 0;}
+  .wp-note-todo:has(input:checked){text-decoration:line-through;opacity:.6;}
+  .mp-note-hint{font-size:10.5px;color:var(--ink-faint);margin-top:7px;}
+  @media(max-width:820px){ .mp-fields,.mp-review-grid{grid-template-columns:1fr;} }
+  /* ===================== v122: FINANCES =====================
+     The Income & Expenses page. Everything above this line is the suite's shared
+     stylesheet, copied verbatim from monthly.html so the two pages cannot drift; only
+     what follows is new, and every colour still resolves to a token from :root.
+     The meaning of the accents is unchanged and is load-bearing here:
+       green = money in / done      red = money out / problem
+       amber = watch (needs review) blue = the investment pot
+       orange = brand + the tax pot (the one you must not spend) */
+
+  /* --- the four headline numbers --- */
+  .fin-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp-3);}
+  .fin-stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px 16px 14px;box-shadow:var(--shadow);position:relative;overflow:hidden;}
+  .fin-stat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--ink-faint);}
+  .fin-stat.good::before{background:var(--green);} .fin-stat.bad::before{background:var(--red);}
+  .fin-stat.watch::before{background:var(--amber);} .fin-stat.brand::before{background:var(--orange);}
+  .fin-stat .lab{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;
+    color:var(--ink-faint);display:flex;align-items:center;gap:6px;}
+  .fin-stat .val{font-size:28px;font-weight:800;letter-spacing:-.025em;margin-top:6px;
+    font-variant-numeric:tabular-nums;color:var(--ink-strong);}
+  .fin-stat.good .val{color:var(--tint-green);} .fin-stat.bad .val{color:var(--tint-red);}
+  .fin-stat.watch .val{color:var(--tint-amber);}
+  .fin-stat .sub{font-size:11.5px;color:var(--ink-faint);margin-top:4px;}
+  @media(max-width:900px){ .fin-stats{grid-template-columns:repeat(2,1fr);} }
+  @media(max-width:480px){ .fin-stats{grid-template-columns:1fr;} }
+
+  /* --- Profit First --- */
+  .pf-grid{display:grid;grid-template-columns:1.35fr 1fr;gap:var(--sp-3);align-items:start;}
+  @media(max-width:900px){ .pf-grid{grid-template-columns:1fr;} }
+  .pf-line{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+    padding:9px 0;border-bottom:1px dashed var(--line);font-size:13.5px;}
+  .pf-line:last-child{border-bottom:0;}
+  .pf-line .n{font-variant-numeric:tabular-nums;font-weight:700;color:var(--ink);}
+  .pf-line.total{border-top:1px solid var(--line);border-bottom:0;margin-top:4px;padding-top:11px;}
+  .pf-line.total .k,.pf-line.total .n{font-weight:800;font-size:14.5px;}
+  .pot{display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:var(--r-md);
+    border:1px solid var(--line);background:var(--card-2);margin-bottom:10px;}
+  .pot .dot{width:9px;height:9px;border-radius:var(--r-pill);flex:0 0 auto;}
+  .pot.tax .dot{background:var(--orange);} .pot.inv .dot{background:var(--blue);}
+  .pot.ops .dot{background:var(--green);}
+  .pot .k{font-size:12.5px;font-weight:600;color:var(--ink-dim);flex:1;}
+  .pot .n{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+  .pot.tax .n{color:var(--tint-orange);} .pot.inv .n{color:var(--tint-blue);}
+  .pot.ops .n{color:var(--tint-green);}
+  .pf-done{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap;}
+  .weeknav{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+  .weeknav .rng{font-size:13px;font-weight:700;color:var(--ink);flex:1;min-width:180px;}
+
+  /* --- checklist --- */
+  .ck{display:flex;align-items:center;gap:11px;padding:9px 2px;border-bottom:1px solid var(--line);
+    font-size:13.5px;cursor:pointer;}
+  .ck:last-child{border-bottom:0;}
+  .ck input{width:17px;height:17px;accent-color:var(--green);flex:0 0 auto;cursor:pointer;}
+  .ck.on span{text-decoration:line-through;color:var(--ink-faint);}
+
+  /* --- import --- */
+  .drop{border:2px dashed var(--line);border-radius:var(--radius);background:var(--card-2);
+    padding:40px 20px;text-align:center;cursor:pointer;transition:border-color var(--tap),background var(--tap);}
+  .drop:hover,.drop.over{border-color:var(--orange);background:rgba(var(--orange-rgb),.04);}
+  .drop .big{font-size:15.5px;font-weight:700;color:var(--ink);}
+  .drop .small{font-size:12.5px;color:var(--ink-faint);margin-top:6px;}
+  .maprow{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;}
+  .maprow label{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;
+    font-weight:700;color:var(--ink-faint);margin-bottom:5px;}
+  .maprow select,.fin-in{width:100%;font-family:inherit;font-size:13px;background:var(--card);
+    color:var(--ink);border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 10px;}
+
+  /* --- tables --- */
+  .fin-tw{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r-md);background:var(--card);}
+  table.fin{width:100%;border-collapse:collapse;font-size:13px;min-width:640px;}
+  table.fin th{position:sticky;top:0;z-index:2;background:var(--navy-2);text-align:left;
+    font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-faint);
+    font-weight:700;padding:9px 11px;border-bottom:1px solid var(--line);white-space:nowrap;}
+  table.fin td{padding:7px 11px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  table.fin tr:last-child td{border-bottom:0;}
+  table.fin tr:hover td{background:var(--card-2);}
+  table.fin td.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap;}
+  table.fin td.in{color:var(--tint-green);} table.fin td.out{color:var(--ink);}
+  table.fin td.dt{white-space:nowrap;color:var(--ink-dim);font-variant-numeric:tabular-nums;}
+  table.fin td.ds{max-width:420px;}
+  .desc{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  tr.needs td.ds .desc{font-weight:600;}
+  tr.needs{background:rgba(var(--amber-rgb),.06);}
+  tr.dupe{opacity:.45;}
+  .cellsel{font-family:inherit;font-size:12px;background:var(--card);color:var(--ink);
+    border:1px solid var(--line);border-radius:var(--r-sm);padding:5px 7px;max-width:150px;}
+  .cellsel.empty{border-color:var(--amber);color:var(--tint-amber);font-weight:700;}
+  .filters{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:12px;}
+  .fchip{font-family:inherit;font-size:12px;font-weight:600;color:var(--ink-dim);cursor:pointer;
+    background:var(--card);border:1px solid var(--line);border-radius:var(--r-pill);padding:6px 13px;}
+  .fchip:hover{border-color:var(--ink-faint);color:var(--ink);}
+  .fchip.on{background:var(--ink);color:var(--card);border-color:var(--ink);}
+
+  /* --- breakdown bars --- */
+  .bd-row{display:grid;grid-template-columns:150px 1fr 92px 34px;gap:12px;align-items:center;
+    padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer;}
+  .bd-row:last-of-type{border-bottom:0;}
+  .bd-row .k{font-size:13px;font-weight:600;color:var(--ink);}
+  .bd-bar{height:9px;border-radius:var(--r-pill);background:var(--navy-2);overflow:hidden;}
+  .bd-bar i{display:block;height:100%;background:var(--orange);border-radius:inherit;}
+  .bd-row .n{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;font-size:13.5px;}
+  .bd-row .p{text-align:right;font-size:11px;color:var(--ink-faint);font-variant-numeric:tabular-nums;}
+  .bd-detail{padding:2px 0 14px;}
+  @media(max-width:640px){ .bd-row{grid-template-columns:110px 1fr 80px;} .bd-row .p{display:none;} }
+  .km-split{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-3);margin-bottom:var(--sp-4);}
+  @media(max-width:640px){ .km-split{grid-template-columns:1fr;} }
+
+  /* --- misc --- */
+  .fin-empty{text-align:center;padding:36px 20px;color:var(--ink-faint);font-size:13.5px;}
+  .rulerow{display:grid;grid-template-columns:1fr 130px 120px 34px;gap:8px;align-items:center;margin-bottom:7px;}
+  @media(max-width:640px){ .rulerow{grid-template-columns:1fr 1fr;} }
+  .iconbtn{background:transparent;border:0;color:var(--ink-faint);cursor:pointer;padding:5px;
+    border-radius:var(--r-sm);display:inline-flex;line-height:0;}
+  .iconbtn:hover{color:var(--red);background:rgba(var(--red-rgb),.08);}
+  .hint{font-size:11.5px;color:var(--ink-faint);margin-top:8px;line-height:1.45;}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:200;
+    background:var(--ink);color:var(--card);font-size:13px;font-weight:600;padding:11px 18px;
+    border-radius:var(--r-pill);box-shadow:var(--shadow-lift);opacity:0;pointer-events:none;
+    transition:opacity .18s ease,transform .18s ease;}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(-4px);}
+
+  /* v122: the one cashflow action. Deliberately the loudest thing under the numbers —
+     it is the sheet's "single most useful thing this week", and it changes state, so it
+     is coloured by what it is telling you rather than being a permanent banner. */
+  .action-card{border-left:3px solid var(--ink-faint);}
+  .action-card.calm::before,.action-card.warn::before,.action-card.stop::before{content:none;}
+  .action-card.calm{border-left-color:var(--green);}
+  .action-card.warn{border-left-color:var(--amber);}
+  .action-card.stop{border-left-color:var(--red);}
+  .action-line{font-size:19px;font-weight:700;letter-spacing:-.015em;color:var(--ink-strong);}
+  .action-card.calm .action-line{color:var(--tint-green);}
+  .action-card.warn .action-line{color:var(--tint-amber);}
+  .action-card.stop .action-line{color:var(--tint-red);}
+</style>
+</head>
+<body>
+<!-- ===================== v121: THE ICON SET =====================
+     One sprite, injected on every page, replacing the emoji and typographic glyphs the
+     suite used to use as icons (✕ ▸ ▾ ▲ ▼ 📅 📍 🗒 🔥 ⚠ ↻ and the training set).
+     Emoji rendered differently on every OS, could not take an accent colour and could not
+     be sized reliably. These are one 24px grid at 1.7 stroke, drawn in currentColor — so
+     an icon is always exactly the colour of the text it sits in, at any size.
+     Use: <svg class="ic"><use href="#ic-close"/></svg>. Prose keeps its typography: the
+     → in "Thinking Time → AI Analysis", the · separators and the • bullets are text. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="ic-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></symbol>
+<symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></symbol>
+<symbol id="ic-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></symbol>
+<symbol id="ic-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></symbol>
+<symbol id="ic-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+<symbol id="ic-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+<symbol id="ic-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.6 7-11a7 7 0 10-14 0c0 5.4 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></symbol>
+<symbol id="ic-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h9l7-7V5a2 2 0 00-2-2z"/><path d="M14 21v-5a2 2 0 012-2h5M8 8h8M8 12h5"/></symbol>
+<symbol id="ic-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.4v5.2M12 16.3v.1"/></symbol>
+<symbol id="ic-flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c3.9 0 7-2.9 7-6.6 0-4.3-3.4-6.6-4.6-10.4-1.5 1-2.2 2.5-2.2 4.2C10.6 7.5 9.4 5.7 9.4 3.7 6.9 5.7 5 9.1 5 15.4 5 19.1 8.1 22 12 22z"/></symbol>
+<symbol id="ic-trend-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></symbol>
+<symbol id="ic-trend-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6 6 4-4 8 8"/><path d="M15 17h6v-6"/></symbol>
+<symbol id="ic-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3.2-6.9"/><path d="M21 4v5h-5"/></symbol>
+<symbol id="ic-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="ic-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></symbol>
+<symbol id="ic-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 018 0v3"/></symbol>
+<symbol id="ic-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 3.5L16 11H5"/></symbol>
+<symbol id="ic-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 13.5a4 4 0 006 .4l2.5-2.5a4.2 4.2 0 00-6-6l-1.4 1.4"/><path d="M13.5 10.5a4 4 0 00-6-.4L5 12.6a4.2 4.2 0 006 6l1.4-1.4"/></symbol>
+<symbol id="ic-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.3l3.4 2"/></symbol>
+<symbol id="ic-dot" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="12" r="5"/></symbol>
+<!-- the training set: wpDetectTrainingEmoji picks one of these from the task's title -->
+<symbol id="ic-lift" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6M6 6.5v11M18 6.5v11M21 9v6M6 12h12"/></symbol>
+<symbol id="ic-run" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="15.5" cy="4.5" r="2"/><path d="M8 21l2.6-4.6.9-4.4L8.5 14 6 12.4"/><path d="M11.5 12l3.6-3.4 2.4 3 2.5.9"/><path d="M15.1 8.6L12 7.2 8.8 8.4"/></symbol>
+<symbol id="ic-bike" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17" r="3.5"/><circle cx="18.5" cy="17" r="3.5"/><path d="M5.5 17l4-9h4M9.5 8l4 9h5M14 5h3"/></symbol>
+<symbol id="ic-swim" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="17" cy="7" r="1.8"/><path d="M3 12.5l3.5-2.5 4 3 3.5-2.5"/><path d="M2 18.5c1.7 0 1.7 1.4 3.3 1.4s1.7-1.4 3.4-1.4 1.7 1.4 3.3 1.4 1.7-1.4 3.4-1.4 1.7 1.4 3.3 1.4 1.7-1.4 3.3-1.4"/></symbol>
+<symbol id="ic-walk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4.2" r="2"/><path d="M9.5 21l2.5-5.5V11L9 13"/><path d="M12 15.5l3 5.5M12 9l3 2 2.5-.8M12 9l-3 1.5"/></symbol>
+<symbol id="ic-yoga" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.2" r="2"/><path d="M12 7v6M12 13l-5 6M12 13l5 6M4 10.5l8 1.5 8-1.5"/></symbol>
+</defs></svg>
+<!-- build v122 · finances -->
+<header>
+  <div class="appbar">
+    <div class="brand">
+      <div class="mark"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAAB4CAIAAAC2BqGFAAATg0lEQVR42u1dfVBU1fs/e+8u6CJreIVE5EUNsRIVhSQVzbLyNafxNUUUTYOszDLNF6ZxZNCsFEYk0Xwj1DGdGHWKBGw0iVAZMjWUFSVUDEEgVllX9r78/njmd+Z+d++9e3dZ9k2ev5Zl773nfO7nfM5znnPOcxDqtE7rtE6z2hQuXTiFQqFQwAeEEMMwJv8lCAIhxHEcx3HwoRNoucgSBIFhtRY4giAIguB41gm0KW0JgmBZlmVZ/r+6du1KUVSPHj2eeeYZb2/v4uLix48fwyUcx/Xp0ycyMrK5uVmn0z148KCpqYmmaf7lJEkqFArz2zrFlE58NhCQpmmO4wALPz+/iIiIIUOGREVFDRo0KCgoiKIoHx8fkIiwsLCamhp81YQJE3bv3o0Qomlap9M1NDT8888/ly5d+uuvvy5fvlxVVfXkyRP8LkmStKGJuHm3oFAA1zDcQ4YMWbly5c8//3zv3j3OzICSDx8+DA4Oht8rlUqEUEJCAk3TRqPR/BKj0ajVag8fPpyQkBAaGsrnOEmSTwvE+M8hQ4akpqaWl5cD1/gwGY1GmqYZhmFZFv7b2tpqAvSCBQs4jqNpGt4EwzCAOzQRbA8fPiwsLHz//feDgoJMVMUzIQZ0EELdunVLTEz89ddf+YgAQCzLCjJaGmjBSwB3/n+bmppyc3PHjx/Ph9szWdyrV6+1a9fevHmTjy/QlhM3G4A2udwE8XPnzs2bN0+lUnkO3NCJIYQoikpJSamrq4OqQs2l8bUX0CaI44eWl5fPnTsXBMSNlQQTmSTJpKSkmpoaPoU5a8xeQGMDVYHPxcXFr776qrtSGxN51KhRJSUlGGKZFO5ooM3h3r9/f+/eveHmbkNtQKFr165btmyBmshXCUcCjUUM7l9bWxsfH+8e1MZyER0dXVZWhmvCtc86FGjc2uDDgQMHevTogenionIBje69995rbW3ll15mNyWm3TYDbW2XC7eqqKiIjY11UayByEqlcseOHVYRmS+UHcdo+d0DkEOv1y9YsMDlJBtQpijql19+ka/IDMNgCjc3N+/Zs+f48ePwvV2AZhgmPT391KlTuDAyC4ZvuGHDBn6o1iVQDgkJKS8vlykXfBZfvXp1xYoVgOCqVasE72DbyJDjuIiICIRQVFRURkbG/fv35cONZSQ7O1vx/+Z8lAcMGKDVauWgjCvAcVxZWdk777zj7e2Nb7Vhwwb7Ah0bG4sBCgwMXLduHQ5ayRQcjuMOHTqkUqmcqSGA8nPPPVddXS0HZawJN2/eXLhwIXahlEoljIa/+OIL+wIdExODEFKpVPwYQFpaml6vl0ltKMzRo0chNusErGFI0rt378rKSjkoww+MRuPmzZv9/PxMQmgAXAcBDSjzQy6RkZEnTpyQSW0oz4EDB5wwUgfN0mg04CxLo4zloqysbOTIkYIjAgcAbR7hWrJkSVNTkxyWtLW1cRyXnp7uUJ8PykoQxMmTJy2WEsvF9u3bu3btCgU1J4XDgObP7CCEBg4ceO7cOTkyAqX6+OOPHYc1PObrr7+2iDJAoNfrFy5cKD20dTDQ/Id6eXl9++23wAkJrHHk780333TEGB0eMHfuXJko37t3D+RCkMjOBZo/HlmxYgWeLpBonSzLNjQ0wNwYDpzJ7dWs6gAZhomIiMjKymJZVqICDMOQJKnVaseNG1dSUqJUKgEOVxvQwowwSZLbtm2Lj49nGAbm18Wqz7Jsz549c3JygDdWdYyEVR0gSZJ79uzp3r07x3FijwGUr169+vrrr1dWVgLKLhsIA6qqVKqDBw/OmjULiiqGNUmSNE2PGTNmzZo1DMNYRWrCKjp/9tlno0aNomlajM7A9Js3b06ePPn27dsujjI2o9GoUqny8vIgUiqx+AaWLaSkpMTExFiFNWGVaKSkpEiIBsuyBEE0NDRMnTrVjVDmY/3DDz8kJSVBfcVaNgyCtm/fDl2FTAGxgvwZGRlqtVpMNLAbNHPmzGvXrrkXynysd+3alZaWJlF+EJARI0YkJycDt+zpaUybNk16HAXeQlJSErxwG1xGx3sdEnMXMHSUCA0yDFNfXx8QEIDXWraL0dALd+nSZdOmTRLNhGEYpVKZk5Ozc+dOpVJpNBrddNoecFQoFImJibdv3yZJUnDdHiyl9Pf3X7dunYRfYAXQ8KR58+Y9//zzYtoPql1VVfXhhx9KqJu7GKhBY2PjokWL8BBGzNtbvHhxWFiYHAEhpOnMMIxarV6zZo3Ee4OiJCcn63Q6CT/UjQwa6OnTp3fs2CFGaqipj4/P6tWr5ZCakKYzx3HTp0/v37+/2EsDr3nfvn1FRUXg+iCPMGi+69evh/WrEgISHx8fHBxskdSE9MNIkvzoo4/ESApvsrGxMSUlBZ6KPMWgajqdbu3atWLNFFp8t27dlixZwnGcjUADnceOHRsdHc1xnGDfDa/xyy+/vHfvHiz5Rh5kQOpDhw4VFxeLNVYANzEx0dfXl6ZpCQGxIOHgQgkiCCjfuXMnOztbrHG5uwFwGzduFPO4oOJ9+vSZOHGihQCWRDcYEBAwdepUk0XNJo1r69atOp3Ow3TDhNQFBQVnz56FEQ1rZuBTw9hdgm2ExCBlypQpfn5+ENMyR5kkyYaGhpycHHgryEMN6p6RkUEQBMzSmhjMSU6dOjU8PFyiS1RKxA/feustMZ6CA5Sbm9vU1ORJzoYYFPn5+YWFhcHBwYJCzLKsl5fX4MGDb9y4ISbTSsF3yLIsRVGjR48WHF8CnY1G4759+zxzg8L/VhYhZDAY3njjDXAQxIgvuBlSCmgY3Y0ZM4aiKPDwBIeCZWVlV69elbi1R0q2zdcqxVQJlmcLvkD4Mi8vj+M4d4zStVOvpblvBdDQ+0HoS7AbhLDRyZMnpftZT5UR24wQHMI/++yzAwcOREJTkPCwv//++8aNG08b0O0xQnCoExER0b17d5ZlBXtYhNAff/whKN+dZgWjEUJDhw4VYyv8oLS0FMmexek00QHLoEGDxEQKfJLy8vJO3WiX1wEeTFhYmFhPSBDE/fv379y5Ayv+7EJq8E/tNvnGu63jN3+LhYaU5j0hSZKBgYFiQCOEKisrW1pa7O6f6vV6+9a5paUFAhGuyGiEkEajoShKEGggXb9+/fbu3WvHQBKkhRg2bBiyfqmVhMO7ZcuWhoYGhwW8WJZVqVQXL17cvn27hZkmqGRISIhOp8NzyU43B2x/s6OJuQkCjO7WrZtarZaWoY5oj3g1rR0VyZHBWwjdAcQQQ+Y/XQBotVqNV8mLNUzX3e/4v52hg+N8BEH4+voKhiUIc2nz8vJCrp1xy5XN29tbcP0Q4XQieNrARGRPEWHf0EmnyRoZAsRtbW2dw2ubra2tTTBuLNCnGQwG3GmKwQ3xJntxHz/LqrfL9/8chqPFQj5+/Fhw6aEA0K2trQaDATZRSXvcdmS9DbeCGIDr+D9Au0ePHpn7dqZA45/q9XoJoPV6fVNTkx1HXDBLqdFoNBqN/KtaW1vr6uqMRqPdgyTSRQ0ICJB4u83NzbiNWmB0S0vLf//9R1GUuXRADLqkpOTtt9+WmKm0Og6gVD558mTdunVr1qyhadoiSUEE8/LyTp065bCuG1ZVBAYGXrx4UWIXT319veWRIVxsMBjq6+v79+8v1sB79+4NqU/sWAeO4yDvqHwzGo32jW3JMbVardFoJKZS7969KxwmEhTfO3fuCPp5cH1oaGifPn1w5sv2G+wms8F/VzjQVCqVQqGIjIwEoTOHEr6prq6WFb2DX2u1WjGgWZb18fF54YUXxF6Gbd2IbVmIHenyQwmjo6PFngschalU8x8Iz73++eefYp4A+FKQdeip8rUhjiaxOEChULS0tIjNWYtOchuNRsHuDp7x8ssvo6dpKgt6kcDAwBdffBGJLw7QarX19fWCIwzhC2pqampqaoSbAEEghKKjoymKEpQqD45gxMTESC8OuHTpEhKZuxAAmiAIg8EA6iEm0xRFjRkzxrYezE2N47gpU6YgycUB58+fF1NUQkzUi4uLxVQfnjRz5kzn5tEHd0XC7NXawIP29fWdNGkSEoluwi7PkpISsTehFMOxsLDQaDQKjh3gSePHj6coqrGx0Vk7sWAeyzG6wbLsK6+8EhQUJLgCGr68cuVKZWWl2BYTpVjAqLKy8vLly8OHDze/Nbxhf3//adOm7d27F16mgxWTZdlhw4bNnj1bcAgOc/mZmZl37961y7YPjuMSEhIkmjhBEJBjz7pVn0Dk1NRUsQQoMCV64cIFSPvT/iE4sn6L8tKlS6XnScE1amcvAt1geHi4wWCAvRRi08dxcXESjyMkBgJ5eXliuQxgm2N0dHRcXJx0kpSOM4PBQNP0kydPaDODRPZ22SkNwrhkyRJvb2/BXSYgANevXz9//rzE1jRCzDlXKBTl5eXQjQrOeYOLvnr1ag/uDEF2evXqtWjRIok9gAihw4cPt7W1SQTaLOwz/P7778WKC6SeMGHC2LFjPXVlKdB5xYoVYoMGQL+tre3IkSPIhl1ZmMXHjh1rbGwUe1Hw5caNGx0ZEXZwlxsWFpaUlCS23QrQP3XqVGVlpXSvS0j0s7DBbf/+/WLqAfux4uLiIPOTWyz2sJbOmzdvhrioYMvGm+MsRn4IaZ9GoVDs3LnTYDCIkRrkPy0trWfPnvZMx+JsAw5NmjRp9uzZYsII2z0vXLhw5swZi5stpXAB4KqqqkCpxTZDcxwXFBS0detWjwEaKqXRaDIzMy2miEhLS5PTRREWHXWFQrF582a9Xi82SQgDlvnz58+ZM0fORJS7qHNGRkbfvn2l82eUlpaeOHECVsO2C2h4zK1bt7KysiTEHv6VlZUVHh5O07Rb8xqGdomJiQsXLpRIPAcsXL9+vX1S/WBSb9q06d9//5VOEeLn53fkyBEfH5+OWL7vSJRjYmKks1UCnX/88cfTp0/L3KFtGQ4gdVNTk0SKECwgUVFRBw4csGE1jIt0gDRNBwcHHzt2rEuXLmKOBM6ZsmrVKvkBNVm8g3e7f/9+6Xw+QIfp06dnZmZCj+xGWEO9evTocfz48ZCQEIksjcC8DRs23Lp1S37EShbQOElZcnJyS0uLxIgesF62bNmmTZvcCGtAWaPRHD9+PCoqSkKaQTTOnTuXkZFhVVoHuUqKXb2VK1dKv0alUskwzOeff/7VV19BOVxcr6HAFEX99NNPo0ePlnCcgG2PHj169913rd1OYAUEMPb77rvvDh48KB11BbFbuXLl7t274a24bCQEKhIWFlZYWCiNMh6hLFu2TKvViqVps5uDSRCERqO5cuWK4OE05kk08/Pze/bsiSQztjslZSae8Bw5cuTt27ct7juCgmVlZSGbss9b16ghhqLT6WbNmtXc3GxRQ+Cs499//33EiBGQu8VFZAQiCgzDLF269PTp08HBwdKjO2D62bNnly9fblvGHaurDQJy7dq1OXPmwPMkpArkb8CAAWfOnPn000+Ba3acNrW5UcJUXE5OTnZ2dpcuXSwmeFcqlVqtdubMmbjBOU7aEELz58+3eAwBX2EKCgoiIyPxHTDcjpEOgiDw5xkzZsDRtxbPq8CHFcCBUE7obKC2kOfRYnHxaSytra2pqan4zBuAu6OB5kM8aNCgo0ePyjztBn7w4MEDWHLntC4dKvzJJ5/I4TW/YtXV1R988IGvry/cx9vbmyRJuwP90ksvkSSJN6P1798/PT0dzm/inz1nEWWXON4QHp+cnGyiEnLOJQOvHJ+LnpKSYl+go6Ki4M5Dhw7NzMyEfddWnUhWW1s7fPhw5CKHSEIh5syZ8/jxY5nV4J+019jYuG/fvtjY2LS0NDsCDYfTzJgxo6CgAN9T5pGG8PuKigrQZRcK/EJR4uLiamtr5R+CanI8J2acXTbdsyzb0tJifoivzAZXWFjo7++PXHB7K1S+b9++v/32m0wRNBcTu2c3gHcpM00DvlV6ejo8wkUHtFAsLy+vb775xuR0YvnpIuwItPw0GCzLQlEbGxvxodUuHaLBhZs2bdqtW7csHkDlCvk68B0KCgqws+wGQUccQ/D399+1axeujM1wdxzQWFUePHiwfPlyfrt0p9kK+PDaa6+Vlpa2B+6OAJpfktzcXJysyy1n4DC1SZJcvHgxHJqKz0V3CtD4WEL4s6ioaOzYsW5JZAlq+/r6Llu27Pr16/z+Rw7B2w809BP8XxYVFU2ePJkfZkIeYPytLmq1Oj4+/syZM3wPDBDvCK8DFu/ibx49epSbmztu3DjzgnmOmdRq5MiR27ZtgxAaXzrNQZcPNGYurI82Sd61atWqfv36eTLE5nBj50mtVk+cODEzM/Py5cvm3ATIINWITqczATohIQEWohuNRkEVevjw4dmzZ1NSUiD2hqXMKRA7ehSPU7lBbfV6fX5+fn5+PkmSERERcXFxsbGxgwcPDg0NpSiKj4ivr6+Jb+vl5WWCGsMwdXV1VVVV5eXlJSUlpaWlsAUej12B8s4ZOTuL2lBh7FExDFNRUVFRUZGdnY0QCggICA4ODg0NDQ8PDwkJ6dWrl7e3t8FgQLzjM+/evVtUVFRXV9fQ0FBdXV1VVVVTU1NbW8tPeQANCGJMzs3crnAdSQHQ25+9EMB1fBYg9wDaBCnESxGBWWyCGj/HA+KlSOjMctZpndZpndZpndZpT7P9H53FFb4GlLVaAAAAAElFTkSuQmCC" alt="Bodysculpt" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;"></div>
+      <div><h1>Bodysculpt</h1><div class="sub">Warrington</div></div>
+    </div>
+    <nav class="topnav">
+      <span class="navgroup">Planning</span>
+      <a href="/index.html">Weekly</a>
+      <a href="/monthly.html">Monthly</a>
+      <a href="/quarterly.html">Quarterly</a>
+      <span class="navsep"></span>
+      <span class="navgroup">Finances</span>
+      <a href="/finances.html" class="active">Income &amp; Expenses</a>
+    </nav>
+    <div class="appbar-right">
+      <div class="monthpick"><span>Month</span><select id="monthSel"></select></div>
+    </div>
+  </div>
+  <div class="viewtoggle" id="tabBar">
+    <button class="vt active" data-view="cockpit">Cockpit</button>
+    <button class="vt" data-view="import">Import</button>
+    <button class="vt" data-view="txns">Transactions</button>
+    <button class="vt" data-view="breakdown">Breakdown</button>
+    <button class="vt" data-view="settings">Settings</button>
+  </div>
+</header>
+
+<!-- ============================= COCKPIT ============================= -->
+<div class="view" id="v-cockpit">
+  <div class="fin-stats" id="statRow"></div>
+  <div class="hint" id="xferNote" hidden style="margin-top:10px;"></div>
+
+  <section>
+    <div class="card action-card" id="actionCard">
+      <div class="ctitle">One cashflow action</div>
+      <div class="action-line" id="actionText"></div>
+      <div class="hint" id="actionWhy"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <div class="ctitle">Profit First — this week</div>
+      <div class="weeknav">
+        <button class="pb-arrow" id="wkPrev" title="Previous week">←</button>
+        <button class="pb-arrow" id="wkNext" title="Next week">→</button>
+        <div class="rng" id="wkRange"></div>
+        <button class="pb-jump" id="wkNow">This week</button>
+      </div>
+      <div class="pf-grid">
+        <div>
+          <div id="pfLines"></div>
+        </div>
+        <div>
+          <div id="pfPots"></div>
+          <div id="pfSeen"></div>
+        </div>
+      </div>
+      <div class="pf-done">
+        <button class="abtn primary" id="pfMoved"><svg class="ic"><use href="#ic-check"/></svg><span>Mark the money as moved</span></button>
+        <span class="msg" id="pfMovedMsg"></span>
+      </div>
+      <div class="hint" id="pfHint"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <div class="ctitle">This week's checklist</div>
+      <div id="ckList"></div>
+      <div class="hint" id="ckProgress"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <div class="ctitle">Meal side — <span id="mealMonth"></span></div>
+      <div class="pf-grid">
+        <div id="mealLines"></div>
+        <div id="mealNote" class="hint" style="margin:0;"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ============================= IMPORT ============================= -->
+<div class="view" id="v-import" hidden>
+  <section>
+    <div class="card">
+      <div class="ctitle">Upload a bank export</div>
+      <div class="drop" id="drop">
+        <div class="big">Drop your bank file here, or click to choose one</div>
+        <div class="small">CSV, or the .xls Santander gives you. Nothing is uploaded until you press Import.</div>
+      </div>
+      <input type="file" id="fileIn" accept=".csv,.txt,.xls,.tsv,text/csv,text/plain" hidden multiple>
+      <div class="hint">Every column is worked out for you. If a file is unusual, change the
+        mapping below and the preview updates. Rows you have already imported are greyed out
+        and skipped, so re-uploading an overlapping statement is safe.</div>
+    </div>
+  </section>
+
+  <section id="mapCard" hidden>
+    <div class="card">
+      <div class="ctitle">Columns — <span id="mapFile"></span></div>
+      <div class="maprow">
+        <div><label>Date</label><select id="mDate"></select></div>
+        <div><label>Description</label><select id="mDesc"></select></div>
+        <div><label>Amount</label><select id="mAmt"></select></div>
+        <div><label>Money in <span style="text-transform:none;letter-spacing:0;">(if separate)</span></label><select id="mIn"></select></div>
+        <div><label>Money out <span style="text-transform:none;letter-spacing:0;">(if separate)</span></label><select id="mOut"></select></div>
+        <div><label>Date format</label><select id="mFmt">
+          <option value="auto">Detect</option><option value="dmy">DD/MM/YYYY</option>
+          <option value="mdy">MM/DD/YYYY</option><option value="ymd">YYYY-MM-DD</option></select></div>
+      </div>
+      <div class="hint" id="mapNote"></div>
+    </div>
+  </section>
+
+  <section id="prevCard" hidden>
+    <div class="card">
+      <div class="ctitle">Preview — <span id="prevCount"></span></div>
+      <div class="filters">
+        <button class="abtn primary" id="doImport"><svg class="ic"><use href="#ic-check"/></svg><span>Import</span></button>
+        <button class="abtn ghost" id="cancelImport">Discard</button>
+        <span class="msg" id="importMsg"></span>
+      </div>
+      <div class="fin-tw"><table class="fin" id="prevTbl"></table></div>
+      <div class="hint">Categories shown here were filled in from what you have categorised
+        before. Anything left blank lands in Needs Review — you set it once and it is
+        remembered for next time.</div>
+    </div>
+  </section>
+</div>
+
+<!-- =========================== TRANSACTIONS =========================== -->
+<div class="view" id="v-txns" hidden>
+  <section>
+    <div class="card">
+      <div class="filters" id="txFilters">
+        <button class="fchip on" data-f="all">All</button>
+        <button class="fchip" data-f="review">Needs review</button>
+        <button class="fchip" data-f="out">Expenses</button>
+        <button class="fchip" data-f="in">Income</button>
+        <input class="fin-in" id="txSearch" placeholder="Search description…" style="max-width:230px;width:auto;">
+        <span class="msg" id="txMsg" style="margin-left:auto;"></span>
+      </div>
+      <div class="fin-tw"><table class="fin" id="txTbl"></table></div>
+      <div class="hint">Set a category and it is saved straight away — and remembered, so the
+        same merchant is filled in automatically from now on.</div>
+    </div>
+  </section>
+</div>
+
+<!-- ============================ BREAKDOWN ============================ -->
+<div class="view" id="v-breakdown" hidden>
+  <div class="km-split" id="kmSplit"></div>
+  <section>
+    <div class="card">
+      <div class="ctitle">Where the money went — <span id="bdMonth"></span></div>
+      <div id="bdRows"></div>
+    </div>
+  </section>
+  <section>
+    <div class="card">
+      <div class="ctitle">Last six months</div>
+      <div class="fin-tw"><table class="fin" id="trendTbl"></table></div>
+    </div>
+  </section>
+</div>
+
+<!-- ============================= SETTINGS ============================= -->
+<div class="view" id="v-settings" hidden>
+  <section>
+    <div class="card">
+      <div class="ctitle">Profit First</div>
+      <div class="maprow">
+        <div><label>Tax pot %</label><input class="fin-in" id="sTax" type="number" min="0" max="100" step="0.5"></div>
+        <div><label>Investment pot %</label><input class="fin-in" id="sInv" type="number" min="0" max="100" step="0.5"></div>
+        <div><label>Comfortable above</label><input class="fin-in" id="sBuffer" type="number" min="0" step="100"></div>
+        <div><label>Week starts</label><select id="sDow">
+          <option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option>
+          <option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option>
+          <option value="0">Sunday</option></select></div>
+      </div>
+      <div class="hint">Cash status reads green once the month is this far in front, amber
+        while it is between zero and there, and red the moment spending is ahead of income.
+        The pots are taken off card takings only — Stripe and GoCardless — not
+        off loans, refunds or transfers. The week runs from the day above to the day before
+        it; the closing day is left out on purpose, because its payments are still landing,
+        and it counts in the following week instead.</div>
+    </div>
+  </section>
+  <section>
+    <div class="card">
+      <div class="ctitle">Income sources</div>
+      <div class="maprow">
+        <div><label>Stripe contains</label><input class="fin-in" id="sStripe"></div>
+        <div><label>GoCardless contains</label><input class="fin-in" id="sGc"></div>
+        <div><label>SumUp contains</label><input class="fin-in" id="sSumup"></div>
+        <div><label>Nutraprep contains</label><input class="fin-in" id="sNutra"></div>
+        <div><label>Own accounts contain</label><input class="fin-in" id="sXfer"></div>
+      </div>
+      <div class="hint">Used to split income by source, and to work out the meal-side profit
+        (SumUp taken, less what went out to Nutraprep). "Own accounts" is how a move to or
+        from your tax and investment pots is recognised: those rows are marked Transfer and
+        left out of every total, because they are your money changing pocket, not spending.</div>
+    </div>
+  </section>
+  <section>
+    <div class="card">
+      <div class="ctitle">Categories</div>
+      <input class="fin-in" id="sCats">
+      <div class="hint">Comma separated, in the order you want them listed.</div>
+    </div>
+  </section>
+  <section>
+    <div class="card">
+      <div class="ctitle">Remembered rules — <span id="ruleCount"></span></div>
+      <div class="filters">
+        <button class="abtn" id="addRule"><svg class="ic"><use href="#ic-plus"/></svg><span>Add a rule</span></button>
+        <input class="fin-in" id="ruleSearch" placeholder="Find a rule…" style="max-width:220px;width:auto;">
+      </div>
+      <div id="ruleRows"></div>
+      <div class="hint">Each rule says "if the description contains this, it is that category".
+        They are matched longest-first, so a specific rule always beats a general one.</div>
+    </div>
+  </section>
+  <section>
+    <div class="card">
+      <div class="pf-done">
+        <button class="abtn primary" id="saveSettings"><svg class="ic"><use href="#ic-check"/></svg><span>Save settings</span></button>
+        <span class="msg" id="setMsg"></span>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =====================================================================
+   FINANCES — Income & Expenses.  v122
+   Replaces the "Finance Cockpit 2026" Google Sheet: the Santander import, the
+   month tabs, the SUMMARY block, the Breakdown tab and the Pot Moves tab.
+   Storage is the same Netlify Blobs store the rest of the suite uses, under its
+   own finance-* keys (see netlify/functions/kpi-store.js).
+   The shape of the work is unchanged from the sheet:
+     download a statement -> import -> anything uncategorised goes to Needs Review
+     -> once a week, take the pots off the card takings and move the money.
+   What is new is that categorising is a one-time act: every category you set is
+   remembered as a rule, so the next import fills itself in.
+   ===================================================================== */
+const API = "/.netlify/functions/kpi-store";
+
+/* ---------- seed rules ---------------------------------------------------
+   Mined from the 643 already-categorised expenses in the sheet, so the very
+   first import arrives mostly filled in rather than blank. They are only a
+   starting point: anything you change is saved as your own rule and wins,
+   because saved rules are searched before these. ---------------------- */
+const SEED_RULES = [
+  ["FOREIGN CURRENCY CONVERSION FEE","Charges","Essential"],
+  ["GOOGLE WORKSPACE_BODYS","Marketing","Essential"],
+  ["OPENAI *CHATGPT SUBSCR","Software","Essential"],
+  ["PATREON* MEMBERSHIPPAT","Software",""],
+  ["BUSINESSFORUNICORNS.CO","Mentorship","Optional"],
+  ["PPOINT_*ARJUUN TRADI L","Retail","Can Cut"],
+  ["THE VENDING PEOPLE LTD","Other",""],
+  ["WARRINGTON MINI MARKET","Other",""],
+  ["PRIME VIDEO RENT / BUY","Retail",""],
+  ["CLAUDE.AI SUBSCRIPTION","Software","Can Cut"],
+  ["ANTHROPIC* CLAUDE SUB","Software","Essential"],
+  ["ZETTLE_*THE FOOD HALL","Other","Can Cut"],
+  ["PADDLE.NET* CHATBOTAI","Software","Can Cut"],
+  ["SP THE COFFEEWORKS","Bills","Optional"],
+  ["HPI INSTANT INK UK","Retail","Can Cut"],
+  ["SQ *THE KINGS HEAD","Other",""],
+  ["EE DEVICE PAYMENT","Bills","Essential"],
+  ["ZAPIER.COM/CHARGE","Software","Essential"],
+  ["HMRC MY-DRS.CO.UK","Tax",""],
+  ["TESCO STORES 2676","Retail","Can Cut"],
+  ["ADVANTIS CREDIT L","Tax",""],
+  ["SAN UK BUS LOANS","Lease","Essential"],
+  ["WINWICK ENTERPRI","Travel","Optional"],
+  ["EASY ADMIN ONLIN","Accounting","Essential"],
+  ["PTS PROPERTY LTD","Rent","Essential"],
+  ["VEOLIA ES UK LTD","Cleaning",""],
+  ["STERMAT HARDWARE","Retail",""],
+  ["CASH WITHDRAWAL","Other","Can Cut"],
+  ["TEAMUP SOFTWARE","Software","Essential"],
+  ["MORRISONS DAILY","Other","Can Cut"],
+  ["ONTRAPORT, INC","Software","Essential"],
+  ["ABC TRAINERIZE","Software","Optional"],
+  ["APPLE.COM/BILL","Software","Can Cut"],
+  ["CAPITAL ON TAP","Lease","Essential"],
+  ["FUNDING CIRCLE","Lease","Essential"],
+  ["NEIL BERESFORD","Owners Pay","Essential"],
+  ["CHESTER-MOBILE","Travel","Essential"],
+  ["TESCO PFS 3732","Other","Can Cut"],
+  ["ROBERT MASSAM","Mentorship","Essential"],
+  ["VMO*VIMEO.COM","Software",""],
+  ["WWW.USE.AI/US","Software","Can Cut"],
+  ["AMAZON.CO.UK","Other","Can Cut"],
+  ["CHARGES FROM","Charges","Essential"],
+  ["GARETH SCOTT","Wages","Essential"],
+  ["DANIEL BAKER","Wages","Essential"],
+  ["TEUXDEUX.COM","Software","Essential"],
+  ["SQSP* WEBSIT","Software","Optional"],
+  ["AMZNBUSINESS","Other",""],
+  ["ANT*TRAINPAL","Travel","Essential"],
+  ["AMZNMKTPLACE","Retail","Optional"],
+  ["ASHLEY OWEN","Owners Pay","Can Cut"],
+  ["GRACE TERRY","Wages","Essential"],
+  ["PLIABILITY","Software","Can Cut"],
+  ["UBER *TRIP","Travel","Can Cut"],
+  ["NUTRAPREPS","Retail","Optional"],
+  ["EE LIMITED","Bills","Essential"],
+  ["GOCARDLESS","Bills","Essential"],
+  ["ANTHROPIC","Software","Essential"],
+  ["MICROSOFT","Software",""],
+  ["HMRC NDDS","Tax",""],
+  ["AMAZON UK","Other",""],
+  ["TRAINPAL","Travel","Essential"],
+  ["SP HEALF","Retail","Optional"],
+  ["LINKTREE","Bills","Essential"],
+  ["BRAIN.FM","Software","Can Cut"],
+  ["ZOOM.COM","Software",""],
+  ["BOMBAY 8","Other",""],
+  ["NETLIFY","Software","Essential"],
+  ["SPOTIFY","Software","Essential"],
+  ["ICELAND","Other","Can Cut"],
+  ["FACEBK","Marketing","Essential"],
+  ["EE LTD","Bills","Essential"],
+  ["AMAZON","Retail","Essential"],
+  ["CANVA","Software","Optional"],
+  ["NEST","Pensions","Essential"],
+  ["VERY","Retail","Essential"],
+];
+
+const KEYMAPS = ["Essential","Optional","Can Cut"];
+/* "Transfer" is not a cost and not income — it is the same money moving between your
+   own Santander accounts, which is what the weekly pot move IS. It sits in the category
+   list so a row can be marked as one, but everything that totals money deliberately
+   skips it: counting it would show the tax pot as an expense AND as income when it
+   comes back, which is how a good month starts looking like a bad one. */
+const TRANSFER = "Transfer";
+const DEFAULT_CATS = ["Wages","Pensions","Rent","Accounting","Software","Marketing","Cleaning",
+  "Lease","Bills","Website","Retail","Other","Travel","Mentorship","Charges","Owners Pay","Tax",
+  TRANSFER];
+const isTransfer = (r) => r.cat === TRANSFER;
+/* The nine recurring jobs from the sheet's WEEKLY CHECKLIST, ids fixed so a tick
+   survives a wording change. */
+const CHECKLIST = [
+  ["import",  "Import this week's bank export"],
+  ["review",  "Categorise anything in Needs Review"],
+  ["cash",    "Check cash status is green or amber"],
+  ["pots",    "Profit first — move the money over"],
+  ["acct",    "Send month data to the accountant"],
+  ["invoice", "Pay any outstanding invoices"],
+  ["stripe",  "Check failed payments on Stripe"],
+  ["ontra",   "Check new members set up on Ontraport"],
+  ["action",  "Do the one cashflow action for the week"],
+];
+
+/* ---------- small helpers ---------- */
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
+  ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const money = (n) => (n < 0 ? "-" : "") + "£" + Math.abs(Number(n) || 0)
+  .toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money0 = (n) => (n < 0 ? "-" : "") + "£" + Math.round(Math.abs(Number(n) || 0)).toLocaleString("en-GB");
+const pad = (n) => String(n).padStart(2, "0");
+const ymd = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+const ymOf = (s) => String(s).slice(0, 7);
+const dmy = (s) => { const p = String(s).split("-"); return p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : s; };
+const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const ymLabel = (ym) => { const p = ym.split("-"); return MONTH_NAMES[Number(p[1]) - 1] + " " + p[0]; };
+const dayLabel = (s) => { const d = new Date(s + "T12:00:00");
+  return d.getDate() + " " + MONTH_NAMES[d.getMonth()]; };
+function addDays(s, n) { const d = new Date(s + "T12:00:00"); d.setDate(d.getDate() + n); return ymd(d); }
+
+let toastT = null;
+function toast(msg) {
+  const el = $("toast"); el.textContent = msg; el.classList.add("on");
+  clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("on"), 2200);
+}
+
+async function api(qs) {
+  const r = await fetch(API + "?" + qs);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function post(body) {
+  const r = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+/* ---------- state ---------- */
+const S = {
+  settings: null,
+  rules: [],          // [{match,cat,km}] — the user's own, saved
+  months: [],         // every "YYYY-MM" that has data
+  ym: null,           // the month on screen
+  rows: [],           // that month's transactions
+  weekStart: null,    // Thursday of the pot-move week on screen
+  week: null,         // that week's saved record
+  weekRows: [],       // transactions inside that week (may span two months)
+  view: "cockpit",
+  filter: "all",
+  search: "",
+  pending: null,      // a parsed-but-not-yet-imported file
+  bdOpen: null,       // which breakdown category is expanded
+  trend: {},          // ym -> rows, for the six-month table
+};
+
+/* ---------- the category engine ------------------------------------------
+   One list, searched longest-match-first so a specific rule beats a general
+   one ("TESCO PFS 3732" before "TESCO"). The user's saved rules are searched
+   before the seeds, so re-categorising something sticks. --------------- */
+function allRules() {
+  const seen = new Set(); const out = [];
+  for (const r of S.rules) { const k = r.match.toUpperCase(); if (!seen.has(k)) { seen.add(k); out.push(r); } }
+  for (const [match, cat, km] of SEED_RULES) { if (!seen.has(match)) { seen.add(match); out.push({ match, cat, km }); } }
+  return out.sort((a, b) => b.match.length - a.match.length);
+}
+let RULE_CACHE = null;
+const rules = () => (RULE_CACHE || (RULE_CACHE = allRules()));
+const bustRules = () => { RULE_CACHE = null; };
+
+function categorise(desc) {
+  const d = String(desc || "").toUpperCase();
+  for (const r of rules()) if (d.includes(r.match)) return { cat: r.cat, km: r.km };
+  return { cat: "", km: "" };
+}
+
+/* The merchant inside a bank description — the part worth remembering as a rule.
+   Santander wraps the useful bit in a lot of boilerplate ("CARD PAYMENT TO x ON
+   date", "BILL PAYMENT VIA FASTER PAYMENT TO x REFERENCE y, MANDATE NO nnnn"),
+   and the trailing transaction ids differ every time, so they are stripped. */
+function merchantOf(desc) {
+  let d = String(desc || "").toUpperCase().trim();
+  if (d.includes("FOREIGN CURRENCY CONVERSION")) return "FOREIGN CURRENCY CONVERSION FEE";
+  if (d.startsWith("CHARGES FROM")) return "CHARGES FROM";
+  if (d.includes("CASH WITHDRAWAL")) return "CASH WITHDRAWAL";
+  let m = d.match(/^CARD PAYMENT TO (.+?)(?:\s*,\s*[\d.]+\s+[A-Z]{3}|\s+ON \d|\s*$)/);
+  if (!m) m = d.match(/^(?:BILL PAYMENT VIA FASTER PAYMENT|DIRECT DEBIT PAYMENT|FASTER PAYMENTS?(?: PAYMENT)?)\s*(?:TO\s+)?(.+?)(?:\s+REF(?:ERENCE)?\b|\s*,\s*MANDATE|\s*$)/);
+  if (!m) m = d.match(/^(.+?)\s*\(VIA APPLE PAY\)/);
+  if (!m) m = d.match(/^(.+?)\s+ON \d\d-\d\d-\d{4}/);
+  let out = m ? m[1] : d.slice(0, 40);
+  // Card processors append a per-transaction id that differs every time, so a rule
+  // built on one would never match the same merchant again. Two shapes, both stripped:
+  //   separated  — "CANVA* 04960-21821687", "FACEBK *D3CPMYZRS2"
+  //   glued on   — "MICROSOFT-G167112320", "GODADDY£4156017395", "SQSP* WEBSIT£238320174"
+  // The separated rule only fires when the tail contains a digit, so "UBER *TRIP" and
+  // "GRACE TERRY" keep theirs. The glued rule needs 5+ digits, so "TESCO STORES 2676"
+  // — a real branch number, and worth keeping distinct — survives.
+  out = out.replace(/[\s*]+[A-Z0-9][A-Z0-9-]{4,}$/, (x) => (/\d/.test(x) ? "" : x))
+           .replace(/[^A-Z0-9]*[A-Z]?\d{5,}$/, "")
+           .replace(/\s+/g, " ").replace(/^[\s,*-]+|[\s,*-]+$/g, "");
+  return out.length >= 3 ? out : d.slice(0, 40).trim();
+}
+
+/* Is this row money moving between your own accounts? Matched on the description, in
+   BOTH directions — out to the pots, and back again when you spend from one. */
+function looksLikeTransfer(desc) {
+  const kw = String((S.settings && S.settings.transferKeyword) || "").toUpperCase().trim();
+  if (!kw) return false;
+  return String(desc || "").toUpperCase().includes(kw);
+}
+
+/* Which income source a credit came from, by the keywords in Settings. */
+function sourceOf(desc) {
+  const d = String(desc || "").toUpperCase();
+  const src = (S.settings && S.settings.sources) || {};
+  for (const key of ["stripe", "gocardless", "sumup", "nutraprep"]) {
+    const kw = String(src[key] || "").toUpperCase().trim();
+    if (kw && d.includes(kw)) return key;
+  }
+  return "other";
+}
+
+/* =====================================================================
+   READING A BANK FILE
+   Three shapes turn up in practice and all three are handled without asking:
+     1. a normal CSV/TSV with a header row (most banks, Funding Circle, Stripe);
+     2. Santander's "Download to Excel", which is really an HTML table saved as
+        .xls — opening it in a spreadsheet just to re-save it as CSV was half the
+        friction, so it is read directly;
+     3. Santander's plain-text export, which is Date:/Description:/Amount: blocks
+        rather than columns.
+   All three come out as { headers:[], rows:[[...]] } and are mapped from there.
+   ===================================================================== */
+
+/* A CSV line splitter that honours quotes and doubled quotes ("" inside a field). */
+function splitCsvLine(line, delim) {
+  const out = []; let cur = ""; let q = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (q) {
+      if (c === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; }
+      else cur += c;
+    } else if (c === '"') q = true;
+    else if (c === delim) { out.push(cur); cur = ""; }
+    else cur += c;
+  }
+  out.push(cur);
+  return out.map((s) => s.trim());
+}
+
+/* Bank exports are full of spacer columns — Santander's HTML export puts an empty
+   <td> between every real one — so an all-blank column is dropped before anything
+   else looks at the grid. Everything downstream then sees clean columns. */
+function dropEmptyCols(grid) {
+  const w = Math.max(...grid.map((r) => r.length), 0);
+  const keep = [];
+  for (let c = 0; c < w; c++) if (grid.some((r) => String(r[c] || "").trim() !== "")) keep.push(c);
+  return grid.map((r) => keep.map((c) => String(r[c] == null ? "" : r[c]).trim()));
+}
+
+/* The header row is the one with the most cells that read as a column NAME — short,
+   starting with a letter, no digits. A data row can look like that too ("Jay Bell"),
+   but never as often as a real header, and ties go to the earlier row. This is what
+   lets a file with a title/account block above the table still import. */
+function findHeader(grid) {
+  let best = 0, bestScore = -1;
+  for (let i = 0; i < Math.min(grid.length, 25); i++) {
+    const named = grid[i].filter((c) => /^[A-Za-z][A-Za-z £$%\/()._-]{0,30}$/.test(c)).length;
+    if (named < 2 || i >= grid.length - 1) continue;
+    const score = named * 10 - i * 0.01;
+    if (score > bestScore) { bestScore = score; best = i; }
+  }
+  return best;
+}
+
+function finishGrid(grid) {
+  grid = dropEmptyCols(grid).filter((r) => r.some((c) => c !== ""));
+  if (grid.length < 2) return null;
+  const head = findHeader(grid);
+  return { headers: grid[head].map((h, i) => h || "Column " + (i + 1)),
+    rows: grid.slice(head + 1).filter((r) => r.some((c) => c !== "")) };
+}
+
+function parseDelimited(text) {
+  const lines = text.replace(/\r\n?/g, "\n").split("\n");
+  // The delimiter is whichever of , ; tab | splits the most lines into the same
+  // number of fields — sniffing a single line alone gets fooled by a title row.
+  const sample = lines.filter((l) => l.trim()).slice(0, 12);
+  let delim = ",", best = -1;
+  for (const d of [",", ";", "\t", "|"]) {
+    const counts = sample.map((l) => splitCsvLine(l, d).length);
+    const max = Math.max(...counts, 0);
+    if (max < 2) continue;
+    const score = counts.filter((c) => c === max).length * 10 + max;
+    if (score > best) { best = score; delim = d; }
+  }
+  const t = finishGrid(lines.map((l) => splitCsvLine(l, delim)));
+  if (t) t.delim = delim;
+  return t;
+}
+
+/* Santander's "Download to Excel" is an HTML table saved as .xls. Opening it in a
+   spreadsheet just to re-save it as CSV was half the friction of the old process,
+   so it is read as it downloads. The widest table on the page is the statement. */
+function parseHtmlTable(text) {
+  const doc = new DOMParser().parseFromString(text, "text/html");
+  let best = null, bestScore = 0;
+  for (const t of doc.querySelectorAll("table")) {
+    const trs = [...t.querySelectorAll("tr")];
+    if (trs.length < 3) continue;
+    if (trs.length > bestScore) { bestScore = trs.length; best = trs; }
+  }
+  if (!best) return null;
+  return finishGrid(best.map((tr) => [...tr.querySelectorAll("td,th")]
+    .map((c) => c.textContent.replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim())));
+}
+
+/* Santander's plain-text export: repeated "Date: … / Description: … / Amount: …" blocks. */
+function parseKeyValue(text) {
+  const t = text.replace(/\r\n?/g, "\n");
+  if (!/^\s*Date:/m.test(t)) return null;
+  const blocks = t.split(/\n\s*\n/);
+  const keys = []; const rows = [];
+  for (const b of blocks) {
+    const rec = {};
+    for (const line of b.split("\n")) {
+      const m = line.match(/^\s*([A-Za-z][A-Za-z ]{1,24}):\s*(.*)$/);
+      if (m) { const k = m[1].trim(); rec[k] = m[2].trim(); if (!keys.includes(k)) keys.push(k); }
+    }
+    if (rec.Date) rows.push(rec);
+  }
+  if (rows.length < 2) return null;
+  return { headers: keys, rows: rows.map((r) => keys.map((k) => r[k] || "")) };
+}
+
+function readTable(text) {
+  if (/<\s*table/i.test(text) || /^\s*<(!doctype|html)/i.test(text)) {
+    const t = parseHtmlTable(text); if (t && t.rows.length) return t;
+  }
+  const kv = parseKeyValue(text); if (kv) return kv;
+  return parseDelimited(text);
+}
+
+/* ---------- values ---------- */
+/* "£1,763.29" / "(12.34)" / "-30.48" / "+62.94" / "12.34 CR"  ->  a number. */
+function toAmount(v) {
+  if (v == null) return null;
+  let s = String(v).trim();
+  if (!s) return null;
+  let sign = 1;
+  if (/^\(.*\)$/.test(s)) { sign = -1; s = s.slice(1, -1); }
+  if (/\bCR\b/i.test(s)) sign = Math.abs(sign);
+  if (/\bDR\b/i.test(s)) sign = -Math.abs(sign);
+  s = s.replace(/[£$€,\s]/g, "").replace(/\b(CR|DR)\b/gi, "");
+  if (s.startsWith("+")) s = s.slice(1);
+  if (s.startsWith("-")) { sign = -sign; s = s.slice(1); }
+  if (!/^\d*\.?\d+$/.test(s)) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? sign * n : null;
+}
+
+const MONTH_ABBR = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12 };
+/* A date out of any of the formats a UK bank actually emits. `fmt` forces the
+   reading of an ambiguous d/m vs m/d; "auto" assumes UK order, which is what
+   every bank in this account produces. */
+function toDate(v, fmt) {
+  if (v == null) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return m[1] + "-" + pad(m[2]) + "-" + pad(m[3]);
+  m = s.match(/^(\d{1,2})[\/\-. ](\d{1,2})[\/\-. ](\d{2,4})/);
+  if (m) {
+    let a = Number(m[1]), b = Number(m[2]);
+    let y = Number(m[3]); if (y < 100) y += y < 70 ? 2000 : 1900;
+    let d = a, mo = b;
+    if (fmt === "mdy") { d = b; mo = a; }
+    else if (fmt === "dmy" || fmt === "auto" || !fmt) { if (a > 12 && b <= 12) { d = a; mo = b; }
+      else if (b > 12 && a <= 12) { d = b; mo = a; } }
+    if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+    return y + "-" + pad(mo) + "-" + pad(d);
+  }
+  m = s.match(/^(\d{1,2})[\s\-]([A-Za-z]{3})[a-z]*[\s\-](\d{2,4})/);
+  if (m) { let y = Number(m[3]); if (y < 100) y += 2000;
+    const mo = MONTH_ABBR[m[2].toLowerCase()]; if (!mo) return null;
+    return y + "-" + pad(mo) + "-" + pad(Number(m[1])); }
+  return null;
+}
+
+/* ---------- working out which column is which ----------
+   By header name first, because that is unambiguous; then by what the column
+   actually contains, so a file with no usable header still imports. */
+function guessMapping(t) {
+  const H = t.headers.map((h) => String(h).toLowerCase().trim());
+  const find = (...pats) => { for (const p of pats) { const i = H.findIndex((h) => p.test(h)); if (i >= 0) return i; } return -1; };
+  const map = {
+    date: find(/^date$/, /date/, /^when$/),
+    desc: find(/description/, /^details?$/, /narrative/, /^reference$/, /^merchant$/, /^name$/, /payee/),
+    amt:  find(/^amount$/, /^value$/, /amount/),
+    inn:  find(/money in/, /paid in/, /^credit$/, /credits?/, /^in$/, /received/),
+    out:  find(/money out/, /paid out/, /^debit$/, /debits?/, /^out$/, /withdraw/),
+  };
+  const col = (i) => t.rows.map((r) => r[i]);
+  const looksDate = (i) => { const v = col(i).filter((x) => x); if (!v.length) return 0;
+    return v.filter((x) => toDate(x, "auto")).length / v.length; };
+  const looksNum = (i) => { const v = col(i).filter((x) => x); if (!v.length) return 0;
+    return v.filter((x) => toAmount(x) !== null).length / v.length; };
+  const nCols = t.headers.length;
+  if (map.date < 0) { let b = -1, bs = .6;
+    for (let i = 0; i < nCols; i++) { const s = looksDate(i); if (s > bs) { bs = s; b = i; } } map.date = b; }
+  if (map.desc < 0) { let b = -1, bl = 0;
+    for (let i = 0; i < nCols; i++) { if (i === map.date) continue;
+      const v = col(i).filter((x) => x); if (!v.length) continue;
+      if (looksNum(i) > .7) continue;
+      const len = v.reduce((a, x) => a + String(x).length, 0) / v.length;
+      if (len > bl) { bl = len; b = i; } } map.desc = b; }
+  // A balance column is numeric too, so prefer a numeric column that changes sign
+  // or that is NOT monotonic. In practice: pick the numeric column whose header is
+  // not "balance" and which has the smallest average magnitude.
+  if (map.amt < 0 && map.inn < 0 && map.out < 0) {
+    const cands = [];
+    for (let i = 0; i < nCols; i++) {
+      if (i === map.date || i === map.desc) continue;
+      if (/balance/.test(H[i] || "")) continue;
+      if (looksNum(i) < .8) continue;
+      const v = col(i).map(toAmount).filter((x) => x !== null);
+      if (!v.length) continue;
+      cands.push({ i, avg: v.reduce((a, x) => a + Math.abs(x), 0) / v.length });
+    }
+    cands.sort((a, b) => a.avg - b.avg);
+    if (cands.length) map.amt = cands[0].i;
+  }
+  // Separate in/out columns are only real when both exist and are mostly blank —
+  // that is the shape ("money in" filled on credits, "money out" on debits).
+  if (map.inn >= 0 && map.out >= 0) map.amt = -1;
+  return map;
+}
+
+/* =====================================================================
+   IMPORT
+   ===================================================================== */
+/* The dedupe key. Two rows on the same day, with the same description and the
+   same amount in the same direction ARE the same payment for our purposes —
+   which is what makes re-uploading an overlapping statement safe. Where a real
+   duplicate exists (two identical £13 Canva charges on one day) the second gets
+   a #2 suffix, so genuine repeats survive. */
+function hashOf(t, n) { return t.date + "|" + String(t.desc).toUpperCase().replace(/\s+/g, " ").trim()
+  + "|" + t.amount.toFixed(2) + "|" + t.dir + (n > 1 ? "|#" + n : ""); }
+
+function buildRows(t, map, fmt) {
+  const out = []; const seen = new Map();
+  for (const r of t.rows) {
+    const date = toDate(r[map.date], fmt);
+    if (!date) continue;
+    let amount = null, dir = null;
+    if (map.inn >= 0 || map.out >= 0) {
+      const i = map.inn >= 0 ? toAmount(r[map.inn]) : null;
+      const o = map.out >= 0 ? toAmount(r[map.out]) : null;
+      if (i) { amount = Math.abs(i); dir = "in"; }
+      else if (o) { amount = Math.abs(o); dir = "out"; }
+    } else if (map.amt >= 0) {
+      const a = toAmount(r[map.amt]);
+      if (a !== null && a !== 0) { amount = Math.abs(a); dir = a > 0 ? "in" : "out"; }
+    }
+    if (!amount || !dir) continue;
+    const desc = String(map.desc >= 0 ? (r[map.desc] || "") : "").replace(/\s+/g, " ").trim();
+    const row = { date, desc, amount, dir };
+    const base = hashOf(row, 1);
+    const n = (seen.get(base) || 0) + 1; seen.set(base, n);
+    row.hash = hashOf(row, n);
+    row.id = row.hash;
+    if (looksLikeTransfer(desc)) { row.cat = TRANSFER; row.km = ""; if (dir === "in") row.src = "transfer"; }
+    else if (dir === "out") { const g = categorise(desc); row.cat = g.cat; row.km = g.km; }
+    else { row.cat = ""; row.km = ""; row.src = sourceOf(desc); }
+    out.push(row);
+  }
+  out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  return out;
+}
+
+/* Load every month the incoming rows touch, so duplicates can be spotted before
+   anything is written. */
+async function loadMonthsFor(rows) {
+  const yms = [...new Set(rows.map((r) => ymOf(r.date)))];
+  const got = {};
+  // A month that cannot be read is treated as empty rather than aborting the preview:
+  // the worst case is a row shown as "new" that turns out to be a duplicate, and the
+  // import itself re-checks before writing. A dead connection must not make the
+  // preview blow up with nothing on screen.
+  await Promise.all(yms.map(async (ym) => {
+    try { got[ym] = (await api("fintxns=" + ym)).rows || []; }
+    catch { got[ym] = []; }
+  }));
+  return got;
+}
+
+async function handleFiles(files) {
+  const texts = [];
+  for (const f of files) {
+    try { texts.push({ name: f.name, text: await f.text() }); }
+    catch { toast("Could not read " + f.name); }
+  }
+  if (!texts.length) return;
+  const tables = [];
+  for (const { name, text } of texts) {
+    const t = readTable(text);
+    if (!t || !t.rows.length) { toast("Nothing readable in " + name); continue; }
+    tables.push({ name, t });
+  }
+  if (!tables.length) return;
+  // One preview per upload; several files at once are stacked into it.
+  const first = tables[0];
+  S.pending = { name: tables.map((x) => x.name).join(", "), tables,
+    t: first.t, map: guessMapping(first.t), fmt: "auto", existing: null, rows: [] };
+  fillMapSelects();
+  await refreshPreview();
+}
+
+function fillMapSelects() {
+  const p = S.pending; if (!p) return;
+  $("mapFile").textContent = p.name;
+  const opts = (sel, idx, allowNone) => {
+    const el = $(sel);
+    el.innerHTML = (allowNone ? '<option value="-1">— none —</option>' : "")
+      + p.t.headers.map((h, i) => `<option value="${i}">${esc(h)}</option>`).join("");
+    el.value = String(idx);
+  };
+  opts("mDate", p.map.date, true); opts("mDesc", p.map.desc, true);
+  opts("mAmt", p.map.amt, true); opts("mIn", p.map.inn, true); opts("mOut", p.map.out, true);
+  $("mFmt").value = p.fmt;
+  $("mapCard").hidden = false;
+}
+
+async function refreshPreview() {
+  const p = S.pending; if (!p) return;
+  let rows = [];
+  for (const { t } of p.tables) {
+    const map = t === p.t ? p.map : guessMapping(t);
+    rows = rows.concat(buildRows(t, map, p.fmt));
+  }
+  p.rows = rows;
+  if (!rows.length) {
+    $("prevCard").hidden = false;
+    $("prevCount").textContent = "nothing readable";
+    $("prevTbl").innerHTML = "";
+    $("mapNote").textContent = "No rows came out with that mapping. Check the Date and Amount columns above.";
+    return;
+  }
+  $("mapNote").textContent = "";
+  p.existing = await loadMonthsFor(rows);
+  const have = new Set();
+  for (const ym of Object.keys(p.existing)) for (const r of p.existing[ym]) have.add(r.hash || hashOf(r, 1));
+  let fresh = 0, dupe = 0, blank = 0;
+  const body = rows.map((r) => {
+    const isDupe = have.has(r.hash);
+    if (isDupe) dupe++; else { fresh++; if (r.dir === "out" && !r.cat) blank++; }
+    return `<tr class="${isDupe ? "dupe" : (r.dir === "out" && !r.cat ? "needs" : "")}">
+      <td class="dt">${dmy(r.date)}</td>
+      <td class="ds"><span class="desc" title="${esc(r.desc)}">${esc(r.desc)}</span></td>
+      <td class="num ${r.dir}">${r.dir === "in" ? "+" : "−"}${money(r.amount)}</td>
+      <td>${r.dir === "in" ? esc(r.src || "") : esc(r.cat || "—")}</td>
+      <td>${isDupe ? "already in" : "new"}</td></tr>`;
+  }).join("");
+  $("prevTbl").innerHTML = `<thead><tr><th>Date</th><th>Description</th><th style="text-align:right">Amount</th>
+    <th>Category / source</th><th>Status</th></tr></thead><tbody>${body}</tbody>`;
+  const span = [...new Set(rows.map((r) => ymOf(r.date)))].sort();
+  $("prevCount").textContent = `${fresh} new, ${dupe} already imported · `
+    + (span.length === 1 ? ymLabel(span[0]) : ymLabel(span[0]) + " to " + ymLabel(span[span.length - 1]));
+  $("doImport").querySelector("span").textContent = fresh ? `Import ${fresh} transaction${fresh === 1 ? "" : "s"}` : "Nothing new to import";
+  $("doImport").disabled = !fresh;
+  $("importMsg").textContent = blank ? `${blank} will need a category` : (fresh ? "All categorised automatically." : "");
+  $("prevCard").hidden = false;
+}
+
+async function commitImport() {
+  const p = S.pending; if (!p || !p.rows.length) return;
+  $("doImport").disabled = true; $("importMsg").textContent = "Saving…";
+  const byMonth = {};
+  for (const ym of Object.keys(p.existing)) byMonth[ym] = p.existing[ym].slice();
+  let added = 0;
+  for (const r of p.rows) {
+    const ym = ymOf(r.date);
+    byMonth[ym] = byMonth[ym] || [];
+    if (byMonth[ym].some((x) => (x.hash || hashOf(x, 1)) === r.hash)) continue;
+    byMonth[ym].push({ ...r, importedAt: new Date().toISOString() });
+    added++;
+  }
+  try {
+    for (const ym of Object.keys(byMonth)) {
+      await post({ finTxns: { ym, rows: byMonth[ym] } });
+    }
+  } catch (e) { $("importMsg").textContent = "Could not save: " + e.message; $("doImport").disabled = false; return; }
+  S.pending = null;
+  // The six-month table caches a month's rows once fetched. An import can touch several
+  // months at once, so drop the whole cache rather than leave the Breakdown showing
+  // figures from before the import.
+  S.trend = {};
+  $("mapCard").hidden = true; $("prevCard").hidden = true;
+  await loadMonths();
+  const touched = Object.keys(byMonth).sort();
+  S.ym = touched[touched.length - 1];
+  await loadMonth();
+  toast(added + " transaction" + (added === 1 ? "" : "s") + " imported");
+  const needs = S.rows.filter((r) => r.dir === "out" && !r.cat).length;
+  setView(needs ? "txns" : "cockpit");
+  if (needs) { S.filter = "review"; renderTxns(); }
+}
+
+/* =====================================================================
+   THE COCKPIT
+   ===================================================================== */
+const sum = (rows, f) => rows.reduce((a, r) => a + (f(r) ? r.amount : 0), 0);
+const moneyIn = (rows) => sum(rows, (r) => r.dir === "in" && !isTransfer(r));
+const moneyOut = (rows) => sum(rows, (r) => r.dir === "out" && !isTransfer(r));
+const transfersOut = (rows) => sum(rows, (r) => r.dir === "out" && isTransfer(r));
+const transfersIn = (rows) => sum(rows, (r) => r.dir === "in" && isTransfer(r));
+
+/* Cash status and the one action, both straight off the sheet's own formulas so the
+   traffic light means exactly what it always meant:
+     net >= the comfortable buffer  -> Comfortable
+     net >= 0                       -> Tight
+     net <  0                       -> Protect cash
+   The buffer was hardcoded at £2,000 in the sheet; here it is a setting, because it is
+   a judgement about this business rather than a fact. */
+function cashStatus(net) {
+  const buffer = Number(S.settings.cashBuffer) || 0;
+  if (net >= buffer) return { tone: "good", word: "Comfortable", sub: "In front by more than " + money0(buffer) + "." };
+  if (net >= 0) return { tone: "watch", word: "Tight", sub: "In front, but not by much." };
+  return { tone: "bad", word: "Protect cash", sub: "Spending is ahead of income." };
+}
+
+/* The sheet's ONE CASHFLOW ACTION, in its own order of precedence: a negative month
+   outranks everything, then anything uncategorised, then a thin cushion. */
+function cashflowAction(net, needs) {
+  const buffer = Number(S.settings.cashBuffer) || 0;
+  if (net < 0) return { tone: "stop", text: "Hold non-essential spend",
+    why: "The month is " + money0(Math.abs(net)) + " down. Start with anything marked Can Cut on the Breakdown." };
+  if (needs) return { tone: "warn", text: "Categorise this month",
+    why: needs + " expense" + (needs === 1 ? "" : "s") + " still have no category, so the breakdown is not telling you the truth yet." };
+  if (net < buffer) return { tone: "warn", text: "Keep a close eye on spend",
+    why: "In front, but by less than " + money0(buffer) + "." };
+  return { tone: "calm", text: "In good shape — keep going",
+    why: "Nothing needs your attention on the money this week." };
+}
+
+function renderStats() {
+  const inn = moneyIn(S.rows), out = moneyOut(S.rows), net = inn - out;
+  const needs = S.rows.filter((r) => r.dir === "out" && !r.cat).length;
+  const cash = cashStatus(net);
+  const cards = [
+    [cash.tone, "Cash status", cash.word, cash.sub],
+    ["good", "Money in", money0(inn), "Received in " + ymLabel(S.ym) + "."],
+    ["", "Money out", money0(out), "Spent in " + ymLabel(S.ym) + "."],
+    [net >= 0 ? "good" : "bad", "Net movement", money0(net), "In minus out — your cushion."],
+  ];
+  $("statRow").innerHTML = cards.map(([tone, lab, val, sub]) =>
+    `<div class="fin-stat ${tone}"><div class="lab">${esc(lab)}</div>
+      <div class="val">${esc(val)}</div><div class="sub">${esc(sub)}</div></div>`).join("")
+    + (needs ? `<div class="fin-stat watch" style="grid-column:1/-1;cursor:pointer" id="needsCard">
+        <div class="lab"><svg class="ic"><use href="#ic-alert"/></svg>Needs review</div>
+        <div class="val">${needs}</div>
+        <div class="sub">Uncategorised expense${needs === 1 ? "" : "s"} in ${esc(ymLabel(S.ym))} — click to sort them out.</div></div>` : "");
+  const nc = $("needsCard");
+  if (nc) nc.onclick = () => { S.filter = "review"; setView("txns"); renderTxns(); };
+
+  // Transfers are shown, but well away from the four numbers — they are not spending,
+  // and the whole point is that they do not move Money Out.
+  const xOut = transfersOut(S.rows), xIn = transfersIn(S.rows);
+  const xf = $("xferNote");
+  if (xOut || xIn) {
+    xf.hidden = false;
+    xf.textContent = "Not counted above: " + money(xOut) + " moved out to your pots"
+      + (xIn ? ", " + money(xIn) + " brought back" : "") + " — your own money, not spending.";
+  } else xf.hidden = true;
+
+  const act = cashflowAction(net, needs);
+  const card = $("actionCard");
+  card.className = "card action-card " + act.tone;
+  $("actionText").textContent = act.text;
+  $("actionWhy").textContent = act.why;
+}
+
+/* The Thursday on or before a date — the start of the pot-move week. */
+function weekStartOf(dateStr, dow) {
+  const d = new Date(dateStr + "T12:00:00");
+  const diff = (d.getDay() - dow + 7) % 7;
+  d.setDate(d.getDate() - diff);
+  return ymd(d);
+}
+const weekEndOf = (ws) => addDays(ws, 6);
+
+async function loadWeek() {
+  const ws = S.weekStart, we = weekEndOf(ws);
+  const yms = [...new Set([ymOf(ws), ymOf(we)])];
+  const rows = [];
+  for (const ym of yms) {
+    const got = (ym === S.ym) ? S.rows : ((await api("fintxns=" + ym)).rows || []);
+    for (const r of got) if (r.date >= ws && r.date <= we) rows.push(r);
+  }
+  S.weekRows = rows;
+  S.week = (await api("finweek=" + ws)).week;
+  renderWeek();
+  renderChecklist();
+}
+
+function renderWeek() {
+  const s = S.settings;
+  const alloc = new Set(s.allocatable || ["stripe", "gocardless"]);
+  const bySrc = {};
+  for (const r of S.weekRows) if (r.dir === "in" && !isTransfer(r)) {
+    const src = r.src || sourceOf(r.desc);
+    bySrc[src] = (bySrc[src] || 0) + r.amount;
+  }
+  const allocatable = [...alloc].reduce((a, k) => a + (bySrc[k] || 0), 0);
+  const tax = allocatable * (s.potTaxPct / 100);
+  const inv = allocatable * (s.potInvestPct / 100);
+  const ops = allocatable - tax - inv;
+  const other = Object.keys(bySrc).filter((k) => !alloc.has(k)).reduce((a, k) => a + bySrc[k], 0);
+
+  $("wkRange").textContent = dayLabel(S.weekStart) + " — " + dayLabel(weekEndOf(S.weekStart));
+  const label = { stripe: "Stripe", gocardless: "GoCardless", sumup: "SumUp", nutraprep: "Nutraprep", other: "Other income" };
+  const lines = [...alloc].map((k) =>
+    `<div class="pf-line"><span class="k">${esc(label[k] || k)}</span><span class="n">${money(bySrc[k] || 0)}</span></div>`).join("")
+    + (other ? `<div class="pf-line"><span class="k" style="color:var(--ink-faint)">Other income (not allocated)</span><span class="n" style="color:var(--ink-faint)">${money(other)}</span></div>` : "")
+    + `<div class="pf-line total"><span class="k">Allocatable income</span><span class="n">${money(allocatable)}</span></div>`;
+  $("pfLines").innerHTML = lines;
+  $("pfPots").innerHTML =
+    `<div class="pot tax"><i class="dot"></i><span class="k">Tax pot · ${s.potTaxPct}%</span><span class="n">${money(tax)}</span></div>
+     <div class="pot inv"><i class="dot"></i><span class="k">Investment pot · ${s.potInvestPct}%</span><span class="n">${money(inv)}</span></div>
+     <div class="pot ops"><i class="dot"></i><span class="k">Left to run on</span><span class="n">${money(ops)}</span></div>`;
+
+  // What Santander actually shows leaving for the pots this week. This is the honest
+   // answer to "did I do it?" — the tick below is what you SAID, this is what happened.
+  const seen = S.weekRows.filter((r) => r.dir === "out" && isTransfer(r));
+  const seenTotal = seen.reduce((a, r) => a + r.amount, 0);
+  const asked = tax + inv;
+  $("pfSeen").innerHTML = seen.length
+    ? `<div class="pf-line"><span class="k">Left the account for your pots</span><span class="n">${money(seenTotal)}</span></div>`
+      + `<div class="pf-line"><span class="k" style="color:var(--ink-faint)">${seen.length} transfer${seen.length === 1 ? "" : "s"}${
+          asked ? " · " + (Math.abs(seenTotal - asked) < 1 ? "matches what was due"
+            : (seenTotal > asked ? money(seenTotal - asked) + " more than due" : money(asked - seenTotal) + " still to move")) : ""
+        }</span><span></span></div>`
+    : (asked ? `<div class="pf-line"><span class="k" style="color:var(--ink-faint)">No transfer to your pots has shown up yet this week.</span><span></span></div>` : "");
+
+  const moved = !!(S.week && S.week.moved);
+  const btn = $("pfMoved");
+  btn.querySelector("span").textContent = moved ? "Moved — undo" : "Mark the money as moved";
+  btn.classList.toggle("primary", !moved);
+  btn.dataset.tax = tax.toFixed(2); btn.dataset.inv = inv.toFixed(2);
+  $("pfMovedMsg").textContent = moved
+    ? "Moved " + money(S.week.tax) + " to tax and " + money(S.week.invest) + " to investment."
+    : (allocatable ? "Move " + money(tax) + " and " + money(inv) + " out before you spend anything." : "");
+  $("pfHint").textContent = "Counts " + ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][s.weekStartDow]
+    + " to the day before the next one. The closing day is left out on purpose — its payments are still landing — and counts next week.";
+}
+
+function renderChecklist() {
+  const done = (S.week && S.week.checklist) || {};
+  $("ckList").innerHTML = CHECKLIST.map(([id, text]) =>
+    `<label class="ck ${done[id] ? "on" : ""}"><input type="checkbox" data-ck="${id}" ${done[id] ? "checked" : ""}><span>${esc(text)}</span></label>`).join("");
+  const n = CHECKLIST.filter(([id]) => done[id]).length;
+  $("ckProgress").textContent = n + " / " + CHECKLIST.length + " done this week.";
+  $("ckList").querySelectorAll("input[data-ck]").forEach((el) => {
+    el.onchange = async () => {
+      const cl = { ...((S.week && S.week.checklist) || {}) };
+      cl[el.dataset.ck] = el.checked;
+      S.week = (await post({ finWeek: { weekStart: S.weekStart, moved: !!(S.week && S.week.moved),
+        tax: (S.week && S.week.tax) || 0, invest: (S.week && S.week.invest) || 0, checklist: cl } })).week;
+      renderChecklist();
+    };
+  });
+}
+
+function renderMeal() {
+  const src = (S.settings && S.settings.sources) || {};
+  const kwS = String(src.sumup || "").toUpperCase(), kwN = String(src.nutraprep || "").toUpperCase();
+  const took = S.rows.filter((r) => r.dir === "in" && !isTransfer(r) && kwS && r.desc.toUpperCase().includes(kwS))
+    .reduce((a, r) => a + r.amount, 0);
+  const paid = S.rows.filter((r) => r.dir === "out" && !isTransfer(r) && kwN && r.desc.toUpperCase().includes(kwN))
+    .reduce((a, r) => a + r.amount, 0);
+  $("mealMonth").textContent = ymLabel(S.ym);
+  $("mealLines").innerHTML =
+    `<div class="pf-line"><span class="k">SumUp taken</span><span class="n">${money(took)}</span></div>
+     <div class="pf-line"><span class="k">Paid to Nutraprep</span><span class="n">${money(paid)}</span></div>
+     <div class="pf-line total"><span class="k">Meal profit</span><span class="n" style="color:${took - paid >= 0 ? "var(--tint-green)" : "var(--tint-red)"}">${money(took - paid)}</span></div>`;
+  $("mealNote").textContent = took || paid ? ""
+    : "Nothing matched yet this month — check the SumUp and Nutraprep keywords in Settings.";
+}
+
+/* =====================================================================
+   TRANSACTIONS
+   ===================================================================== */
+function catSelect(r) {
+  const cats = S.settings.categories || DEFAULT_CATS;
+  return `<select class="cellsel ${r.cat ? "" : "empty"}" data-id="${esc(r.id)}" data-f="cat">
+    <option value="">${r.cat ? "—" : "Set…"}</option>
+    ${cats.map((c) => `<option ${c === r.cat ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>`;
+}
+/* A credit is either income or your own money coming back. Two options is the whole
+   choice — a credit never needs an expense category. */
+function inSelect(r) {
+  return `<select class="cellsel" data-id="${esc(r.id)}" data-f="cat">
+    <option value="" ${isTransfer(r) ? "" : "selected"}>${esc(r.src && r.src !== "transfer" ? r.src : "income")}</option>
+    <option value="${TRANSFER}" ${isTransfer(r) ? "selected" : ""}>${TRANSFER}</option></select>`;
+}
+function kmSelect(r) {
+  return `<select class="cellsel" data-id="${esc(r.id)}" data-f="km">
+    <option value="">—</option>
+    ${KEYMAPS.map((k) => `<option ${k === r.km ? "selected" : ""}>${esc(k)}</option>`).join("")}</select>`;
+}
+
+function visibleRows() {
+  let rows = S.rows;
+  if (S.filter === "review") rows = rows.filter((r) => r.dir === "out" && !r.cat);
+  else if (S.filter === "in") rows = rows.filter((r) => r.dir === "in");
+  else if (S.filter === "out") rows = rows.filter((r) => r.dir === "out");
+  const q = S.search.trim().toUpperCase();
+  if (q) rows = rows.filter((r) => r.desc.toUpperCase().includes(q));
+  return rows;
+}
+
+function renderTxns() {
+  document.querySelectorAll("#txFilters .fchip").forEach((b) =>
+    b.classList.toggle("on", b.dataset.f === S.filter));
+  const rows = visibleRows();
+  const needs = S.rows.filter((r) => r.dir === "out" && !r.cat).length;
+  $("txMsg").textContent = rows.length + " of " + S.rows.length + " shown"
+    + (needs ? " · " + needs + " need a category" : "");
+  if (!rows.length) {
+    $("txTbl").innerHTML = `<tbody><tr><td><div class="fin-empty">${
+      S.rows.length ? "Nothing matches that filter." : "No transactions for " + esc(ymLabel(S.ym)) + " yet — import a bank export."
+    }</div></td></tr></tbody>`;
+    return;
+  }
+  $("txTbl").innerHTML = `<thead><tr><th>Date</th><th>Description</th><th style="text-align:right">Amount</th>
+    <th>Category</th><th>Keymap</th></tr></thead><tbody>` + rows.map((r) => `
+    <tr class="${r.dir === "out" && !r.cat ? "needs" : ""}">
+      <td class="dt">${dmy(r.date)}</td>
+      <td class="ds"><span class="desc" title="${esc(r.desc)}">${esc(r.desc)}</span></td>
+      <td class="num ${r.dir}">${r.dir === "in" ? "+" : "−"}${money(r.amount)}</td>
+      <td>${r.dir === "out" ? catSelect(r) : inSelect(r)}</td>
+      <td>${r.dir === "out" ? kmSelect(r) : ""}</td></tr>`).join("") + "</tbody>";
+  $("txTbl").querySelectorAll("select[data-id]").forEach((el) => { el.onchange = () => onCellChange(el); });
+}
+
+let saveT = null;
+async function onCellChange(el) {
+  const r = S.rows.find((x) => x.id === el.dataset.id);
+  if (!r) return;
+  r[el.dataset.f] = el.value;
+  el.classList.toggle("empty", el.dataset.f === "cat" && !el.value);
+  // Remember it. One merchant, one rule — set the category once and every future
+  // import of that merchant arrives already done.
+  if (el.dataset.f === "cat" && el.value) {
+    const m = merchantOf(r.desc);
+    if (m && m.length >= 3) {
+      const i = S.rules.findIndex((x) => x.match === m);
+      const rule = { match: m, cat: r.cat, km: r.km || "" };
+      if (i >= 0) S.rules[i] = rule; else S.rules.push(rule);
+      bustRules();
+      // Fill in every other uncategorised row in this month that the rule now covers.
+      let also = 0;
+      for (const o of S.rows) {
+        if (o !== r && o.dir === r.dir && !o.cat && o.desc.toUpperCase().includes(m)) {
+          o.cat = r.cat; o.km = o.km || r.km || ""; also++;
+        }
+      }
+      post({ finRules: S.rules }).catch(() => {});
+      if (also) { renderTxns(); toast("Remembered — and applied to " + also + " more"); }
+      else toast("Remembered for next time");
+    }
+  }
+  // Capture the month and the rows NOW, not when the timer fires. Otherwise changing a
+  // category and switching month inside the debounce window writes the new month's rows
+  // under the new month's key and the edit just made is silently dropped.
+  const ym = S.ym, rows = S.rows;
+  clearTimeout(saveT);
+  saveT = setTimeout(async () => {
+    try { await post({ finTxns: { ym, rows } }); if (S.ym === ym) renderStats(); }
+    catch (e) { toast("Could not save: " + e.message); }
+  }, 600);
+}
+
+/* =====================================================================
+   BREAKDOWN
+   ===================================================================== */
+function renderBreakdown() {
+  $("bdMonth").textContent = ymLabel(S.ym);
+  const outRows = S.rows.filter((r) => r.dir === "out" && !isTransfer(r));
+  const total = outRows.reduce((a, r) => a + r.amount, 0);
+
+  const byKm = { Essential: 0, Optional: 0, "Can Cut": 0, "": 0 };
+  for (const r of outRows) byKm[KEYMAPS.includes(r.km) ? r.km : ""] += r.amount;
+  const tone = { Essential: "good", Optional: "watch", "Can Cut": "bad" };
+  $("kmSplit").innerHTML = KEYMAPS.map((k) =>
+    `<div class="fin-stat ${tone[k]}"><div class="lab">${esc(k)}</div>
+      <div class="val">${money0(byKm[k])}</div>
+      <div class="sub">${total ? Math.round(byKm[k] / total * 100) : 0}% of spending${
+        k === "Can Cut" && byKm[k] ? " — the first place to look." : "."}</div></div>`).join("");
+
+  const byCat = {};
+  for (const r of outRows) { const c = r.cat || "Uncategorised"; byCat[c] = (byCat[c] || 0) + r.amount; }
+  const cats = Object.keys(byCat).sort((a, b) => byCat[b] - byCat[a]);
+  const max = cats.length ? byCat[cats[0]] : 1;
+  if (!cats.length) { $("bdRows").innerHTML = `<div class="fin-empty">No expenses in ${esc(ymLabel(S.ym))} yet.</div>`; return; }
+  $("bdRows").innerHTML = cats.map((c) => {
+    const open = S.bdOpen === c;
+    const det = open ? `<div class="bd-detail"><div class="fin-tw"><table class="fin"><tbody>${
+      outRows.filter((r) => (r.cat || "Uncategorised") === c)
+        .sort((a, b) => b.amount - a.amount)
+        .map((r) => `<tr><td class="dt">${dmy(r.date)}</td><td class="ds"><span class="desc" title="${esc(r.desc)}">${esc(r.desc)}</span></td>
+          <td class="num">${money(r.amount)}</td></tr>`).join("")
+    }</tbody></table></div></div>` : "";
+    return `<div class="bd-row" data-cat="${esc(c)}">
+      <span class="k">${esc(c)}</span>
+      <span class="bd-bar"><i style="width:${Math.max(2, byCat[c] / max * 100)}%"></i></span>
+      <span class="n">${money(byCat[c])}</span>
+      <span class="p">${total ? Math.round(byCat[c] / total * 100) : 0}%</span></div>${det}`;
+  }).join("")
+    + `<div class="bd-row" style="border-top:1px solid var(--line);margin-top:6px;cursor:default">
+        <span class="k" style="font-weight:800">Total</span><span></span>
+        <span class="n" style="font-weight:800">${money(total)}</span><span class="p"></span></div>`;
+  $("bdRows").querySelectorAll(".bd-row[data-cat]").forEach((el) => {
+    el.onclick = () => { S.bdOpen = S.bdOpen === el.dataset.cat ? null : el.dataset.cat; renderBreakdown(); };
+  });
+  renderTrend();
+}
+
+async function renderTrend() {
+  const idx = S.months.indexOf(S.ym);
+  const span = S.months.slice(Math.max(0, (idx < 0 ? S.months.length : idx + 1) - 6), (idx < 0 ? S.months.length : idx + 1));
+  if (!span.length) { $("trendTbl").innerHTML = ""; return; }
+  await Promise.all(span.map(async (ym) => {
+    if (S.trend[ym]) return;
+    S.trend[ym] = ym === S.ym ? S.rows : ((await api("fintxns=" + ym)).rows || []);
+  }));
+  S.trend[S.ym] = S.rows;
+  const cats = new Set();
+  for (const ym of span) for (const r of S.trend[ym]) if (r.dir === "out" && !isTransfer(r)) cats.add(r.cat || "Uncategorised");
+  const catList = [...cats];
+  const tot = (ym, c) => S.trend[ym].filter((r) => r.dir === "out" && !isTransfer(r) && (r.cat || "Uncategorised") === c)
+    .reduce((a, r) => a + r.amount, 0);
+  catList.sort((a, b) => span.reduce((s, y) => s + tot(y, b), 0) - span.reduce((s, y) => s + tot(y, a), 0));
+  const head = `<thead><tr><th>Category</th>${span.map((y) => `<th style="text-align:right">${esc(ymLabel(y))}</th>`).join("")}</tr></thead>`;
+  const body = catList.map((c) => `<tr><td>${esc(c)}</td>${
+    span.map((y) => { const v = tot(y, c); return `<td class="num" style="${v ? "" : "color:var(--ink-faint);font-weight:400"}">${v ? money0(v) : "—"}</td>`; }).join("")
+  }</tr>`).join("");
+  const foot = `<tr style="border-top:2px solid var(--line)"><td style="font-weight:800">Total out</td>${
+    span.map((y) => `<td class="num" style="font-weight:800">${money0(moneyOut(S.trend[y]))}</td>`).join("")}</tr>`
+    + `<tr><td style="font-weight:800">Total in</td>${
+    span.map((y) => `<td class="num" style="font-weight:800;color:var(--tint-green)">${money0(moneyIn(S.trend[y]))}</td>`).join("")}</tr>`
+    + `<tr><td style="font-weight:800">Net</td>${span.map((y) => { const n = moneyIn(S.trend[y]) - moneyOut(S.trend[y]);
+      return `<td class="num" style="font-weight:800;color:${n >= 0 ? "var(--tint-green)" : "var(--tint-red)"}">${money0(n)}</td>`; }).join("")}</tr>`;
+  $("trendTbl").innerHTML = head + "<tbody>" + body + foot + "</tbody>";
+}
+
+/* =====================================================================
+   SETTINGS
+   ===================================================================== */
+function renderSettings() {
+  const s = S.settings;
+  $("sTax").value = s.potTaxPct; $("sInv").value = s.potInvestPct;
+  $("sBuffer").value = s.cashBuffer;
+  $("sDow").value = String(s.weekStartDow);
+  $("sStripe").value = s.sources.stripe || ""; $("sGc").value = s.sources.gocardless || "";
+  $("sSumup").value = s.sources.sumup || ""; $("sNutra").value = s.sources.nutraprep || "";
+  $("sXfer").value = s.transferKeyword || "";
+  $("sCats").value = (s.categories || DEFAULT_CATS).join(", ");
+  renderRules();
+}
+
+function renderRules() {
+  const q = $("ruleSearch").value.trim().toUpperCase();
+  const list = S.rules.map((r, i) => ({ ...r, i }))
+    .filter((r) => !q || r.match.includes(q) || String(r.cat).toUpperCase().includes(q))
+    .sort((a, b) => (a.match < b.match ? -1 : 1));
+  $("ruleCount").textContent = S.rules.length + " of your own, plus " + SEED_RULES.length + " built in";
+  const cats = S.settings.categories || DEFAULT_CATS;
+  $("ruleRows").innerHTML = list.length ? list.map((r) => `
+    <div class="rulerow" data-i="${r.i}">
+      <input class="fin-in" data-f="match" value="${esc(r.match)}">
+      <select class="fin-in" data-f="cat">${cats.map((c) => `<option ${c === r.cat ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
+      <select class="fin-in" data-f="km"><option value="">—</option>${KEYMAPS.map((k) => `<option ${k === r.km ? "selected" : ""}>${esc(k)}</option>`).join("")}</select>
+      <button class="iconbtn" data-del="${r.i}" title="Delete this rule"><svg class="ic"><use href="#ic-close"/></svg></button>
+    </div>`).join("")
+    : `<div class="fin-empty">${S.rules.length ? "No rule matches that." : "Nothing of your own yet — every category you set on a transaction lands here."}</div>`;
+  $("ruleRows").querySelectorAll(".rulerow").forEach((row) => {
+    row.querySelectorAll("[data-f]").forEach((el) => {
+      el.onchange = () => {
+        const r = S.rules[Number(row.dataset.i)];
+        if (!r) return;
+        if (el.dataset.f === "match") r.match = el.value.trim().toUpperCase();
+        else r[el.dataset.f] = el.value;
+        bustRules();
+        post({ finRules: S.rules }).then(() => toast("Rule saved")).catch(() => toast("Could not save"));
+      };
+    });
+  });
+  $("ruleRows").querySelectorAll("[data-del]").forEach((b) => {
+    b.onclick = () => {
+      S.rules.splice(Number(b.dataset.del), 1);
+      bustRules();
+      post({ finRules: S.rules }).catch(() => {});
+      renderRules(); toast("Rule deleted");
+    };
+  });
+}
+
+async function saveSettings() {
+  const cats = $("sCats").value.split(",").map((c) => c.trim()).filter(Boolean);
+  const next = {
+    potTaxPct: Number($("sTax").value) || 0,
+    potInvestPct: Number($("sInv").value) || 0,
+    weekStartDow: Number($("sDow").value),
+    cashBuffer: Number($("sBuffer").value) || 0,
+    sources: { stripe: $("sStripe").value.trim(), gocardless: $("sGc").value.trim(),
+      sumup: $("sSumup").value.trim(), nutraprep: $("sNutra").value.trim() },
+    transferKeyword: $("sXfer").value.trim(),
+    categories: cats.length ? cats : DEFAULT_CATS,
+  };
+  $("setMsg").textContent = "Saving…";
+  try {
+    S.settings = (await post({ finSettings: next })).settings;
+    $("setMsg").textContent = "Saved.";
+    S.weekStart = weekStartOf(S.weekStart, S.settings.weekStartDow);
+    await loadWeek(); renderStats(); renderMeal();
+    toast("Settings saved");
+  } catch (e) { $("setMsg").textContent = "Could not save: " + e.message; }
+}
+
+/* =====================================================================
+   WIRING
+   ===================================================================== */
+function setView(v) {
+  S.view = v;
+  document.querySelectorAll("#tabBar .vt").forEach((b) => b.classList.toggle("active", b.dataset.view === v));
+  ["cockpit", "import", "txns", "breakdown", "settings"].forEach((k) => { $("v-" + k).hidden = k !== v; });
+  if (v === "txns") renderTxns();
+  if (v === "breakdown") renderBreakdown();
+  if (v === "settings") renderSettings();
+  try { localStorage.setItem("fin.view", v); } catch {}
+}
+
+function renderMonthSel() {
+  const sel = $("monthSel");
+  const list = S.months.length ? S.months : [S.ym];
+  sel.innerHTML = list.slice().reverse().map((m) =>
+    `<option value="${m}" ${m === S.ym ? "selected" : ""}>${esc(ymLabel(m))}</option>`).join("");
+}
+
+async function loadMonths() {
+  try { S.months = (await api("finmonths=1")).months || []; } catch { S.months = []; }
+  if (!S.ym) S.ym = S.months.length ? S.months[S.months.length - 1] : ymOf(ymd(new Date()));
+  renderMonthSel();
+}
+
+async function loadMonth() {
+  S.rows = (await api("fintxns=" + S.ym)).rows || [];
+  S.trend[S.ym] = S.rows;
+  renderMonthSel();
+  renderStats(); renderMeal();
+  if (S.view === "txns") renderTxns();
+  if (S.view === "breakdown") renderBreakdown();
+}
+
+function wire() {
+  document.querySelectorAll("#tabBar .vt").forEach((b) => { b.onclick = () => setView(b.dataset.view); });
+
+  $("monthSel").onchange = async () => { S.ym = $("monthSel").value; S.bdOpen = null; await loadMonth(); };
+
+  // Import: drop zone + picker.
+  const drop = $("drop"), file = $("fileIn");
+  drop.onclick = () => file.click();
+  file.onchange = () => { if (file.files.length) handleFiles([...file.files]); file.value = ""; };
+  ["dragenter", "dragover"].forEach((e) => drop.addEventListener(e, (ev) => {
+    ev.preventDefault(); drop.classList.add("over"); }));
+  ["dragleave", "drop"].forEach((e) => drop.addEventListener(e, (ev) => {
+    ev.preventDefault(); drop.classList.remove("over"); }));
+  drop.addEventListener("drop", (ev) => {
+    const f = [...(ev.dataTransfer?.files || [])]; if (f.length) handleFiles(f); });
+  ["mDate", "mDesc", "mAmt", "mIn", "mOut"].forEach((id) => {
+    $(id).onchange = () => {
+      if (!S.pending) return;
+      const k = { mDate: "date", mDesc: "desc", mAmt: "amt", mIn: "inn", mOut: "out" }[id];
+      S.pending.map[k] = Number($(id).value);
+      if (k === "amt" && S.pending.map.amt >= 0) { S.pending.map.inn = -1; S.pending.map.out = -1; $("mIn").value = "-1"; $("mOut").value = "-1"; }
+      if ((k === "inn" || k === "out") && Number($(id).value) >= 0) { S.pending.map.amt = -1; $("mAmt").value = "-1"; }
+      refreshPreview();
+    };
+  });
+  $("mFmt").onchange = () => { if (S.pending) { S.pending.fmt = $("mFmt").value; refreshPreview(); } };
+  $("doImport").onclick = commitImport;
+  $("cancelImport").onclick = () => { S.pending = null; $("mapCard").hidden = true; $("prevCard").hidden = true; };
+
+  // Transactions.
+  document.querySelectorAll("#txFilters .fchip").forEach((b) => {
+    b.onclick = () => { S.filter = b.dataset.f; renderTxns(); }; });
+  let searchT = null;
+  $("txSearch").oninput = () => { clearTimeout(searchT);
+    searchT = setTimeout(() => { S.search = $("txSearch").value; renderTxns(); }, 180); };
+
+  // Pot-move week.
+  $("wkPrev").onclick = async () => { S.weekStart = addDays(S.weekStart, -7); await loadWeek(); };
+  $("wkNext").onclick = async () => { S.weekStart = addDays(S.weekStart, 7); await loadWeek(); };
+  $("wkNow").onclick = async () => { S.weekStart = weekStartOf(ymd(new Date()), S.settings.weekStartDow); await loadWeek(); };
+  $("pfMoved").onclick = async () => {
+    const b = $("pfMoved"); const moved = !(S.week && S.week.moved);
+    S.week = (await post({ finWeek: { weekStart: S.weekStart, moved,
+      tax: moved ? Number(b.dataset.tax) : 0, invest: moved ? Number(b.dataset.inv) : 0,
+      checklist: { ...((S.week && S.week.checklist) || {}), ...(moved ? { pots: true } : {}) } } })).week;
+    renderWeek(); renderChecklist();
+    toast(moved ? "Logged — pots moved" : "Unmarked");
+  };
+
+  // Settings.
+  $("saveSettings").onclick = saveSettings;
+  $("ruleSearch").oninput = renderRules;
+  $("addRule").onclick = () => {
+    S.rules.unshift({ match: "NEW RULE", cat: (S.settings.categories || DEFAULT_CATS)[0], km: "" });
+    bustRules(); renderRules();
+    const first = $("ruleRows").querySelector('input[data-f="match"]');
+    if (first) { first.focus(); first.select(); }
+  };
+}
+
+async function init() {
+  wire();
+  try {
+    const [st, ru] = await Promise.all([api("finsettings=1"), api("finrules=1")]);
+    S.settings = st.settings; S.rules = ru.rules || [];
+  } catch (e) {
+    S.settings = { potTaxPct: 15, potInvestPct: 4, weekStartDow: 4, cashBuffer: 2000,
+      sources: { stripe: "STRIPE", gocardless: "GC C1", sumup: "SUMUP", nutraprep: "NUTRAPREP" },
+      transferKeyword: "BODYSCULPT TRANSFORMATION CENTRES",
+      allocatable: ["stripe", "gocardless"], categories: DEFAULT_CATS };
+    S.rules = [];
+    toast("Working offline — changes will not save");
+  }
+  bustRules();
+  await loadMonths();
+  await loadMonth();
+  S.weekStart = weekStartOf(ymd(new Date()), S.settings.weekStartDow);
+  await loadWeek();
+  let v = "cockpit";
+  try { v = localStorage.getItem("fin.view") || "cockpit"; } catch {}
+  setView(["cockpit", "import", "txns", "breakdown", "settings"].includes(v) ? v : "cockpit");
+  if (!S.months.length) setView("import");
+}
+init();
+
+</script>
+</body>
+</html>
