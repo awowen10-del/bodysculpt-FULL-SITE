@@ -488,39 +488,49 @@
                   PERIODS (Weekly / Monthly / Quarterly), sized to its content;
        .viewtoggle — quiet underline tabs for the SECTIONS inside the page.
      .topnav and #tabBar keep their names and their handlers; only the dress changed. */
-  .appbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:var(--sp-5);
-    background:var(--card);border:1px solid var(--line);border-bottom:0;
-    border-radius:var(--r-lg) var(--r-lg) 0 0;padding:0 var(--sp-4);min-height:60px;flex-wrap:wrap;}
+  .appbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:var(--sp-6);
+    background:var(--card);border:1px solid var(--line);
+    border-radius:var(--r-lg) var(--r-lg) 0 0;padding:var(--sp-3) var(--sp-4);min-height:64px;flex-wrap:wrap;}
   .appbar .brand{flex:0 0 auto;}
-  .appbar-right{flex:0 0 auto;margin-left:auto;display:flex;align-items:center;gap:var(--sp-2);}
-  /* ===== v126: THE NAV IS TWO PLACES, NOT ONE ROW =====
-     v122 labelled the groups but kept them on one line, so Finances read as a fourth
-     PERIOD sitting after Quarterly. Now each group is a STACK — an icon + caption ABOVE
-     its own pill segment — with a full-height rule between them. Planning is the
-     weekly→monthly→quarterly cadence; Finances is somewhere else you go, so its caption
-     and its pill carry the brand instead of the neutral inset. .topnav keeps its name and
-     its links; the pill moved down one level onto .navlinks. */
-  .topnav{display:flex;align-items:stretch;gap:var(--sp-2);margin:var(--sp-2) auto;}
-  .navgrp{display:flex;flex-direction:column;gap:6px;min-width:0;}
-  .navgroup{display:flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;
-    letter-spacing:.11em;font-weight:700;color:var(--ink-faint);padding:0 6px;white-space:nowrap;}
+  /* v127: the hairline under the app bar makes the header TWO REGISTERS of one block —
+     places above, sections below — instead of one tall empty slab. */
+  .vt-right{flex:0 0 auto;margin-left:auto;display:flex;align-items:center;gap:var(--sp-2);
+    padding-left:var(--sp-4);}
+  /* ===== v127: THE NAV STOPPED BEING FURNITURE =====
+     v126 got the STRUCTURE right — Planning above its three periods, Finances fenced off —
+     and the dress wrong. Three shapes competed inside one bar (a grey capsule TRACK, a
+     solid brand capsule, underline tabs under both), and the nav floated centred while the
+     brand sat left and a month picker sat right, so nothing lined up with anything: three
+     loose objects, not one row.
+     The rules the bar now follows:
+       · NO capsule track. The links are plain text and only the one you are on takes a
+         soft chip — the container was doing a job the active state already does.
+       · The nav sits directly after the brand, left-aligned on the same line; the Finances
+         group is pushed to the far edge behind a rule, so its separation is SPATIAL.
+       · Finances carries the brand as COLOUR — caption, label, and a tinted chip when you
+         are on it — never as a saturated fill. A place you go is not a call to action, and
+         nothing in the chrome may outshout the page.
+       · A caption's left edge lines up with its first link's TEXT, not its padding box.
+     Structure, names and handlers are v126's; only the dress changed. */
+  .topnav{display:flex;align-items:center;gap:var(--sp-2);flex:1 1 auto;margin:0;}
+  .navgrp{display:flex;flex-direction:column;gap:4px;min-width:0;}
+  .navgroup{display:flex;align-items:center;gap:5px;font-size:9.5px;text-transform:uppercase;
+    letter-spacing:.14em;font-weight:700;color:var(--ink-faint);padding-left:12px;white-space:nowrap;}
   .navgroup .ic{width:1.3em;height:1.3em;flex:0 0 auto;}
   .navgrp-money .navgroup{color:var(--orange);}
-  .navsep{width:1px;align-self:stretch;background:var(--line);margin:0 var(--sp-3);flex:0 0 auto;}
-  .navlinks{display:flex;gap:2px;background:var(--navy-2);border:1px solid var(--line);
-    border-radius:var(--r-pill);padding:3px;}
-  .navgrp-money .navlinks{background:var(--card);border-color:rgba(var(--orange-rgb),.35);}
+  /* the rule takes the slack, so it and Finances travel together to the far edge */
+  .navsep{width:1px;height:34px;align-self:center;background:var(--line);
+    margin-left:auto;flex:0 0 auto;}
+  .navsep + .navgrp{margin-left:var(--sp-4);}
+  .navlinks{display:flex;gap:2px;}
   .topnav a{text-decoration:none;font-size:13.5px;font-weight:500;color:var(--ink-dim);
-    padding:7px 20px;border-radius:var(--r-pill);letter-spacing:-.005em;white-space:nowrap;
-    transition:color var(--tap),background var(--tap),box-shadow var(--tap);}
-  .topnav a:hover{color:var(--ink);}
-  .topnav a.active{background:var(--card);color:var(--ink);font-weight:600;box-shadow:var(--shadow);}
+    padding:7px 12px;border-radius:var(--r-md);letter-spacing:-.005em;white-space:nowrap;
+    transition:color var(--tap),background var(--tap);}
+  .topnav a:hover{color:var(--ink);background:var(--navy-2);}
+  .topnav a.active{background:var(--navy-2);color:var(--ink-strong);font-weight:600;}
   .navgrp-money a{color:var(--orange);font-weight:600;}
-  .navgrp-money a:hover{color:var(--orange-soft);}
-  .navgrp-money a.active{background:var(--orange);color:var(--on-accent);box-shadow:var(--shadow);}
-  /* on the finance page the solid brand pill IS the marker, so the segment behind it
-     steps back rather than ringing it twice (older engines without :has just keep the ring) */
-  .navgrp-money .navlinks:has(a.active){background:transparent;border-color:transparent;}
+  .navgrp-money a:hover{color:var(--orange-soft);background:rgba(var(--orange-rgb),.09);}
+  .navgrp-money a.active{background:rgba(var(--orange-rgb),.12);color:var(--orange-soft);}
   .topnav a:focus-visible{outline:none;box-shadow:var(--focus);}
   /* the section tabs: an underline, not a second filled pill */
   .viewtoggle{display:flex;gap:2px;background:var(--card);border:1px solid var(--line);
@@ -534,11 +544,13 @@
   .viewtoggle .vt.active{color:var(--ink);font-weight:600;border-bottom-color:var(--orange);}
   .viewtoggle .vt:focus-visible{outline:none;box-shadow:var(--focus);border-radius:var(--r-sm);}
   @media(max-width:720px){
-    .appbar{min-height:0;padding:var(--sp-3) var(--sp-3) 0;gap:var(--sp-3);}
-    .topnav{flex-wrap:wrap;gap:var(--sp-3);margin:var(--sp-1) 0 var(--sp-3);width:100%;}
+    .appbar{min-height:0;padding:var(--sp-3);gap:var(--sp-3);}
+    .topnav{flex-wrap:wrap;gap:var(--sp-3);margin:var(--sp-1) 0 0;width:100%;}
     .navgrp{flex:1 1 100%;}
     .navsep{display:none;}
+    .navsep + .navgrp{margin-left:0;}
     .topnav a{flex:1;text-align:center;padding:7px 8px;}
+    .vt-right{padding-left:0;}
   }
   /* v106: theme toggle — a quiet chip at the end of the top nav, same family as the links */
   .tv-controls{display:flex;align-items:center;gap:10px;margin:8px 0 16px;}
@@ -1730,7 +1742,7 @@
 
   <footer>
     <span class="stage" id="srcPill"><svg class="ic"><use href="#ic-dot"/></svg> Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v126 · nav-two-places</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v127 · nav-integrated</span>
   </footer>
 </div>
 

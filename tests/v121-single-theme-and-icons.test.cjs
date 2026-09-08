@@ -253,9 +253,13 @@ function stripComments(src) {
       label + "…and sits inside the app bar, not below it");
     const style = styleOf(src);
     assert.ok(/\.appbar\{[^}]*position:sticky/.test(style), label + "the app bar is sticky");
-    // v126 moved the pill down one level: .topnav is the two-group row, .navlinks is the
-    // segment of links inside each group. The segmented-control claim is unchanged.
-    assert.ok(/\.navlinks\{[^}]*border-radius:var\(--r-pill\)/.test(style), label + "the period nav is a pill segment");
+    // v126 moved the pill down a level onto .navlinks; v127 dropped the TRACK altogether,
+    // because a container plus an active state were two devices for one job. What v121
+    // actually cared about survives and is checked instead: the period nav is a compact
+    // control of its own, distinct from the underline tabs below it, and the thing that
+    // marks where you are is a rounded chip on the link itself.
+    assert.ok(/\.topnav a\{[^}]*border-radius:var\(--r-md\)/.test(style), label + "a nav link is a rounded chip");
+    assert.ok(/\.topnav a\.active\{[^}]*background:var\(--navy-2\)/.test(style), label + "…and only the active one is filled");
     // the base rule sizes to content; the narrow-screen media query below it deliberately
     // does set flex:1, so only the FIRST .topnav a rule is checked here.
     const navLink = /\.topnav a\{[^}]*\}/.exec(style);

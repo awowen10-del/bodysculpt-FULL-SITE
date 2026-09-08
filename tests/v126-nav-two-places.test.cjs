@@ -10,9 +10,15 @@
 // Finances (wallet) holds its one link, in the brand colour, so it reads as somewhere
 // else you go rather than the next step in the cadence.
 //
-// Structure, not behaviour: .topnav keeps its name and its links, the pill moved down one
-// level onto .navlinks, and no store key, save path or handler is involved — so this test
-// reads the markup and the stylesheet rather than booting the app.
+// v127 UPDATE: this file now guards the STRUCTURE only — two stacks, caption above links,
+// the three periods together, finances alone. The DRESS it originally pinned (a pill track
+// on .navlinks, a solid brand fill on the active finance link) was the part that did not
+// look high end, and v127 replaced it; tests/v127-nav-integrated.test.cjs owns that now,
+// and pins the exact build stamp with it.
+//
+// Structure, not behaviour: .topnav keeps its name and its links, and no store key, save
+// path or handler is involved — so this test reads the markup and the stylesheet rather
+// than booting the app.
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
@@ -23,14 +29,16 @@ const SRC = {};
 FILES.forEach((f) => { SRC[f] = read(f); });
 const styleOf = (src) => src.slice(src.indexOf("<style>") + 7, src.indexOf("</style>"));
 
-const STAMP = "build v126 · nav-two-places";
-
 (async () => {
-  /* ================= 0. the stamp — the newest test pins it exactly ================= */
-  assert.ok(SRC["monthly.html"].includes("<!-- " + STAMP + " -->"), "monthly.html carries the machine stamp");
-  assert.ok(SRC["monthly.html"].includes('<span class="mp-stage">' + STAMP + "</span>"), "…and shows it on screen");
-  assert.ok(SRC["index.html"].includes(STAMP), "index.html carries the same stamp");
-  assert.ok(SRC["finances.html"].includes("<!-- " + STAMP + " -->"), "finances.html carries the same stamp");
+  /* ================= 0. the stamp ================= */
+  // relaxed once v127 shipped: the newest test pins the exact stamp, this one only checks
+  // the build never goes backwards and that the pages agree.
+  const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(SRC["monthly.html"]);
+  assert.ok(stamp && Number(stamp[1]) >= 126, "monthly.html stamped v126 or later");
+  const text = "build v" + stamp[1] + " · " + stamp[2];
+  assert.ok(SRC["monthly.html"].includes('<span class="mp-stage">' + text + "</span>"), "…and shows it on screen");
+  assert.ok(SRC["index.html"].includes(text), "index.html carries the same stamp");
+  assert.ok(SRC["finances.html"].includes("<!-- " + text + " -->"), "finances.html carries the same stamp");
 
   /* ================= 1. the nav is two stacks, in order ================= */
   for (const f of FILES) {
@@ -97,25 +105,14 @@ const STAMP = "build v126 · nav-two-places";
   for (const f of FILES) {
     const style = styleOf(SRC[f]), label = f + ": ";
 
-    // the pill moved DOWN a level: .topnav is the row of stacks, .navlinks is the segment
-    const topnav = /\n  \.topnav\{[^}]*\}/.exec(style);
-    assert.ok(topnav, label + ".topnav is styled");
-    assert.ok(!/border-radius/.test(topnav[0]), label + ".topnav is no longer the pill itself");
-    assert.ok(/\.navlinks\{[^}]*border-radius:var\(--r-pill\)/.test(style), label + ".navlinks is the pill segment");
-    assert.ok(/\.navlinks\{[^}]*background:var\(--navy-2\)/.test(style), label + "…the inset segment it always was");
-
     // a stack is a column, so the caption can sit above the links
     assert.ok(/\.navgrp\{[^}]*flex-direction:column/.test(style), label + ".navgrp stacks caption over links");
-    // the rule between them runs the full height of the stacks
-    assert.ok(/\.navsep\{[^}]*align-self:stretch/.test(style), label + "the rule is full height");
+    // there is a rule between the two stacks, and it is a hairline drawn from the token
+    assert.ok(/\.navsep\{[^}]*background:var\(--line\)/.test(style), label + "the rule is a hairline");
 
     // Finances is dressed differently — that is the whole point of the release
     assert.ok(/\.navgrp-money \.navgroup\{[^}]*color:var\(--orange\)/.test(style),
       label + "the Finances caption carries the brand");
-    assert.ok(/\.navgrp-money a\.active\{[^}]*background:var\(--orange\)/.test(style),
-      label + "…and its active link is a solid brand pill, not the neutral one");
-    assert.ok(/\.navgrp-money a\.active\{[^}]*color:var\(--on-accent\)/.test(style),
-      label + "…with readable text on that fill");
 
     // the icon in a caption is sized off the caption's own text
     assert.ok(/\.navgroup \.ic\{[^}]*width:1\.3em/.test(style), label + "the caption icon scales with its text");
