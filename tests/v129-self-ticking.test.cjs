@@ -1,5 +1,11 @@
 // v129 — the boxes line up, and a job done in the dashboard ticks itself off.
 //
+// v130 UPDATE: the cash-status row came back OUT of the automatic set. v129 ticked it
+// whenever the status came back green or amber, reading the job as "the number is fine".
+// Ash reads it as "I have looked at it" — a decision, not a state, and nothing on the page
+// can witness it: "that should be a manual switch." So the evidence rule below now has one
+// automatic tick that comes from the numbers (nothing left uncategorised) rather than two.
+//
 // Two things Ash asked for, looking at the cockpit on a wide screen:
 //
 //  1. "I do not like the alignment of boxes here." The main column and the rail started on
@@ -16,13 +22,13 @@
 //     dashboard should tick off automatically once it's actually done."
 //
 // The rule the ticking follows, and what this test pins:
-//   · a job ticks ONLY on evidence of it happening — an import that added rows, nothing
-//     left uncategorised, a cash status that is actually green or amber;
+//   · a job ticks ONLY on evidence of it happening — an import that added rows, or nothing
+//     left uncategorised;
 //   · a tick is never taken away, EXCEPT the pots row, which belongs to the Mark-the-money-
 //     as-moved button and follows it both ways: undo means it did not happen;
-//   · the four jobs that happen outside this dashboard (the accountant, the invoices,
-//     Stripe, Ontraport) stay manual. A wrong tick is worse than a missing one, because
-//     you would stop trusting the list.
+//   · every job the page cannot witness stays manual — the cash-status check, the
+//     accountant, the invoices, Stripe, Ontraport, and doing the week's one action. A wrong
+//     tick is worse than a missing one, because you would stop trusting the list.
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
@@ -45,7 +51,7 @@ const okA = async (name, fn) => { await fn(); pass++; console.log("  ok " + name
 (async () => {
   /* ================= 0. the stamp ================= */
   ok("every page carries the v129 stamp", () => {
-    const S = "build v129 · self-ticking";
+    const S = "build v130 · week-reads-down";
     const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
     assert.ok(FIN.includes("<!-- " + S + " -->"), "finances.html stamped v129");
     assert.ok(read("monthly.html").includes('<span class="mp-stage">' + S + "</span>"), "monthly shows it");
@@ -59,24 +65,40 @@ const okA = async (name, fn) => { await fn(); pass++; console.log("  ok " + name
     assert.ok(/\.ck-main\{[^}]*flex-direction:column/.test(STYLE), "the main column is a column");
     assert.ok(/\.ck-main>\.card\{[^}]*flex:1 1 auto/.test(STYLE), "…and its card fills it");
     assert.ok(/\.ck-main>\.card\{[^}]*flex-direction:column/.test(STYLE), "…as a column itself");
-    assert.ok(/\.ck-main>\.card>\.pf-do\{margin-top:auto;\}/.test(STYLE),
-      "the slack lands between the figures and the ask — the band anchors the bottom edge");
+    // v130: no more pooling the slack in one hole above the ask — it spreads across the
+    // gaps between the card's sections, where a few pixels in four places is invisible.
+    assert.ok(/\.ck-main>\.card\{justify-content:space-between;\}/.test(STYLE),
+      "the slack spreads across the card's gaps");
+    assert.ok(!/margin-top:auto/.test(STYLE.slice(STYLE.indexOf(".ck-main"), STYLE.indexOf(".cardhead"))),
+      "…and nothing is shoved to the bottom edge to hide it");
     assert.ok(/\.ck-rail>\.card:last-child\{flex:1 1 auto;\}/.test(STYLE),
       "whichever column is shorter, the last rail card takes up the slack");
   });
 
-  ok("the week's two halves balance, and read in the order it happened", () => {
-    const grid = /<div class="pf-grid">([\s\S]*?)<\/div>\s*<div class="pf-do"/.exec(FIN);
-    assert.ok(grid, "the week still has its two-column grid");
-    const halves = grid[1].split(/<\/div>\s*<div>/);
-    assert.strictEqual(halves.length, 2, "two halves");
-    assert.ok(/id="pfLines"/.test(halves[0]) && /id="pfSeen"/.test(halves[0]),
-      "what came in, then what actually left, in the same half");
-    assert.ok(halves[0].indexOf('id="pfLines"') < halves[0].indexOf('id="pfSeen"'), "…in that order");
-    assert.ok(/id="pfPots"/.test(halves[1]) && !/id="pfSeen"/.test(halves[1]),
-      "the pots have the other half to themselves");
+  // v130 replaced the two-column week with one column, which is the deeper fix: two lists
+  // of different lengths can never end level, and the longer one decided where the card
+  // stopped. One column also happens to be the order the week happens in.
+  ok("the week reads down the page, in the order it happens", () => {
+    const card = FIN.slice(FIN.indexOf('Profit First — this week'), FIN.indexOf('<aside class="ck-rail">'));
+    assert.ok(!/pf-grid/.test(card), "the two-column grid is gone");
+    const order = ["pfLines", "pfSplit", "pfPots", "pfSeen", "pfDo", "pfHint"].map((id) => card.indexOf('id="' + id + '"'));
+    order.forEach((i, n) => assert.ok(i > 0, order[n] + " is present"));
+    assert.deepStrictEqual(order.slice().sort((a, b) => a - b), order,
+      "what came in → how it splits → what actually left → what to do → the footnote");
     assert.ok(/#pfSeen:not\(:empty\)\{[^}]*border-top:1px solid var\(--line\)/.test(STYLE),
-      "…ruled off from the income above it, but only when it says something");
+      "what actually left is ruled off from the plan above it, but only when it says something");
+  });
+
+  ok("the split is drawn, not just listed", () => {
+    assert.ok(/<div class="split" id="pfSplit"><\/div>/.test(FIN), "the bar has a home in the markup");
+    assert.ok(/\.split\{[^}]*display:flex/.test(STYLE) && /\.split:empty\{display:none;\}/.test(STYLE),
+      "…and disappears when there is nothing to split");
+    // the three segments take the three pot colours, so bar and rows read as one thing
+    assert.ok(/\.split \.s-tax\{background:var\(--orange\)/.test(STYLE), "tax is the brand");
+    assert.ok(/\.split \.s-inv\{background:var\(--blue\)/.test(STYLE), "investment is the blue");
+    assert.ok(/\.split \.s-ops\{background:var\(--green\)/.test(STYLE), "what is left is the green");
+    assert.ok(/Math\.max\(\(v \/ allocatable\) \* 100, v > 0 \? 1\.5 : 0\)/.test(FIN),
+      "a small pot keeps a sliver of width instead of vanishing");
   });
 
   /* ================= 2. the ticking rules ================= */
@@ -90,16 +112,18 @@ const okA = async (name, fn) => { await fn(); pass++; console.log("  ok " + name
   });
 
   // a) nothing left to categorise, and the month is in front → those two tick themselves
-  await okA("the jobs the numbers can prove tick themselves", async () => {
+  await okA("the job the numbers can prove ticks itself", async () => {
     const { el, store, S } = await boot({ txns: { "2026-08": [ROW("a", "in", 3000), ROW("b", "out", 200, "Rent")] }, now: "2026-08-10" });
     const cl = store.weeks[S.weekStart].checklist;
     assert.strictEqual(cl.review, true, "nothing uncategorised — the review job is done");
-    assert.strictEqual(cl.cash, true, "the month is comfortably in front — the cash check passes");
-    assert.strictEqual(el("ckProgress").textContent, "2 of 9 done", "…and the card says so");
-    // and only those two: the jobs that happen elsewhere are untouched
+    assert.strictEqual(el("ckProgress").textContent, "1 of 9 done", "…and the card says so");
+    // and only that one. The month here is comfortably in front, which under v129 would
+    // have ticked the cash row as well: looking at a number is a decision, not a state.
+    assert.ok(!cl.cash, "the cash-status check stays a manual switch, however healthy the month");
     for (const k of ["import", "pots", "acct", "invoice", "stripe", "ontra", "action"]) {
       assert.ok(!cl[k], k + " is not claimed without evidence");
     }
+    assert.ok(!/ckAuto\("cash"/.test(FIN), "nothing anywhere ticks the cash row for you");
   });
 
   // b) the evidence has to actually be there
@@ -107,7 +131,7 @@ const okA = async (name, fn) => { await fn(); pass++; console.log("  ok " + name
     const { store, S } = await boot({ txns: { "2026-08": [ROW("c", "in", 100), ROW("d", "out", 900, "")] }, now: "2026-08-10" });
     const cl = (store.weeks[S.weekStart] || {}).checklist || {};
     assert.ok(!cl.review, "an uncategorised expense means the review job is not done");
-    assert.ok(!cl.cash, "…and a month spending ahead of income is not a passed cash check");
+    assert.ok(!cl.cash, "…and the cash row is untouched either way");
   });
 
   // c) the pots row follows its button in both directions
@@ -137,7 +161,7 @@ const okA = async (name, fn) => { await fn(); pass++; console.log("  ok " + name
     ctx.renderStats();
     await settle();
     assert.strictEqual(store.weeks[S.weekStart].checklist.stripe, true, "still there");
-    assert.ok(el("ckProgress").textContent.startsWith("3 of 9"), "and still counted");
+    assert.ok(el("ckProgress").textContent.startsWith("2 of 9"), "and still counted");
   });
 
   // e) an import that lands rows ticks the import job

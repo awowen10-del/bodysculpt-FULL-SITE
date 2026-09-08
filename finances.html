@@ -599,16 +599,25 @@
   @media(max-width:480px){ .fin-stats{grid-template-columns:1fr;} }
 
   /* --- Profit First --- */
-  .pf-grid{display:grid;grid-template-columns:1.35fr 1fr;gap:var(--sp-3);align-items:start;}
-  @media(max-width:900px){ .pf-grid{grid-template-columns:1fr;} }
+  /* v130: the week is ONE column, top to bottom, because that is the order it happens in —
+     what came in, how it splits, what actually left, what to do about it. Side by side it
+     was two lists of different lengths that could never end level, and the taller of the
+     two decided where the card stopped. */
+  .split{display:flex;gap:3px;height:10px;margin:var(--sp-4) 0 var(--sp-3);}
+  .split:empty{display:none;}
+  .split i{display:block;border-radius:var(--r-pill);min-width:3px;}
+  .split .s-tax{background:var(--orange);}
+  .split .s-inv{background:var(--blue);}
+  .split .s-ops{background:var(--green);}
+  .pots{border:1px solid var(--line);border-radius:var(--r-md);background:var(--card-2);overflow:hidden;}
   .pf-line{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
     padding:9px 0;border-bottom:1px dashed var(--line);font-size:13.5px;}
   .pf-line:last-child{border-bottom:0;}
   .pf-line .n{font-variant-numeric:tabular-nums;font-weight:700;color:var(--ink);}
   .pf-line.total{border-top:1px solid var(--line);border-bottom:0;margin-top:4px;padding-top:11px;}
   .pf-line.total .k,.pf-line.total .n{font-weight:800;font-size:14.5px;}
-  .pot{display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:var(--r-md);
-    border:1px solid var(--line);background:var(--card-2);margin-bottom:10px;}
+  .pot{display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--line);}
+  .pot:last-child{border-bottom:0;}
   .pot .dot{width:9px;height:9px;border-radius:var(--r-pill);flex:0 0 auto;}
   .pot.tax .dot{background:var(--orange);} .pot.inv .dot{background:var(--blue);}
   .pot.ops .dot{background:var(--green);}
@@ -731,10 +740,10 @@
     gap:var(--sp-4);align-items:stretch;}
   .ck-main{display:flex;flex-direction:column;min-width:0;}
   .ck-main>.card{flex:1 1 auto;display:flex;flex-direction:column;}
-  /* the slack lands BETWEEN the figures and the ask, not under everything: the tinted band
-     and its footnote anchor the bottom edge, which is what makes the two columns look set
-     rather than stretched */
-  .ck-main>.card>.pf-do{margin-top:auto;}
+  /* If the rail still runs longer, the slack is SPREAD across the gaps between the card's
+     sections — a few extra pixels of air in four places, which nobody sees — rather than
+     pooled into one hole above the ask, which everybody does. */
+  .ck-main>.card{justify-content:space-between;}
   .ck-rail>.card:last-child{flex:1 1 auto;}
   @media(max-width:1080px){ .ck-grid{grid-template-columns:1fr;} }
   .ck-rail{display:flex;flex-direction:column;gap:var(--sp-4);min-width:0;}
@@ -810,13 +819,10 @@
   .ck-prog .n{font-size:11.5px;font-weight:700;color:var(--ink-dim);font-variant-numeric:tabular-nums;
     white-space:nowrap;}
 
-  /* the two halves of the week read as one table, not two floating lists */
-  @media(min-width:901px){ #v-cockpit .pf-grid>div:first-child{border-right:1px solid var(--line);
-    padding-right:var(--sp-5);} }
   .ck-rail .ck{padding:7px 2px;}
   /* what actually left the account belongs under what came IN, not under the pots: it
      balances the two halves and reads in the order it happened */
-  #pfSeen:not(:empty){margin-top:var(--sp-3);padding-top:var(--sp-3);border-top:1px solid var(--line);}
+  #pfSeen:not(:empty){margin-top:var(--sp-4);padding-top:var(--sp-3);border-top:1px solid var(--line);}
   .pot .k{display:flex;align-items:center;gap:6px;}
   .pf-line .k{display:inline-flex;align-items:center;gap:6px;}
 
@@ -914,7 +920,7 @@
 <symbol id="ic-help" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.4 9.3a2.7 2.7 0 1 1 3.5 2.6c-.8.3-1.2.9-1.2 1.7v.5"/><path d="M11.7 17.3h.01"/></symbol>
 <symbol id="ic-wallet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h11.2a1 1 0 0 1 1 1v2"/><path d="M3 7.5v9.8A2.7 2.7 0 0 0 5.7 20h12.8a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 18.5 8H5.5"/><circle cx="16.3" cy="13.6" r="1.15"/></symbol>
 </defs></svg>
-<!-- build v129 · self-ticking -->
+<!-- build v130 · week-reads-down -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -983,15 +989,10 @@
             <button class="pb-jump" id="wkNow">This week</button>
           </div>
         </div>
-        <div class="pf-grid">
-          <div>
-            <div id="pfLines"></div>
-            <div id="pfSeen"></div>
-          </div>
-          <div>
-            <div id="pfPots"></div>
-          </div>
-        </div>
+        <div id="pfLines"></div>
+        <div class="split" id="pfSplit"></div>
+        <div class="pots" id="pfPots"></div>
+        <div id="pfSeen"></div>
         <div class="pf-do" id="pfDo">
           <div>
             <div class="k" id="pfDoK">Do this now</div>
@@ -2035,7 +2036,7 @@ function renderStats() {
       + (xIn ? ", " + money(xIn) + " brought back" : "") + " — your own money, not spending.";
   } else xf.hidden = true;
 
-  ckAutoFromStats(needs, cash.tone);
+  ckAutoReview(needs);
 
   const act = cashflowAction(net, needs);
   const card = $("actionCard");
@@ -2065,8 +2066,8 @@ async function loadWeek() {
   S.week = (await api("finweek=" + ws)).week;
   renderWeek();
   renderChecklist();
-  // renderStats ran before the week existed, so its two ticks get their first chance now
-  ckAutoFromStats(S.rows.filter((r) => r.dir === "out" && !r.cat).length, cashStatus(moneyIn(S.rows) - moneyOut(S.rows)).tone);
+  // renderStats ran before the week existed, so the review tick gets its first chance now
+  ckAutoReview(S.rows.filter((r) => r.dir === "out" && !r.cat).length);
 }
 
 function renderWeek() {
@@ -2090,6 +2091,13 @@ function renderWeek() {
     + (other ? `<div class="pf-line"><span class="k" style="color:var(--ink-faint)">Other income (not allocated)</span><span class="n" style="color:var(--ink-faint)">${money(other)}</span></div>` : "")
     + `<div class="pf-line total"><span class="k">Allocatable income${tipBtn("alloc")}</span><span class="n">${money(allocatable)}</span></div>`;
   $("pfLines").innerHTML = lines;
+  // The bar is the point of Profit First made visible: before any figure is read you can
+  // see how little of the week is actually yours to spend. Tiny slices keep a sliver of
+  // width so a 4% pot never disappears altogether.
+  const slice = (v) => allocatable > 0 ? Math.max((v / allocatable) * 100, v > 0 ? 1.5 : 0) : 0;
+  $("pfSplit").innerHTML = allocatable > 0
+    ? `<i class="s-tax" style="width:${slice(tax)}%"></i><i class="s-inv" style="width:${slice(inv)}%"></i><i class="s-ops" style="width:${slice(ops)}%"></i>`
+    : "";
   $("pfPots").innerHTML =
     `<div class="pot tax"><i class="dot"></i><span class="k">Tax pot · ${s.potTaxPct}%${tipBtn("tax")}</span><span class="n">${money(tax)}</span></div>
      <div class="pot inv"><i class="dot"></i><span class="k">Investment pot · ${s.potInvestPct}%${tipBtn("inv")}</span><span class="n">${money(inv)}</span></div>
@@ -2163,14 +2171,16 @@ async function ckAuto(id, on) {
   if (on) toast("Ticked off — " + ckLabel(id));
 }
 
-/* Evidence that lives in the numbers rather than in a click. Called wherever those
-   numbers are recomputed, so the tick lands the moment the job is actually finished. */
-function ckAutoFromStats(needs, tone) {
+/* Evidence that lives in the numbers rather than in a click. Called wherever those numbers
+   are recomputed, so the tick lands the moment the job is actually finished.
+   v130: the cash-status row is NOT in here. v129 ticked it whenever the status came back
+   green or amber, reading the job as "the number is fine". Ash reads it as "I have looked
+   at it" — which is a decision, not a state, and nothing in the page can witness it. It
+   stays a manual switch. */
+function ckAutoReview(needs) {
   if (!S.rows.length) return;
   // "Categorise anything in Needs Review" — done when there is nothing left to categorise
   if (!needs) ckAuto("review", true);
-  // "Check cash status is green or amber" — you are looking at it, and it is
-  if (tone === "good" || tone === "watch") ckAuto("cash", true);
 }
 
 function renderChecklist() {
