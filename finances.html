@@ -884,6 +884,8 @@
     line-height:1.5;color:var(--ink);border-bottom:1px solid var(--line);}
   .fact:last-child{border-bottom:0;}
   .fact span{flex:1;min-width:0;}
+  .fact-tools{display:flex;gap:var(--sp-2);align-items:center;flex-wrap:wrap;margin-top:var(--sp-3);}
+  .fact-tools .hint{flex:1 1 260px;min-width:0;}
   .fact-add{display:flex;gap:var(--sp-2);align-items:flex-start;margin-top:var(--sp-3);}
   .fact-add textarea{flex:1;min-width:0;resize:vertical;line-height:1.5;font-size:13px;}
   @media(max-width:640px){ .fact-add{flex-direction:column;} .fact-add .abtn{width:100%;justify-content:center;} }
@@ -943,7 +945,7 @@
 <symbol id="ic-help" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.4 9.3a2.7 2.7 0 1 1 3.5 2.6c-.8.3-1.2.9-1.2 1.7v.5"/><path d="M11.7 17.3h.01"/></symbol>
 <symbol id="ic-wallet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h11.2a1 1 0 0 1 1 1v2"/><path d="M3 7.5v9.8A2.7 2.7 0 0 0 5.7 20h12.8a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 18.5 8H5.5"/><circle cx="16.3" cy="13.6" r="1.15"/></symbol>
 </defs></svg>
-<!-- build v132 · claude-remembers -->
+<!-- build v133 · tidy-my-file -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -1239,8 +1241,11 @@
       <div class="filters" style="margin-top:var(--sp-4);">
         <select class="fin-in" id="repRange" style="max-width:190px;width:auto;"></select>
         <button class="abtn" id="repCopyPlain"><span>Copy figures only</span></button>
+        <button class="abtn" id="repWeekPlain"><span>This week, without the brief</span></button>
         <span class="msg" id="repMsg"></span>
       </div>
+      <div class="hint">Use "without the brief" inside a Claude Project whose instructions
+        already carry it — the figures and your file still go, the six questions do not.</div>
     </div>
   </section>
   <section>
@@ -1255,8 +1260,15 @@
       </div>
       <div id="factList"></div>
       <div class="fact-add">
-        <textarea class="fin-in" id="factIn" rows="3" placeholder="Paste the ADD TO MY FILE block from your chat here — bullets and all."></textarea>
+        <textarea class="fin-in" id="factIn" rows="3" placeholder="Paste the ADD TO MY FILE block from your chat here — bullets and all. A REPLACE MY FILE block swaps the list instead."></textarea>
         <button type="button" class="abtn primary" id="factAdd"><svg class="ic"><use href="#ic-plus"/></svg><span>Add to my file</span></button>
+      </div>
+      <div class="fact-tools">
+        <button type="button" class="abtn" id="factTidy" hidden><svg class="ic"><use href="#ic-refresh"/></svg><span>Tidy up my file</span></button>
+        <button type="button" class="abtn ghost" id="factUndo" hidden><svg class="ic"><use href="#ic-arrow-left"/></svg><span>Undo</span></button>
+        <span class="hint" style="margin:0;">Tidy up copies your file with a prompt asking Claude to merge
+          the repeats and drop what is no longer true. Paste what it gives you back into the box above —
+          a REPLACE MY FILE block swaps the list rather than adding to it.</span>
       </div>
     </div>
   </section>
@@ -1530,7 +1542,7 @@ const S = {
   week: null,         // that week's saved record
   weekRows: [],       // transactions inside that week (may span two months)
   view: "cockpit",
-  notes: [],
+  notes: [], notesPrev: [],
   filter: "all",
   search: "",
   pending: null,      // a parsed-but-not-yet-imported file
@@ -2707,6 +2719,32 @@ async function buildReport(forClaude) {
   return L.join("\n");
 }
 
+/* v133: A LIST THAT IS ONLY EVER ADDED TO GOES STALE.
+   Six months in, the file has near-duplicates, a price that was true in March, and a
+   supplier left last year — and all of it is going into every prompt. So the loop gets a
+   second half: hand the whole file back to Claude, ask for a consolidated version, and
+   REPLACE rather than append. The heading on the pasted block decides which happens, so
+   there is no mode to set and nothing to get wrong. */
+const TIDY_PROMPT = [
+  "Below is my standing file — everything I have told you about my business over time. It",
+  "has grown a line at a time and needs consolidating.",
+  "",
+  "  · Merge anything that says the same thing twice, keeping my wording.",
+  "  · Where two lines contradict each other, keep the later one and drop the earlier.",
+  "  · Drop anything that is plainly no longer true.",
+  "  · Do not invent anything I have not said, and do not drop a line just because it is",
+  "    small or obvious — obvious to me is not obvious to you next week.",
+  "",
+  "Hand it back as this block and nothing else before it:",
+  "",
+  "REPLACE MY FILE",
+  "- one plain sentence per line, no numbering",
+  "- each one true on its own, without the conversation around it",
+  "",
+  "If you were unsure whether to drop something, keep it, and list underneath the block",
+  "which ones you were unsure about and why.",
+];
+
 /* ---------- the standing file (v132) ----------
    Plain sentences, in the order they were learned, deduped case-insensitively. Pasting the
    ADD TO MY FILE block back is the only route in, and it accepts the block verbatim —
@@ -2715,18 +2753,48 @@ async function buildReport(forClaude) {
 function parseFactBlock(text) {
   return String(text || "").split("\n")
     .map((l) => l.replace(/^\s*(?:[-*•·—]|\d+[.)])\s*/, "").trim())
-    .filter((l) => l && !/^add to my file:?$/i.test(l) && !/^={3,}$/.test(l))
+    .filter((l) => l && !/^(?:add to|replace) my file:?$/i.test(l) && !/^={3,}$/.test(l))
     .map((l) => l.slice(0, 500));
 }
+/* "REPLACE MY FILE" as the first thing said means swap the list, not add to it. */
+const isReplaceBlock = (text) => /^\s*(?:#+\s*)?replace my file\b/i.test(String(text || ""));
 
 async function addFacts(text) {
+  const lines = parseFactBlock(text);
+  if (!lines.length) { toast("Nothing to add — the box looks empty"); return 0; }
+
+  if (isReplaceBlock(text)) {
+    const was = S.notes.length;
+    const seen = new Set();
+    S.notes = lines.filter((f) => !seen.has(f.toLowerCase()) && seen.add(f.toLowerCase())).slice(0, 300);
+    await saveFacts();
+    toast("File replaced — " + was + " lines became " + S.notes.length + ". Undo is there if it went wrong.");
+    return S.notes.length;
+  }
+
   const have = new Set(S.notes.map((f) => f.toLowerCase()));
-  const add = parseFactBlock(text).filter((f) => !have.has(f.toLowerCase()) && have.add(f.toLowerCase()));
+  const add = lines.filter((f) => !have.has(f.toLowerCase()) && have.add(f.toLowerCase()));
   if (!add.length) { toast("Nothing new in that — already in your file"); return 0; }
   S.notes = S.notes.concat(add).slice(0, 300);
   await saveFacts();
   toast(add.length + " added to your file");
   return add.length;
+}
+
+/* One step back, from the copy the store kept before the last write. */
+async function undoFacts() {
+  if (!S.notesPrev.length) return 0;
+  S.notes = S.notesPrev.slice();
+  await saveFacts();
+  toast("Put back — " + S.notes.length + " lines");
+  return S.notes.length;
+}
+
+async function copyTidy() {
+  const L = TIDY_PROMPT.slice();
+  L.push("", "MY FILE  (" + S.notes.length + " line" + (S.notes.length === 1 ? "" : "s") + ")");
+  S.notes.forEach((f) => L.push("- " + f));
+  await putOnClipboard(L.join("\n"), "Paste it into your chat and paste the tidied block back here.");
 }
 
 async function removeFact(i) {
@@ -2735,8 +2803,11 @@ async function removeFact(i) {
 }
 
 async function saveFacts() {
-  try { S.notes = (await post({ finNotes: { facts: S.notes } })).notes.facts || S.notes; }
-  catch (e) { toast("Could not save: " + e.message); }
+  try {
+    const got = (await post({ finNotes: { facts: S.notes } })).notes;
+    S.notes = got.facts || S.notes;
+    S.notesPrev = got.previous || [];
+  } catch (e) { toast("Could not save: " + e.message); }
   renderFacts();
 }
 
@@ -2753,6 +2824,10 @@ function renderFacts() {
   $("factList").querySelectorAll("button[data-fact]").forEach((b) => {
     b.onclick = () => removeFact(Number(b.dataset.fact));
   });
+  const undo = $("factUndo");
+  undo.hidden = !S.notesPrev.length;
+  undo.querySelector("span").textContent = "Undo (back to " + S.notesPrev.length + " lines)";
+  $("factTidy").hidden = S.notes.length < 5;   // nothing to consolidate until there is a list
 }
 
 /* =====================================================================
@@ -2859,7 +2934,7 @@ function challengePrompt(scope, facts) {
     .concat(PROMPT_TAIL, [""], promptFile(facts || []));
 }
 
-async function buildWeekChallenge() {
+async function buildWeekChallenge(withBrief) {
   const ws = S.weekStart || weekStartOf(ymd(new Date()), S.settings.weekStartDow);
   const we = weekEndOf(ws);
   const week = await rowsForWeek(ws);
@@ -2880,8 +2955,16 @@ async function buildWeekChallenge() {
   const rule = () => P("=".repeat(78));
   const yr = (total, months) => money0(months ? (total / months) * 12 : total * 12);
 
-  challengePrompt("Below is EVERY transaction from one week of it, with what each supplier"
-    + "\ncosts me over a year at that rate.", S.notes).forEach(P);
+  // withBrief === false is for a Claude Project whose instructions already carry the brief:
+  // the standing file still travels, because the file lives HERE, not in the project.
+  if (withBrief === false) {
+    P("This week's figures. The brief is in my project instructions.");
+    P("");
+    promptFile(S.notes).forEach(P);
+  } else {
+    challengePrompt("Below is EVERY transaction from one week of it, with what each supplier"
+      + "\ncosts me over a year at that rate.", S.notes).forEach(P);
+  }
   P("");
   rule();
   P("");
@@ -3029,9 +3112,9 @@ async function renderReport() {
   $("repText").textContent = await buildReport(false);
 }
 
-async function copyChallenge() {
+async function copyChallenge(withBrief) {
   $("repMsg").textContent = "Building…";
-  const text = await buildWeekChallenge();
+  const text = await buildWeekChallenge(withBrief !== false);
   $("repText").textContent = text;      // so you can see exactly what you just copied
   await putOnClipboard(text, "Paste it into Claude and let it argue with you.");
 }
@@ -3249,11 +3332,14 @@ function wire() {
 
   // The report.
   $("repRange").onchange = renderReport;
+  $("factTidy").onclick = () => copyTidy();
+  $("factUndo").onclick = () => undoFacts();
   $("factAdd").onclick = async () => {
     const n = await addFacts($("factIn").value);
     if (n) $("factIn").value = "";
   };
   $("repWeek").onclick = () => copyChallenge();
+  $("repWeekPlain").onclick = () => copyChallenge(false);
   $("repCopy").onclick = () => copyReport(true);
   $("repCopyPlain").onclick = () => copyReport(false);
 
@@ -3274,12 +3360,13 @@ async function init() {
     const [st, ru, nt] = await Promise.all([api("finsettings=1"), api("finrules=1"), api("finnotes=1")]);
     S.settings = st.settings; S.rules = ru.rules || [];
     S.notes = (nt.notes && nt.notes.facts) || [];
+    S.notesPrev = (nt.notes && nt.notes.previous) || [];
   } catch (e) {
     S.settings = { potTaxPct: 15, potInvestPct: 4, weekStartDow: 4, cashBuffer: 2000,
       sources: { stripe: "STRIPE", gocardless: "GC C1", sumup: "SUMUP", nutraprep: "NUTRAPREP" },
       transferKeyword: "BODYSCULPT TRANSFORMATION CENTRES",
       allocatable: ["stripe", "gocardless"], categories: DEFAULT_CATS };
-    S.rules = []; S.notes = [];
+    S.rules = []; S.notes = []; S.notesPrev = [];
     toast("Working offline — changes will not save");
   }
   bustRules();

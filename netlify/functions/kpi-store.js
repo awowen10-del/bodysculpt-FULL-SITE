@@ -507,7 +507,8 @@ export default async (req) => {
   if (req.method === "GET" && url.searchParams.get("finnotes") === "1") {
     const saved = (await store.get(FIN_NOTES_KEY, { type: "json" })) || null;
     const facts = saved && Array.isArray(saved.facts) ? saved.facts : [];
-    return Response.json({ notes: { facts, lastUpdated: (saved && saved.lastUpdated) || null } });
+    const previous = saved && Array.isArray(saved.previous) ? saved.previous : [];
+    return Response.json({ notes: { facts, previous, lastUpdated: (saved && saved.lastUpdated) || null } });
   }
 
   // GET ?finweek=YYYY-MM-DD → { week } — one Thu→Wed pot move (empty default when new).
@@ -628,7 +629,12 @@ export default async (req) => {
         .map((f) => finStr(typeof f === "string" ? f.trim() : "", 500))
         .filter(Boolean)
         .slice(0, 300);
-      const notes = { facts, lastUpdated: new Date().toISOString() };
+      // v133: a consolidation REPLACES the list, so the version before it is kept. One step
+      // back is enough — this is a brief, not a document — but losing the lot to a bad tidy
+      // would be the kind of data loss that stops the loop being used at all.
+      const prev = (await store.get(FIN_NOTES_KEY, { type: "json" })) || {};
+      const notes = { facts, previous: Array.isArray(prev.facts) ? prev.facts : [],
+        lastUpdated: new Date().toISOString() };
       await store.set(FIN_NOTES_KEY, JSON.stringify(notes));
       return Response.json({ ok: true, notes });
     }

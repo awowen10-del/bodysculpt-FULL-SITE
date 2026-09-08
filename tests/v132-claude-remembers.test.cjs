@@ -43,7 +43,7 @@ const okA = async (n, f) => { await f(); pass++; console.log("  ok " + n); };
 
 (async () => {
   ok("every page carries the v132 stamp", () => {
-    const S = "build v132 · claude-remembers";
+    const S = "build v133 · tidy-my-file";
     const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
     assert.ok(FIN.includes("<!-- " + S + " -->"), "finances.html stamped v132");
     assert.ok(read("monthly.html").includes('<span class="mp-stage">' + S + "</span>"), "monthly shows it");

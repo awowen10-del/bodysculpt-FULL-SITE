@@ -45,7 +45,7 @@ async function boot(opts = {}) {
     txns: JSON.parse(JSON.stringify(opts.txns || {})),
     settings: { ...DEFAULTS, ...(opts.settings || {}) },
     rules: opts.rules ? opts.rules.slice() : [],
-    notes: { facts: (opts.notes || []).slice(), lastUpdated: null },
+    notes: { facts: (opts.notes || []).slice(), previous: [], lastUpdated: null },
     weeks: {},
   };
   const posts = [];
@@ -71,7 +71,7 @@ async function boot(opts = {}) {
       if (body.finRules) { store.rules = body.finRules; return reply({ ok: true, rules: store.rules }); }
       if (body.finNotes && Array.isArray(body.finNotes.facts)) {
         store.notes = { facts: body.finNotes.facts.filter((f) => typeof f === "string" && f.trim()).slice(0, 300),
-          lastUpdated: "now" };
+          previous: (store.notes && store.notes.facts) || [], lastUpdated: "now" };
         return reply({ ok: true, notes: store.notes });
       }
       if (body.finWeek) {
