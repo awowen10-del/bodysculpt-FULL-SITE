@@ -706,6 +706,107 @@
   .action-card.warn .action-line{color:var(--tint-amber);}
   .action-card.stop .action-line{color:var(--tint-red);}
 
+  /* ===================== v128: THE COCKPIT READS LIKE A BRIEFING =====================
+     Five full-width slabs stacked down a 1500px page, every one of them titled in 11.5px
+     uppercase grey and filled to a third of its width: the Meal side card carried three
+     short lines and a screenful of nothing beside them, the checklist ran a tick down the
+     far left of a 1400px row, and the instruction that actually matters — move this money
+     — sat as grey afterthought text beside its own button.
+     What changed:
+       · a TWO-COLUMN cockpit. The week's money story holds the main column; the jobs and
+         the small numbers go in a rail beside it. Nothing is stretched to a width its
+         content cannot fill.
+       · REAL HEADINGS. .chead is 16px ink-strong with a plain-English line under it, so a
+         section announces itself instead of being labelled like a form field.
+       · THE INSTRUCTION LEADS. .pf-do puts what to do, in words and figures, above its own
+         button and tints itself by state — to do, done, or nothing to move.
+       · NOTHING IS JARGON WITHOUT A WAY IN. Anything a non-accountant would have to guess
+         at carries a .finfo mark; hover or tap it and .tipbox says what it means in the
+         words you would use out loud. The box is position:fixed, so the stat tiles'
+         overflow:hidden cannot clip it. */
+  .ck-grid{display:grid;grid-template-columns:minmax(0,1.62fr) minmax(320px,1fr);
+    gap:var(--sp-4);align-items:start;}
+  @media(max-width:1080px){ .ck-grid{grid-template-columns:1fr;} }
+  .ck-rail{display:flex;flex-direction:column;gap:var(--sp-4);min-width:0;}
+  #v-cockpit .card{padding:18px 20px 20px;}
+
+  /* the card header: a heading that reads as one, and a line saying what it is for */
+  .cardhead{display:flex;align-items:flex-start;justify-content:space-between;
+    gap:var(--sp-3);margin-bottom:var(--sp-4);flex-wrap:wrap;}
+  .cardhead>div:first-child{min-width:0;}
+  .chead{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:16px;font-weight:700;
+    letter-spacing:-.022em;line-height:1.2;color:var(--ink-strong);}
+  .chead .mo{color:var(--ink-faint);font-weight:600;}
+  .csub{font-size:12.5px;color:var(--ink-faint);margin-top:5px;line-height:1.45;max-width:56ch;}
+  .cardhead-r{display:flex;align-items:center;gap:var(--sp-2);flex:0 0 auto;}
+  .cardhead .weeknav{margin-bottom:0;}
+  .cardhead .weeknav .rng{flex:0 0 auto;min-width:0;}
+
+  /* the explainer mark, and the one floating box it opens */
+  .finfo{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;
+    padding:0;border:0;background:transparent;color:var(--ink-faint);border-radius:var(--r-pill);
+    cursor:help;flex:0 0 auto;line-height:0;transition:color var(--tap),background var(--tap);}
+  .finfo:hover{color:var(--orange);background:rgba(var(--orange-rgb),.10);}
+  .finfo:focus-visible{outline:none;box-shadow:var(--focus);color:var(--orange);}
+  .finfo .ic{width:14px;height:14px;}
+  .tipbox{position:fixed;z-index:300;width:max-content;max-width:320px;background:var(--ink-strong);
+    color:var(--card);font-size:12.5px;line-height:1.55;padding:11px 13px;border-radius:var(--r-md);
+    box-shadow:var(--shadow-lift);pointer-events:none;}
+  .tipbox .tipbox-t{display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.09em;color:var(--card-2);opacity:.7;margin-bottom:5px;}
+
+  /* Needs Review is a JOB, not a fifth number — one line you can act on, full width */
+  .fin-alert{grid-column:1/-1;display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+    font-family:inherit;cursor:pointer;background:rgba(var(--amber-rgb),.07);
+    border:1px solid rgba(var(--amber-rgb),.3);border-radius:var(--radius);padding:13px 16px;
+    color:var(--ink);transition:background var(--tap),border-color var(--tap);}
+  .fin-alert:hover{background:rgba(var(--amber-rgb),.13);border-color:var(--amber);}
+  .fin-alert:focus-visible{outline:none;box-shadow:var(--focus);}
+  .fin-alert>.ic{width:17px;height:17px;color:var(--tint-amber);flex:0 0 auto;}
+  .fin-alert .t{font-size:13.5px;line-height:1.45;flex:1;min-width:0;}
+  .fin-alert .t b{color:var(--tint-amber);}
+  .fin-alert .n{font-variant-numeric:tabular-nums;font-weight:800;color:var(--tint-amber);}
+  .fin-alert .go{display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:700;
+    color:var(--tint-amber);white-space:nowrap;flex:0 0 auto;}
+  .fin-alert .go .ic{width:14px;height:14px;}
+  @media(max-width:640px){ .fin-alert{flex-wrap:wrap;} .fin-alert .go{padding-left:28px;} }
+
+  /* the instruction, then the button — never the other way round */
+  .pf-do{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4);
+    flex-wrap:wrap;margin-top:var(--sp-4);padding:15px 17px;border-radius:var(--r-md);
+    background:rgba(var(--orange-rgb),.07);border:1px solid rgba(var(--orange-rgb),.24);}
+  .pf-do>div:first-child{min-width:0;flex:1 1 260px;}
+  .pf-do .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;
+    color:var(--orange);}
+  .pf-do .v{font-size:14.5px;font-weight:600;line-height:1.45;color:var(--ink-strong);margin-top:4px;}
+  .pf-do.done{background:rgba(var(--green-rgb),.07);border-color:rgba(var(--green-rgb),.26);}
+  .pf-do.done .k{color:var(--tint-green);}
+  .pf-do.idle{background:var(--card-2);border-color:var(--line);}
+  .pf-do.idle .k{color:var(--ink-faint);}
+  .pf-do.idle .v{color:var(--ink-dim);font-weight:500;}
+
+  /* the meal side leads with the number you actually want */
+  .meal-hero{display:flex;align-items:baseline;justify-content:space-between;gap:var(--sp-3);
+    padding-bottom:13px;border-bottom:1px solid var(--line);margin-bottom:4px;}
+  .meal-hero .lab{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;
+    color:var(--ink-dim);}
+  .meal-hero .val{font-size:26px;font-weight:800;letter-spacing:-.025em;
+    font-variant-numeric:tabular-nums;color:var(--ink-strong);}
+
+  .ck-prog{display:flex;align-items:center;gap:11px;margin-top:14px;}
+  .ck-prog .bar{flex:1;height:6px;border-radius:var(--r-pill);background:var(--navy-2);overflow:hidden;}
+  .ck-prog .bar i{display:block;height:100%;width:0;background:var(--green);border-radius:inherit;
+    transition:width var(--tap);}
+  .ck-prog .n{font-size:11.5px;font-weight:700;color:var(--ink-dim);font-variant-numeric:tabular-nums;
+    white-space:nowrap;}
+
+  /* the two halves of the week read as one table, not two floating lists */
+  @media(min-width:901px){ #v-cockpit .pf-grid>div:first-child{border-right:1px solid var(--line);
+    padding-right:var(--sp-5);} }
+  .ck-rail .ck{padding:7px 2px;}
+  .pot .k{display:flex;align-items:center;gap:6px;}
+  .pf-line .k{display:inline-flex;align-items:center;gap:6px;}
+
   /* v122.1: THE TAB BAR HAS TO STAY REACHABLE.
      .appbar is position:sticky with z-index 60 and #tabBar is a normal-flow sibling
      directly beneath it, so the moment the page scrolled the app bar pinned to the top
@@ -797,9 +898,10 @@
 <symbol id="ic-swim" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="17" cy="7" r="1.8"/><path d="M3 12.5l3.5-2.5 4 3 3.5-2.5"/><path d="M2 18.5c1.7 0 1.7 1.4 3.3 1.4s1.7-1.4 3.4-1.4 1.7 1.4 3.3 1.4 1.7-1.4 3.4-1.4 1.7 1.4 3.3 1.4 1.7-1.4 3.3-1.4"/></symbol>
 <symbol id="ic-walk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4.2" r="2"/><path d="M9.5 21l2.5-5.5V11L9 13"/><path d="M12 15.5l3 5.5M12 9l3 2 2.5-.8M12 9l-3 1.5"/></symbol>
 <symbol id="ic-yoga" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.2" r="2"/><path d="M12 7v6M12 13l-5 6M12 13l5 6M4 10.5l8 1.5 8-1.5"/></symbol>
+<symbol id="ic-help" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.4 9.3a2.7 2.7 0 1 1 3.5 2.6c-.8.3-1.2.9-1.2 1.7v.5"/><path d="M11.7 17.3h.01"/></symbol>
 <symbol id="ic-wallet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h11.2a1 1 0 0 1 1 1v2"/><path d="M3 7.5v9.8A2.7 2.7 0 0 0 5.7 20h12.8a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 18.5 8H5.5"/><circle cx="16.3" cy="13.6" r="1.15"/></symbol>
 </defs></svg>
-<!-- build v127 · nav-integrated -->
+<!-- build v128 · cockpit-briefing -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -842,54 +944,79 @@
 
   <section>
     <div class="card action-card" id="actionCard">
-      <div class="ctitle">One cashflow action</div>
+      <div class="cardhead">
+        <div>
+          <div class="chead">One cashflow action<button type="button" class="finfo" data-tip="action" aria-label="What does this mean?"><svg class="ic"><use href="#ic-help"/></svg></button></div>
+          <div class="csub">If you only do one thing with the money this week, do this one.</div>
+        </div>
+      </div>
       <div class="action-line" id="actionText"></div>
       <div class="hint" id="actionWhy"></div>
     </div>
   </section>
 
-  <section>
-    <div class="card">
-      <div class="ctitle">Profit First — this week</div>
-      <div class="weeknav">
-        <button class="pb-arrow" id="wkPrev" title="Previous week">←</button>
-        <button class="pb-arrow" id="wkNext" title="Next week">→</button>
-        <div class="rng" id="wkRange"></div>
-        <button class="pb-jump" id="wkNow">This week</button>
-      </div>
-      <div class="pf-grid">
-        <div>
-          <div id="pfLines"></div>
+  <section class="ck-grid">
+    <div class="ck-main">
+      <div class="card">
+        <div class="cardhead">
+          <div>
+            <div class="chead">Profit First — this week<button type="button" class="finfo" data-tip="pf" aria-label="What does this mean?"><svg class="ic"><use href="#ic-help"/></svg></button></div>
+            <div class="csub">Split the money as it lands, before any of it gets spent.</div>
+          </div>
+          <div class="cardhead-r weeknav">
+            <button class="pb-arrow" id="wkPrev" title="Previous week">←</button>
+            <button class="pb-arrow" id="wkNext" title="Next week">→</button>
+            <div class="rng" id="wkRange"></div>
+            <button class="pb-jump" id="wkNow">This week</button>
+          </div>
         </div>
-        <div>
-          <div id="pfPots"></div>
-          <div id="pfSeen"></div>
+        <div class="pf-grid">
+          <div>
+            <div id="pfLines"></div>
+          </div>
+          <div>
+            <div id="pfPots"></div>
+            <div id="pfSeen"></div>
+          </div>
         </div>
+        <div class="pf-do" id="pfDo">
+          <div>
+            <div class="k" id="pfDoK">Do this now</div>
+            <div class="v" id="pfMovedMsg"></div>
+          </div>
+          <button class="abtn primary" id="pfMoved"><svg class="ic"><use href="#ic-check"/></svg><span>Mark the money as moved</span></button>
+        </div>
+        <div class="hint" id="pfHint"></div>
       </div>
-      <div class="pf-done">
-        <button class="abtn primary" id="pfMoved"><svg class="ic"><use href="#ic-check"/></svg><span>Mark the money as moved</span></button>
-        <span class="msg" id="pfMovedMsg"></span>
+    </div>
+
+    <aside class="ck-rail">
+      <div class="card">
+        <div class="cardhead">
+          <div>
+            <div class="chead">This week's checklist</div>
+            <div class="csub">The jobs that keep these numbers honest.</div>
+          </div>
+        </div>
+        <div id="ckList"></div>
+        <div class="ck-prog"><span class="bar"><i id="ckBar"></i></span><span class="n" id="ckProgress"></span></div>
       </div>
-      <div class="hint" id="pfHint"></div>
-    </div>
-  </section>
 
-  <section>
-    <div class="card">
-      <div class="ctitle">This week's checklist</div>
-      <div id="ckList"></div>
-      <div class="hint" id="ckProgress"></div>
-    </div>
-  </section>
-
-  <section>
-    <div class="card">
-      <div class="ctitle">Meal side — <span id="mealMonth"></span></div>
-      <div class="pf-grid">
+      <div class="card">
+        <div class="cardhead">
+          <div>
+            <div class="chead">Meal side <span class="mo" id="mealMonth"></span></div>
+            <div class="csub">What the meal plans made, on their own.</div>
+          </div>
+        </div>
+        <div class="meal-hero">
+          <span class="lab">Meal profit<button type="button" class="finfo" data-tip="meal" aria-label="What does this mean?"><svg class="ic"><use href="#ic-help"/></svg></button></span>
+          <span class="val" id="mealProfit">—</span>
+        </div>
         <div id="mealLines"></div>
-        <div id="mealNote" class="hint" style="margin:0;"></div>
+        <div class="hint" id="mealNote" style="margin-top:10px;"></div>
       </div>
-    </div>
+    </aside>
   </section>
 </div>
 
@@ -1218,6 +1345,72 @@ const CHECKLIST = [
   ["ontra",   "Check new members set up on Ontraport"],
   ["action",  "Do the one cashflow action for the week"],
 ];
+
+/* ---------- plain English, on demand ----------
+   Ash is not an accountant and should not have to become one to read his own money. Every
+   term on this page that you would have to already know carries a ⓘ; this is what it says.
+   Each entry is [the term, what it means in the words you would use out loud]. Keep them
+   short, concrete, and free of accounting words — if an explanation needs its own
+   explanation, it is not finished. */
+const TIPS = {
+  cash: ["Cash status", "A traffic light for the month so far. Comfortable means you are in front by more than your cushion. Tight means you are in front, but by less than it. Protect cash means more has gone out this month than came in."],
+  in: ["Money in", "Everything that landed in the account this month — memberships, meal sales, anything else. Money you shift between your own pots is not counted, because it was already yours."],
+  out: ["Money out", "Everything that left the account this month, apart from money moved to your own pots. This is real spending, not money you still have."],
+  net: ["Net movement", "Money in minus money out. A plus means the month added to your cash; a minus means the month ate into it."],
+  action: ["One cashflow action", "The single most useful thing to do with the money this week, worked out from the numbers above. Do this one thing and the week has paid for itself."],
+  pf: ["Profit First", "Every week you split the income the day it arrives: a slice for tax, a slice to invest, and the rest to run the business on. Splitting it first is the whole trick — money that was never in the spending account cannot be accidentally spent."],
+  alloc: ["Allocatable income", "The money that came in this week that you split into pots. Only the sources you have chosen count — normally Stripe and GoCardless, which is your membership income. Anything else that came in is left out of the split."],
+  tax: ["Tax pot", "A percentage of this week's allocatable income, moved to a separate pot the day it arrives. When the tax bill comes, the money is already sitting there and the bill is not a shock."],
+  inv: ["Investment pot", "A percentage of this week's allocatable income, put aside for things that grow the business rather than run it. Same idea as the tax pot: it leaves before you get used to having it."],
+  ops: ["Left to run on", "What is left of this week's income once the tax and investment pots have gone. This is the real money the business has to live on — wages, rent, ads, everything."],
+  seen: ["Left the account for your pots", "What the bank actually shows going out to your pots this week. The tick below is what you SAID you did; this line is what really happened, so the two can be compared."],
+  meal: ["Meal profit", "What you took on SumUp for meal plans, minus what you paid Nutraprep to make them. What the meal side of the business earned on its own."],
+  sumup: ["SumUp taken", "Card payments taken through the SumUp machine this month — in practice, that is the meal plans people buy in person."],
+  nutra: ["Paid to Nutraprep", "What went out to Nutraprep this month for making the meals you then sold on."],
+};
+
+/* One floating box, positioned in viewport coordinates: the stat tiles clip their own
+   overflow, so a tooltip drawn inside one would be cut in half. */
+let tipEl = null, tipFor = null;
+function tipBtn(key) {
+  return TIPS[key] ? `<button type="button" class="finfo" data-tip="${key}" aria-label="What does this mean?"><svg class="ic"><use href="#ic-help"/></svg></button>` : "";
+}
+function tipShow(btn) {
+  const t = TIPS[btn.dataset && btn.dataset.tip];
+  if (!t || !btn.getBoundingClientRect) return;
+  if (!tipEl) {
+    tipEl = document.createElement("div");
+    tipEl.className = "tipbox";
+    tipEl.hidden = true;
+    document.body.appendChild(tipEl);
+  }
+  tipEl.innerHTML = '<span class="tipbox-t">' + esc(t[0]) + "</span>" + esc(t[1]);
+  tipEl.hidden = false;
+  const r = btn.getBoundingClientRect();
+  const vw = window.innerWidth || 1200, vh = window.innerHeight || 800;
+  const w = tipEl.offsetWidth || 300, h = tipEl.offsetHeight || 90;
+  let left = r.left + r.width / 2 - w / 2;
+  left = Math.max(10, Math.min(left, vw - w - 10));
+  let top = r.bottom + 9;
+  if (top + h > vh - 10) top = Math.max(10, r.top - h - 9);
+  tipEl.style.left = left + "px";
+  tipEl.style.top = top + "px";
+  tipFor = btn;
+}
+function tipHide() { if (tipEl) tipEl.hidden = true; tipFor = null; }
+const tipAt = (e) => (e.target && e.target.closest) ? e.target.closest(".finfo") : null;
+document.addEventListener("mouseover", (e) => { const b = tipAt(e); if (b && b !== tipFor) tipShow(b); });
+document.addEventListener("mouseout", (e) => { if (tipAt(e)) tipHide(); });
+document.addEventListener("focusin", (e) => { const b = tipAt(e); if (b) tipShow(b); else tipHide(); });
+// tapping is the whole point on a phone, where there is no hover at all
+document.addEventListener("click", (e) => {
+  const b = tipAt(e);
+  if (!b) { tipHide(); return; }
+  e.preventDefault();
+  if (b === tipFor && tipEl && !tipEl.hidden) tipHide(); else tipShow(b);
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") tipHide(); });
+document.addEventListener("scroll", tipHide, true);
 
 /* ---------- small helpers ---------- */
 const $ = (id) => document.getElementById(id);
@@ -1801,18 +1994,20 @@ function renderStats() {
   const needs = S.rows.filter((r) => r.dir === "out" && !r.cat).length;
   const cash = cashStatus(net);
   const cards = [
-    [cash.tone, "Cash status", cash.word, cash.sub],
-    ["good", "Money in", money0(inn), "Received in " + ymLabel(S.ym) + "."],
-    ["", "Money out", money0(out), "Spent in " + ymLabel(S.ym) + "."],
-    [net >= 0 ? "good" : "bad", "Net movement", money0(net), "In minus out — your cushion."],
+    [cash.tone, "Cash status", "cash", cash.word, cash.sub],
+    ["good", "Money in", "in", money0(inn), "Received in " + ymLabel(S.ym) + "."],
+    ["", "Money out", "out", money0(out), "Spent in " + ymLabel(S.ym) + "."],
+    [net >= 0 ? "good" : "bad", "Net movement", "net", money0(net), "In minus out — your cushion."],
   ];
-  $("statRow").innerHTML = cards.map(([tone, lab, val, sub]) =>
-    `<div class="fin-stat ${tone}"><div class="lab">${esc(lab)}</div>
+  // Needs Review is not a fifth number. A lonely "4" in a headline tile says nothing; the
+  // strip below says what it is, why it matters and where to go, in one line you can click.
+  $("statRow").innerHTML = cards.map(([tone, lab, tip, val, sub]) =>
+    `<div class="fin-stat ${tone}"><div class="lab">${esc(lab)}${tipBtn(tip)}</div>
       <div class="val">${esc(val)}</div><div class="sub">${esc(sub)}</div></div>`).join("")
-    + (needs ? `<div class="fin-stat watch" style="grid-column:1/-1;cursor:pointer" id="needsCard">
-        <div class="lab"><svg class="ic"><use href="#ic-alert"/></svg>Needs review</div>
-        <div class="val">${needs}</div>
-        <div class="sub">Uncategorised expense${needs === 1 ? "" : "s"} in ${esc(ymLabel(S.ym))} — click to sort them out.</div></div>` : "");
+    + (needs ? `<button type="button" class="fin-alert" id="needsCard">
+        <svg class="ic"><use href="#ic-alert"/></svg>
+        <span class="t"><b>Needs review</b> — <span class="n">${needs}</span> expense${needs === 1 ? " has" : "s have"} no category yet, so the breakdown in ${esc(ymLabel(S.ym))} is not telling you the truth.</span>
+        <span class="go">Sort them out<svg class="ic"><use href="#ic-arrow-right"/></svg></span></button>` : "");
   const nc = $("needsCard");
   if (nc) nc.onclick = () => { S.filter = "review"; setView("txns"); renderTxns(); };
 
@@ -1875,12 +2070,12 @@ function renderWeek() {
   const lines = [...alloc].map((k) =>
     `<div class="pf-line"><span class="k">${esc(label[k] || k)}</span><span class="n">${money(bySrc[k] || 0)}</span></div>`).join("")
     + (other ? `<div class="pf-line"><span class="k" style="color:var(--ink-faint)">Other income (not allocated)</span><span class="n" style="color:var(--ink-faint)">${money(other)}</span></div>` : "")
-    + `<div class="pf-line total"><span class="k">Allocatable income</span><span class="n">${money(allocatable)}</span></div>`;
+    + `<div class="pf-line total"><span class="k">Allocatable income${tipBtn("alloc")}</span><span class="n">${money(allocatable)}</span></div>`;
   $("pfLines").innerHTML = lines;
   $("pfPots").innerHTML =
-    `<div class="pot tax"><i class="dot"></i><span class="k">Tax pot · ${s.potTaxPct}%</span><span class="n">${money(tax)}</span></div>
-     <div class="pot inv"><i class="dot"></i><span class="k">Investment pot · ${s.potInvestPct}%</span><span class="n">${money(inv)}</span></div>
-     <div class="pot ops"><i class="dot"></i><span class="k">Left to run on</span><span class="n">${money(ops)}</span></div>`;
+    `<div class="pot tax"><i class="dot"></i><span class="k">Tax pot · ${s.potTaxPct}%${tipBtn("tax")}</span><span class="n">${money(tax)}</span></div>
+     <div class="pot inv"><i class="dot"></i><span class="k">Investment pot · ${s.potInvestPct}%${tipBtn("inv")}</span><span class="n">${money(inv)}</span></div>
+     <div class="pot ops"><i class="dot"></i><span class="k">Left to run on${tipBtn("ops")}</span><span class="n">${money(ops)}</span></div>`;
 
   // What Santander actually shows leaving for the pots this week. This is the honest
    // answer to "did I do it?" — the tick below is what you SAID, this is what happened.
@@ -1888,7 +2083,7 @@ function renderWeek() {
   const seenTotal = seen.reduce((a, r) => a + r.amount, 0);
   const asked = tax + inv;
   $("pfSeen").innerHTML = seen.length
-    ? `<div class="pf-line"><span class="k">Left the account for your pots</span><span class="n">${money(seenTotal)}</span></div>`
+    ? `<div class="pf-line"><span class="k">Left the account for your pots${tipBtn("seen")}</span><span class="n">${money(seenTotal)}</span></div>`
       + `<div class="pf-line"><span class="k" style="color:var(--ink-faint)">${seen.length} transfer${seen.length === 1 ? "" : "s"}${
           asked ? " · " + (Math.abs(seenTotal - asked) < 1 ? "matches what was due"
             : (seenTotal > asked ? money(seenTotal - asked) + " more than due" : money(asked - seenTotal) + " still to move")) : ""
@@ -1900,9 +2095,24 @@ function renderWeek() {
   btn.querySelector("span").textContent = moved ? "Moved — undo" : "Mark the money as moved";
   btn.classList.toggle("primary", !moved);
   btn.dataset.tax = tax.toFixed(2); btn.dataset.inv = inv.toFixed(2);
-  $("pfMovedMsg").textContent = moved
-    ? "Moved " + money(S.week.tax) + " to tax and " + money(S.week.invest) + " to investment."
-    : (allocatable ? "Move " + money(tax) + " and " + money(inv) + " out before you spend anything." : "");
+  // The instruction leads and the button follows it — and the band says which of the three
+  // states you are in, so "nothing to move" never reads as "you have not done it yet".
+  const doBox = $("pfDo"), doK = $("pfDoK");
+  if (moved) {
+    doBox.className = "pf-do done";
+    doK.textContent = "Done this week";
+    $("pfMovedMsg").textContent = "Moved " + money(S.week.tax) + " to the tax pot and "
+      + money(S.week.invest) + " to the investment pot.";
+  } else if (allocatable) {
+    doBox.className = "pf-do";
+    doK.textContent = "Do this now";
+    $("pfMovedMsg").textContent = "Move " + money(tax) + " to the tax pot and " + money(inv)
+      + " to the investment pot, before you spend anything else.";
+  } else {
+    doBox.className = "pf-do idle";
+    doK.textContent = "Nothing to move";
+    $("pfMovedMsg").textContent = "No income has landed this week that gets split.";
+  }
   $("pfHint").textContent = "Counts " + ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][s.weekStartDow]
     + " to the day before the next one. The closing day is left out on purpose — its payments are still landing — and counts next week.";
 }
@@ -1912,7 +2122,9 @@ function renderChecklist() {
   $("ckList").innerHTML = CHECKLIST.map(([id, text]) =>
     `<label class="ck ${done[id] ? "on" : ""}"><input type="checkbox" data-ck="${id}" ${done[id] ? "checked" : ""}><span>${esc(text)}</span></label>`).join("");
   const n = CHECKLIST.filter(([id]) => done[id]).length;
-  $("ckProgress").textContent = n + " / " + CHECKLIST.length + " done this week.";
+  $("ckProgress").textContent = n + " of " + CHECKLIST.length + " done";
+  const ckBar = $("ckBar");
+  if (ckBar) ckBar.style.width = Math.round((n / CHECKLIST.length) * 100) + "%";
   $("ckList").querySelectorAll("input[data-ck]").forEach((el) => {
     el.onchange = async () => {
       const cl = { ...((S.week && S.week.checklist) || {}) };
@@ -1931,11 +2143,14 @@ function renderMeal() {
     .reduce((a, r) => a + r.amount, 0);
   const paid = S.rows.filter((r) => r.dir === "out" && !isTransfer(r) && kwN && r.desc.toUpperCase().includes(kwN))
     .reduce((a, r) => a + r.amount, 0);
-  $("mealMonth").textContent = ymLabel(S.ym);
+  $("mealMonth").textContent = "— " + ymLabel(S.ym);
+  // the answer first, the arithmetic under it
+  const mealProfit = took - paid, mealEl = $("mealProfit");
+  mealEl.textContent = money(mealProfit);
+  mealEl.style.color = mealProfit >= 0 ? "var(--tint-green)" : "var(--tint-red)";
   $("mealLines").innerHTML =
-    `<div class="pf-line"><span class="k">SumUp taken</span><span class="n">${money(took)}</span></div>
-     <div class="pf-line"><span class="k">Paid to Nutraprep</span><span class="n">${money(paid)}</span></div>
-     <div class="pf-line total"><span class="k">Meal profit</span><span class="n" style="color:${took - paid >= 0 ? "var(--tint-green)" : "var(--tint-red)"}">${money(took - paid)}</span></div>`;
+    `<div class="pf-line"><span class="k">SumUp taken${tipBtn("sumup")}</span><span class="n">${money(took)}</span></div>
+     <div class="pf-line"><span class="k">Paid to Nutraprep${tipBtn("nutra")}</span><span class="n">${money(paid)}</span></div>`;
   $("mealNote").textContent = took || paid ? ""
     : "Nothing matched yet this month — check the SumUp and Nutraprep keywords in Settings.";
 }

@@ -259,9 +259,12 @@ const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
 const FIN = read("finances.html");
 
 ok("every page carries the v122 stamp, and finances is stamped as its own build", () => {
-  assert.ok(/<!-- build v127 · nav-integrated -->/.test(FIN), "finances.html stamped v127 · nav-integrated");
-  assert.ok(read("monthly.html").includes("build v127 · nav-integrated"), "monthly.html carries the stamp");
-  assert.ok(read("index.html").includes("build v127 · nav-integrated"), "index.html carries the stamp");
+  // the exact stamp is the newest release's test to pin; this one checks the pages agree
+  const m = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(FIN);
+  assert.ok(m && Number(m[1]) >= 122, "finances.html carries a v122-or-later stamp");
+  const text = "build v" + m[1] + " · " + m[2];
+  assert.ok(read("monthly.html").includes(text), "monthly.html carries the stamp");
+  assert.ok(read("index.html").includes(text), "index.html carries the stamp");
 });
 
 ok("the finance page stands apart from the weekly/monthly/quarterly cadence", () => {

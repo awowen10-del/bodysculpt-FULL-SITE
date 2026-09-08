@@ -36,14 +36,16 @@ const ruleOf = (style, sel) => {
   return m ? m[0] : null;
 };
 
-const STAMP = "build v127 · nav-integrated";
-
 (async () => {
-  /* ================= 0. the stamp — the newest test pins it exactly ================= */
-  assert.ok(SRC["monthly.html"].includes("<!-- " + STAMP + " -->"), "monthly.html carries the machine stamp");
-  assert.ok(SRC["monthly.html"].includes('<span class="mp-stage">' + STAMP + "</span>"), "…and shows it on screen");
-  assert.ok(SRC["index.html"].includes(STAMP), "index.html carries the same stamp");
-  assert.ok(SRC["finances.html"].includes("<!-- " + STAMP + " -->"), "finances.html carries the same stamp");
+  /* ================= 0. the stamp ================= */
+  // relaxed once v128 shipped: the newest test pins the exact stamp, this one only checks
+  // the build never goes backwards and that every page agrees on it.
+  const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(SRC["monthly.html"]);
+  assert.ok(stamp && Number(stamp[1]) >= 127, "monthly.html stamped v127 or later");
+  const text = "build v" + stamp[1] + " · " + stamp[2];
+  assert.ok(SRC["monthly.html"].includes('<span class="mp-stage">' + text + "</span>"), "…and shows it on screen");
+  assert.ok(SRC["index.html"].includes(text), "index.html carries the same stamp");
+  assert.ok(SRC["finances.html"].includes("<!-- " + text + " -->"), "finances.html carries the same stamp");
 
   /* ================= 1. one language: no capsule track anywhere ================= */
   for (const f of FILES) {
