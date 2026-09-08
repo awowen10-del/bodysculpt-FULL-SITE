@@ -43,7 +43,7 @@ const ok = (name, fn) => { fn(); pass++; console.log("  ok " + name); };
 (async () => {
   /* ================= 0. the stamp — the newest test pins it ================= */
   ok("every page carries the v128 stamp", () => {
-    const S = "build v128 · cockpit-briefing";
+    const S = "build v129 · self-ticking";
     assert.ok(FIN.includes("<!-- " + S + " -->"), "finances.html stamped v128");
     const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
     assert.ok(read("monthly.html").includes('<span class="mp-stage">' + S + "</span>"), "monthly shows it");
@@ -55,6 +55,7 @@ const ok = (name, fn) => { fn(); pass++; console.log("  ok " + name); };
     assert.ok(/<section class="ck-grid">/.test(COCKPIT), "the week sits in a two-column section");
     assert.ok(/<div class="ck-main">/.test(COCKPIT) && /<aside class="ck-rail">/.test(COCKPIT),
       "a main column and a rail beside it");
+    // v129 stretched the two columns to a shared bottom edge; the widths are v128's.
     const grid = ruleOf(".ck-grid");
     assert.ok(/grid-template-columns:minmax\(0,1\.62fr\) minmax\(320px,1fr\)/.test(grid),
       "the main column leads and the rail is held to a readable width");
@@ -159,8 +160,10 @@ const ok = (name, fn) => { fn(); pass++; console.log("  ok " + name); };
     });
 
     ok("the checklist reports itself as a bar as well as a count", () => {
-      assert.strictEqual(el("ckProgress").textContent, "0 of 9 done");
-      assert.strictEqual(el("ckBar").style.width, "0%");
+      // v129: these rows are categorised and the month is in front, so "Categorise anything
+      // in Needs Review" and "Check cash status is green or amber" tick themselves on load.
+      assert.strictEqual(el("ckProgress").textContent, "2 of 9 done");
+      assert.strictEqual(el("ckBar").style.width, "22%");
     });
 
     ok("the do-this band names the two amounts, then the button records them", async () => {
@@ -177,8 +180,8 @@ const ok = (name, fn) => { fn(); pass++; console.log("  ok " + name); };
       assert.strictEqual(el("pfDoK").textContent, "Done this week");
       assert.strictEqual(el("pfDo").className, "pf-do done");
       assert.ok(/^Moved £300\.00 to the tax pot and £80\.00 to the investment pot\./.test(el("pfMovedMsg").textContent));
-      assert.strictEqual(el("ckProgress").textContent, "1 of 9 done", "ticking it moves the bar too");
-      assert.strictEqual(el("ckBar").style.width, "11%");
+      assert.strictEqual(el("ckProgress").textContent, "3 of 9 done", "ticking it moves the bar too");
+      assert.strictEqual(el("ckBar").style.width, "33%");
     });
   }
 
