@@ -317,6 +317,10 @@ function defaultMonthlyPlan(ym) {
 const FIN_TXN_PREFIX = "finance-txns-";      // + "YYYY-MM"
 const FIN_SETTINGS_KEY = "finance-settings";
 const FIN_RULES_KEY = "finance-rules";
+// v132: what Ash has already told an AI about his business, kept so next week's prompt can
+// say "do not ask me this again". One blob, a list of plain sentences — deliberately not
+// structured, because the value is in the wording he used.
+const FIN_NOTES_KEY = "finance-notes";
 const FIN_WEEK_PREFIX = "finance-week-";     // + "YYYY-MM-DD" (the Thursday it starts)
 function finTxnKeyOf(ym) { return FIN_TXN_PREFIX + ym; }
 function finWeekKeyOf(d) { return FIN_WEEK_PREFIX + d; }
@@ -499,6 +503,13 @@ export default async (req) => {
     return Response.json({ rules: Array.isArray(rules) ? rules : [] });
   }
 
+  // GET ?finnotes=1 → { notes } — the standing brief that travels with every AI prompt.
+  if (req.method === "GET" && url.searchParams.get("finnotes") === "1") {
+    const saved = (await store.get(FIN_NOTES_KEY, { type: "json" })) || null;
+    const facts = saved && Array.isArray(saved.facts) ? saved.facts : [];
+    return Response.json({ notes: { facts, lastUpdated: (saved && saved.lastUpdated) || null } });
+  }
+
   // GET ?finweek=YYYY-MM-DD → { week } — one Thu→Wed pot move (empty default when new).
   if (req.method === "GET" && url.searchParams.get("finweek")) {
     const d = url.searchParams.get("finweek");
@@ -608,6 +619,18 @@ export default async (req) => {
       const rules = body.finRules.map(cleanRule).filter(Boolean).slice(0, 1000);
       await store.set(FIN_RULES_KEY, JSON.stringify(rules));
       return Response.json({ ok: true, count: rules.length, rules });
+    }
+
+    // Save the standing brief. Body { finNotes: { facts: ["…", "…"] } }. Whole-list write:
+    // the client owns the order and the wording, and a fact is only ever a sentence.
+    if (body.finNotes && Array.isArray(body.finNotes.facts)) {
+      const facts = body.finNotes.facts
+        .map((f) => finStr(typeof f === "string" ? f.trim() : "", 500))
+        .filter(Boolean)
+        .slice(0, 300);
+      const notes = { facts, lastUpdated: new Date().toISOString() };
+      await store.set(FIN_NOTES_KEY, JSON.stringify(notes));
+      return Response.json({ ok: true, notes });
     }
 
     // Save one week's pot move. Body { finWeek: { weekStart, moved, tax, invest, note, checklist } }.

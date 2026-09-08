@@ -126,8 +126,9 @@ const ok = (name, fn) => { fn(); pass++; console.log("  ok " + name); };
     // every mark on the page resolves to one of them
     const used = new Set([...FIN.matchAll(/data-tip="([a-z]+)"/g)].map((m) => m[1]));
     used.forEach((k) => assert.ok(keys.includes(k), "#" + k + " is used and defined"));
-    assert.deepStrictEqual([...used].sort(), ["action", "meal", "pf"],
-      "the three marks written into the markup are the ones the headings need");
+    // v132 added a fourth, on the standing file in the Report tab
+    assert.deepStrictEqual([...used].sort(), ["action", "file", "meal", "pf"],
+      "the marks written into the markup are the ones the headings need");
     // everything else is rendered, so it comes through the one helper
     assert.ok(/function tipBtn\(key\) \{\n\s*return TIPS\[key\] \?/.test(FIN),
       "a rendered mark only exists when there is an explanation behind it");

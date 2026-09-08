@@ -53,7 +53,7 @@ const okA = async (n, f) => { await f(); pass++; console.log("  ok " + n); };
 
 (async () => {
   ok("every page carries the v131 stamp", () => {
-    const S = "build v131 · challenge-my-week";
+    const S = "build v132 · claude-remembers";
     const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
     assert.ok(FIN.includes("<!-- " + S + " -->"), "finances.html stamped v131");
     assert.ok(read("monthly.html").includes('<span class="mp-stage">' + S + "</span>"), "monthly shows it");
@@ -62,13 +62,16 @@ const okA = async (n, f) => { await f(); pass++; console.log("  ok " + n); };
 
   /* ================= 1. the prompt asks for an argument ================= */
   ok("the prompt turns Claude into someone who argues, not someone who summarises", () => {
-    const block = /const CHALLENGE_PROMPT = \[([\s\S]*?)\n\];/.exec(FIN);
+    // v132 split the preamble into a shared head (both reports use it) and a tail that asks
+    // for what was learned back. The six-point brief this test is about is the head.
+    const block = /const CHALLENGE_PROMPT_HEAD = \[([\s\S]*?)\n\];/.exec(FIN);
     assert.ok(block, "the prompt lives in one named place, not buried in the builder");
     const text = block[1];
     assert.ok(/You are my finance director\./.test(text), "it casts the role in the first line");
     assert.ok(/blunt/.test(text) && /hard to impress/.test(text), "…and the manner");
     assert.ok(/gym in Warrington/.test(text), "it says what the business is");
     assert.ok(/frugal/.test(text), "…and what I am trying to do");
+    assert.ok(/__SCOPE__/.test(text), "…with one line left for the scope, so both reports share it");
     assert.ok(/Do not read my own numbers back to me\./.test(text),
       "it forbids the failure mode outright");
     // six instructions, and every one of them is a verb aimed at me

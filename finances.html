@@ -879,6 +879,15 @@
   .rep-pick .d{font-size:12.5px;line-height:1.5;color:var(--ink-faint);}
   .rep-pick .d b{color:var(--ink-dim);font-weight:600;}
 
+  /* --- v132: the standing file --- */
+  .fact{display:flex;align-items:flex-start;gap:10px;padding:9px 2px;font-size:13px;
+    line-height:1.5;color:var(--ink);border-bottom:1px solid var(--line);}
+  .fact:last-child{border-bottom:0;}
+  .fact span{flex:1;min-width:0;}
+  .fact-add{display:flex;gap:var(--sp-2);align-items:flex-start;margin-top:var(--sp-3);}
+  .fact-add textarea{flex:1;min-width:0;resize:vertical;line-height:1.5;font-size:13px;}
+  @media(max-width:640px){ .fact-add{flex-direction:column;} .fact-add .abtn{width:100%;justify-content:center;} }
+
   /* --- the report --- */
   .repbox{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;
     line-height:1.65;color:var(--ink);white-space:pre-wrap;word-break:break-word;margin:0;
@@ -934,7 +943,7 @@
 <symbol id="ic-help" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.4 9.3a2.7 2.7 0 1 1 3.5 2.6c-.8.3-1.2.9-1.2 1.7v.5"/><path d="M11.7 17.3h.01"/></symbol>
 <symbol id="ic-wallet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h11.2a1 1 0 0 1 1 1v2"/><path d="M3 7.5v9.8A2.7 2.7 0 0 0 5.7 20h12.8a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 18.5 8H5.5"/><circle cx="16.3" cy="13.6" r="1.15"/></symbol>
 </defs></svg>
-<!-- build v131 · challenge-my-week -->
+<!-- build v132 · claude-remembers -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -1235,6 +1244,23 @@
     </div>
   </section>
   <section>
+    <div class="card">
+      <div class="cardhead">
+        <div>
+          <div class="chead">What Claude already knows<button type="button" class="finfo" data-tip="file" aria-label="What does this mean?"><svg class="ic"><use href="#ic-help"/></svg></button></div>
+          <div class="csub">A chat cannot remember last week, so this does. Everything here is
+            sent with the prompt, and Claude is told not to ask about any of it again.</div>
+        </div>
+        <div class="cardhead-r"><span class="msg" id="factCount"></span></div>
+      </div>
+      <div id="factList"></div>
+      <div class="fact-add">
+        <textarea class="fin-in" id="factIn" rows="3" placeholder="Paste the ADD TO MY FILE block from your chat here — bullets and all."></textarea>
+        <button type="button" class="abtn primary" id="factAdd"><svg class="ic"><use href="#ic-plus"/></svg><span>Add to my file</span></button>
+      </div>
+    </div>
+  </section>
+  <section>
     <div class="card"><pre class="repbox" id="repText"></pre></div>
   </section>
 </div>
@@ -1409,6 +1435,7 @@ const TIPS = {
   inv: ["Investment pot", "A percentage of this week's allocatable income, put aside for things that grow the business rather than run it. Same idea as the tax pot: it leaves before you get used to having it."],
   ops: ["Left to run on", "What is left of this week's income once the tax and investment pots have gone. This is the real money the business has to live on — wages, rent, ads, everything."],
   seen: ["Left the account for your pots", "What the bank actually shows going out to your pots this week. The tick below is what you SAID you did; this line is what really happened, so the two can be compared."],
+  file: ["What Claude already knows", "A chat starts from nothing every time, so anything you tell it is lost the moment you close the tab. Whatever is in this list is sent with every prompt, and Claude is told not to ask about it again — so answer a question once and it stays answered."],
   meal: ["Meal profit", "What you took on SumUp for meal plans, minus what you paid Nutraprep to make them. What the meal side of the business earned on its own."],
   sumup: ["SumUp taken", "Card payments taken through the SumUp machine this month — in practice, that is the meal plans people buy in person."],
   nutra: ["Paid to Nutraprep", "What went out to Nutraprep this month for making the meals you then sold on."],
@@ -1503,6 +1530,7 @@ const S = {
   week: null,         // that week's saved record
   weekRows: [],       // transactions inside that week (may span two months)
   view: "cockpit",
+  notes: [],
   filter: "all",
   search: "",
   pending: null,      // a parsed-but-not-yet-imported file
@@ -2573,17 +2601,14 @@ async function buildReport(forClaude) {
   const pct = (n, d) => (d ? Math.round(n / d * 100) : 0) + "%";
 
   if (forClaude) {
-    P("I run a gym — Bodysculpt in Warrington. Below is my income and expenditure straight");
-    P("out of my bank. I want to cut cost and keep more of what comes in.");
+    // v132: the same six-point brief the weekly challenge uses — there is no reason the
+    // longer view should ask a weaker question, and it carries the same standing file so
+    // the two never ask me the same thing twice.
+    challengePrompt("Below is where it has gone over "
+      + (span.length === 1 ? "a month" : span.length + " months")
+      + " — the shape of it rather than\nevery line.", S.notes).forEach(P);
     P("");
-    P("Please go through it and tell me:");
-    P("  1. The specific things to stop paying for, in order of what they save me a year.");
-    P("  2. Anything I appear to be paying for twice, or paying for and not using.");
-    P("  3. Any charge that is drifting up month on month without me noticing.");
-    P("  4. What you would NOT cut, because it is making the money.");
-    P("Be blunt and give me numbers. Do not just summarise what I have sent you.");
-    P("");
-    P("=".repeat(64));
+    P("=".repeat(78));
     P("");
   }
 
@@ -2682,6 +2707,54 @@ async function buildReport(forClaude) {
   return L.join("\n");
 }
 
+/* ---------- the standing file (v132) ----------
+   Plain sentences, in the order they were learned, deduped case-insensitively. Pasting the
+   ADD TO MY FILE block back is the only route in, and it accepts the block verbatim —
+   heading, bullets, numbering and all — because asking someone to tidy it first is how a
+   loop like this stops being used. */
+function parseFactBlock(text) {
+  return String(text || "").split("\n")
+    .map((l) => l.replace(/^\s*(?:[-*•·—]|\d+[.)])\s*/, "").trim())
+    .filter((l) => l && !/^add to my file:?$/i.test(l) && !/^={3,}$/.test(l))
+    .map((l) => l.slice(0, 500));
+}
+
+async function addFacts(text) {
+  const have = new Set(S.notes.map((f) => f.toLowerCase()));
+  const add = parseFactBlock(text).filter((f) => !have.has(f.toLowerCase()) && have.add(f.toLowerCase()));
+  if (!add.length) { toast("Nothing new in that — already in your file"); return 0; }
+  S.notes = S.notes.concat(add).slice(0, 300);
+  await saveFacts();
+  toast(add.length + " added to your file");
+  return add.length;
+}
+
+async function removeFact(i) {
+  S.notes = S.notes.filter((_, n) => n !== i);
+  await saveFacts();
+}
+
+async function saveFacts() {
+  try { S.notes = (await post({ finNotes: { facts: S.notes } })).notes.facts || S.notes; }
+  catch (e) { toast("Could not save: " + e.message); }
+  renderFacts();
+}
+
+function renderFacts() {
+  $("factCount").textContent = S.notes.length
+    ? S.notes.length + " thing" + (S.notes.length === 1 ? "" : "s") + " Claude already knows"
+    : "Nothing in your file yet";
+  $("factList").innerHTML = S.notes.length
+    ? S.notes.map((f, i) =>
+        `<div class="fact"><span>${esc(f)}</span><button type="button" class="iconbtn" data-fact="${i}" title="Forget this"><svg class="ic"><use href="#ic-close"/></svg></button></div>`).join("")
+    : `<div class="fin-empty" style="padding:18px 12px;">Ask Claude to challenge you, answer its
+        questions, then paste the ADD TO MY FILE block it gives you back into the box below.
+        From then on it starts every session already knowing.</div>`;
+  $("factList").querySelectorAll("button[data-fact]").forEach((b) => {
+    b.onclick = () => removeFact(Number(b.dataset.fact));
+  });
+}
+
 /* =====================================================================
    THE WEEKLY CHALLENGE  (v131)
    Ash: "I want to be able to copy and paste it into Claude, and for Claude to
@@ -2695,12 +2768,14 @@ async function buildReport(forClaude) {
    supplier costs over a year at this rate, and the standing costs that did not
    happen to fall inside this particular week.
    ===================================================================== */
-const CHALLENGE_PROMPT = [
+const CHALLENGE_PROMPT_HEAD = [
   "You are my finance director. You are blunt, numerate, and hard to impress.",
   "",
   "I run Bodysculpt, a gym in Warrington in the UK. I am not an accountant. I am trying to",
   "become genuinely frugal — to keep more of what comes in, without damaging the thing that",
   "earns it. Everything below came straight out of my business bank account.",
+  "",
+  "__SCOPE__",
   "",
   "Go through EVERY line. Do not read my own numbers back to me.",
   "",
@@ -2715,9 +2790,11 @@ const CHALLENGE_PROMPT = [
   "     rather keep a cost that earns than save on one that does.",
   "  5. CHALLENGE THE INCOME as hard as the spending: my pricing, failed payments, discounts",
   "     I may be handing out, anything low-value eating capacity.",
-  "  6. WHERE YOU CANNOT TELL FROM THE DATA, ASK ME. Give me a short list of direct",
-  "     questions, and say what you would do with each answer. If my answer would be weak,",
-  "     tell me that in advance.",
+  "  6. WHERE YOU CANNOT TELL FROM THE DATA, ASK ME — but ONLY what I have not already",
+  "     answered. What I have told you before is listed under WHAT I HAVE ALREADY TOLD YOU;",
+  "     asking me any of it again wastes the session. Give me a short list of new, direct",
+  "     questions, say what you would do with each answer, and tell me in advance if an",
+  "     answer of mine would be too weak to act on.",
   "",
   "Finish with the single biggest saving I can make this week, what it is worth over twelve",
   "months, and the one thing to do first.",
@@ -2725,6 +2802,43 @@ const CHALLENGE_PROMPT = [
   "Rules: UK business, pounds. Name the line and the amount — no generic advice about",
   "\"reviewing your subscriptions\". No flattery, no filler, nothing that is not above board.",
   "If something in here looks wrong or missing, say so rather than working around it.",
+];
+
+/* v132: THE CHAT CANNOT REMEMBER, SO THE DASHBOARD DOES.
+   Ash: "the ability for claude to learn in the chat — for example, i do not want it to ask
+   me the same questions each week." A pasted conversation starts from nothing every time,
+   so the memory has to travel WITH the paste. Everything he has answered before is kept
+   here as plain sentences and printed above the figures; the prompt forbids asking about
+   any of them again, and closes by asking for the new answers back in a block he can paste
+   into the dashboard in one go. That is the whole loop: ask once, keep the answer, never
+   ask again. */
+function promptFile(facts) {
+  const L = [];
+  L.push("WHAT I HAVE ALREADY TOLD YOU");
+  if (!facts.length) {
+    L.push("  (nothing yet — this is the first time. Everything you learn below is new.)");
+  } else {
+    L.push("  Each line is something I answered in an earlier session. Treat it as fact, and");
+    L.push("  DO NOT ASK ME ABOUT ANY OF IT AGAIN.");
+    L.push("");
+    facts.forEach((f) => L.push("  · " + f));
+  }
+  L.push("");
+  L.push("  If the figures below now contradict one of those lines, say so and tell me to");
+  L.push("  update it — do not quietly work around it.");
+  return L;
+}
+
+const PROMPT_TAIL = [
+  "",
+  "Then finish with this block, exactly like this, so I can paste it into my dashboard and",
+  "you will never have to ask me these things again:",
+  "",
+  "ADD TO MY FILE",
+  "- one plain sentence per thing you learned about my business this session",
+  "- one per line, no numbering, each one true on its own without the conversation around it",
+  "- include my answers to your questions, and anything you worked out that I confirmed",
+  "- leave the block out entirely if you learned nothing new",
 ];
 
 /* Rows that fall inside one pot-week, from the cache where possible. */
@@ -2736,6 +2850,13 @@ async function rowsForWeek(ws) {
     for (const r of S.trend[ym]) if (r.date >= ws && r.date <= we) out.push(r);
   }
   return out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+}
+
+/* The whole preamble for one scope: the brief, what I have already said, and the ask for
+   whatever is learned this time. */
+function challengePrompt(scope, facts) {
+  return CHALLENGE_PROMPT_HEAD.map((l) => l === "__SCOPE__" ? scope : l)
+    .concat(PROMPT_TAIL, [""], promptFile(facts || []));
 }
 
 async function buildWeekChallenge() {
@@ -2759,7 +2880,8 @@ async function buildWeekChallenge() {
   const rule = () => P("=".repeat(78));
   const yr = (total, months) => money0(months ? (total / months) * 12 : total * 12);
 
-  CHALLENGE_PROMPT.forEach(P);
+  challengePrompt("Below is EVERY transaction from one week of it, with what each supplier"
+    + "\ncosts me over a year at that rate.", S.notes).forEach(P);
   P("");
   rule();
   P("");
@@ -2902,6 +3024,7 @@ async function renderReport() {
   const span = reportMonths();
   $("repRangeLabel").textContent = span.length <= 1 ? ymLabel(S.ym)
     : "the last " + span.length + " months";
+  renderFacts();
   $("repText").textContent = "Building…";
   $("repText").textContent = await buildReport(false);
 }
@@ -3126,6 +3249,10 @@ function wire() {
 
   // The report.
   $("repRange").onchange = renderReport;
+  $("factAdd").onclick = async () => {
+    const n = await addFacts($("factIn").value);
+    if (n) $("factIn").value = "";
+  };
   $("repWeek").onclick = () => copyChallenge();
   $("repCopy").onclick = () => copyReport(true);
   $("repCopyPlain").onclick = () => copyReport(false);
@@ -3144,14 +3271,15 @@ function wire() {
 async function init() {
   wire();
   try {
-    const [st, ru] = await Promise.all([api("finsettings=1"), api("finrules=1")]);
+    const [st, ru, nt] = await Promise.all([api("finsettings=1"), api("finrules=1"), api("finnotes=1")]);
     S.settings = st.settings; S.rules = ru.rules || [];
+    S.notes = (nt.notes && nt.notes.facts) || [];
   } catch (e) {
     S.settings = { potTaxPct: 15, potInvestPct: 4, weekStartDow: 4, cashBuffer: 2000,
       sources: { stripe: "STRIPE", gocardless: "GC C1", sumup: "SUMUP", nutraprep: "NUTRAPREP" },
       transferKeyword: "BODYSCULPT TRANSFORMATION CENTRES",
       allocatable: ["stripe", "gocardless"], categories: DEFAULT_CATS };
-    S.rules = [];
+    S.rules = []; S.notes = [];
     toast("Working offline — changes will not save");
   }
   bustRules();

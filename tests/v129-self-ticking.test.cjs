@@ -50,10 +50,13 @@ const okA = async (name, fn) => { await fn(); pass++; console.log("  ok " + name
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  ok("every page carries the v129 stamp", () => {
-    const S = "build v131 · challenge-my-week";
+  ok("every page carries the same stamp", () => {
+    // relaxed once v131 shipped: the newest test pins the exact stamp, this one only checks
+    // the build never goes backwards and that the pages agree on it.
+    const m = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(FIN);
+    assert.ok(m && Number(m[1]) >= 129, "finances.html carries a v129-or-later stamp");
+    const S = "build v" + m[1] + " · " + m[2];
     const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
-    assert.ok(FIN.includes("<!-- " + S + " -->"), "finances.html stamped v129");
     assert.ok(read("monthly.html").includes('<span class="mp-stage">' + S + "</span>"), "monthly shows it");
     assert.ok(read("index.html").includes(S), "index carries it");
   });

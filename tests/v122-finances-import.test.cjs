@@ -602,8 +602,11 @@ const AUG = [
     assert.ok(/Can Cut/.test(plain), "the discretionary split is shown");
 
     const forClaude = await ctx.buildReport(true);
-    assert.ok(/stop paying for/.test(forClaude), "the Claude version leads with the ask");
-    assert.ok(forClaude.indexOf("stop paying for") < forClaude.indexOf("BODYSCULPT WARRINGTON"),
+    // v132: this view now carries the same six-point brief as the weekly challenge — there
+    // was no reason the longer view should ask a weaker question. The claim is unchanged:
+    // the ask comes first, so it is never buried under the figures.
+    assert.ok(/RANK WHAT TO CUT/.test(forClaude), "the Claude version leads with the ask");
+    assert.ok(forClaude.indexOf("RANK WHAT TO CUT") < forClaude.indexOf("BODYSCULPT WARRINGTON"),
       "and the ask comes BEFORE the figures, so it is not buried");
     assert.ok(forClaude.length > plain.length, "it is the plain report plus the brief");
     pass++; console.log("  ok the report is built for cutting cost, and never counts a pot move as spend");
