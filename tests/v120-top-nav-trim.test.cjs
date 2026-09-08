@@ -1,4 +1,9 @@
-// v120 — the top menu is trimmed, and (v122) grouped.
+// v120 — the top menu is trimmed, and (v122) grouped, and (v126) stacked.
+//
+// v126 UPDATE: the two groups are no longer side by side on one line. Each is a STACK —
+// an icon + caption above its own pill of links — so the group caption now contains an
+// <svg> as well as its text, and the links live in a .navlinks pill inside .navgrp. What
+// this test protects is unchanged and still checked below.
 //
 // v122 UPDATE: the menu is no longer a flat row of three. It is two labelled groups —
 // Planning (Weekly / Monthly / Quarterly) and Finances (Income & Expenses) — because
@@ -51,7 +56,9 @@ const PAGES = [
     assert.ok(nav, label + " still has a .topnav block");
 
     // the group headings, in order
-    const groups = [...nav[1].matchAll(/<span class="navgroup">([^<]+)<\/span>/g)].map((m) => m[1].trim());
+    // v126: the caption leads with a sprite icon, so the text is what follows it
+    const groups = [...nav[1].matchAll(/<span class="navgroup">(?:<svg class="ic"><use href="#(ic-[a-z-]+)"\/><\/svg>)?([^<]+)<\/span>/g)]
+      .map((m) => m[2].trim());
     assert.deepStrictEqual(groups, ["Planning", "Finances"], label + " names the two groups");
     assert.ok(/<span class="navsep"><\/span>/.test(nav[1]), label + " rules the groups apart");
 

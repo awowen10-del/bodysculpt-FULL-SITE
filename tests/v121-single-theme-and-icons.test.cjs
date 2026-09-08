@@ -253,7 +253,9 @@ function stripComments(src) {
       label + "…and sits inside the app bar, not below it");
     const style = styleOf(src);
     assert.ok(/\.appbar\{[^}]*position:sticky/.test(style), label + "the app bar is sticky");
-    assert.ok(/\.topnav\{[^}]*border-radius:var\(--r-pill\)/.test(style), label + "the period nav is a pill segment");
+    // v126 moved the pill down one level: .topnav is the two-group row, .navlinks is the
+    // segment of links inside each group. The segmented-control claim is unchanged.
+    assert.ok(/\.navlinks\{[^}]*border-radius:var\(--r-pill\)/.test(style), label + "the period nav is a pill segment");
     // the base rule sizes to content; the narrow-screen media query below it deliberately
     // does set flex:1, so only the FIRST .topnav a rule is checked here.
     const navLink = /\.topnav a\{[^}]*\}/.exec(style);

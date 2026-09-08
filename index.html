@@ -493,20 +493,34 @@
     border-radius:var(--r-lg) var(--r-lg) 0 0;padding:0 var(--sp-4);min-height:60px;flex-wrap:wrap;}
   .appbar .brand{flex:0 0 auto;}
   .appbar-right{flex:0 0 auto;margin-left:auto;display:flex;align-items:center;gap:var(--sp-2);}
-  /* v122: the nav is now two GROUPS, not one flat row of three. Planning (the
-     weekly→monthly→quarterly cadence) and Finances are different kinds of work, and
-     the label + rule says so without adding a second bar. */
-  .navgroup{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;font-weight:700;
-    color:var(--ink-faint);padding:0 10px 0 12px;align-self:center;white-space:nowrap;}
-  .navsep{width:1px;align-self:stretch;background:var(--line);margin:5px 6px;flex:0 0 auto;}
-  @media(max-width:720px){ .navgroup{padding:0 6px 0 8px;} .navsep{margin:5px 2px;} }
-  .topnav{display:flex;gap:2px;background:var(--navy-2);border:1px solid var(--line);
-    border-radius:var(--r-pill);padding:3px;margin:0 auto;}
+  /* ===== v126: THE NAV IS TWO PLACES, NOT ONE ROW =====
+     v122 labelled the groups but kept them on one line, so Finances read as a fourth
+     PERIOD sitting after Quarterly. Now each group is a STACK — an icon + caption ABOVE
+     its own pill segment — with a full-height rule between them. Planning is the
+     weekly→monthly→quarterly cadence; Finances is somewhere else you go, so its caption
+     and its pill carry the brand instead of the neutral inset. .topnav keeps its name and
+     its links; the pill moved down one level onto .navlinks. */
+  .topnav{display:flex;align-items:stretch;gap:var(--sp-2);margin:var(--sp-2) auto;}
+  .navgrp{display:flex;flex-direction:column;gap:6px;min-width:0;}
+  .navgroup{display:flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;
+    letter-spacing:.11em;font-weight:700;color:var(--ink-faint);padding:0 6px;white-space:nowrap;}
+  .navgroup .ic{width:1.3em;height:1.3em;flex:0 0 auto;}
+  .navgrp-money .navgroup{color:var(--orange);}
+  .navsep{width:1px;align-self:stretch;background:var(--line);margin:0 var(--sp-3);flex:0 0 auto;}
+  .navlinks{display:flex;gap:2px;background:var(--navy-2);border:1px solid var(--line);
+    border-radius:var(--r-pill);padding:3px;}
+  .navgrp-money .navlinks{background:var(--card);border-color:rgba(var(--orange-rgb),.35);}
   .topnav a{text-decoration:none;font-size:13.5px;font-weight:500;color:var(--ink-dim);
     padding:7px 20px;border-radius:var(--r-pill);letter-spacing:-.005em;white-space:nowrap;
-    transition:color var(--tap),background var(--tap);}
+    transition:color var(--tap),background var(--tap),box-shadow var(--tap);}
   .topnav a:hover{color:var(--ink);}
   .topnav a.active{background:var(--card);color:var(--ink);font-weight:600;box-shadow:var(--shadow);}
+  .navgrp-money a{color:var(--orange);font-weight:600;}
+  .navgrp-money a:hover{color:var(--orange-soft);}
+  .navgrp-money a.active{background:var(--orange);color:var(--on-accent);box-shadow:var(--shadow);}
+  /* on the finance page the solid brand pill IS the marker, so the segment behind it
+     steps back rather than ringing it twice (older engines without :has just keep the ring) */
+  .navgrp-money .navlinks:has(a.active){background:transparent;border-color:transparent;}
   .topnav a:focus-visible{outline:none;box-shadow:var(--focus);}
   /* the section tabs: an underline, not a second filled pill */
   .viewtoggle{display:flex;gap:2px;background:var(--card);border:1px solid var(--line);
@@ -521,7 +535,9 @@
   .viewtoggle .vt:focus-visible{outline:none;box-shadow:var(--focus);border-radius:var(--r-sm);}
   @media(max-width:720px){
     .appbar{min-height:0;padding:var(--sp-3) var(--sp-3) 0;gap:var(--sp-3);}
-    .topnav{margin:0 0 var(--sp-3);width:100%;}
+    .topnav{flex-wrap:wrap;gap:var(--sp-3);margin:var(--sp-1) 0 var(--sp-3);width:100%;}
+    .navgrp{flex:1 1 100%;}
+    .navsep{display:none;}
     .topnav a{flex:1;text-align:center;padding:7px 8px;}
   }
   /* v106: theme toggle — a quiet chip at the end of the top nav, same family as the links */
@@ -1423,6 +1439,7 @@
 <symbol id="ic-swim" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="17" cy="7" r="1.8"/><path d="M3 12.5l3.5-2.5 4 3 3.5-2.5"/><path d="M2 18.5c1.7 0 1.7 1.4 3.3 1.4s1.7-1.4 3.4-1.4 1.7 1.4 3.3 1.4 1.7-1.4 3.4-1.4 1.7 1.4 3.3 1.4 1.7-1.4 3.3-1.4"/></symbol>
 <symbol id="ic-walk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4.2" r="2"/><path d="M9.5 21l2.5-5.5V11L9 13"/><path d="M12 15.5l3 5.5M12 9l3 2 2.5-.8M12 9l-3 1.5"/></symbol>
 <symbol id="ic-yoga" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.2" r="2"/><path d="M12 7v6M12 13l-5 6M12 13l5 6M4 10.5l8 1.5 8-1.5"/></symbol>
+<symbol id="ic-wallet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h11.2a1 1 0 0 1 1 1v2"/><path d="M3 7.5v9.8A2.7 2.7 0 0 0 5.7 20h12.8a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 18.5 8H5.5"/><circle cx="16.3" cy="13.6" r="1.15"/></symbol>
 </defs></svg>
 <div class="wrap">
   <header>
@@ -1432,14 +1449,22 @@
         <div><h1>Bodysculpt</h1><div class="sub">Warrington</div></div>
       </div>
       <nav class="topnav">
-      <span class="navgroup">Planning</span>
-      <a href="/index.html" class="active">Weekly</a>
-      <a href="/monthly.html">Monthly</a>
-      <a href="/quarterly.html">Quarterly</a>
-      <span class="navsep"></span>
-      <span class="navgroup">Finances</span>
-      <a href="/finances.html">Income &amp; Expenses</a>
-    </nav>
+        <div class="navgrp">
+          <span class="navgroup"><svg class="ic"><use href="#ic-calendar"/></svg>Planning</span>
+          <div class="navlinks">
+            <a href="/index.html" class="active">Weekly</a>
+            <a href="/monthly.html">Monthly</a>
+            <a href="/quarterly.html">Quarterly</a>
+          </div>
+        </div>
+        <span class="navsep"></span>
+        <div class="navgrp navgrp-money">
+          <span class="navgroup"><svg class="ic"><use href="#ic-wallet"/></svg>Finances</span>
+          <div class="navlinks">
+            <a href="/finances.html">Income &amp; Expenses</a>
+          </div>
+        </div>
+      </nav>
     </div>
     <div class="viewtoggle" id="tabBar">
       <button class="vt active" id="vtPlan">Weekly Plan</button>
@@ -1705,7 +1730,7 @@
 
   <footer>
     <span class="stage" id="srcPill"><svg class="ic"><use href="#ic-dot"/></svg> Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v125 · wizard-waits</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v126 · nav-two-places</span>
   </footer>
 </div>
 
