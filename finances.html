@@ -865,6 +865,20 @@
     flex-wrap:wrap;}
   @media(max-width:560px){ .wz-name{font-size:17px;} .wz-opt{font-size:12.5px;padding:7px 12px;} }
 
+  /* --- v131: the two things worth copying, as choices rather than buttons in a row --- */
+  .rep-picks{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);}
+  @media(max-width:820px){ .rep-picks{grid-template-columns:1fr;} }
+  .rep-pick{display:flex;flex-direction:column;gap:6px;text-align:left;font-family:inherit;
+    cursor:pointer;background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:15px 16px;transition:border-color var(--tap),background var(--tap);}
+  .rep-pick:hover{border-color:var(--orange);background:rgba(var(--orange-rgb),.04);}
+  .rep-pick:focus-visible{outline:none;box-shadow:var(--focus);}
+  .rep-pick .t{display:flex;align-items:center;gap:8px;font-size:14.5px;font-weight:700;
+    color:var(--ink-strong);letter-spacing:-.015em;}
+  .rep-pick .t .ic{width:16px;height:16px;color:var(--orange);}
+  .rep-pick .d{font-size:12.5px;line-height:1.5;color:var(--ink-faint);}
+  .rep-pick .d b{color:var(--ink-dim);font-weight:600;}
+
   /* --- the report --- */
   .repbox{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;
     line-height:1.65;color:var(--ink);white-space:pre-wrap;word-break:break-word;margin:0;
@@ -920,7 +934,7 @@
 <symbol id="ic-help" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.4 9.3a2.7 2.7 0 1 1 3.5 2.6c-.8.3-1.2.9-1.2 1.7v.5"/><path d="M11.7 17.3h.01"/></symbol>
 <symbol id="ic-wallet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h11.2a1 1 0 0 1 1 1v2"/><path d="M3 7.5v9.8A2.7 2.7 0 0 0 5.7 20h12.8a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 18.5 8H5.5"/><circle cx="16.3" cy="13.6" r="1.15"/></symbol>
 </defs></svg>
-<!-- build v130 · week-reads-down -->
+<!-- build v131 · challenge-my-week -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -1191,16 +1205,33 @@
 <div class="view" id="v-report" hidden>
   <section>
     <div class="card">
-      <div class="ctitle">Report for review</div>
-      <div class="filters">
+      <div class="cardhead">
+        <div>
+          <div class="chead">Have Claude challenge you</div>
+          <div class="csub">Copy one of these and paste it straight into a chat. The question
+            is already written at the top, so what comes back is an argument about your money
+            — not a description of it.</div>
+        </div>
+      </div>
+      <div class="rep-picks">
+        <button type="button" class="rep-pick" id="repWeek">
+          <span class="t"><svg class="ic"><use href="#ic-flame"/></svg>This week, line by line</span>
+          <span class="d">Every single transaction between <b id="repWeekRange">this week</b>,
+            what each supplier is costing you a year at this rate, and a prompt that makes
+            Claude go through them one at a time and argue with you about each one.</span>
+        </button>
+        <button type="button" class="rep-pick" id="repCopy">
+          <span class="t"><svg class="ic"><use href="#ic-trend-up"/></svg>The bigger picture</span>
+          <span class="d">Where the money goes over <b id="repRangeLabel">several months</b> —
+            the standing costs, what is discretionary, what is creeping up — for when you want
+            the shape of it rather than the detail.</span>
+        </button>
+      </div>
+      <div class="filters" style="margin-top:var(--sp-4);">
         <select class="fin-in" id="repRange" style="max-width:190px;width:auto;"></select>
-        <button class="abtn primary" id="repCopy"><svg class="ic"><use href="#ic-link"/></svg><span>Copy for Claude</span></button>
         <button class="abtn" id="repCopyPlain"><span>Copy figures only</span></button>
         <span class="msg" id="repMsg"></span>
       </div>
-      <div class="hint">"Copy for Claude" puts the whole thing on your clipboard with the
-        question already written at the top — paste it straight into a chat and you will get
-        a review aimed at cutting cost, not a description of your own numbers back at you.</div>
     </div>
   </section>
   <section>
@@ -2651,29 +2682,261 @@ async function buildReport(forClaude) {
   return L.join("\n");
 }
 
+/* =====================================================================
+   THE WEEKLY CHALLENGE  (v131)
+   Ash: "I want to be able to copy and paste it into Claude, and for Claude to
+   challenge me on all of my income and expenses… something that's going to
+   instantly turn Claude into a financial guru, with a breakdown of all
+   transactions for that week."
+   Two halves, and both matter. The PROMPT has to ask for an argument — a
+   summary of his own numbers read back to him is the failure mode, and the one
+   thing a language model will do by default. The DATA has to carry the three
+   things you cannot challenge a payment without: the line itself, what that
+   supplier costs over a year at this rate, and the standing costs that did not
+   happen to fall inside this particular week.
+   ===================================================================== */
+const CHALLENGE_PROMPT = [
+  "You are my finance director. You are blunt, numerate, and hard to impress.",
+  "",
+  "I run Bodysculpt, a gym in Warrington in the UK. I am not an accountant. I am trying to",
+  "become genuinely frugal — to keep more of what comes in, without damaging the thing that",
+  "earns it. Everything below came straight out of my business bank account.",
+  "",
+  "Go through EVERY line. Do not read my own numbers back to me.",
+  "",
+  "  1. CHALLENGE EACH PAYMENT, one at a time. What is it for, what does it cost me a YEAR",
+  "     at this rate, and what would actually happen if I stopped it tomorrow? Assume",
+  "     nothing is sacred and nothing is too small.",
+  "  2. RANK WHAT TO CUT by what it saves me a year, biggest first, with the pounds next to",
+  "     it. Give me the running total if I did all of it.",
+  "  3. FLAG anything I appear to be paying for twice, paying monthly that should be annual,",
+  "     paying for and not using, or that has quietly crept up.",
+  "  4. TELL ME WHAT NOT TO TOUCH, because it is making the money — and say why. I would",
+  "     rather keep a cost that earns than save on one that does.",
+  "  5. CHALLENGE THE INCOME as hard as the spending: my pricing, failed payments, discounts",
+  "     I may be handing out, anything low-value eating capacity.",
+  "  6. WHERE YOU CANNOT TELL FROM THE DATA, ASK ME. Give me a short list of direct",
+  "     questions, and say what you would do with each answer. If my answer would be weak,",
+  "     tell me that in advance.",
+  "",
+  "Finish with the single biggest saving I can make this week, what it is worth over twelve",
+  "months, and the one thing to do first.",
+  "",
+  "Rules: UK business, pounds. Name the line and the amount — no generic advice about",
+  "\"reviewing your subscriptions\". No flattery, no filler, nothing that is not above board.",
+  "If something in here looks wrong or missing, say so rather than working around it.",
+];
+
+/* Rows that fall inside one pot-week, from the cache where possible. */
+async function rowsForWeek(ws) {
+  const we = weekEndOf(ws), out = [];
+  for (const ym of [...new Set([ymOf(ws), ymOf(we)])]) {
+    if (ym === S.ym) S.trend[ym] = S.rows;
+    else if (!S.trend[ym]) S.trend[ym] = (await api("fintxns=" + ym)).rows || [];
+    for (const r of S.trend[ym]) if (r.date >= ws && r.date <= we) out.push(r);
+  }
+  return out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+}
+
+async function buildWeekChallenge() {
+  const ws = S.weekStart || weekStartOf(ymd(new Date()), S.settings.weekStartDow);
+  const we = weekEndOf(ws);
+  const week = await rowsForWeek(ws);
+
+  // six months of history behind it, so every supplier can be quoted at a yearly rate
+  const idx = S.months.indexOf(S.ym);
+  const end = idx < 0 ? S.months.length : idx + 1;
+  const span = S.months.slice(Math.max(0, end - 6), end);
+  await Promise.all(span.map(async (ym) => {
+    if (ym === S.ym) S.trend[ym] = S.rows;
+    else if (!S.trend[ym]) S.trend[ym] = (await api("fintxns=" + ym)).rows || [];
+  }));
+  const hist = [];
+  for (const ym of span) for (const r of S.trend[ym] || []) hist.push({ ...r, ym });
+
+  const L = [];
+  const P = (x) => L.push(x == null ? "" : x);
+  const rule = () => P("=".repeat(78));
+  const yr = (total, months) => money0(months ? (total / months) * 12 : total * 12);
+
+  CHALLENGE_PROMPT.forEach(P);
+  P("");
+  rule();
+  P("");
+
+  /* ---- the week itself ---- */
+  P("THE WEEK: " + dayLabel(ws) + " to " + dayLabel(we) + "  (my money week runs "
+    + ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][S.settings.weekStartDow]
+    + " to the day before the next one)");
+  P("");
+  const wIn = moneyIn(week), wOut = moneyOut(week);
+  P("  Money in    " + money(wIn).padStart(12));
+  P("  Money out   " + money(wOut).padStart(12));
+  P("  Net         " + money(wIn - wOut).padStart(12));
+  P("");
+
+  /* ---- every transaction, nothing hidden, transfers marked as not-spending ---- */
+  P("EVERY TRANSACTION THIS WEEK  (" + week.length + " in total, nothing left out)");
+  P("  " + "date".padEnd(11) + "what".padEnd(6) + "amount".padStart(11) + "  "
+    + "category".padEnd(15) + "cut?".padEnd(12) + "description");
+  if (!week.length) P("  (nothing landed in the account this week)");
+  for (const r of week) {
+    const what = isTransfer(r) ? "MOVE" : (r.dir === "in" ? "IN" : "OUT");
+    P("  " + dmy(r.date).padEnd(11) + what.padEnd(6) + money(r.amount).padStart(11) + "  "
+      + String(isTransfer(r) ? "own pot" : (r.dir === "in" ? (r.src || sourceOf(r.desc)) : (r.cat || "UNCATEGORISED"))).padEnd(15)
+      + String(r.dir === "out" && !isTransfer(r) ? (r.km || "not marked") : "—").padEnd(12)
+      + String(r.desc || "").slice(0, 72));
+  }
+  P("");
+  P("  MOVE lines are my own money going to my own tax/investment pots. That is not");
+  P("  spending and must not be counted as a saving. The '~ a year' figures below are what a");
+  P("  supplier would cost over twelve months at the rate shown — a projection from the");
+  P("  history I have, not a bill. Say so if one of them is built on too little history.");
+  P("");
+
+  /* ---- what this week's suppliers really cost, annualised ---- */
+  const seen = {};
+  for (const r of week) if (r.dir === "out" && !isTransfer(r)) {
+    const m = merchantOf(r.desc);
+    (seen[m] = seen[m] || { week: 0, hist: 0, n: 0, months: new Set(), cat: r.cat || "", km: r.km || "" }).week += r.amount;
+  }
+  for (const r of hist) if (r.dir === "out" && !isTransfer(r)) {
+    const m = merchantOf(r.desc);
+    if (!seen[m]) continue;
+    seen[m].hist += r.amount; seen[m].n++; seen[m].months.add(r.ym);
+    if (!seen[m].cat && r.cat) seen[m].cat = r.cat;
+  }
+  const paid = Object.entries(seen).sort((a, b) => b[1].week - a[1].week);
+  if (paid.length) {
+    P("WHAT I PAID THIS WEEK, AND WHAT THAT SUPPLIER COSTS ME A YEAR AT THIS RATE");
+    P("  " + "who".padEnd(32) + "this week".padStart(11) + ("last " + span.length + " mths").padStart(13)
+      + "times".padStart(7) + "~ a year".padStart(11) + "   category");
+    for (const [m, x] of paid) {
+      P("  " + m.slice(0, 31).padEnd(32) + money(x.week).padStart(11) + money(x.hist).padStart(13)
+        + String(x.n).padStart(7) + yr(x.hist, x.months.size).padStart(11)
+        + (x.cat ? "   " + x.cat : ""));
+    }
+    P("");
+  }
+
+  /* ---- and the standing costs that simply did not fall in this week ---- */
+  const other = {};
+  for (const r of hist) if (r.dir === "out" && !isTransfer(r)) {
+    const m = merchantOf(r.desc);
+    if (seen[m]) continue;
+    (other[m] = other[m] || { total: 0, n: 0, months: new Set(), cat: r.cat || "" }).total += r.amount;
+    other[m].n++; other[m].months.add(r.ym);
+    if (!other[m].cat && r.cat) other[m].cat = r.cat;
+  }
+  const standing = Object.entries(other).filter(([, x]) => x.n >= 2)
+    .sort((a, b) => b[1].total - a[1].total).slice(0, 20);
+  if (standing.length) {
+    P("REGULAR COSTS THAT DID NOT FALL IN THIS WEEK — challenge these too");
+    P("  " + "who".padEnd(32) + ("last " + span.length + " mths").padStart(13) + "times".padStart(7)
+      + "~ a year".padStart(11) + "   category");
+    for (const [m, x] of standing) {
+      P("  " + m.slice(0, 31).padEnd(32) + money0(x.total).padStart(13) + String(x.n).padStart(7)
+        + yr(x.total, x.months.size).padStart(11) + (x.cat ? "   " + x.cat : ""));
+    }
+    P("");
+  }
+
+  /* ---- the income, because it is half the argument ---- */
+  const bySrc = {};
+  for (const r of week) if (r.dir === "in" && !isTransfer(r)) {
+    const k = r.src || sourceOf(r.desc);
+    bySrc[k] = (bySrc[k] || 0) + r.amount;
+  }
+  if (Object.keys(bySrc).length) {
+    P("WHERE THIS WEEK'S INCOME CAME FROM");
+    for (const [k, v] of Object.entries(bySrc).sort((a, b) => b[1] - a[1])) {
+      P("  " + k.padEnd(15) + money(v).padStart(12));
+    }
+    P("");
+  }
+
+  /* ---- how the week is split before it is spent ---- */
+  const alloc = new Set(S.settings.allocatable || ["stripe", "gocardless"]);
+  const allocatable = Object.keys(bySrc).filter((k) => alloc.has(k)).reduce((a, k) => a + bySrc[k], 0);
+  const tax = allocatable * (S.settings.potTaxPct / 100);
+  const inv = allocatable * (S.settings.potInvestPct / 100);
+  const potLab = (t) => t.padEnd(21);
+  P("HOW I SPLIT THE WEEK BEFORE I SPEND ANY OF IT  (Profit First)");
+  P("  " + potLab("Allocatable income") + money(allocatable).padStart(12)
+    + "   (only " + [...alloc].join(" + ") + " get split)");
+  P("  " + potLab("Tax pot " + S.settings.potTaxPct + "%") + money(tax).padStart(12));
+  P("  " + potLab("Investment " + S.settings.potInvestPct + "%") + money(inv).padStart(12));
+  P("  " + potLab("Left to run on") + money(allocatable - tax - inv).padStart(12));
+  P("  My cash cushion is " + money0(S.settings.cashBuffer) + " — below that I am supposed to stop spending.");
+  P("");
+
+  /* ---- the month around it, for proportion ---- */
+  const mIn = moneyIn(S.rows), mOut = moneyOut(S.rows);
+  P("THE MONTH SO FAR — " + ymLabel(S.ym));
+  P("  In " + money0(mIn) + " · out " + money0(mOut) + " · net " + money0(mIn - mOut));
+  const cats = {};
+  for (const r of S.rows) if (r.dir === "out" && !isTransfer(r)) {
+    const c = r.cat || "UNCATEGORISED";
+    cats[c] = (cats[c] || 0) + r.amount;
+  }
+  for (const [c, v] of Object.entries(cats).sort((a, b) => b[1] - a[1])) {
+    P("  " + c.padEnd(16) + money0(v).padStart(10) + "   " + (mOut ? Math.round((v / mOut) * 100) : 0) + "%");
+  }
+  P("");
+  const unk = S.rows.filter((r) => r.dir === "out" && !r.cat && !isTransfer(r));
+  if (unk.length) P("NOTE: " + unk.length + (unk.length === 1
+    ? " payment this month has no category yet — ask me what it is before judging it."
+    : " payments this month have no category yet — ask me what they are before judging them."));
+  return L.join("\n");
+}
+
 async function renderReport() {
   const sel = $("repRange");
   if (!sel.options.length) {
     sel.innerHTML = [1, 3, 6, 12].map((n) =>
       `<option value="${n}" ${n === 3 ? "selected" : ""}>Last ${n} month${n === 1 ? "" : "s"}</option>`).join("");
   }
+  // say plainly which week and which months each pick would copy
+  const ws = S.weekStart || weekStartOf(ymd(new Date()), S.settings.weekStartDow);
+  $("repWeekRange").textContent = dayLabel(ws) + " and " + dayLabel(weekEndOf(ws));
+  const span = reportMonths();
+  $("repRangeLabel").textContent = span.length <= 1 ? ymLabel(S.ym)
+    : "the last " + span.length + " months";
   $("repText").textContent = "Building…";
   $("repText").textContent = await buildReport(false);
 }
 
+async function copyChallenge() {
+  $("repMsg").textContent = "Building…";
+  const text = await buildWeekChallenge();
+  $("repText").textContent = text;      // so you can see exactly what you just copied
+  await putOnClipboard(text, "Paste it into Claude and let it argue with you.");
+}
+
 async function copyReport(forClaude) {
   const text = await buildReport(forClaude);
+  await putOnClipboard(text, forClaude ? "Paste it into Claude." : "");
+}
+
+async function putOnClipboard(text, tail) {
   try {
     await navigator.clipboard.writeText(text);
-    $("repMsg").textContent = "Copied — " + text.split("\n").length + " lines. Paste it into Claude.";
+    $("repMsg").textContent = "Copied — " + text.split("\n").length + " lines. " + (tail || "");
     toast("Copied to your clipboard");
   } catch {
-    // clipboard blocked (an insecure context, or permission refused): select it instead
-    const el = $("repText");
-    el.textContent = text;
-    const range = document.createRange(); range.selectNodeContents(el);
-    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
-    $("repMsg").textContent = "Could not reach the clipboard — the report is selected, press Cmd+C.";
+    // clipboard blocked (an insecure context, or permission refused): select it instead,
+    // and if even the selection API is missing, the text is on screen to copy by hand
+    const box = $("repText");
+    box.textContent = text;
+    let selected = false;
+    try {
+      const range = document.createRange(); range.selectNodeContents(box);
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      selected = true;
+    } catch { /* nothing to do — it is rendered either way */ }
+    $("repMsg").textContent = selected
+      ? "Could not reach the clipboard — the report is selected, press Cmd+C."
+      : "Could not reach the clipboard — the report is below, select it and copy.";
   }
 }
 
@@ -2863,6 +3126,7 @@ function wire() {
 
   // The report.
   $("repRange").onchange = renderReport;
+  $("repWeek").onclick = () => copyChallenge();
   $("repCopy").onclick = () => copyReport(true);
   $("repCopyPlain").onclick = () => copyReport(false);
 

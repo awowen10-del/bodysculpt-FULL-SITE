@@ -103,6 +103,10 @@ async function boot(opts = {}) {
     ctx.Date = FixedDate;
   }
   ctx.window = ctx; ctx.globalThis = ctx;
+  // v131: the report's copy path goes through the clipboard, so the sandbox needs one.
+  // It records what was written, which is also the only way a test can see it.
+  ctx.__clipboard = [];
+  ctx.navigator = { clipboard: { writeText: async (t) => { ctx.__clipboard.push(t); } } };
   vm.createContext(ctx);
   // S is a top-level const, so it never lands on globalThis. The accessor is appended
   // to the extracted source — same trick as env.cjs — rather than adding test-only
@@ -110,7 +114,7 @@ async function boot(opts = {}) {
   vm.runInContext(extract(path.join(__dirname, "..", "..", "finances.html"))
     + "\n;globalThis.__S = S; globalThis.__WZ = WZ;", ctx);
   await settle(); await settle(); await settle(); await settle();
-  return { ctx, S: ctx.__S, WZ: ctx.__WZ, els, store, posts, settle, el: (id) => els.get(id) };
+  return { ctx, S: ctx.__S, WZ: ctx.__WZ, els, store, posts, settle, clipboard: ctx.__clipboard, el: (id) => els.get(id) };
 }
 
 module.exports = { boot };
