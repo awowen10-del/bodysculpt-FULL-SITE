@@ -42,10 +42,13 @@ const ok = (n, f) => { f(); pass++; console.log("  ok " + n); };
 const okA = async (n, f) => { await f(); pass++; console.log("  ok " + n); };
 
 (async () => {
-  ok("every page carries the v132 stamp", () => {
-    const S = "build v133 · tidy-my-file";
+  ok("every page carries the same stamp", () => {
+    // relaxed once v133 shipped: the newest test pins the exact stamp, this one only checks
+    // the build never goes backwards and that the pages agree on it.
+    const m = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(FIN);
+    assert.ok(m && Number(m[1]) >= 132, "finances.html carries a v132-or-later stamp");
+    const S = "build v" + m[1] + " · " + m[2];
     const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
-    assert.ok(FIN.includes("<!-- " + S + " -->"), "finances.html stamped v132");
     assert.ok(read("monthly.html").includes('<span class="mp-stage">' + S + "</span>"), "monthly shows it");
     assert.ok(read("index.html").includes(S), "index carries it");
   });
@@ -144,6 +147,7 @@ const okA = async (n, f) => { await f(); pass++; console.log("  ok " + n); };
       "the list, the box to paste into, and the button");
     assert.ok(/id="factCount"/.test(view), "…and a count, so you can see it growing");
     assert.ok(/ADD TO MY FILE block/.test(view), "the placeholder names the block it wants");
+    assert.ok(/id="repMore"/.test(view), "the longer view is still there, folded away (v134)");
     assert.ok(/renderFacts\(\);/.test(FIN), "…and it is drawn when the report opens");
   });
 

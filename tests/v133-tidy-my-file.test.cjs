@@ -43,7 +43,7 @@ const okA = async (n, f) => { await f(); pass++; console.log("  ok " + n); };
 
 (async () => {
   ok("every page carries the v133 stamp", () => {
-    const S = "build v133 · tidy-my-file";
+    const S = "build v134 · one-path";
     const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
     assert.ok(FIN.includes("<!-- " + S + " -->"), "finances.html stamped v133");
     assert.ok(read("monthly.html").includes('<span class="mp-stage">' + S + "</span>"), "monthly shows it");
@@ -120,35 +120,35 @@ const okA = async (n, f) => { await f(); pass++; console.log("  ok " + n); };
     assert.ok(/REPLACE MY FILE block swaps the list/.test(FIN), "and the panel says how replacing works");
   });
 
-  /* ================= 4. the paste can leave the brief behind ================= */
-  await okA("inside a project, the week can be copied without the brief", async () => {
+  /* ================= 4. …and then the brief stopped staying behind ================= */
+  // v133 added a copy WITHOUT the brief, for a project whose instructions already carried
+  // it. v134 removed it again, and that reversal is the point worth pinning: it saved a few
+  // hundred words out of thousands, and cost a rule to remember and a wrong button to press
+  // on a Thursday morning. One copy, working in any chat anywhere, beats two that differ in
+  // a way you have to hold in your head.
+  await okA("there is one copy of the week, and it always carries the brief", async () => {
     const { ctx } = await boot({ txns: { "2026-08": AUG }, now: "2026-08-10", notes: SIX });
-    const full = await ctx.buildWeekChallenge(true);
-    const bare = await ctx.buildWeekChallenge(false);
-
-    assert.ok(/You are my finance director\./.test(full), "the full copy carries the brief");
-    assert.ok(!/You are my finance director\./.test(bare), "the bare one does not");
-    assert.ok(!/CHALLENGE EACH PAYMENT/.test(bare), "…nor the six questions");
-    assert.ok(/This week's figures\. The brief is in my project instructions\./.test(bare),
-      "…and says why, so a stray paste is never a mystery");
-
-    // the file still travels — it lives in the dashboard, not in the project
-    assert.ok(/WHAT I HAVE ALREADY TOLD YOU/.test(bare), "the standing file still goes");
-    SIX.forEach((f) => assert.ok(bare.includes(f), "…all of it: " + f.slice(0, 18)));
-    // and so does every figure
-    assert.ok(/EVERY TRANSACTION THIS WEEK/.test(bare) && /ONTRAPORT INC/.test(bare),
-      "…with the week itself");
-    assert.ok(bare.length < full.length, "it is the same thing, minus the brief");
+    const text = await ctx.buildWeekChallenge();
+    assert.ok(/You are my finance director\./.test(text), "the brief is always there");
+    assert.ok(/CHALLENGE EACH PAYMENT/.test(text), "…all six questions of it");
+    assert.ok(/WHAT I HAVE ALREADY TOLD YOU/.test(text), "…and the file with it");
+    SIX.forEach((f) => assert.ok(text.includes(f), "…every line of it: " + f.slice(0, 18)));
+    // the variant, and the button that reached it, are gone rather than hidden
+    assert.ok(!/repWeekPlain/.test(FIN), "no second week button anywhere");
+    // the comment explaining the reversal stays; what must be gone is the UI and the rule
+    const view = FIN.slice(FIN.indexOf('<div class="view" id="v-report"'), FIN.indexOf("<!-- the sort-out wizard"));
+    assert.ok(!/without the brief/i.test(view), "…and no rule about when to use one, on screen");
+    assert.strictEqual(await ctx.buildWeekChallenge(false), text,
+      "the old argument is inert — there is only one thing it can build");
   });
 
-  ok("both copies are offered where the copying happens", () => {
+  ok("the one button is the loud thing on the page", () => {
     const view = FIN.slice(FIN.indexOf('<div class="view" id="v-report"'), FIN.indexOf("<!-- the sort-out wizard"));
-    assert.ok(/id="repWeekPlain"/.test(view), "there is a button for it");
-    assert.ok(/This week, without the brief/.test(view), "…named for what it does");
-    assert.ok(/inside a Claude Project whose instructions\s*\n?\s*already carry it/.test(view),
-      "…and the hint says when to use it");
-    assert.ok(/\$\("repWeekPlain"\)\.onclick = \(\) => copyChallenge\(false\);/.test(FIN), "wired");
-    assert.ok(/\$\("repWeek"\)\.onclick = \(\) => copyChallenge\(\);/.test(FIN), "the full copy is unchanged");
+    assert.ok(/class="rep-go" id="repWeek"/.test(view), "the week copy is the primary action");
+    assert.ok(/\.rep-go\{[^}]*background:var\(--orange\)/.test(FIN), "…and it looks like one");
+    assert.ok(/id="repMoreBtn"/.test(view) && /id="repMore" hidden/.test(view),
+      "the longer view is folded away until asked for");
+    assert.ok(/id="repBox" hidden/.test(view), "and the wall of monospace only appears once you copy");
   });
 
   console.log("v133-tidy-my-file.test: " + pass + " checks passed");

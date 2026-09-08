@@ -148,21 +148,23 @@ const okA = async (n, f) => { await f(); pass++; console.log("  ok " + n); };
   });
 
   /* ================= 3. the two picks in the report tab ================= */
-  ok("the report offers two clear things to copy, each explained", () => {
+  // v134 turned the two picks into ONE button plus a fold: the week is the weekly ritual,
+  // the longer view is a once-a-month thing and no longer competes with it. What this test
+  // is about — the week is offered, it says which week, and it is wired — is unchanged.
+  ok("the report leads with the week, and says which week", () => {
     const view = FIN.slice(FIN.indexOf('<div class="view" id="v-report"'), FIN.indexOf('<!-- the sort-out wizard'));
     assert.ok(/<div class="chead">Have Claude challenge you<\/div>/.test(view), "a real heading");
-    const picks = [...view.matchAll(/<button type="button" class="rep-pick" id="(\w+)">[\s\S]*?<span class="t">[\s\S]*?<\/svg>([^<]+)<\/span>/g)];
-    assert.deepStrictEqual(picks.map((m) => [m[1], m[2].trim()]),
-      [["repWeek", "This week, line by line"], ["repCopy", "The bigger picture"]],
-      "the week first, the long view second");
-    assert.ok(/id="repWeekRange"/.test(view), "the week pick says which week it means");
-    assert.ok(/id="repRangeLabel"/.test(view), "…and the other says which months");
+    assert.ok(/<button type="button" class="rep-go" id="repWeek">/.test(view), "one button, unmissable");
+    assert.ok(/<span class="t">Copy this week for Claude<\/span>/.test(view), "named for what it does");
+    assert.ok(/id="repWeekRange"/.test(view), "…and it says which week it means");
+    assert.ok(/id="repRangeLabel"/.test(view), "the longer view still says which months");
     assert.ok(/\$\("repWeek"\)\.onclick = \(\) => copyChallenge\(\);/.test(FIN), "the button is wired");
   });
 
   await okA("copying it also shows you exactly what went on the clipboard", async () => {
     ctx.setView("report");
     await ctx.copyChallenge();
+    assert.strictEqual(el("repBox").hidden, false, "the receipt appears once there is something to show");
     assert.ok(el("repText").textContent.startsWith("You are my finance director."),
       "the preview is the thing that was copied, not a different report");
     assert.ok(/Copied — \d+ lines\./.test(el("repMsg").textContent), "…and it says how much");

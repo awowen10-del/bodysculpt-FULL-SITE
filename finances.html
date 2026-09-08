@@ -879,6 +879,27 @@
   .rep-pick .d{font-size:12.5px;line-height:1.5;color:var(--ink-faint);}
   .rep-pick .d b{color:var(--ink-dim);font-weight:600;}
 
+  /* --- v134: ONE PATH. The week is the ritual, so it is one button you cannot miss; the
+     multi-month view is a once-a-month thing and folds away until it is wanted. --- */
+  .rep-go{display:flex;align-items:center;gap:12px;width:100%;font-family:inherit;cursor:pointer;
+    background:var(--orange);border:1px solid var(--orange);border-radius:var(--r-md);
+    color:var(--on-accent);padding:17px 20px;text-align:left;
+    transition:background var(--tap),box-shadow var(--tap);}
+  .rep-go:hover{background:var(--orange-soft);box-shadow:var(--shadow-lift);}
+  .rep-go:focus-visible{outline:none;box-shadow:var(--focus);}
+  .rep-go .ic{width:20px;height:20px;flex:0 0 auto;}
+  .rep-go .t{font-size:15.5px;font-weight:700;letter-spacing:-.015em;}
+  .rep-go .d{margin-left:auto;font-size:12.5px;font-weight:600;opacity:.8;white-space:nowrap;}
+  @media(max-width:560px){ .rep-go{flex-wrap:wrap;} .rep-go .d{margin-left:0;width:100%;} }
+  .rep-more{margin-top:var(--sp-3);}
+  .rep-morebtn{display:flex;align-items:center;gap:6px;font-family:inherit;font-size:12.5px;
+    font-weight:600;color:var(--ink-faint);background:transparent;border:0;cursor:pointer;padding:4px 0;}
+  .rep-morebtn:hover{color:var(--ink);}
+  .rep-morebtn:focus-visible{outline:none;box-shadow:var(--focus);border-radius:var(--r-sm);}
+  .rep-morebtn .ic{width:14px;height:14px;transition:transform var(--tap);}
+  .rep-morebtn[aria-expanded="true"] .ic{transform:rotate(180deg);}
+  .rep-morebox{border-top:1px solid var(--line);margin-top:var(--sp-2);padding-top:var(--sp-3);}
+
   /* --- v132: the standing file --- */
   .fact{display:flex;align-items:flex-start;gap:10px;padding:9px 2px;font-size:13px;
     line-height:1.5;color:var(--ink);border-bottom:1px solid var(--line);}
@@ -945,7 +966,7 @@
 <symbol id="ic-help" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.4 9.3a2.7 2.7 0 1 1 3.5 2.6c-.8.3-1.2.9-1.2 1.7v.5"/><path d="M11.7 17.3h.01"/></symbol>
 <symbol id="ic-wallet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h11.2a1 1 0 0 1 1 1v2"/><path d="M3 7.5v9.8A2.7 2.7 0 0 0 5.7 20h12.8a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 18.5 8H5.5"/><circle cx="16.3" cy="13.6" r="1.15"/></symbol>
 </defs></svg>
-<!-- build v133 · tidy-my-file -->
+<!-- build v134 · one-path -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -1219,33 +1240,33 @@
       <div class="cardhead">
         <div>
           <div class="chead">Have Claude challenge you</div>
-          <div class="csub">Copy one of these and paste it straight into a chat. The question
-            is already written at the top, so what comes back is an argument about your money
-            — not a description of it.</div>
+          <div class="csub">One button, once a week. It copies every transaction of the week,
+            what each supplier costs you a year, and everything Claude already knows about the
+            gym — with the question written at the top. Paste it into a new chat in your
+            project.</div>
+        </div>
+        <div class="cardhead-r"><span class="msg" id="repMsg"></span></div>
+      </div>
+      <button type="button" class="rep-go" id="repWeek">
+        <svg class="ic"><use href="#ic-flame"/></svg>
+        <span class="t">Copy this week for Claude</span>
+        <span class="d" id="repWeekRange">this week</span>
+      </button>
+      <div class="rep-more">
+        <button type="button" class="rep-morebtn" id="repMoreBtn" aria-expanded="false">
+          <svg class="ic"><use href="#ic-chevron"/></svg><span>The longer view, now and then</span>
+        </button>
+        <div class="rep-morebox" id="repMore" hidden>
+          <div class="hint" style="margin-top:0;">Once a month or so it is worth stepping back from
+            the week: where the money goes over several months, what is standing cost and what is
+            discretionary, what is creeping up. Same brief, same file — just a wider window.</div>
+          <div class="filters" style="margin-top:var(--sp-3);">
+            <select class="fin-in" id="repRange" style="max-width:190px;width:auto;"></select>
+            <button class="abtn" id="repCopy"><svg class="ic"><use href="#ic-trend-up"/></svg><span>Copy <span id="repRangeLabel">the longer view</span></span></button>
+            <button class="abtn ghost" id="repCopyPlain"><span>Figures only</span></button>
+          </div>
         </div>
       </div>
-      <div class="rep-picks">
-        <button type="button" class="rep-pick" id="repWeek">
-          <span class="t"><svg class="ic"><use href="#ic-flame"/></svg>This week, line by line</span>
-          <span class="d">Every single transaction between <b id="repWeekRange">this week</b>,
-            what each supplier is costing you a year at this rate, and a prompt that makes
-            Claude go through them one at a time and argue with you about each one.</span>
-        </button>
-        <button type="button" class="rep-pick" id="repCopy">
-          <span class="t"><svg class="ic"><use href="#ic-trend-up"/></svg>The bigger picture</span>
-          <span class="d">Where the money goes over <b id="repRangeLabel">several months</b> —
-            the standing costs, what is discretionary, what is creeping up — for when you want
-            the shape of it rather than the detail.</span>
-        </button>
-      </div>
-      <div class="filters" style="margin-top:var(--sp-4);">
-        <select class="fin-in" id="repRange" style="max-width:190px;width:auto;"></select>
-        <button class="abtn" id="repCopyPlain"><span>Copy figures only</span></button>
-        <button class="abtn" id="repWeekPlain"><span>This week, without the brief</span></button>
-        <span class="msg" id="repMsg"></span>
-      </div>
-      <div class="hint">Use "without the brief" inside a Claude Project whose instructions
-        already carry it — the figures and your file still go, the six questions do not.</div>
     </div>
   </section>
   <section>
@@ -1272,8 +1293,16 @@
       </div>
     </div>
   </section>
-  <section>
-    <div class="card"><pre class="repbox" id="repText"></pre></div>
+  <section id="repBox" hidden>
+    <div class="card">
+      <div class="cardhead">
+        <div>
+          <div class="chead">What went on your clipboard</div>
+          <div class="csub">Exactly what was copied, so you can see it before you paste it.</div>
+        </div>
+      </div>
+      <pre class="repbox" id="repText"></pre>
+    </div>
   </section>
 </div>
 
@@ -1542,7 +1571,7 @@ const S = {
   week: null,         // that week's saved record
   weekRows: [],       // transactions inside that week (may span two months)
   view: "cockpit",
-  notes: [], notesPrev: [],
+  notes: [], notesPrev: [], copied: false,
   filter: "all",
   search: "",
   pending: null,      // a parsed-but-not-yet-imported file
@@ -2934,7 +2963,7 @@ function challengePrompt(scope, facts) {
     .concat(PROMPT_TAIL, [""], promptFile(facts || []));
 }
 
-async function buildWeekChallenge(withBrief) {
+async function buildWeekChallenge() {
   const ws = S.weekStart || weekStartOf(ymd(new Date()), S.settings.weekStartDow);
   const we = weekEndOf(ws);
   const week = await rowsForWeek(ws);
@@ -2955,16 +2984,11 @@ async function buildWeekChallenge(withBrief) {
   const rule = () => P("=".repeat(78));
   const yr = (total, months) => money0(months ? (total / months) * 12 : total * 12);
 
-  // withBrief === false is for a Claude Project whose instructions already carry the brief:
-  // the standing file still travels, because the file lives HERE, not in the project.
-  if (withBrief === false) {
-    P("This week's figures. The brief is in my project instructions.");
-    P("");
-    promptFile(S.notes).forEach(P);
-  } else {
-    challengePrompt("Below is EVERY transaction from one week of it, with what each supplier"
-      + "\ncosts me over a year at that rate.", S.notes).forEach(P);
-  }
+  // v133 offered a copy WITHOUT the brief, for a project whose instructions already carry
+  // it. v134 dropped it: it saved a few hundred words out of thousands, and cost a rule to
+  // remember and a wrong-button-on-a-Thursday. One copy, and it works in any chat anywhere.
+  challengePrompt("Below is EVERY transaction from one week of it, with what each supplier"
+    + "\ncosts me over a year at that rate.", S.notes).forEach(P);
   P("");
   rule();
   P("");
@@ -3101,22 +3125,22 @@ async function renderReport() {
     sel.innerHTML = [1, 3, 6, 12].map((n) =>
       `<option value="${n}" ${n === 3 ? "selected" : ""}>Last ${n} month${n === 1 ? "" : "s"}</option>`).join("");
   }
-  // say plainly which week and which months each pick would copy
+  // v134: opening this tab used to build and dump a whole month's report in monospace —
+  // a wall of text nobody reads, in the way of the one button that matters. The box now
+  // shows what you last COPIED, so it is a receipt rather than a lecture.
   const ws = S.weekStart || weekStartOf(ymd(new Date()), S.settings.weekStartDow);
-  $("repWeekRange").textContent = dayLabel(ws) + " and " + dayLabel(weekEndOf(ws));
+  $("repWeekRange").textContent = dayLabel(ws) + " — " + dayLabel(weekEndOf(ws));
   const span = reportMonths();
   $("repRangeLabel").textContent = span.length <= 1 ? ymLabel(S.ym)
     : "the last " + span.length + " months";
   renderFacts();
-  $("repText").textContent = "Building…";
-  $("repText").textContent = await buildReport(false);
+  if (!S.copied) $("repText").textContent = "";
+  $("repBox").hidden = !S.copied;
 }
 
-async function copyChallenge(withBrief) {
+async function copyChallenge() {
   $("repMsg").textContent = "Building…";
-  const text = await buildWeekChallenge(withBrief !== false);
-  $("repText").textContent = text;      // so you can see exactly what you just copied
-  await putOnClipboard(text, "Paste it into Claude and let it argue with you.");
+  await putOnClipboard(await buildWeekChallenge(), "Paste it into a new chat in your project.");
 }
 
 async function copyReport(forClaude) {
@@ -3125,6 +3149,10 @@ async function copyReport(forClaude) {
 }
 
 async function putOnClipboard(text, tail) {
+  // whatever was copied is what the box shows — no copy, no box
+  S.copied = true;
+  $("repText").textContent = text;
+  $("repBox").hidden = false;
   try {
     await navigator.clipboard.writeText(text);
     $("repMsg").textContent = "Copied — " + text.split("\n").length + " lines. " + (tail || "");
@@ -3339,7 +3367,11 @@ function wire() {
     if (n) $("factIn").value = "";
   };
   $("repWeek").onclick = () => copyChallenge();
-  $("repWeekPlain").onclick = () => copyChallenge(false);
+  $("repMoreBtn").onclick = () => {
+    const open = $("repMore").hidden;
+    $("repMore").hidden = !open;
+    $("repMoreBtn").setAttribute("aria-expanded", String(open));
+  };
   $("repCopy").onclick = () => copyReport(true);
   $("repCopyPlain").onclick = () => copyReport(false);
 
