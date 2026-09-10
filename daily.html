@@ -522,7 +522,8 @@
   .mrow-amt{margin-left:auto;font-size:14px;font-weight:800;flex:0 0 auto;
     font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
   .mrow-why{font-size:12px;color:var(--ink-dim);line-height:1.45;margin-top:4px;}
-  .mrow-when{font-size:11.5px;color:var(--ink-faint);margin-top:5px;}
+  .mrow-when{font-size:11.5px;color:var(--ink-faint);margin-top:5px;line-height:1.5;}
+  .mrow-when b{color:var(--tint-amber);font-weight:700;font-variant-numeric:tabular-nums;}
   .mrow.hot{border-color:rgba(var(--red-rgb),.34);background:rgba(var(--red-rgb),.045);}
   .mrow.hot .mrow-amt{color:var(--tint-red);}
   .mrow.warm{border-color:rgba(var(--amber-rgb),.32);background:rgba(var(--amber-rgb),.05);}
@@ -714,7 +715,7 @@
 <symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="M2.5 9.8h19M6 15.2h3.4"/></symbol>
 <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.05" fill="currentColor" stroke="none"/></symbol>
 </defs></svg>
-<!-- build v139 · the-amount-is-the-name -->
+<!-- build v140 · one-debt-not-eight -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -904,6 +905,13 @@ const fromPence = (p, cur) => {
   return sym + n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+// "23 Aug" — a date you can find on a bank statement, rather than "18 days ago".
+const shortDate = (isoStr) => {
+  const t = Date.parse(isoStr);
+  if (!isFinite(t)) return "";
+  const d = new Date(t);
+  return d.getDate() + " " + MONTHS[d.getMonth()].slice(0, 3);
+};
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const dateWords = (d) => DAYS[d.getDay()] + ", " + d.getDate() + " " + MONTHS[d.getMonth()];
 
@@ -1124,9 +1132,15 @@ function moneyRowHtml(r, kind) {
   } else {
     cls = "warm";
     why = r.reason || "Payment failed";
+    // v140: one row is one DEBT, however many times Stripe has tried to collect it. How
+    // many attempts, and how long it has been going on, is worth more than any one of them.
+    const tries = r.attempts > 1
+      ? "Tried <b>" + r.attempts + " times</b> since " + esc(shortDate(r.firstFailedAt)) +
+        " · last " + esc(ago(r.createdAt))
+      : esc(ago(r.createdAt));
     // v138: and WHY it is still on screen, said out loud. If the page has this wrong, the
     // row itself tells you what it thought — instead of you having to notice.
-    when = (r.why ? '<span class="stillwhy">' + esc(r.why) + "</span> · " : "") + ago(r.createdAt);
+    when = tries + (r.why ? '<br><span class="stillwhy">' + esc(r.why) + "</span>" : "");
   }
   return '<a class="mrow ' + cls + '" href="' + esc(r.url) + '" target="_blank" rel="noopener">' +
     '<div class="mrow-top"><span class="mrow-who">' + esc(who) + "</span>" +
@@ -1173,10 +1187,12 @@ function renderMoney() {
   // What failed and has since been paid. Never a row — just a line saying it was looked at.
   const res = stripeState.resolved || { count: 0 };
   const days = stripeState.windowDays || 14;
+  const tries = res.attempts && res.attempts > res.count
+    ? " (" + res.attempts + " attempts in all)" : "";
   const clearedHtml = res.count
     ? '<div class="cleared"><svg class="ic"><use href="#ic-check"/></svg><div><b>' + res.count +
       (res.count === 1 ? " payment</b> failed and has since been paid" : " payments</b> failed and have since been paid") +
-      " — not shown." + tipBtn("cleared") + "</div></div>"
+      tries + " — not shown." + tipBtn("cleared") + "</div></div>"
     : "";
 
   if (!n) {

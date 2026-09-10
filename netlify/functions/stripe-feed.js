@@ -127,7 +127,13 @@ async function listCharges(key, since) {
   const out = [];
   let after = "";
   for (let page = 0; page < CHARGE_PAGES; page++) {
-    const params = [["limit", 100], ["created[gte]", since], ["expand[]", "data.invoice"]];
+    // The CUSTOMER is expanded as well as the invoice. Stripe's own payments list shows the
+    // customer's email in its Customer column, but `billing_details.email` on a
+    // subscription charge is usually empty — the address lives on the customer record. Not
+    // expanding it meant the one identity that would have tied nine of Jennifer Lawton's
+    // rows together was never loaded.
+    const params = [["limit", 100], ["created[gte]", since],
+                    ["expand[]", "data.invoice"], ["expand[]", "data.customer"]];
     if (after) params.push(["starting_after", after]);
     const r = await stripeGet(key, "/charges", params);
     const rows = r.data || [];
@@ -149,7 +155,7 @@ export default async (req) => {
       configured: false,
       message: "No Stripe key set. Add STRIPE_SECRET_KEY in Netlify → Site configuration → Environment variables, then redeploy.",
       fetchedAt: new Date().toISOString(),
-      disputes: [], pastDue: [], failed: [], resolved: { count: 0, amount: 0, reasons: [] },
+      disputes: [], pastDue: [], failed: [], resolved: { count: 0, attempts: 0, amount: 0, reasons: [] },
     });
   }
 
@@ -228,10 +234,7 @@ export default async (req) => {
        from the same person at the same amount inside a fortnight are not a billing cycle,
        they are somebody sorting something out. */
     const RETRY_WINDOW = FAILED_WINDOW_DAYS * 86400;
-    // How common an amount is among this fortnight's takings. £49.00 is a membership price
-    // that dozens of people pay; £143.10 is one person's coaching block. That difference is
-    // what makes it safe to match on the amount alone — see settledReason step 4.
-    const AMOUNT_IS_COMMON = 2;
+
 
     // A name as it would be said out loud: no title, no punctuation, no double spaces. So
     // "Mrs Jennifer Lawton" and "jennifer  lawton" are one person.
@@ -248,14 +251,15 @@ export default async (req) => {
     // these is enough on its own.
     function whoIs(ch) {
       const keys = [];
-      const cust = typeof ch.customer === "string" ? ch.customer : (ch.customer && ch.customer.id);
+      const cObj = ch.customer && typeof ch.customer === "object" ? ch.customer : null;
+      const cust = typeof ch.customer === "string" ? ch.customer : (cObj && cObj.id);
       if (cust) keys.push("c:" + cust);
       const bd = ch.billing_details || {};
-      const email = (bd.email || ch.receipt_email || "").trim().toLowerCase();
+      const email = (bd.email || ch.receipt_email || (cObj && cObj.email) || "").trim().toLowerCase();
       if (email) keys.push("e:" + email);
       const card = ch.payment_method_details && ch.payment_method_details.card;
       if (card && card.fingerprint) keys.push("f:" + card.fingerprint);
-      const name = normName(bd.name);
+      const name = normName(bd.name || (cObj && cObj.name));
       if (name && name.includes(" ")) keys.push("n:" + name);   // a full name only, never "jen"
       return keys;
     }
@@ -270,12 +274,6 @@ export default async (req) => {
         paidBy.get(k).push(c);
       }
     }
-    // How many of this fortnight's successful payments were for each exact amount. A price
-    // dozens of people pay tells you nothing about who paid; an odd figure only one person
-    // was ever billed tells you almost everything.
-    const amountCount = new Map();
-    for (const c of succeeded) amountCount.set(c.amount, (amountCount.get(c.amount) || 0) + 1);
-
     // A membership already listed as "stopped paying" says everything this row would.
     const pastDueKeys = new Set();
     for (const sub of [...(pastDue.data || []), ...(unpaid.data || [])]) {
@@ -291,15 +289,6 @@ export default async (req) => {
       const d = new Date(unix * 1000);
       return d.getUTCDate() + " " + MONTHS_SHORT[d.getUTCMonth()];
     };
-    const money = (p, cur) => (String(cur || "gbp").toLowerCase() === "gbp" ? "£" : "") +
-      (p / 100).toFixed(2);
-
-    // Payments for EXACTLY this amount that landed after this failure, whoever made them.
-    function sameAmountAfter(ch) {
-      return succeeded.filter((p) => p.amount === ch.amount &&
-        p.created > ch.created && p.created - ch.created <= RETRY_WINDOW);
-    }
-
     // Everything this person successfully paid AFTER this failure, inside the window.
     function paymentsAfter(ch) {
       const seen = new Set(), out = [];
@@ -332,18 +321,13 @@ export default async (req) => {
       const after = paymentsAfter(ch);
       if (after.some((p) => p.amount === ch.amount)) return "they paid it again";
       if (after.some((p) => p.amount >= ch.amount)) return "they paid at least that much afterwards";
-      // 4. THE AMOUNT, when the amount is distinctive. Jennifer Lawton's £143.10 failed on
-      //    one card and was paid ten days later on another, under a different email — every
-      //    identity test above misses that, and no amount of cleverness about names would
-      //    have caught "Lawton" against "jennifercooney@". What DOES catch it is that
-      //    £143.10 is one person's coaching block: it appears once in the fortnight's
-      //    takings. A membership price that forty people pay would prove nothing, so this
-      //    only fires when the figure is rare enough to be an identity in itself.
-      const twin = sameAmountAfter(ch);
-      if (twin.length && (amountCount.get(ch.amount) || 0) <= AMOUNT_IS_COMMON) {
-        return "the same amount was paid on " + dayLabel(twin[0].created);
-      }
-      // 5. Already on the "stopped paying" list above. Still owed, but saying it twice
+      // (v139 had a fourth rule here that cleared a failure when the SAME AMOUNT was paid
+      //  afterwards by anybody, as long as that amount looked rare. Ash: "There are others
+      //  who pay £143.10 though. You can't blindly assume from the amount they're all the
+      //  same people." He is right, and rarity in a fortnight's data is far too thin a
+      //  thread to hang a false all-clear on. It is gone. Identity AND amount, or nothing.)
+
+      // 4. Already on the "stopped paying" list above. Still owed, but saying it twice
       //    turns one problem into two.
       if (whoIs(ch).some((k) => pastDueKeys.has(k))) return "shown under Stopped paying";
       return "";
@@ -354,14 +338,6 @@ export default async (req) => {
     function whyStillHere(ch) {
       const inv = ch.invoice && typeof ch.invoice === "object" ? ch.invoice : null;
       const after = paymentsAfter(ch);
-      // The near miss, said out loud. Somebody paid this exact figure afterwards but it
-      // could not be tied to this person, and the figure is common enough that assuming
-      // would be guessing. That is worth thirty seconds of his time, not silence.
-      const twin = sameAmountAfter(ch);
-      if (!after.length && twin.length) {
-        return money(ch.amount, ch.currency) + " was paid on " + dayLabel(twin[0].created) +
-          " under a different account — worth checking it is not this.";
-      }
       if (after.length) {
         return "They have paid since, but less than this — nothing covering it in full.";
       }
@@ -374,12 +350,48 @@ export default async (req) => {
       return "Nothing has come in from them since.";
     }
 
+    /* ---------- one debt, not eight rows ----------
+       v140. Ash sent his own Stripe list: nine rows for Jennifer Lawton, all £143.10, all
+       the same email and the same card, Stripe retrying at 11:25 every other day from 23
+       August until it went through on 8 September. Eight failures and one success — for
+       ONE thing she owed. Listing eight rows is not eight problems, it is one problem
+       shouted eight times, and it buries everything else on the card.
+
+       So failures are grouped by (person, amount): the same person being charged the same
+       figure is Stripe attempting the same collection. The group is judged on its newest
+       attempt, and if that is settled the whole run disappears. What survives is one row
+       that can say "tried 8 times since 23 Aug", which is worth more than any single
+       attempt was. */
     const failedAll = all.filter((ch) => ch.status === "failed");
+    // whoIs is ordered strongest-identity-first, so its head is the right thing to group on.
+    const groupKey = (ch) => (whoIs(ch)[0] || ("x:" + ch.id)) + "|" + ch.amount;
+    const groups = new Map();
+    for (const ch of failedAll) {
+      const k = groupKey(ch);
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(ch);
+    }
+
     const stillOwed = [], settled = [];
-    for (const ch of failedAll) (settledReason(ch) ? settled : stillOwed).push(ch);
+    for (const rows of groups.values()) {
+      rows.sort((a, b) => b.created - a.created);   // newest attempt first
+      const rep = rows[0];
+      const reason = settledReason(rep);
+      if (reason) settled.push({ rows, reason });
+      else stillOwed.push(rows);
+    }
 
     const failedRows = stillOwed
-      .map((ch) => ({ ...shapeCharge(ch), why: whyStillHere(ch) }))
+      .map((rows) => {
+        const rep = rows[0];                       // the newest attempt speaks for the run
+        const first = rows[rows.length - 1];
+        return {
+          ...shapeCharge(rep),
+          why: whyStillHere(rep),
+          attempts: rows.length,
+          firstFailedAt: iso(first.created),
+        };
+      })
       .sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1));
 
     const sum = (rows) => rows.reduce((t, r) => t + r.amount, 0);
@@ -395,10 +407,13 @@ export default async (req) => {
       failed: failedRows,
       // What was checked and cleared. A page that silently drops rows is a page you stop
       // trusting, so it says how many it took off and why.
+      // Counted as DEBTS, not attempts: "1 payment failed and has since been paid" is true
+      // of Jennifer Lawton's run, and "8 payments" would not be.
       resolved: {
         count: settled.length,
-        amount: settled.reduce((t, c) => t + (c.amount || 0), 0),
-        reasons: [...new Set(settled.map(settledReason))].filter(Boolean),
+        attempts: settled.reduce((t, g) => t + g.rows.length, 0),
+        amount: settled.reduce((t, g) => t + (g.rows[0].amount || 0), 0),
+        reasons: [...new Set(settled.map((g) => g.reason))].filter(Boolean),
       },
       totals: {
         count: disputeRows.length + subRows.length + failedRows.length,
@@ -422,7 +437,7 @@ export default async (req) => {
       configured: true,
       error: clip(e && e.message ? e.message : "Could not reach Stripe", 300),
       fetchedAt: new Date().toISOString(),
-      disputes: [], pastDue: [], failed: [], resolved: { count: 0, amount: 0, reasons: [] },
+      disputes: [], pastDue: [], failed: [], resolved: { count: 0, attempts: 0, amount: 0, reasons: [] },
     });
   }
 };

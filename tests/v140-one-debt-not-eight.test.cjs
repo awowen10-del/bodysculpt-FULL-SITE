@@ -1,4 +1,4 @@
-// v137/v138/v139 — a failed payment is not the same thing as money you are owed.
+// v137→v140 — a failed payment is not the same thing as money you are owed.
 //
 // Ash, the morning after the Stripe key went in: "it's showing failed payments that have
 // actually since gone through."
@@ -44,14 +44,17 @@ const scriptOf = (src) => src.slice(src.lastIndexOf("<script>") + 8, src.lastInd
 const NOW = Math.floor(Date.now() / 1000);
 const DAY = 86400;
 
-/* Run the real function with Stripe faked. `parts` supplies each list endpoint's data. */
-async function run(parts) {
+/* Run the real function with Stripe faked. `parts` supplies each list endpoint's data.
+   `nowUnix` pins the clock, so a fixture taken from a real Stripe export can use the dates
+   it actually has rather than being rewritten as "n days ago". */
+async function run(parts, nowUnix) {
   const tmp = path.join(os.tmpdir(), "stripe-v137-" + process.pid + "-" + Math.random().toString(36).slice(2) + ".mjs");
   fs.writeFileSync(tmp, SRC);
   const mod = await import("file://" + tmp);
   fs.unlinkSync(tmp);
-  const savedEnv = { ...process.env }, savedFetch = globalThis.fetch;
+  const savedEnv = { ...process.env }, savedFetch = globalThis.fetch, savedNow = Date.now;
   process.env.STRIPE_SECRET_KEY = "rk_test_x";
+  if (nowUnix) Date.now = () => nowUnix * 1000;
   const seen = [];
   globalThis.fetch = async (url) => {
     const u = String(url);
@@ -68,6 +71,7 @@ async function run(parts) {
     return { body: await res.json(), seen };
   } finally {
     globalThis.fetch = savedFetch;
+    Date.now = savedNow;
     for (const k of Object.keys(process.env)) if (!(k in savedEnv)) delete process.env[k];
     Object.assign(process.env, savedEnv);
   }
@@ -111,9 +115,9 @@ const sub = (id, customer, status) => ({
   /* ================= 0. the stamp ================= */
   const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(read("monthly.html"));
   assert.ok(stamp, "monthly.html carries a build stamp");
-  assert.strictEqual(stamp[1], "139", "monthly.html is stamped v139");
-  assert.strictEqual(stamp[2], "the-amount-is-the-name", "…as the release that learned to read the figure");
-  const text = "build v139 · the-amount-is-the-name";
+  assert.strictEqual(stamp[1], "140", "monthly.html is stamped v140");
+  assert.strictEqual(stamp[2], "one-debt-not-eight", "…as the release that stopped counting attempts as problems");
+  const text = "build v140 · one-debt-not-eight";
   for (const f of ["index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the same stamp");
   }
@@ -335,85 +339,105 @@ const sub = (id, customer, status) => ({
   });
   assert.strictEqual(out.body.failed.length, 1, "a bigger payment BEFORE the failure still settles nothing");
 
-  /* ============ 6d. JENNIFER LAWTON, WITH HER ACTUAL FIGURES (v139) ============
-     v138 still showed it, and Ash sent the two rows side by side:
+  /* ============ 6d. JENNIFER LAWTON — HER ACTUAL NINE ROWS (v140) ============
+     Ash sent his Stripe list, and it settles two arguments at once.
 
-       failed   "Mrs Jennifer Lawton"  £143.10  "Your card has insufficient funds."  29 Aug
-       succeeded £143.10 GBP  Visa ····0011  "02. 12 Coaching Sessions + Classes"
-                 jennifercooney@hotmail.co.uk  8 Sept, 11:27
+       £143.10  Succeeded  jennifercooney@hotmail.co.uk  Visa ····0011   8 Sept, 11:27
+       £143.10  Failed     jennifercooney@hotmail.co.uk  Visa ····0011   6 Sept, 11:24
+       £143.10  Failed     …same…                                        4 Sept, 11:25
+       £143.10  Failed                                                   2 Sept, 11:32
+       £143.10  Failed                                                  31 Aug,  11:24
+       £143.10  Failed                                                  29 Aug,  11:24
+       £143.10  Failed                                                  27 Aug,  11:25
+       £143.10  Failed                                                  25 Aug,  11:25
+       £143.10  Failed                                                  23 Aug,  11:02
 
-     Two things beat it, and the second is the interesting one.
+     FIRST: the identity was there all along. Every row carries the same email and the same
+     card. Last time I reasoned from the dashboard NAME ("Mrs Jennifer Lawton") that the
+     records must belong to different people — the name is the billing name and the email is
+     the customer's, and I inferred a mismatch that did not exist. What was actually missing
+     was `expand[]=data.customer`: on a subscription charge `billing_details.email` is
+     usually empty and the address lives on the customer record, so the one field that tied
+     nine rows together was never loaded.
 
-     · THE WINDOW. 29 August to 8 September at 11:27 is ten days AND TWO HOURS. The retry
-       window was ten days. A cutoff picked out of the air will eventually land just the
-       wrong side of a real payment; there is no reason for one inside the fortnight being
-       looked at, so it is now the fortnight.
-     · IDENTITY WAS NEVER GOING TO WORK HERE. She is "Lawton" on one and "jennifercooney@"
-       on the other, and somebody whose card has just been declined pays with a DIFFERENT
-       card — so customer, email, name and fingerprint all miss, correctly. What ties them
-       together is that £143.10 is a coaching block only she was billed for. An amount that
-       rare is an identity. A membership price forty people pay is not, and the rule knows
-       the difference by counting. */
-  const JEN_FAIL = {
-    id: "ch_jen_real", status: "failed", amount: 14310, currency: "gbp",
-    created: NOW - 12 * DAY, failure_message: "Your card has insufficient funds.",
-    billing_details: { name: "Mrs Jennifer Lawton", email: "jenniferlawton@hotmail.co.uk" },
-    customer: "cus_lawton",
-    payment_method_details: { card: { fingerprint: "fp_declined_card" } },
-  };
-  const JEN_PAID = {
-    id: "ch_jen_real_ok", status: "succeeded", amount: 14310, currency: "gbp",
-    created: NOW - 2 * DAY,
-    billing_details: { name: "Jennifer Cooney", email: "jennifercooney@hotmail.co.uk" },
-    customer: "cus_cooney",
-    payment_method_details: { card: { fingerprint: "fp_the_other_card" } },
-  };
+     SECOND, and Ash's point: "There are others who pay £143.10 though. You can't blindly
+     assume from the amount they're all the same people." Correct, and £143.10 is the price
+     of a coaching block, not a fingerprint. v139's rarity rule is gone. Identity AND amount.
 
-  out = await run({ charges: [JEN_FAIL, JEN_PAID] });
-  assert.strictEqual(out.body.failed.length, 0,
-    "£143.10 failed on the 29th and paid on the 8th is ONE debt, and it is settled");
-  assert.strictEqual(out.body.resolved.count, 1, "…counted as cleared");
-  assert.ok(/^the same amount was paid on /.test(out.body.resolved.reasons[0]),
-    "…on the amount, since nothing else about the two records matches: " + out.body.resolved.reasons[0]);
-
-  // nothing about that relies on the identities matching — they deliberately do not
-  assert.notStrictEqual(JEN_FAIL.customer, JEN_PAID.customer, "the fixture uses two customer records");
-  assert.notStrictEqual(JEN_FAIL.billing_details.email, JEN_PAID.billing_details.email, "…two emails");
-  assert.notStrictEqual(JEN_FAIL.payment_method_details.card.fingerprint,
-    JEN_PAID.payment_method_details.card.fingerprint, "…and two cards");
-
-  // AND THE GUARD. The same trick on a COMMON figure must not fire, or every member paying
-  // the standard price would clear every other member's failure.
-  out = await run({
-    charges: [
-      { ...JEN_FAIL, id: "ch_common", amount: 4900 },
-      { ...JEN_PAID, id: "ch_c1", amount: 4900 },
-      { ...JEN_PAID, id: "ch_c2", amount: 4900, customer: "cus_a", created: NOW - 3 * DAY },
-      { ...JEN_PAID, id: "ch_c3", amount: 4900, customer: "cus_b", created: NOW - 4 * DAY },
-    ],
+     THIRD: eight failures for ONE thing she owed. Stripe retried every other day at 11:25
+     until it worked. Eight rows is not eight problems. */
+  const JEN = (id, status, day, hour, min) => ({
+    id, status, amount: 14310, currency: "gbp",
+    created: Math.floor(Date.UTC(2026, 8, day, hour, min) / 1000),
+    failure_message: status === "failed" ? "Your card has insufficient funds." : undefined,
+    // the name is the BILLING name and the email is the CUSTOMER's — exactly as Stripe shows it
+    billing_details: { name: "Mrs Jennifer Lawton" },
+    customer: { id: "cus_jen", name: "Mrs Jennifer Lawton", email: "jennifercooney@hotmail.co.uk" },
+    payment_method_details: { card: { fingerprint: "fp_0011", last4: "0011" } },
+    invoice: { id: "in_jen_" + id, status: "open", amount_remaining: 14310 },
   });
+  // Sept days as given; the August ones are day 31, 29, 27, 25, 23 of month index 7.
+  const AUG = (id, day, hour, min) => ({ ...JEN(id, "failed", 1, hour, min),
+    created: Math.floor(Date.UTC(2026, 7, day, hour, min) / 1000) });
+  const JEN_ROWS = [
+    JEN("ch_ok", "succeeded", 8, 11, 27),
+    JEN("ch_f6", "failed", 6, 11, 24),
+    JEN("ch_f4", "failed", 4, 11, 25),
+    JEN("ch_f2", "failed", 2, 11, 32),
+    AUG("ch_a31", 31, 11, 24),
+    AUG("ch_a29", 29, 11, 24),
+    AUG("ch_a27", 27, 11, 25),
+    AUG("ch_a25", 25, 11, 25),
+    AUG("ch_a23", 23, 11, 2),
+  ];
+  // The whole run sits inside a fortnight ending just after the successful payment.
+  const AT_10_SEPT = Math.floor(Date.UTC(2026, 8, 10, 15, 0) / 1000);
+
+  out = await run({ charges: JEN_ROWS }, AT_10_SEPT);
+  assert.deepStrictEqual(out.body.failed, [],
+    "eight failed attempts and one success is ONE debt, and it is paid — nothing is shown");
+  assert.strictEqual(out.body.resolved.count, 1,
+    "counted as ONE payment cleared, not eight — that is what it was");
+  assert.strictEqual(out.body.resolved.attempts, 8, "…with the eight attempts behind it reported");
+  assert.deepStrictEqual(out.body.resolved.reasons, ["they paid it again"],
+    "cleared by the payment matching her, not by the figure looking rare");
+
+  // The identity that does the work is the CUSTOMER's email, which only exists because the
+  // customer is expanded. Take that away and it must not silently fall back to guessing.
+  const custCall = (await run({ charges: [] })).seen.find((u) => u.includes("/charges"));
+  assert.ok(decodeURIComponent(custCall).includes("expand[]=data.customer"),
+    "the charges call expands the customer — the email lives there, not on billing_details");
+
+  // AND THE THING ASH OBJECTED TO IS GONE: another member paying the same price, on the same
+  // day, clears nothing. This is the exact case v139 would have got wrong.
+  const OTHER = {
+    id: "ch_other", status: "succeeded", amount: 14310, currency: "gbp",
+    created: Math.floor(Date.UTC(2026, 8, 9, 9, 0) / 1000),
+    billing_details: { name: "Someone Else" },
+    customer: { id: "cus_other", name: "Someone Else", email: "someone@example.com" },
+    payment_method_details: { card: { fingerprint: "fp_9999" } },
+  };
+  out = await run({ charges: [AUG("ch_lonely", 29, 11, 24), OTHER] }, AT_10_SEPT);
   assert.strictEqual(out.body.failed.length, 1,
-    "£49.00 is a price, not a person — a common amount clears nothing on its own");
-  assert.ok(/was paid on .* under a different account/.test(out.body.failed[0].why),
-    "…but the near miss is SAID, not swallowed: " + out.body.failed[0].why);
-  assert.ok(out.body.failed[0].why.includes("£49.00"), "…with the figure in it");
+    "somebody else paying £143.10 does not clear her failure — the amount is a price, not a person");
+  assert.strictEqual(out.body.resolved.count, 0, "…and nothing is quietly cleared");
 
-  // a payment of the same rare amount BEFORE the failure still settles nothing
-  out = await run({ charges: [{ ...JEN_FAIL, created: NOW - 2 * DAY }, { ...JEN_PAID, created: NOW - 12 * DAY }] });
-  assert.strictEqual(out.body.failed.length, 1, "the payment has to come afterwards, rare figure or not");
+  // One row for the run, and it says how long this has been going on — which is the useful
+  // fact, and one no single attempt could tell him.
+  out = await run({ charges: JEN_ROWS.filter((r) => r.status === "failed") }, AT_10_SEPT);
+  assert.strictEqual(out.body.failed.length, 1, "eight attempts collapse to one row");
+  assert.strictEqual(out.body.failed[0].attempts, 8, "…which knows there were eight");
+  assert.ok(out.body.failed[0].firstFailedAt.startsWith("2026-08-23"),
+    "…and when it started: " + out.body.failed[0].firstFailedAt);
+  assert.strictEqual(out.body.failed[0].amount, 14310, "…for the amount owed ONCE, not eight times");
+  assert.strictEqual(out.body.totals.failed, 14310, "…and the total is what she owes, not £1,144.80");
 
-  // and a full name still links two records when it is there to link them
-  out = await run({
-    charges: [
-      { ...JEN_FAIL, id: "ch_n1", amount: 4900, billing_details: { name: "Mrs Jennifer Lawton" } },
-      { ...JEN_PAID, id: "ch_n2", amount: 4900, customer: "cus_other", created: NOW - 3 * DAY,
-        billing_details: { name: "jennifer  lawton" } },
-      { ...JEN_PAID, id: "ch_n3", amount: 4900, customer: "cus_x", created: NOW - 4 * DAY },
-      { ...JEN_PAID, id: "ch_n4", amount: 4900, customer: "cus_y", created: NOW - 5 * DAY },
-    ],
-  });
-  assert.strictEqual(out.body.failed.length, 0,
-    "the same full name, titles and spacing aside, is the same person even on a common amount");
+  // two different debts from the same person stay apart
+  out = await run({ charges: [
+    { ...AUG("ch_p1", 29, 11, 24), amount: 14310 },
+    { ...AUG("ch_p2", 28, 9, 0), amount: 4900 },
+  ] }, AT_10_SEPT);
+  assert.strictEqual(out.body.failed.length, 2, "the same person owing two different amounts is two things");
 
   /* ============ 6c. the window is fetched whole ============
      A gym billing a few hundred memberships puts more than 100 charges through a
@@ -489,10 +513,37 @@ const sub = (id, customer, status) => ({
   // and the all-clear reassures rather than just going blank
   assert.ok(/without you having to do anything/.test(js),
     "a morning where everything sorted itself out says so");
-  // the empty shapes carry the field, so the page never null-checks a missing one
-  for (const shape of ["configured: false", "ok: false"]) {
-    assert.ok(SRC.includes("resolved: { count: 0, amount: 0, reasons: [] }"),
-      "the " + shape + " response carries an empty resolved block too");
+  // Every response shape carries `resolved`, so the page never has to null-check it on the
+  // very paths where it is already coping with something being wrong. Driven, not grepped.
+  {
+    const savedEnv = { ...process.env };
+    delete process.env.STRIPE_SECRET_KEY; delete process.env.STRIPE_API_KEY;
+    const tmp = path.join(os.tmpdir(), "stripe-shape-" + process.pid + ".mjs");
+    fs.writeFileSync(tmp, SRC);
+    const mod = await import("file://" + tmp);
+    fs.unlinkSync(tmp);
+    const res = await mod.default(new Request("https://x/.netlify/functions/stripe-feed"));
+    const body = await res.json();
+    assert.strictEqual(body.configured, false, "no key means configured:false");
+    assert.deepStrictEqual(body.resolved, { count: 0, attempts: 0, amount: 0, reasons: [] },
+      "…and it still carries an empty resolved block");
+    Object.assign(process.env, savedEnv);
+  }
+  {
+    const savedEnv = { ...process.env }, savedFetch = globalThis.fetch;
+    process.env.STRIPE_SECRET_KEY = "rk_test_x";
+    globalThis.fetch = async () => { throw new Error("Stripe is having a morning"); };
+    const tmp = path.join(os.tmpdir(), "stripe-shape2-" + process.pid + ".mjs");
+    fs.writeFileSync(tmp, SRC);
+    const mod = await import("file://" + tmp);
+    fs.unlinkSync(tmp);
+    const body = await (await mod.default(new Request("https://x/.netlify/functions/stripe-feed"))).json();
+    globalThis.fetch = savedFetch;
+    for (const k of Object.keys(process.env)) if (!(k in savedEnv)) delete process.env[k];
+    Object.assign(process.env, savedEnv);
+    assert.strictEqual(body.ok, false, "a Stripe outage is flagged");
+    assert.deepStrictEqual(body.resolved, { count: 0, attempts: 0, amount: 0, reasons: [] },
+      "…and carries an empty resolved block too");
   }
 
   /* ================= 9. it is still read-only =================
