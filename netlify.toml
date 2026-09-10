@@ -6,3 +6,9 @@
 # the large quarterly prompt. Raise its timeout to the paid-plan maximum (26s).
 [functions."mentor-ai"]
   timeout = 26
+
+# v135: the Daily Dashboard's Stripe read. Four parallel list calls to Stripe — comfortably
+# inside 10s in normal conditions, but a slow morning at Stripe should degrade into a slow
+# card, not a timed-out one.
+[functions."stripe-feed"]
+  timeout = 26

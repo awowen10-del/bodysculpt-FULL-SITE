@@ -14,6 +14,8 @@ const SOURCES = [
   ["quarterly.html", path.join(__dirname, "..", "quarterly.html")],
   // v122: the Finances page is a fourth single-file app and gets the same check
   ["finances.html", path.join(__dirname, "..", "finances.html")],
+  // v135: the Daily Dashboard is a fifth single-file app and gets the same check
+  ["daily.html", path.join(__dirname, "..", "daily.html")],
 ];
 for (const [label, file] of SOURCES) {
   const tmp = path.join(os.tmpdir(), "bodysculpt-extracted-" + process.pid + "-" + label + ".js");
@@ -26,12 +28,14 @@ for (const [label, file] of SOURCES) {
   }
   console.log("syntax check " + label + ": OK");
 }
-const storeChk = spawnSync(process.execPath, ["--check", path.join(__dirname, "..", "netlify", "functions", "kpi-store.js")], { stdio: "inherit" });
-if (storeChk.status !== 0) {
-  console.error("SYNTAX CHECK FAILED (kpi-store.js) — aborting test run");
-  process.exit(1);
+for (const fn of ["kpi-store.js", "stripe-feed.js"]) {
+  const chk = spawnSync(process.execPath, ["--check", path.join(__dirname, "..", "netlify", "functions", fn)], { stdio: "inherit" });
+  if (chk.status !== 0) {
+    console.error("SYNTAX CHECK FAILED (" + fn + ") — aborting test run");
+    process.exit(1);
+  }
+  console.log("syntax check " + fn + ": OK");
 }
-console.log("syntax check kpi-store.js: OK");
 
 // 2) run every test file
 const files = fs.readdirSync(__dirname).filter((f) => f.endsWith(".test.cjs")).sort();

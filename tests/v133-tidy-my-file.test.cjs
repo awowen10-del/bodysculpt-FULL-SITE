@@ -42,10 +42,14 @@ const ok = (n, f) => { f(); pass++; console.log("  ok " + n); };
 const okA = async (n, f) => { await f(); pass++; console.log("  ok " + n); };
 
 (async () => {
-  ok("every page carries the v133 stamp", () => {
-    const S = "build v134 · one-path";
+  // relaxed once v135 shipped: the newest release's test pins the exact stamp, this one
+  // only checks the build never goes backwards and that the pages still agree on it.
+  ok("every page carries the same stamp, v133 or later", () => {
     const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
-    assert.ok(FIN.includes("<!-- " + S + " -->"), "finances.html stamped v133");
+    const m = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(read("monthly.html"));
+    assert.ok(m && Number(m[1]) >= 133, "monthly.html stamped v133 or later");
+    const S = "build v" + m[1] + " · " + m[2];
+    assert.ok(FIN.includes("<!-- " + S + " -->"), "finances.html carries the same stamp");
     assert.ok(read("monthly.html").includes('<span class="mp-stage">' + S + "</span>"), "monthly shows it");
     assert.ok(read("index.html").includes(S), "index carries it");
   });

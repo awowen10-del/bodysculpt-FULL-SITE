@@ -10,6 +10,11 @@
 // Finances (wallet) holds its one link, in the brand colour, so it reads as somewhere
 // else you go rather than the next step in the cadence.
 //
+// v135 UPDATE: a third stack joined the bar — Today, holding the Daily Dashboard, first.
+// The claim this file was written to defend is unchanged and still checked: each group is
+// a STACK (caption above its own pill), the three periods stay together in one pill, and
+// finances stays alone rather than reading as a fourth period. Only the COUNT moved.
+//
 // v127 UPDATE: this file now guards the STRUCTURE only — two stacks, caption above links,
 // the three periods together, finances alone. The DRESS it originally pinned (a pill track
 // on .navlinks, a solid brand fill on the active finance link) was the part that did not
@@ -24,7 +29,7 @@ const fs = require("fs");
 const path = require("path");
 
 const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
-const FILES = ["index.html", "monthly.html", "quarterly.html", "finances.html"];
+const FILES = ["index.html", "monthly.html", "quarterly.html", "finances.html", "daily.html"];
 const SRC = {};
 FILES.forEach((f) => { SRC[f] = read(f); });
 const styleOf = (src) => src.slice(src.indexOf("<style>") + 7, src.indexOf("</style>"));
@@ -47,35 +52,38 @@ const styleOf = (src) => src.slice(src.indexOf("<style>") + 7, src.indexOf("</st
     assert.ok(nav, label + "has a .topnav");
     const inner = nav[1];
 
-    // exactly two groups, Planning first, Finances second and marked as the money one
+    // three groups: Today, Planning, then the money one — each fenced from the next
     const grpOpen = [...inner.matchAll(/<div class="navgrp([^"]*)">/g)].map((m) => m[1].trim());
-    assert.deepStrictEqual(grpOpen, ["", "navgrp-money"], label + "two stacks: planning, then the money one");
-    assert.strictEqual((inner.match(/<span class="navsep"><\/span>/g) || []).length, 1,
-      label + "one rule between the two stacks");
+    assert.deepStrictEqual(grpOpen, ["", "", "navgrp-money"],
+      label + "three stacks: today, planning, then the money one");
+    assert.strictEqual((inner.match(/<span class="navsep"><\/span>/g) || []).length, 2,
+      label + "a rule between each pair of stacks");
     assert.ok(inner.indexOf('<span class="navsep">') > inner.indexOf('<div class="navgrp">'),
-      label + "…and it sits between them");
-    assert.ok(inner.indexOf('<span class="navsep">') < inner.indexOf('navgrp-money'),
-      label + "…on the planning side of Finances");
+      label + "…and the first sits after the first stack, not before it");
+    assert.ok(inner.lastIndexOf('<span class="navsep">') < inner.indexOf('navgrp-money'),
+      label + "…and the last one is on the planning side of Finances");
 
     // each caption leads with a sprite icon, and SITS ABOVE its own pill of links
     const caps = [...inner.matchAll(/<span class="navgroup"><svg class="ic"><use href="#(ic-[a-z-]+)"\/><\/svg>([^<]+)<\/span>/g)];
     assert.deepStrictEqual(caps.map((m) => [m[1], m[2].trim()]),
-      [["ic-calendar", "Planning"], ["ic-wallet", "Finances"]],
+      [["ic-sun", "Today"], ["ic-calendar", "Planning"], ["ic-wallet", "Finances"]],
       label + "an icon + caption for each group");
 
     const pills = [...inner.matchAll(/<div class="navlinks">([\s\S]*?)<\/div>/g)];
-    assert.strictEqual(pills.length, 2, label + "each group has its own pill of links");
-    // caption above pill, for both groups
-    for (let i = 0; i < 2; i++) {
+    assert.strictEqual(pills.length, 3, label + "each group has its own pill of links");
+    // caption above pill, for every group
+    for (let i = 0; i < 3; i++) {
       assert.ok(inner.indexOf(caps[i][0]) < inner.indexOf(pills[i][0]),
         label + "group " + (i + 1) + "'s caption is written above its links");
     }
 
     // the three periods are in the FIRST pill; finances is alone in the second
     const hrefs = (block) => [...block.matchAll(/<a href="([^"]+)"/g)].map((m) => m[1]);
-    assert.deepStrictEqual(hrefs(pills[0][1]), ["/index.html", "/monthly.html", "/quarterly.html"],
+    assert.deepStrictEqual(hrefs(pills[0][1]), ["/daily.html"],
+      label + "today is on its own, ahead of the cadence");
+    assert.deepStrictEqual(hrefs(pills[1][1]), ["/index.html", "/monthly.html", "/quarterly.html"],
       label + "the cadence lives in the Planning pill");
-    assert.deepStrictEqual(hrefs(pills[1][1]), ["/finances.html"],
+    assert.deepStrictEqual(hrefs(pills[2][1]), ["/finances.html"],
       label + "…and finances is on its own, not a fourth period");
 
     // the page's own link is active, and it is the only one
@@ -98,7 +106,7 @@ const styleOf = (src) => src.slice(src.indexOf("<style>") + 7, src.indexOf("</st
     assert.ok(/currentColor/.test(sym[0]), label + "…drawn in currentColor, so it takes the brand");
     // and every icon the nav asks for resolves
     const defined = new Set([...sprite[0].matchAll(/<symbol id="(ic-[a-z-]+)"/g)].map((m) => m[1]));
-    for (const id of ["ic-calendar", "ic-wallet"]) assert.ok(defined.has(id), label + "#" + id + " resolves");
+    for (const id of ["ic-sun", "ic-calendar", "ic-wallet"]) assert.ok(defined.has(id), label + "#" + id + " resolves");
   }
 
   /* ================= 3. the stylesheet says the same thing ================= */

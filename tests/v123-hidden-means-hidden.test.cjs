@@ -14,7 +14,7 @@ const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
 
-const PAGES = ["finances.html", "index.html", "monthly.html", "quarterly.html"];
+const PAGES = ["daily.html", "finances.html", "index.html", "monthly.html", "quarterly.html"];
 let pass = 0;
 console.log("v123 hidden-means-hidden:");
 

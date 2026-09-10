@@ -20,6 +20,11 @@
 // page you are on), and a hairline under the app bar makes the header two registers of one
 // block. Finances keeps its prominence through position and colour, not a fill.
 //
+// v135 UPDATE: a third group (Today) joined the bar, so there are two rules in it now and
+// only the LAST one may take the slack — if both did, Planning would be shoved to the right
+// as well and the row would come apart. The claim is unchanged: Finances sits at the far
+// edge, held there by the rule in front of it.
+//
 // Dress and layout only — no store key, save path or handler is touched, so this reads the
 // markup and the stylesheet rather than booting the app.
 const assert = require("assert");
@@ -27,7 +32,7 @@ const fs = require("fs");
 const path = require("path");
 
 const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
-const FILES = ["index.html", "monthly.html", "quarterly.html", "finances.html"];
+const FILES = ["index.html", "monthly.html", "quarterly.html", "finances.html", "daily.html"];
 const SRC = {};
 FILES.forEach((f) => { SRC[f] = read(f); });
 const styleOf = (src) => src.slice(src.indexOf("<style>") + 7, src.indexOf("</style>"));
@@ -70,10 +75,13 @@ const ruleOf = (style, sel) => {
   for (const f of FILES) {
     const style = styleOf(SRC[f]), label = f + ": ";
 
-    // the rule takes up the slack, so it and the money group travel to the far edge together
+    // the LAST rule takes up the slack, so it and the money group travel to the far edge
+    // together — and the ones before it stay put, holding their own pair of stacks apart
     const sep = ruleOf(style, ".navsep");
-    assert.ok(/margin-left:auto/.test(sep), label + "the rule takes the slack — Finances sits at the far edge");
+    assert.ok(!/margin-left:auto/.test(sep), label + "a rule does not grab the slack just for existing");
     assert.ok(/background:var\(--line\)/.test(sep), label + "…and is a hairline, not a bar");
+    assert.ok(/\.topnav>\.navsep:last-of-type\{margin-left:auto;\}/.test(style),
+      label + "only the rule before Finances takes the slack — Finances sits at the far edge");
     assert.ok(/\.topnav\{[^}]*flex:1 1 auto/.test(style), label + "the nav spans the bar, so 'far edge' means the edge");
 
     const money = ruleOf(style, ".navgrp-money a");

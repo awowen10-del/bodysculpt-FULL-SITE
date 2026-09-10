@@ -33,6 +33,8 @@ const PAGES = [
   ["monthly.html", MONTHLY, "/monthly.html"],
   ["quarterly.html", QUARTERLY, "/quarterly.html"],
   ["finances.html", read("finances.html"), "/finances.html"],
+  // v135: the Daily Dashboard is a fifth page and lives under the same rules.
+  ["daily.html", read("daily.html"), "/daily.html"],
 ];
 
 (async () => {
@@ -50,7 +52,10 @@ const PAGES = [
     assert.ok(!/EDIT THIS: point to your actual/.test(src), label + " dropped the stale placeholder comment");
   }
 
-  /* ============ 2. two groups, labelled by period, one active ============ */
+  /* ============ 2. the groups, labelled by period, one active ============
+     v135 relaxed the COUNT: a third group (Today) joined the bar. What this test still
+     owns is the claim it was written for — the planning links are labelled by period
+     alone, and every page marks its own link, once. */
   for (const [label, src, self] of PAGES) {
     const nav = /<nav class="topnav">([\s\S]*?)<\/nav>/.exec(src);
     assert.ok(nav, label + " still has a .topnav block");
@@ -59,20 +64,21 @@ const PAGES = [
     // v126: the caption leads with a sprite icon, so the text is what follows it
     const groups = [...nav[1].matchAll(/<span class="navgroup">(?:<svg class="ic"><use href="#(ic-[a-z-]+)"\/><\/svg>)?([^<]+)<\/span>/g)]
       .map((m) => m[2].trim());
-    assert.deepStrictEqual(groups, ["Planning", "Finances"], label + " names the two groups");
-    assert.ok(/<span class="navsep"><\/span>/.test(nav[1]), label + " rules the groups apart");
+    assert.deepStrictEqual(groups, ["Today", "Planning", "Finances"], label + " names the three groups");
+    assert.strictEqual((nav[1].match(/<span class="navsep"><\/span>/g) || []).length, 2,
+      label + " rules the three groups apart");
 
     const links = [...nav[1].matchAll(/<a href="([^"]+)"([^>]*)>([\s\S]*?)<\/a>/g)];
-    assert.strictEqual(links.length, 4, label + " top menu has the three periods plus finances");
+    assert.strictEqual(links.length, 5, label + " top menu has today, the three periods, and finances");
 
     assert.deepStrictEqual(
       links.map((m) => m[1]),
-      ["/index.html", "/monthly.html", "/quarterly.html", "/finances.html"],
-      label + " links to the three periods in order, then finances"
+      ["/daily.html", "/index.html", "/monthly.html", "/quarterly.html", "/finances.html"],
+      label + " links to today, then the three periods in order, then finances"
     );
     assert.deepStrictEqual(
       links.map((m) => m[3].trim()),
-      ["Weekly", "Monthly", "Quarterly", "Income &amp; Expenses"],
+      ["Daily Dashboard", "Weekly", "Monthly", "Quarterly", "Income &amp; Expenses"],
       label + " labels the periods by period alone"
     );
 

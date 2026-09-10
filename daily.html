@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<title>Bodysculpt Daily</title>
+<!-- v119: Inter, the one typeface for the whole suite. The system stack stays behind it
+     as the fallback, so an offline/blocked load renders exactly as it did before. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  /* ===================== THEME TOKENS =====================
+     Every colour in this stylesheet resolves to one of these — there are no literal
+     colours below this block. ONE theme: the neutral light palette. (v106 shipped a
+     dark/light pair and v108 re-cut the light half; v121 dropped dark entirely, because
+     it was never used. Every token NAME is unchanged, so all ~140 var(--x) references
+     across the three pages still resolve.)
+     The *-rgb tokens are bare "r,g,b" triples, so the many rgba(<accent>,<alpha>) tints
+     throughout the stylesheet stay tied to the same single source of truth.
+     The accents CARRY MEANING and must stay distinct from each other:
+       orange = business / brand          teal  = recurring
+       green  = training + done           blue  = home location, buffer, decisions
+       amber  = watch / warning           red   = problem / delete
+       info   = acquisition + decision panels   loc-warrington = the other location badge
+     "orange" is a TOKEN NAME, not a promise of hue. Renaming it would touch every one of
+     those references across three files, so the name stayed. */
+  :root{
+    /* ===== METRICS — not colours =====
+       v121 put the ad-hoc numbers on scales. Radius was six values (8/10/12/16/20/pill)
+       often nested inside each other; it is now three plus the pill. Spacing was 14/16/26
+       used interchangeably for the same job; it is now a 4-based ramp. --radius is kept as
+       the old name for the card radius so existing rules keep resolving. */
+    --r-sm:6px;      /* chips, inputs, the small stuff inside a control */
+    --r-md:10px;     /* buttons, selects, toolbars */
+    --r-lg:14px;     /* cards, panels, modals */
+    --r-pill:999px;
+    --radius:var(--r-lg);
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px; --sp-7:48px;
+    /* motion + focus. Every interactive element takes --focus on :focus-visible. */
+    --tap:.12s ease;
+    --chev-mask:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>');
+    --focus:0 0 0 2px var(--card), 0 0 0 4px rgba(var(--orange-rgb),.55);
+  }
+  :root{
+    color-scheme:light;
+    /* THREE TIERS OF DEPTH, and they must stay three: the page (--navy) is a soft, slightly
+       cool grey; the card (--card) is near-white and therefore visibly LIFTS off it; --line
+       is a fine neutral hairline that draws the card's edge. Tone step + hairline do the
+       work — the shadows below are deliberately soft. --navy-2 is the recessed inset inside
+       a card (toolbars, sticky heads, sub-panels), so it sits BELOW the card, not above.
+       v121 deepened the page a step and tightened the hairline, so a white card reads as an
+       object on the page rather than blending into it. */
+    --navy:#eef0f4; --navy-2:#e4e8ef; --card:#ffffff; --card-2:#f6f8fb;
+    --line:#d9dee7; --line-rgb:217,222,231;
+    /* dark-but-soft ink — a cool near-black, never #000; --ink-dim/-faint are muted greys.
+       The ramp runs strong → ink → dim → faint, lightening at every step. */
+    --ink:#171b22; --ink-dim:#59616f; --ink-faint:#737c8a; --ink-strong:#0b0e14;
+    --ink-dim-rgb:89,97,111; --ink-faint-rgb:115,124,138;
+    --on-accent:#fff;
+    /* THE BRAND. v108 pointed this at a muted slate-blue, which was safe and completely
+       anonymous — near enough the framework default that the app read as unbranded. v121
+       brings back the terracotta the dark theme always had, deepened so it holds its own
+       on a near-white card (5.44:1 on --card, and white on the solid fill is the same). */
+    --orange:#b4471b; --orange-soft:#93380f; --orange-rgb:180,71,27; --orange-soft-rgb:147,56,15;
+    --green:#17804d; --green-2:#0f6d40; --green-rgb:23,128,77; --green2-rgb:15,109,64;
+    /* amber shifted yellower and red shifted toward crimson: both had to clear the brand by
+       85 of summed RGB distance once the brand went warm, or "watch" and "problem" would
+       have read as shades of the brand instead of as states. */
+    --amber:#96700a; --amber-2:#85620a; --amber-rgb:150,112,10; --amber2-rgb:133,98,10;
+    --red:#ab1338; --red-2:#911029; --red-rgb:171,19,56; --red2-rgb:145,16,41;
+    --teal:#0d7d8a; --teal-soft:#0a6873; --teal-bright:#08555e; --teal-rgb:13,125,138;
+    /* home/buffer is indigo; the Warrington badge moved off copper to plum in v121, because
+       copper existed only to dodge a blue brand and now sat right on top of a warm one. */
+    --blue:#6247b5; --blue-soft:#513a99; --blue-rgb:98,71,181;
+    --info:#2b6cd9; --info-rgb:43,108,217;
+    --loc-warrington:#7a3363; --grad-mid:#6d9a2e;
+    /* the DEEP version of each accent — the chip behind them is a pale tint of the same
+       hue, so a pale text colour would vanish */
+    --tint-red:#8f1030; --tint-amber:#6f5308; --tint-green:#136540;
+    --tint-blue:#46337f; --tint-orange:#8f3813;
+    --panel-0:#f4f6fa; --panel-1:#eff2f8; --panel-2:#e8ecf4;
+    --hero-1:#f6f8fc; --hero-2:#eef0f4; --hero-3:#e6eaf2;
+    --mark-bg:#eaedf4; --chart-grid:#dfe4ee;
+    /* a cool near-black scrim genuinely dims the page behind a modal; the shadow and the
+       hover "lift" are the ink tone at low alpha, so a hover DARKENS the surface it sits on. */
+    --backdrop-rgb:20,26,38;
+    --shadow-rgb:23,27,34;
+    --lift-rgb:23,27,34;
+    /* TWO shadow steps, not one. A single large soft shadow on every card reads as haze on
+       a light page: --shadow just separates a card from the ground, --shadow-lift is for
+       things that genuinely float (modals, popovers, the week picker). */
+    --shadow:0 1px 2px rgba(var(--shadow-rgb),.04), 0 1px 3px rgba(var(--shadow-rgb),.07);
+    --shadow-lift:0 4px 6px -1px rgba(var(--shadow-rgb),.06), 0 12px 24px -6px rgba(var(--shadow-rgb),.14);
+  }
+  /* v121: every icon in the suite. Sized in em so it always matches its text, and drawn
+     in currentColor so it always matches its colour — the whole reason the emoji went. */
+  .ic{width:1em;height:1em;display:inline-block;vertical-align:-.135em;flex:0 0 auto;}
+  .ic-lg{width:1.25em;height:1.25em;}
+  /* v121: there was no :focus-visible styling anywhere in the suite. One ring, everywhere. */
+  a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,
+  textarea:focus-visible,[tabindex]:focus-visible,[contenteditable]:focus-visible{
+    outline:none;box-shadow:var(--focus);border-radius:var(--r-sm);}
+  @media (prefers-reduced-motion:reduce){ *,*::before,*::after{
+    animation-duration:.01ms!important;animation-iteration-count:1!important;
+    transition-duration:.01ms!important;scroll-behavior:auto!important;} }
+  /* v121: the collapse caret is one icon that rotates, not two different glyphs. */
+  .chev .ic,.qsnap-chev .ic,.mp-chev .ic{transition:transform var(--tap);transform:rotate(-90deg);}
+  .chev.open .ic,.open>.chev .ic,.qsnap-chev.open .ic{transform:rotate(0deg);}
+  /* carets that used to be a " ▾" in a ::after. Masked so they still follow currentColor. */
+  .chev-after::after{content:"";display:inline-block;width:.62em;height:.62em;margin-left:.34em;
+    background:currentColor;vertical-align:.02em;
+    -webkit-mask:var(--chev-mask) center/contain no-repeat;mask:var(--chev-mask) center/contain no-repeat;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{background:var(--navy);color:var(--ink);}
+  /* v94: the same container as the Weekly Dashboard's .wrap — max-width:1500px, centred,
+     20px gutters — so the two pages render at one width. Weekly puts this on a .wrap div;
+     here the body IS the container, so the same numbers live on it. Keep them in step. */
+  body{font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;line-height:1.4;padding:0 20px 64px;max-width:1500px;margin:0 auto;}
+  a{color:inherit;}
+  h1{font-size:14.5px;font-weight:600;letter-spacing:-.012em;line-height:1.15;}
+  .sub{font-size:10.5px;color:var(--ink-faint);font-weight:500;letter-spacing:.05em;
+    text-transform:uppercase;margin-top:1px;}
+  header{padding:18px 0 8px;}
+  .htop{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .mark{width:32px;height:32px;border-radius:var(--r-md);overflow:hidden;flex:0 0 auto;
+    border:1px solid var(--line);background:var(--mark-bg);}
+  .monthpick{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-dim);}
+  .periodbar{display:flex;align-items:center;gap:10px;margin-top:12px;background:var(--navy-2);
+    border:1px solid var(--line);border-radius:12px;padding:8px 10px;}
+  .pb-arrow{background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:8px;
+    width:38px;height:36px;font-size:16px;font-weight:800;cursor:pointer;flex:0 0 auto;}
+  .pb-arrow:hover:not(:disabled){border-color:var(--orange);color:var(--orange-soft);}
+  .pb-arrow:disabled{opacity:.35;cursor:not-allowed;}
+  .pb-label{flex:1;text-align:center;font-size:15px;font-weight:800;color:var(--ink-strong);letter-spacing:-.2px;}
+  .pb-jump{background:var(--card);border:1px solid var(--line);color:var(--ink-dim);border-radius:8px;
+    padding:8px 13px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;flex:0 0 auto;}
+  .pb-jump:hover{border-color:var(--orange);color:var(--ink);}
+  .monthpick select{font-family:inherit;background:var(--card);color:var(--ink);border:1px solid var(--line);
+    border-radius:10px;padding:8px 10px;font-size:13px;font-weight:600;}
+  /* ===================== v121: THE APP BAR =====================
+     Until v120 the header was TWO identical full-width pill bars stacked on top of each
+     other — same shape, same weight, same filled active state — so nothing said which was
+     the product and which was the page. Now there are two clearly different treatments:
+       .appbar  — sticky chrome: the brand, then a compact segmented control for the three
+                  PERIODS (Weekly / Monthly / Quarterly), sized to its content;
+       .viewtoggle — quiet underline tabs for the SECTIONS inside the page.
+     .topnav and #tabBar keep their names and their handlers; only the dress changed. */
+  .appbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:var(--sp-6);
+    background:var(--card);border:1px solid var(--line);
+    border-radius:var(--r-lg) var(--r-lg) 0 0;padding:var(--sp-3) var(--sp-4);min-height:64px;flex-wrap:wrap;}
+  .appbar .brand{flex:0 0 auto;}
+  /* v127: the hairline under the app bar makes the header TWO REGISTERS of one block —
+     places above, sections below — instead of one tall empty slab. */
+  .vt-right{flex:0 0 auto;margin-left:auto;display:flex;align-items:center;gap:var(--sp-2);
+    padding-left:var(--sp-4);}
+  /* ===== v127: THE NAV STOPPED BEING FURNITURE =====
+     v126 got the STRUCTURE right — Planning above its three periods, Finances fenced off —
+     and the dress wrong. Three shapes competed inside one bar (a grey capsule TRACK, a
+     solid brand capsule, underline tabs under both), and the nav floated centred while the
+     brand sat left and a month picker sat right, so nothing lined up with anything: three
+     loose objects, not one row.
+     The rules the bar now follows:
+       · NO capsule track. The links are plain text and only the one you are on takes a
+         soft chip — the container was doing a job the active state already does.
+       · The nav sits directly after the brand, left-aligned on the same line; the Finances
+         group is pushed to the far edge behind a rule, so its separation is SPATIAL.
+       · Finances carries the brand as COLOUR — caption, label, and a tinted chip when you
+         are on it — never as a saturated fill. A place you go is not a call to action, and
+         nothing in the chrome may outshout the page.
+       · A caption's left edge lines up with its first link's TEXT, not its padding box.
+     Structure, names and handlers are v126's; only the dress changed. */
+  .topnav{display:flex;align-items:center;gap:var(--sp-2);flex:1 1 auto;margin:0;}
+  .navgrp{display:flex;flex-direction:column;gap:4px;min-width:0;}
+  .navgroup{display:flex;align-items:center;gap:5px;font-size:9.5px;text-transform:uppercase;
+    letter-spacing:.14em;font-weight:700;color:var(--ink-faint);padding-left:12px;white-space:nowrap;}
+  .navgroup .ic{width:1.3em;height:1.3em;flex:0 0 auto;}
+  .navgrp-money .navgroup{color:var(--orange);}
+  /* The LAST rule takes the slack, so it and Finances travel together to the far edge.
+     v135: there are TWO rules now (Today | Planning | Finances) and only the one before
+     Finances may absorb the space — if both did, Planning would be shoved right as well
+     and the bar would read as three things adrift instead of one row. */
+  .navsep{width:1px;height:34px;align-self:center;background:var(--line);flex:0 0 auto;}
+  .topnav>.navsep:last-of-type{margin-left:auto;}
+  .navsep + .navgrp{margin-left:var(--sp-4);}
+  .navlinks{display:flex;gap:2px;}
+  .topnav a{text-decoration:none;font-size:13.5px;font-weight:500;color:var(--ink-dim);
+    padding:7px 12px;border-radius:var(--r-md);letter-spacing:-.005em;white-space:nowrap;
+    transition:color var(--tap),background var(--tap);}
+  .topnav a:hover{color:var(--ink);background:var(--navy-2);}
+  .topnav a.active{background:var(--navy-2);color:var(--ink-strong);font-weight:600;}
+  .navgrp-money a{color:var(--orange);font-weight:600;}
+  .navgrp-money a:hover{color:var(--orange-soft);background:rgba(var(--orange-rgb),.09);}
+  .navgrp-money a.active{background:rgba(var(--orange-rgb),.12);color:var(--orange-soft);}
+  .topnav a:focus-visible{outline:none;box-shadow:var(--focus);}
+  .viewtoggle{display:flex;gap:2px;background:var(--card);border:1px solid var(--line);
+    border-top:0;border-radius:0 0 var(--r-lg) var(--r-lg);padding:0 var(--sp-4);
+    margin:0 0 var(--sp-4);overflow-x:auto;}
+  .viewtoggle .vt{flex:0 0 auto;font-family:inherit;font-size:13.5px;font-weight:500;
+    color:var(--ink-dim);background:transparent;border:0;border-bottom:2px solid transparent;
+    border-radius:0;padding:12px 15px 10px;cursor:pointer;white-space:nowrap;
+    letter-spacing:-.005em;transition:color var(--tap),border-color var(--tap);}
+  .viewtoggle .vt:hover{color:var(--ink);}
+  .viewtoggle .vt.active{color:var(--ink);font-weight:600;border-bottom-color:var(--orange);}
+  .viewtoggle .vt:focus-visible{outline:none;box-shadow:var(--focus);border-radius:var(--r-sm);}
+  @media(max-width:720px){
+    .appbar{min-height:0;padding:var(--sp-3);gap:var(--sp-3);}
+    .topnav{flex-wrap:wrap;gap:var(--sp-3);margin:var(--sp-1) 0 0;width:100%;}
+    .navgrp{flex:1 1 100%;}
+    .navsep{display:none;}
+    .navsep + .navgrp{margin-left:0;}
+    .topnav a{flex:1;text-align:center;padding:7px 8px;}
+    .vt-right{padding-left:0;}
+  }
+  /* v106: theme toggle — a quiet chip at the end of the top nav, same family as the links */
+  .actionbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px;}
+  .abtn{font-family:inherit;font-size:13px;font-weight:500;color:var(--ink);background:var(--card);
+    border:1px solid var(--line);border-radius:var(--r-md);padding:9px 14px;cursor:pointer;
+    display:inline-flex;align-items:center;gap:7px;letter-spacing:-.005em;box-shadow:var(--shadow);
+    transition:border-color var(--tap),background var(--tap);}
+  .abtn:hover{border-color:var(--ink-faint);}
+  .abtn.primary{background:var(--orange);color:var(--on-accent);border-color:transparent;font-weight:600;}
+  .abtn.ghost{background:transparent;color:var(--ink-dim);}
+  .abtn.primary{background:var(--orange);border-color:var(--orange);color:var(--on-accent);}
+  .msg{font-size:12px;color:var(--ink-faint);}
+  section{margin-top:18px;}
+  .view[hidden]{display:none;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;box-shadow:var(--shadow);}
+  .card + .card{margin-top:14px;}
+  .ctitle{font-size:11.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-faint);
+    font-weight:700;margin-bottom:12px;}
+  .ctitle-white{color:var(--ink);}
+  .home-head{margin-top:18px;}
+  .home-head .rule-pill{display:inline-block;margin-top:4px;}
+  .hsec{margin-top:22px;}
+  .hsec-title{font-size:15px;font-weight:800;letter-spacing:-.2px;color:var(--ink-strong);margin-bottom:12px;}
+  /* Growth: tiles left, chart right */
+  .gpair{display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:18px;align-items:start;
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);}
+  .gpair-chart{min-width:0;}
+  .ytiles{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+  .ycell{background:var(--navy-2);border:1px solid var(--line);border-radius:8px;padding:7px 6px;text-align:center;}
+  .ycell .ym{font-size:8.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint);font-weight:700;}
+  .ycell .yv{font-size:14px;font-weight:800;margin-top:2px;letter-spacing:-.3px;}
+  .ycell .yd{font-size:9px;font-weight:600;margin-top:1px;}
+  .ycell.cur{border-color:var(--orange);}
+  @media (max-width:760px){
+    .gpair{grid-template-columns:1fr;}
+  }
+  /* scoreboard */
+  .scoreboard{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:16px;}
+  .score{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;}
+  .score .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);font-weight:700;}
+  .score .val{font-size:28px;font-weight:800;letter-spacing:-.5px;margin-top:6px;}
+  .score .delta{font-size:12px;font-weight:600;margin-top:4px;}
+  .up{color:var(--green);} .down{color:var(--red);} .flat{color:var(--ink-faint);}
+  /* glance tiles */
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;}
+  .tile{background:var(--navy-2);border:1px solid var(--line);border-radius:12px;padding:12px;}
+  .tile .lbl{font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-dim);font-weight:700;}
+  .tile .val{font-size:21px;font-weight:800;margin-top:5px;color:var(--ink-strong);}
+  .tile .sub{font-size:11px;color:var(--ink-dim);margin-top:2px;}
+  .tile .tdelta{font-size:11px;font-weight:700;margin-top:5px;display:inline-block;}
+  .tile .tdelta.up{color:var(--green);}
+  .tile .tdelta.down{color:var(--red);}
+  .tile .tdelta.flat{color:var(--ink-faint);font-weight:600;}
+  /* entry grid */
+  .entry{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-top:16px;}
+  .entry-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .entry-close{background:transparent;border:0;color:var(--ink-faint);font-size:18px;cursor:pointer;font-family:inherit;}
+  .egrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
+  .egrid.cols3{grid-template-columns:repeat(auto-fit,minmax(130px,1fr));}
+  label.f{display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--ink-dim);font-weight:600;}
+  label.f input{font-family:inherit;background:var(--navy-2);color:var(--ink);border:1px solid var(--line);
+    border-radius:10px;padding:10px;font-size:15px;}
+  label.f input:focus{outline:none;border-color:var(--orange);}
+  label.f.over input{border-color:var(--amber);}
+  label.f.calc{color:var(--ink-faint);}
+  label.f.calc input{background:var(--navy);border-style:dashed;color:var(--orange-soft);font-weight:700;cursor:default;}
+  .calc-tag{display:inline-block;font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;
+    color:var(--orange-soft);background:rgba(var(--orange-rgb),.14);border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:1px;}
+  .calc-hint{font-size:9.5px;color:var(--ink-faint);font-weight:600;margin-top:1px;}
+  .esub{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);font-weight:700;margin:16px 0 8px;}
+  .esub-total{font-size:14px;font-weight:800;color:var(--orange-soft);margin:12px 0 4px;}
+  .erow-actions{display:flex;gap:10px;align-items:center;margin-top:16px;flex-wrap:wrap;}
+  .save{font-family:inherit;background:var(--orange);border:0;color:var(--on-accent);font-weight:700;font-size:14px;
+    border-radius:10px;padding:11px 18px;cursor:pointer;}
+  .ghostbtn{font-family:inherit;background:transparent;border:1px solid var(--line);color:var(--ink-dim);
+    font-weight:600;font-size:13px;border-radius:10px;padding:10px 14px;cursor:pointer;}
+  /* tables */
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:12px;}
+  table{border-collapse:collapse;width:100%;font-size:12px;white-space:nowrap;}
+  th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line);}
+  th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--card);font-weight:600;z-index:1;}
+  thead th{position:sticky;top:0;background:var(--navy-2);color:var(--ink-dim);font-weight:700;
+    text-transform:uppercase;letter-spacing:.4px;font-size:10px;}
+  tbody tr:hover td{background:var(--card-2);}
+  /* expense comparison table — readability pass */
+  .cmp-table{border-collapse:separate;border-spacing:0;}
+  .cmp-table th, .cmp-table td{font-variant-numeric:tabular-nums;}
+  .cmp-table thead th{font-size:10px;padding:10px 14px;background:transparent;border-bottom:1px solid var(--line);}
+  .cmp-table thead th:not(:first-child){text-align:right;}
+  .cmp-table td{padding:11px 14px;border-bottom:1px solid rgba(var(--line-rgb),.45);font-size:13px;}
+  .cmp-table td:not(:first-child){text-align:right;}
+  .cmp-table td:first-child{color:var(--ink);font-weight:600;font-size:12px;}
+  .cmp-table tbody tr:nth-child(even) td{background:rgba(var(--lift-rgb),.015);}
+  .cmp-table tbody tr:hover td{background:rgba(var(--lift-rgb),.04);}
+  /* past months: quiet reference, value only */
+  .cmp-table .past{color:var(--ink-faint);font-weight:400;}
+  /* current month: the anchor */
+  .cmp-table thead th.cur-col{color:var(--orange-soft);font-weight:700;
+    background:rgba(var(--orange-rgb),.10);border-bottom:2px solid var(--orange);}
+  .cmp-table td.cur-col{background:rgba(var(--orange-rgb),.08);color:var(--ink);font-weight:700;font-size:14px;
+    border-left:1px solid rgba(var(--orange-rgb),.25);border-right:1px solid rgba(var(--orange-rgb),.25);}
+  .cmp-table tbody tr:nth-child(even) td.cur-col{background:rgba(var(--orange-rgb),.11);}
+  .cmp-table tbody tr:hover td.cur-col{background:rgba(var(--orange-rgb),.15);}
+  /* the single delta lives only in the current column */
+  .vsdelta{display:inline-block;font-size:10px;font-weight:700;margin-left:7px;
+    padding:1px 5px;border-radius:5px;vertical-align:1px;}
+  .vsdelta.up{color:var(--red);background:rgba(var(--red-rgb),.12);}
+  .vsdelta.down{color:var(--green);background:rgba(var(--green-rgb),.12);}
+  .vsdelta.flat{color:var(--ink-faint);background:transparent;}
+  .vsdelta.vd-good{color:var(--green);background:rgba(var(--green-rgb),.12);}
+  .vsdelta.vd-bad{color:var(--red);background:rgba(var(--red-rgb),.12);}
+  .vsdelta.vd-flat{color:var(--ink-faint);background:transparent;}
+  .cmp-table .sect-row td{background:var(--navy-2);color:var(--ink-faint);text-transform:uppercase;
+    letter-spacing:.5px;font-size:10px;font-weight:700;padding:8px 14px;}
+  /* total row */
+  .cmp-table .totrow td{border-top:2px solid var(--line);border-bottom:none;
+    background:var(--navy-2);font-weight:800;font-size:14px;padding-top:14px;padding-bottom:14px;}
+  .cmp-table .totrow td:first-child{color:var(--ink);text-transform:uppercase;letter-spacing:.5px;font-size:11px;}
+  .cmp-table .totrow td.cur-col{background:rgba(var(--orange-rgb),.16);}
+  /* charts */
+  .chart-wrap{width:100%;overflow:hidden;}
+  svg{display:block;width:100%;height:auto;}
+  .legend{display:flex;gap:16px;font-size:11px;color:var(--ink-dim);margin-bottom:8px;flex-wrap:wrap;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .swatch{width:12px;height:12px;border-radius:3px;display:inline-block;}
+  /* retention tiles */
+  .ret-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;}
+  .ret{background:var(--navy-2);border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center;}
+  .ret .m{font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);font-weight:700;}
+  .ret .p{font-size:18px;font-weight:800;margin-top:3px;}
+  .ret .d{font-size:10px;font-weight:600;margin-top:2px;}
+  /* AI mentor */
+  .mentor-ai{margin:16px 0 4px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--card);}
+  .mentor-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;}
+  .mentor-title{display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px;}
+  .mentor-dot{width:9px;height:9px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 4px rgba(var(--orange-rgb),.18);}
+  .mentor-verdict{font-size:13px;color:var(--ink-dim);padding:0 16px 16px;line-height:1.6;white-space:pre-wrap;}
+  .mentor-body{padding:0 16px 16px;border-top:1px solid var(--line);}
+  .mentor-body[hidden]{display:none;}
+  .mentor-text{font-size:13px;line-height:1.7;white-space:pre-wrap;color:var(--ink);margin-top:14px;}
+  .chev{color:var(--ink-faint);font-size:13px;}
+  .loading{font-size:12px;color:var(--ink-faint);font-style:italic;}
+  .empty{font-size:13px;color:var(--ink-dim);text-align:center;padding:28px 16px;line-height:1.6;}
+  .note{font-size:11px;color:var(--ink-faint);margin-top:10px;line-height:1.5;}
+  .rule-pill{display:inline-block;font-size:10px;color:var(--ink-faint);background:var(--navy-2);
+    border:1px solid var(--line);border-radius:999px;padding:4px 9px;margin-top:8px;}
+  @media (max-width:520px){
+    .score .val{font-size:24px;}
+    h1{font-size:18px;}
+  }
+  /* --- the four headline numbers --- */
+  .fin-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp-3);}
+  .fin-stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px 16px 14px;box-shadow:var(--shadow);position:relative;overflow:hidden;}
+  .fin-stat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--ink-faint);}
+  .fin-stat.good::before{background:var(--green);} .fin-stat.bad::before{background:var(--red);}
+  .fin-stat.watch::before{background:var(--amber);} .fin-stat.brand::before{background:var(--orange);}
+  .fin-stat .lab{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;
+    color:var(--ink-faint);display:flex;align-items:center;gap:6px;}
+  .fin-stat .val{font-size:28px;font-weight:800;letter-spacing:-.025em;margin-top:6px;
+    font-variant-numeric:tabular-nums;color:var(--ink-strong);}
+  .fin-stat.good .val{color:var(--tint-green);} .fin-stat.bad .val{color:var(--tint-red);}
+  .fin-stat.watch .val{color:var(--tint-amber);}
+  .fin-stat .sub{font-size:11.5px;color:var(--ink-faint);margin-top:4px;}
+  /* the card header: a heading that reads as one, and a line saying what it is for */
+  .cardhead{display:flex;align-items:flex-start;justify-content:space-between;
+    gap:var(--sp-3);margin-bottom:var(--sp-4);flex-wrap:wrap;}
+  .cardhead>div:first-child{min-width:0;}
+  .chead{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:16px;font-weight:700;
+    letter-spacing:-.022em;line-height:1.2;color:var(--ink-strong);}
+  .chead .mo{color:var(--ink-faint);font-weight:600;}
+  .csub{font-size:12.5px;color:var(--ink-faint);margin-top:5px;line-height:1.45;max-width:56ch;}
+  .cardhead-r{display:flex;align-items:center;gap:var(--sp-2);flex:0 0 auto;}
+  .cardhead .weeknav{margin-bottom:0;}
+  .cardhead .weeknav .rng{flex:0 0 auto;min-width:0;}
+
+  /* the explainer mark, and the one floating box it opens */
+  .finfo{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;
+    padding:0;border:0;background:transparent;color:var(--ink-faint);border-radius:var(--r-pill);
+    cursor:help;flex:0 0 auto;line-height:0;transition:color var(--tap),background var(--tap);}
+  .finfo:hover{color:var(--orange);background:rgba(var(--orange-rgb),.10);}
+  .finfo:focus-visible{outline:none;box-shadow:var(--focus);color:var(--orange);}
+  .finfo .ic{width:14px;height:14px;}
+  .tipbox{position:fixed;z-index:300;width:max-content;max-width:320px;background:var(--ink-strong);
+    color:var(--card);font-size:12.5px;line-height:1.55;padding:11px 13px;border-radius:var(--r-md);
+    box-shadow:var(--shadow-lift);pointer-events:none;}
+  .tipbox .tipbox-t{display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.09em;color:var(--card-2);opacity:.7;margin-bottom:5px;}
+
+  /* Needs Review is a JOB, not a fifth number — one line you can act on, full width */
+  .fin-alert{grid-column:1/-1;display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+    font-family:inherit;cursor:pointer;background:rgba(var(--amber-rgb),.07);
+    border:1px solid rgba(var(--amber-rgb),.3);border-radius:var(--radius);padding:13px 16px;
+    color:var(--ink);transition:background var(--tap),border-color var(--tap);}
+  .fin-alert:hover{background:rgba(var(--amber-rgb),.13);border-color:var(--amber);}
+  .fin-alert:focus-visible{outline:none;box-shadow:var(--focus);}
+  .fin-alert>.ic{width:17px;height:17px;color:var(--tint-amber);flex:0 0 auto;}
+  .fin-alert .t{font-size:13.5px;line-height:1.45;flex:1;min-width:0;}
+  .fin-alert .t b{color:var(--tint-amber);}
+  .fin-alert .n{font-variant-numeric:tabular-nums;font-weight:800;color:var(--tint-amber);}
+  .fin-alert .go{display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:700;
+    color:var(--tint-amber);white-space:nowrap;flex:0 0 auto;}
+  .fin-alert .go .ic{width:14px;height:14px;}
+  @media(max-width:640px){ .fin-alert{flex-wrap:wrap;} .fin-alert .go{padding-left:28px;} }
+
+  /* ===================== v135: THE DAILY DASHBOARD =====================
+     The page you open with the first coffee. It answers two questions and asks none:
+     what money broke overnight, and what email actually needs you. Everything on it is
+     READ-ONLY — there is not a single write path on this page, by design, because a
+     dashboard you might accidentally edit is a dashboard you read nervously. */
+
+  /* the date, and how fresh what you are looking at is */
+  .day-head{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--sp-4);
+    flex-wrap:wrap;margin:var(--sp-4) 0 var(--sp-4);}
+  .day-date{font-size:22px;font-weight:800;letter-spacing:-.03em;color:var(--ink-strong);
+    line-height:1.15;}
+  .day-fresh{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:12.5px;
+    color:var(--ink-faint);margin-top:6px;}
+  .day-fresh .ic{width:13px;height:13px;}
+  .day-fresh b{color:var(--ink-dim);font-weight:600;}
+  .day-fresh .stale{color:var(--tint-amber);font-weight:600;}
+
+  /* main column carries the long list; the rail carries the short, usually-empty ones */
+  .day-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(330px,1fr);
+    gap:var(--sp-4);align-items:start;}
+  @media(max-width:1020px){ .day-grid{grid-template-columns:1fr;} }
+  .day-rail{display:flex;flex-direction:column;gap:var(--sp-4);min-width:0;}
+  .day-grid .card{padding:18px 20px 20px;}
+
+  /* --- the email hierarchy ---
+     Four tiers, hardest first. The tier is stated by a coloured rail down the left of its
+     rows rather than by four differently-shaped boxes: it is one list, read top to bottom,
+     and the colour tells you where the line is between "before breakfast" and "this week". */
+  .tier{margin-top:var(--sp-5);}
+  .tier:first-of-type{margin-top:var(--sp-2);}
+  .tier-h{display:flex;align-items:center;gap:9px;margin-bottom:var(--sp-2);}
+  .tier-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;}
+  .tier-name{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;
+    color:var(--ink-dim);}
+  .tier-n{font-size:11.5px;font-weight:700;color:var(--ink-faint);
+    font-variant-numeric:tabular-nums;}
+  .tier-open{margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:11.5px;
+    font-weight:600;color:var(--ink-faint);text-decoration:none;padding:3px 7px;
+    border-radius:var(--r-sm);transition:color var(--tap),background var(--tap);}
+  .tier-open:hover{color:var(--orange);background:rgba(var(--orange-rgb),.09);}
+  .tier-open .ic{width:12px;height:12px;}
+  .tier-urgent .tier-dot{background:var(--red);}     .tier-urgent .tier-name{color:var(--tint-red);}
+  .tier-today  .tier-dot{background:var(--amber);}   .tier-today  .tier-name{color:var(--tint-amber);}
+  /* the dots are the colours the Gmail labels themselves are already wearing, so the page
+     and the inbox agree at a glance: red, orange, blue, grey */
+  .tier-week   .tier-dot{background:var(--blue);}    .tier-week   .tier-name{color:var(--tint-blue);}
+  .tier-fyi    .tier-dot{background:var(--ink-faint);}
+
+  /* one email */
+  .mail{display:block;text-decoration:none;color:inherit;position:relative;
+    border:1px solid var(--line);border-left-width:3px;border-radius:var(--r-md);
+    padding:11px 13px 11px 14px;margin-top:7px;background:var(--card);
+    transition:border-color var(--tap),background var(--tap),transform var(--tap);}
+  .mail:hover{background:var(--card-2);transform:translateX(2px);}
+  .mail:focus-visible{outline:none;box-shadow:var(--focus);}
+  .tier-urgent .mail{border-left-color:var(--red);}
+  .tier-today  .mail{border-left-color:var(--amber);}
+  .tier-week   .mail{border-left-color:var(--blue);}
+  .tier-fyi    .mail{border-left-color:var(--line);}
+  .mail-top{display:flex;align-items:baseline;gap:9px;}
+  .mail-from{font-size:12px;font-weight:700;color:var(--ink-dim);white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;max-width:40%;flex:0 0 auto;}
+  .mail-when{margin-left:auto;font-size:11px;color:var(--ink-faint);white-space:nowrap;
+    flex:0 0 auto;font-variant-numeric:tabular-nums;}
+  .mail-subj{font-size:13.5px;font-weight:600;color:var(--ink-strong);line-height:1.35;
+    margin-top:3px;}
+  .mail-why{font-size:12.5px;color:var(--ink-dim);line-height:1.5;margin-top:4px;}
+  .mail-act{display:inline-block;font-size:10.5px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.07em;margin-top:8px;padding:3px 8px;border-radius:var(--r-pill);
+    background:var(--navy-2);color:var(--ink-dim);border:1px solid var(--line);}
+  .tier-urgent .mail-act{background:rgba(var(--red-rgb),.09);color:var(--tint-red);
+    border-color:rgba(var(--red-rgb),.24);}
+  .tier-today .mail-act{background:rgba(var(--amber-rgb),.10);color:var(--tint-amber);
+    border-color:rgba(var(--amber-rgb),.26);}
+
+  /* the FYI pile stays shut — it is a count, not a queue */
+  .fyi-toggle{font-family:inherit;font-size:12.5px;color:var(--ink-faint);background:none;
+    border:0;padding:6px 0;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+  .fyi-toggle:hover{color:var(--ink);}
+  .fyi-toggle:focus-visible{outline:none;box-shadow:var(--focus);border-radius:var(--r-sm);}
+  .fyi-toggle .ic{width:13px;height:13px;transition:transform var(--tap);}
+  .fyi-toggle[aria-expanded="true"] .ic{transform:rotate(180deg);}
+
+  /* --- money that needs you --- */
+  .mrow{display:block;text-decoration:none;color:inherit;border:1px solid var(--line);
+    border-radius:var(--r-md);padding:11px 13px;margin-top:8px;background:var(--card);
+    transition:border-color var(--tap),background var(--tap);}
+  .mrow:hover{background:var(--card-2);border-color:var(--ink-faint);}
+  .mrow:focus-visible{outline:none;box-shadow:var(--focus);}
+  .mrow-top{display:flex;align-items:baseline;gap:10px;}
+  .mrow-who{font-size:13.5px;font-weight:700;color:var(--ink-strong);min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .mrow-amt{margin-left:auto;font-size:14px;font-weight:800;flex:0 0 auto;
+    font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+  .mrow-why{font-size:12px;color:var(--ink-dim);line-height:1.45;margin-top:4px;}
+  .mrow-when{font-size:11.5px;color:var(--ink-faint);margin-top:5px;}
+  .mrow.hot{border-color:rgba(var(--red-rgb),.34);background:rgba(var(--red-rgb),.045);}
+  .mrow.hot .mrow-amt{color:var(--tint-red);}
+  .mrow.warm{border-color:rgba(var(--amber-rgb),.32);background:rgba(var(--amber-rgb),.05);}
+  .mrow.warm .mrow-amt{color:var(--tint-amber);}
+  .mrow .due{font-weight:700;color:var(--tint-red);}
+
+  /* the group headings inside the money card */
+  .mgroup{margin-top:var(--sp-4);}
+  .mgroup:first-of-type{margin-top:0;}
+  .mgroup-h{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:800;
+    text-transform:uppercase;letter-spacing:.09em;color:var(--ink-faint);}
+  .mgroup-h .ic{width:13px;height:13px;}
+
+  /* nothing wrong is a RESULT, and gets said properly rather than left blank */
+  .allclear{display:flex;align-items:center;gap:10px;padding:16px 4px;font-size:13px;
+    color:var(--ink-dim);line-height:1.5;}
+  .allclear .ic{width:18px;height:18px;color:var(--tint-green);flex:0 0 auto;}
+
+  /* the state where an integration is not switched on yet: instructions, not an error */
+  .setup{border:1px dashed var(--line);border-radius:var(--r-md);padding:14px 15px;
+    background:var(--card-2);font-size:12.5px;line-height:1.6;color:var(--ink-dim);}
+  .setup b{color:var(--ink-strong);}
+  .setup ol{margin:8px 0 0;padding-left:18px;}
+  .setup li{margin-top:5px;}
+  /* an environment variable name broken across two lines stops being a name you can copy,
+     so the chip stays whole and the paragraph flows around it */
+  .setup code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;
+    background:var(--navy-2);border:1px solid var(--line);border-radius:var(--r-sm);
+    padding:1px 5px;white-space:nowrap;}
+  .setup-links{display:flex;flex-wrap:wrap;gap:var(--sp-2);margin-top:var(--sp-3);}
+  /* .abtn is worn by <a> all over this page — a button that is underlined reads as neither */
+  a.abtn{text-decoration:none;}
+
+  /* --- today, read from the check-in the weekly app already keeps --- */
+  .one-thing{font-size:15px;font-weight:700;line-height:1.4;color:var(--ink-strong);
+    letter-spacing:-.015em;}
+  .one-thing.done{color:var(--tint-green);}
+  .one-k{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;
+    color:var(--ink-faint);margin-bottom:5px;}
+  .nn{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink-dim);
+    padding:6px 0;border-top:1px solid var(--line);line-height:1.4;}
+  .nn:first-of-type{border-top:0;}
+  .nn .ic{width:15px;height:15px;flex:0 0 auto;color:var(--ink-faint);}
+  .nn.on{color:var(--ink);} .nn.on .ic{color:var(--tint-green);}
+  .nn-box{margin-top:var(--sp-4);padding-top:var(--sp-3);border-top:1px solid var(--line);}
+
+
+  /* v123.1: HIDDEN MUST MEAN HIDDEN. The browser hides [hidden] with display:none from
+     its OWN stylesheet, which any author rule beats — and .fin-alert sets display:flex,
+     so `<a class="fin-alert" hidden>` would show the money alarm on every load with
+     nothing in it. One rule, last in the sheet, so nothing added later can undo it. */
+  [hidden]{display:none!important;}
+</style>
+</head>
+<body>
+<!-- ===================== v121: THE ICON SET =====================
+     One sprite, injected on every page, replacing the emoji and typographic glyphs the
+     suite used to use as icons (✕ ▸ ▾ ▲ ▼ 📅 📍 🗒 🔥 ⚠ ↻ and the training set).
+     Emoji rendered differently on every OS, could not take an accent colour and could not
+     be sized reliably. These are one 24px grid at 1.7 stroke, drawn in currentColor — so
+     an icon is always exactly the colour of the text it sits in, at any size.
+     Use: <svg class="ic"><use href="#ic-close"/></svg>. Prose keeps its typography: the
+     → in "Thinking Time → AI Analysis", the · separators and the • bullets are text. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="ic-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></symbol>
+<symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></symbol>
+<symbol id="ic-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></symbol>
+<symbol id="ic-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></symbol>
+<symbol id="ic-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+<symbol id="ic-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+<symbol id="ic-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.6 7-11a7 7 0 10-14 0c0 5.4 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></symbol>
+<symbol id="ic-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h9l7-7V5a2 2 0 00-2-2z"/><path d="M14 21v-5a2 2 0 012-2h5M8 8h8M8 12h5"/></symbol>
+<symbol id="ic-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.4v5.2M12 16.3v.1"/></symbol>
+<symbol id="ic-flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c3.9 0 7-2.9 7-6.6 0-4.3-3.4-6.6-4.6-10.4-1.5 1-2.2 2.5-2.2 4.2C10.6 7.5 9.4 5.7 9.4 3.7 6.9 5.7 5 9.1 5 15.4 5 19.1 8.1 22 12 22z"/></symbol>
+<symbol id="ic-trend-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></symbol>
+<symbol id="ic-trend-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6 6 4-4 8 8"/><path d="M15 17h6v-6"/></symbol>
+<symbol id="ic-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3.2-6.9"/><path d="M21 4v5h-5"/></symbol>
+<symbol id="ic-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="ic-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></symbol>
+<symbol id="ic-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 018 0v3"/></symbol>
+<symbol id="ic-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 3.5L16 11H5"/></symbol>
+<symbol id="ic-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 13.5a4 4 0 006 .4l2.5-2.5a4.2 4.2 0 00-6-6l-1.4 1.4"/><path d="M13.5 10.5a4 4 0 00-6-.4L5 12.6a4.2 4.2 0 006 6l1.4-1.4"/></symbol>
+<symbol id="ic-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.3l3.4 2"/></symbol>
+<symbol id="ic-dot" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="12" r="5"/></symbol>
+<!-- the training set: wpDetectTrainingEmoji picks one of these from the task's title -->
+<symbol id="ic-lift" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6M6 6.5v11M18 6.5v11M21 9v6M6 12h12"/></symbol>
+<symbol id="ic-run" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="15.5" cy="4.5" r="2"/><path d="M8 21l2.6-4.6.9-4.4L8.5 14 6 12.4"/><path d="M11.5 12l3.6-3.4 2.4 3 2.5.9"/><path d="M15.1 8.6L12 7.2 8.8 8.4"/></symbol>
+<symbol id="ic-bike" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17" r="3.5"/><circle cx="18.5" cy="17" r="3.5"/><path d="M5.5 17l4-9h4M9.5 8l4 9h5M14 5h3"/></symbol>
+<symbol id="ic-swim" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="17" cy="7" r="1.8"/><path d="M3 12.5l3.5-2.5 4 3 3.5-2.5"/><path d="M2 18.5c1.7 0 1.7 1.4 3.3 1.4s1.7-1.4 3.4-1.4 1.7 1.4 3.3 1.4 1.7-1.4 3.4-1.4 1.7 1.4 3.3 1.4 1.7-1.4 3.3-1.4"/></symbol>
+<symbol id="ic-walk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4.2" r="2"/><path d="M9.5 21l2.5-5.5V11L9 13"/><path d="M12 15.5l3 5.5M12 9l3 2 2.5-.8M12 9l-3 1.5"/></symbol>
+<symbol id="ic-yoga" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.2" r="2"/><path d="M12 7v6M12 13l-5 6M12 13l5 6M4 10.5l8 1.5 8-1.5"/></symbol>
+<symbol id="ic-help" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.4 9.3a2.7 2.7 0 1 1 3.5 2.6c-.8.3-1.2.9-1.2 1.7v.5"/><path d="M11.7 17.3h.01"/></symbol>
+<symbol id="ic-wallet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h11.2a1 1 0 0 1 1 1v2"/><path d="M3 7.5v9.8A2.7 2.7 0 0 0 5.7 20h12.8a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 18.5 8H5.5"/><circle cx="16.3" cy="13.6" r="1.15"/></symbol>
+<symbol id="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.6v2M12 19.4v2M4.6 12h-2M21.4 12h-2M6.7 6.7L5.3 5.3M18.7 18.7l-1.4-1.4M6.7 17.3l-1.4 1.4M18.7 5.3l-1.4 1.4"/></symbol>
+<symbol id="ic-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.2"/><path d="M3.6 6.7l7.3 5.2a2 2 0 0 0 2.2 0l7.3-5.2"/></symbol>
+<symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="M2.5 9.8h19M6 15.2h3.4"/></symbol>
+</defs></svg>
+<!-- build v135 · daily-dashboard -->
+<header>
+  <div class="appbar">
+    <div class="brand">
+      <div class="mark"><img src="data:image/png;base64,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" alt="Bodysculpt" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;"></div>
+      <div><h1>Bodysculpt</h1><div class="sub">Warrington</div></div>
+    </div>
+    <nav class="topnav">
+      <div class="navgrp">
+        <span class="navgroup"><svg class="ic"><use href="#ic-sun"/></svg>Today</span>
+        <div class="navlinks">
+          <a href="/daily.html" class="active">Daily Dashboard</a>
+        </div>
+      </div>
+      <span class="navsep"></span>
+      <div class="navgrp">
+        <span class="navgroup"><svg class="ic"><use href="#ic-calendar"/></svg>Planning</span>
+        <div class="navlinks">
+          <a href="/index.html">Weekly</a>
+          <a href="/monthly.html">Monthly</a>
+          <a href="/quarterly.html">Quarterly</a>
+        </div>
+      </div>
+      <span class="navsep"></span>
+      <div class="navgrp navgrp-money">
+        <span class="navgroup"><svg class="ic"><use href="#ic-wallet"/></svg>Finances</span>
+        <div class="navlinks">
+          <a href="/finances.html">Income &amp; Expenses</a>
+        </div>
+      </div>
+    </nav>
+  </div>
+</header>
+
+<div class="day-head">
+  <div>
+    <div class="day-date" id="dayDate">Today</div>
+    <div class="day-fresh" id="dayFresh"><span class="loading">Checking…</span></div>
+  </div>
+  <button type="button" class="abtn" id="btnRefresh"><svg class="ic"><use href="#ic-refresh"/></svg> Refresh</button>
+</div>
+
+<!-- The one line that has to survive a glance from the doorway. It exists only when there
+     is money in trouble; the rest of the time the page never mentions it. -->
+<a class="fin-alert" id="moneyAlert" href="https://dashboard.stripe.com/payments" target="_blank" rel="noopener" hidden></a>
+
+<div class="day-grid">
+  <div class="day-main">
+    <section class="card">
+      <div class="cardhead">
+        <div>
+          <div class="chead"><svg class="ic"><use href="#ic-mail"/></svg> Needs a reply</div>
+          <div class="csub" id="mailSub">Your inbox, sorted this morning — hardest first.</div>
+        </div>
+        <div class="cardhead-r" id="mailHeadRight"></div>
+      </div>
+      <div id="mailBody"><div class="loading">Loading this morning's triage…</div></div>
+    </section>
+  </div>
+
+  <div class="day-rail">
+    <section class="card">
+      <div class="cardhead">
+        <div>
+          <div class="chead"><svg class="ic"><use href="#ic-card"/></svg> Money needing attention</div>
+          <div class="csub">Disputes, memberships that have stopped paying, and cards that failed in the last fortnight.</div>
+        </div>
+      </div>
+      <div id="moneyBody"><div class="loading">Asking Stripe…</div></div>
+    </section>
+
+    <section class="card">
+      <div class="cardhead">
+        <div>
+          <div class="chead"><svg class="ic"><use href="#ic-target"/></svg> Today</div>
+          <div class="csub">What you said this morning mattered most. Set it in the weekly app; this is only a reminder.</div>
+        </div>
+      </div>
+      <div id="todayBody"><div class="loading">Loading…</div></div>
+    </section>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   DAILY DASHBOARD — v135
+   The first page of the morning. It answers two questions and asks none:
+     · what money broke overnight  (Stripe: disputes, past-due memberships, failed cards)
+     · what email actually needs you  (the scheduled triage's hierarchy of importance)
+
+   THIS PAGE NEVER WRITES. There is exactly one fetch helper on it, it has no request
+   options, and every URL it is given is a read. That is deliberate and it is pinned by
+   tests/v135-daily-dashboard.test.cjs: the live blob store holds data with no backup, so
+   the page you leave open all day is the one page that must not be able to touch it.
+
+   Where the two feeds come from:
+     · EMAIL  — the scheduled Claude job that already labels the inbox (Triage/Urgent,
+                Triage/Today, Triage/This week, Triage/FYI) also sends a digest to
+                kpi-store under `daily-briefs`, keyed by date. This page reads it back.
+                See DAILY-SETUP.md for the block to add to that job.
+     · MONEY  — /.netlify/functions/stripe-feed, which holds the Stripe key server-side.
+
+   If neither is set up yet, the page still works: it shows the four Gmail labels as
+   links and tells you, in order, what to switch on.
+   ===================================================================== */
+const API = "/.netlify/functions/kpi-store";
+const STRIPE_FEED = "/.netlify/functions/stripe-feed";
+
+/* ---------- small helpers ---------- */
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
+  ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const pad = (n) => String(n).padStart(2, "0");
+const ymd = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+// Stripe deals in the smallest unit, so every amount arriving from it is pence.
+const fromPence = (p, cur) => {
+  const sym = String(cur || "gbp").toLowerCase() === "gbp" ? "£" : (String(cur || "").toUpperCase() + " ");
+  const n = (Number(p) || 0) / 100;
+  return sym + n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const dateWords = (d) => DAYS[d.getDay()] + ", " + d.getDate() + " " + MONTHS[d.getMonth()];
+
+// "2h ago" / "yesterday" / "3 Sep" — enough to know whether something is still warm.
+function ago(isoStr) {
+  if (!isoStr) return "";
+  const t = Date.parse(isoStr);
+  if (!isFinite(t)) return "";
+  const mins = Math.round((Date.now() - t) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return mins + "m ago";
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return hrs + "h ago";
+  const days = Math.round(hrs / 24);
+  if (days === 1) return "yesterday";
+  if (days < 7) return days + " days ago";
+  const d = new Date(t);
+  return d.getDate() + " " + MONTHS[d.getMonth()].slice(0, 3);
+}
+// Whole days from now until a deadline. Negative means it has already gone.
+function daysUntil(isoStr) {
+  const t = Date.parse(isoStr);
+  if (!isFinite(t)) return null;
+  return Math.ceil((t - Date.now()) / 86400000);
+}
+// The check-in stores rich text (the weekly app's editor). This page only ever displays
+// it, so it is flattened to plain text and escaped — never injected as markup.
+function richToText(html) {
+  const s = String(html == null ? "" : html);
+  if (!s) return "";
+  return s.replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<\/(p|div|li)>/gi, " ")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/* ---------- the explainer marks (the v128 finance pattern, same box, same wiring) ---- */
+const TIPS = {
+  triage: ["Triage", "Your scheduled morning job reads the inbox, labels every thread Urgent / Today / This week / FYI, and sends the list here. Nothing is moved or replied to — it is only sorted."],
+  dispute: ["Dispute", "A member has told their bank the payment was wrong, and the bank has taken the money back off you while it decides. There is a deadline to send your side. Miss it and the money is gone automatically, so these always come first."],
+  pastdue: ["Stopped paying", "A membership whose payment failed and has not gone through since. The member is normally still training. This is recurring income quietly leaking, and it is usually one message to fix."],
+  failed: ["Failed payment", "A single payment that did not go through in the last fortnight — nearly always an expired or blocked card. Quick to sort while it is fresh."],
+  onething: ["Your one thing", "The single thing you said this morning would make today count. It comes from the check-in in the weekly app; this card only shows it back to you."],
+};
+let tipEl = null, tipFor = null;
+function tipBtn(key) {
+  return TIPS[key] ? '<button type="button" class="finfo" data-tip="' + key + '" aria-label="What does this mean?"><svg class="ic"><use href="#ic-help"/></svg></button>' : "";
+}
+function tipShow(btn) {
+  const t = TIPS[btn.dataset && btn.dataset.tip];
+  if (!t || !btn.getBoundingClientRect) return;
+  if (!tipEl) {
+    tipEl = document.createElement("div");
+    tipEl.className = "tipbox";
+    tipEl.hidden = true;
+    document.body.appendChild(tipEl);
+  }
+  tipEl.innerHTML = '<span class="tipbox-t">' + esc(t[0]) + "</span>" + esc(t[1]);
+  tipEl.hidden = false;
+  const r = btn.getBoundingClientRect();
+  const vw = window.innerWidth || 1200, vh = window.innerHeight || 800;
+  const w = tipEl.offsetWidth || 300, h = tipEl.offsetHeight || 90;
+  let left = r.left + r.width / 2 - w / 2;
+  left = Math.max(10, Math.min(left, vw - w - 10));
+  let top = r.bottom + 9;
+  if (top + h > vh - 10) top = Math.max(10, r.top - h - 9);
+  tipEl.style.left = left + "px";
+  tipEl.style.top = top + "px";
+  tipFor = btn;
+}
+function tipHide() { if (tipEl) tipEl.hidden = true; tipFor = null; }
+const tipAt = (e) => (e.target && e.target.closest) ? e.target.closest(".finfo") : null;
+document.addEventListener("mouseover", (e) => { const b = tipAt(e); if (b && b !== tipFor) tipShow(b); });
+document.addEventListener("mouseout", (e) => { if (tipAt(e)) tipHide(); });
+document.addEventListener("focusin", (e) => { const b = tipAt(e); if (b) tipShow(b); else tipHide(); });
+document.addEventListener("click", (e) => {
+  const b = tipAt(e);
+  if (!b) { tipHide(); return; }
+  e.preventDefault();
+  if (b === tipFor && tipEl && !tipEl.hidden) tipHide(); else tipShow(b);
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") tipHide(); });
+document.addEventListener("scroll", tipHide, true);
+
+/* ---------- the one read ----------
+   Every feed on this page goes through here. One function, one argument, no options —
+   so there is no shape a write could take even by accident. */
+async function jget(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return await r.json();
+}
+
+/* ---------- the email hierarchy ----------
+   The four tiers, in the order they cost you something, matched to the Gmail labels the
+   scheduled triage already applies. TO ADD A TIER: add it here AND to BRIEF_TIERS in
+   netlify/functions/kpi-store.js, or the store will drop the items on the way in. */
+const GMAIL = "https://mail.google.com/mail/u/0/#";
+const TIERS = [
+  { id: "urgent", name: "Urgent",    label: "Triage/Urgent",    blurb: "Before anything else." },
+  { id: "today",  name: "Today",     label: "Triage/Today",     blurb: "Before the day is out." },
+  { id: "week",   name: "This week", label: "Triage/This week", blurb: "Fits anywhere this week." },
+  { id: "fyi",    name: "FYI",       label: "Triage/FYI",       blurb: "Read it or don't." },
+];
+const labelUrl = (label) => GMAIL + "label/" + encodeURIComponent(label).replace(/%2F/gi, "%2F");
+const threadUrl = (id) => GMAIL + "all/" + encodeURIComponent(id);
+
+let fyiOpen = false;     // the FYI pile is a count until you ask for it
+let briefState = null;   // { brief, date, isToday } or null
+
+function mailItemHtml(it) {
+  const href = it.threadId ? threadUrl(it.threadId) : labelUrl("Triage/" + (it.tier === "week" ? "This week" : it.tier === "fyi" ? "FYI" : it.tier === "today" ? "Today" : "Urgent"));
+  return '<a class="mail" href="' + esc(href) + '" target="_blank" rel="noopener">' +
+    '<div class="mail-top">' +
+      '<span class="mail-from">' + esc(it.from || "Unknown sender") + "</span>" +
+      (it.receivedAt ? '<span class="mail-when">' + esc(ago(it.receivedAt)) + "</span>" : "") +
+    "</div>" +
+    '<div class="mail-subj">' + esc(it.subject || "(no subject)") + "</div>" +
+    (it.why ? '<div class="mail-why">' + esc(it.why) + "</div>" : "") +
+    (it.action ? '<span class="mail-act">' + esc(it.action) + "</span>" : "") +
+  "</a>";
+}
+
+function tierHtml(tier, items) {
+  const open = '<a class="tier-open" href="' + esc(labelUrl(tier.label)) + '" target="_blank" rel="noopener">' +
+    "Open in Gmail<svg class=\"ic\"><use href=\"#ic-arrow-right\"/></svg></a>";
+  const head = '<div class="tier-h">' +
+    '<span class="tier-dot"></span>' +
+    '<span class="tier-name">' + esc(tier.name) + "</span>" +
+    '<span class="tier-n">' + items.length + "</span>" + open + "</div>";
+
+  // FYI is deliberately a number you can ignore. Everything else is a list you cannot.
+  if (tier.id === "fyi") {
+    const toggle = '<button type="button" class="fyi-toggle" id="fyiToggle" aria-expanded="' + (fyiOpen ? "true" : "false") + '">' +
+      "<svg class=\"ic\"><use href=\"#ic-chevron\"/></svg>" +
+      (fyiOpen ? "Hide" : "Show") + " " + items.length + " for information</button>";
+    return '<div class="tier tier-fyi">' + head + toggle +
+      (fyiOpen ? items.map(mailItemHtml).join("") : "") + "</div>";
+  }
+  return '<div class="tier tier-' + tier.id + '">' + head + items.map(mailItemHtml).join("") + "</div>";
+}
+
+// No brief yet is not a broken page — it is a page with one thing left to switch on.
+function mailSetupHtml(reason) {
+  return '<div class="setup">' +
+    "<b>" + esc(reason) + "</b><br>" +
+    "Your scheduled triage is already labelling the inbox. To see the list here rather than in Gmail, add the step in <code>DAILY-SETUP.md</code> to that job — it sends the morning's list to this dashboard once it has finished labelling." +
+    '<div class="setup-links">' +
+      TIERS.map((t) => '<a class="abtn" href="' + esc(labelUrl(t.label)) + '" target="_blank" rel="noopener">' + esc(t.name) + " in Gmail</a>").join("") +
+    "</div></div>";
+}
+
+function renderMail() {
+  const body = $("mailBody"), right = $("mailHeadRight"), sub = $("mailSub");
+  if (!body) return;
+  right.innerHTML = tipBtn("triage");
+
+  if (!briefState || !briefState.brief) {
+    sub.textContent = "Your inbox, sorted this morning — hardest first.";
+    body.innerHTML = mailSetupHtml(briefState === null ? "Could not reach the store." : "No triage has been sent here yet.");
+    return;
+  }
+  const brief = briefState.brief;
+  const items = Array.isArray(brief.items) ? brief.items : [];
+  const needing = items.filter((i) => i.tier !== "fyi").length;
+
+  sub.textContent = needing
+    ? needing + (needing === 1 ? " thread needs you." : " threads need you.") + " FYI is folded away."
+    : "Nothing needs a reply. The rest is for information.";
+
+  let html = "";
+  if (!briefState.isToday) {
+    html += '<div class="setup" style="margin-bottom:14px;"><b>This is ' + esc(dateWords(new Date(brief.date + "T12:00:00"))) + "'s triage.</b> Today's has not arrived yet.</div>";
+  }
+  if (brief.summary) html += '<div class="mail-why" style="margin-bottom:4px;font-size:13px;">' + esc(brief.summary) + "</div>";
+
+  let any = false;
+  for (const tier of TIERS) {
+    const mine = items.filter((i) => i.tier === tier.id);
+    if (!mine.length) continue;
+    any = true;
+    html += tierHtml(tier, mine);
+  }
+  if (!any) {
+    html += '<div class="allclear"><svg class="ic"><use href="#ic-check"/></svg>' +
+      "<div>Inbox triaged and nothing needs you. That is the whole point of doing it at 7am.</div></div>";
+  }
+  body.innerHTML = html;
+
+  const t = $("fyiToggle");
+  if (t) t.addEventListener("click", () => { fyiOpen = !fyiOpen; renderMail(); });
+}
+
+/* ---------- money ---------- */
+let stripeState = null;
+
+function moneyRowHtml(r, kind) {
+  const who = r.name || r.email || "Unknown";
+  let why = "", when = "", cls = "";
+  if (kind === "dispute") {
+    cls = "hot";
+    const d = daysUntil(r.dueBy);
+    why = "Charged back" + (r.reason ? " — " + r.reason.replace(/_/g, " ") : "");
+    when = r.dueBy
+      ? (d === null ? "" : d < 0 ? '<span class="due">The deadline has passed</span>'
+        : d === 0 ? '<span class="due">Respond today</span>'
+        : '<span class="due">Respond within ' + d + (d === 1 ? " day" : " days") + "</span>")
+      : "Respond in Stripe";
+  } else if (kind === "pastdue") {
+    cls = "warm";
+    why = r.status === "unpaid" ? "Membership unpaid — Stripe has stopped retrying" : "Membership payment keeps failing";
+    when = r.since ? "Since " + ago(r.since).replace(" ago", " ago") : "";
+  } else {
+    cls = "warm";
+    why = r.reason || "Payment failed";
+    when = ago(r.createdAt);
+  }
+  return '<a class="mrow ' + cls + '" href="' + esc(r.url) + '" target="_blank" rel="noopener">' +
+    '<div class="mrow-top"><span class="mrow-who">' + esc(who) + "</span>" +
+      '<span class="mrow-amt">' + esc(fromPence(r.amount, r.currency)) + "</span></div>" +
+    '<div class="mrow-why">' + esc(why) + "</div>" +
+    (when ? '<div class="mrow-when">' + when + "</div>" : "") +
+  "</a>";
+}
+
+function moneyGroupHtml(title, tip, icon, rows, kind) {
+  if (!rows.length) return "";
+  return '<div class="mgroup"><div class="mgroup-h"><svg class="ic"><use href="#' + icon + '"/></svg>' +
+    esc(title) + " (" + rows.length + ")" + tipBtn(tip) + "</div>" +
+    rows.map((r) => moneyRowHtml(r, kind)).join("") + "</div>";
+}
+
+function renderMoney() {
+  const body = $("moneyBody"), alert = $("moneyAlert");
+  if (!body) return;
+  alert.hidden = true;
+
+  if (!stripeState) {
+    body.innerHTML = '<div class="setup"><b>Could not reach the Stripe feed.</b><br>' +
+      "The page is fine — this is the one card that needs the site to be deployed. Try Refresh.</div>";
+    return;
+  }
+  if (stripeState.configured === false) {
+    body.innerHTML = '<div class="setup"><b>Stripe is not connected yet.</b>' +
+      "<ol>" +
+      "<li>In Stripe, make a <b>restricted key</b> with read access to Charges, Disputes, Subscriptions and Customers.</li>" +
+      "<li>In Netlify: Site configuration → Environment variables → add <code>STRIPE_SECRET_KEY</code>.</li>" +
+      "<li>Redeploy, then press Refresh here.</li>" +
+      "</ol>The key stays on the server. It is never sent to this page.</div>";
+    return;
+  }
+  if (stripeState.ok === false) {
+    body.innerHTML = '<div class="setup"><b>Stripe said no.</b><br>' + esc(stripeState.error || "") + "</div>";
+    return;
+  }
+
+  const d = stripeState.disputes || [], p = stripeState.pastDue || [], f = stripeState.failed || [];
+  const n = d.length + p.length + f.length;
+
+  if (!n) {
+    body.innerHTML = '<div class="allclear"><svg class="ic"><use href="#ic-check"/></svg>' +
+      "<div>Nothing disputed, nothing past due, and no failed cards in the last " +
+      ((stripeState.windowDays || 14)) + " days.</div></div>";
+    return;
+  }
+
+  body.innerHTML =
+    moneyGroupHtml("Disputes", "dispute", "ic-alert", d, "dispute") +
+    moneyGroupHtml("Stopped paying", "pastdue", "ic-trend-down", p, "pastdue") +
+    moneyGroupHtml("Failed payments", "failed", "ic-card", f, "failed");
+
+  // The doorway line. Deadlines lead it, because a deadline is the only part of this
+  // that gets worse on its own.
+  const bits = [];
+  if (d.length) bits.push("<b>" + d.length + (d.length === 1 ? " dispute" : " disputes") + "</b> to answer");
+  if (p.length) bits.push("<b>" + p.length + "</b> " + (p.length === 1 ? "membership has" : "memberships have") + " stopped paying");
+  if (f.length) bits.push("<b>" + f.length + "</b> failed " + (f.length === 1 ? "payment" : "payments"));
+  const total = (stripeState.totals && (stripeState.totals.disputed + stripeState.totals.pastDue + stripeState.totals.failed)) || 0;
+  alert.innerHTML = '<svg class="ic"><use href="#ic-alert"/></svg>' +
+    '<span class="t">' + bits.join(" · ") + ' — <span class="n">' + esc(fromPence(total, "gbp")) + "</span> in the balance</span>" +
+    '<span class="go">Open Stripe<svg class="ic"><use href="#ic-arrow-right"/></svg></span>';
+  alert.hidden = false;
+}
+
+/* ---------- today ----------
+   Read-only, from the check-in the weekly app already writes. Nothing is stored from here. */
+let checkinState = null;
+
+const HABITS = [
+  { id: "read",     short: "Read 10 pages" },
+  { id: "mobility", short: "10 minutes of mobility" },
+  { id: "house",    short: "One thing around the house" },
+];
+
+function renderToday() {
+  const body = $("todayBody");
+  if (!body) return;
+  const entry = checkinState || null;
+  const oneThing = entry ? richToText(entry.oneThing) : "";
+  const done = entry ? entry.oneThingDone === true : false;
+
+  let html = "";
+  if (oneThing) {
+    html += '<div class="one-k">Your one thing' + tipBtn("onething") + "</div>" +
+      '<div class="one-thing' + (done ? " done" : "") + '">' +
+      (done ? '<svg class="ic" style="width:16px;height:16px;"><use href="#ic-check"/></svg> ' : "") +
+      esc(oneThing) + "</div>";
+  } else {
+    html += '<div class="setup"><b>No check-in yet today.</b><br>' +
+      'The weekly app asks three questions first thing; whatever you answer as your one thing shows up here.' +
+      '<div class="setup-links"><a class="abtn primary" href="/index.html">Open the weekly plan</a></div></div>';
+  }
+
+  const habits = (entry && entry.habits) || {};
+  html += '<div class="nn-box">';
+  html += '<div class="one-k">Daily non-negotiables</div>';
+  for (const h of HABITS) {
+    const on = habits[h.id] === true;
+    html += '<div class="nn' + (on ? " on" : "") + '">' +
+      '<svg class="ic"><use href="#' + (on ? "ic-check" : "ic-dot") + '"/></svg>' + esc(h.short) + "</div>";
+  }
+  html += "</div>";
+  if (oneThing) html += '<div class="setup-links"><a class="abtn" href="/index.html">Open the weekly plan</a></div>';
+  body.innerHTML = html;
+}
+
+/* ---------- freshness ---------- */
+function renderHead() {
+  const today = new Date();
+  $("dayDate").textContent = dateWords(today);
+  const bits = [];
+  if (briefState && briefState.brief && briefState.brief.generatedAt) {
+    const fresh = briefState.isToday;
+    bits.push('<svg class="ic"><use href="#ic-mail"/></svg>Triage ran <b>' +
+      esc(ago(briefState.brief.generatedAt)) + "</b>" +
+      (fresh ? "" : ' <span class="stale">(not yet today)</span>'));
+  } else {
+    bits.push('<svg class="ic"><use href="#ic-mail"/></svg><span class="stale">No triage yet</span>');
+  }
+  if (stripeState && stripeState.fetchedAt && stripeState.configured !== false) {
+    bits.push('<svg class="ic"><use href="#ic-card"/></svg>Stripe checked <b>' + esc(ago(stripeState.fetchedAt)) + "</b>" +
+      (stripeState.liveMode === false ? ' <span class="stale">(test mode)</span>' : ""));
+  } else if (stripeState && stripeState.configured === false) {
+    bits.push('<svg class="ic"><use href="#ic-card"/></svg><span class="stale">Stripe not connected</span>');
+  }
+  $("dayFresh").innerHTML = bits.join('<span style="color:var(--ink-faint);">·</span>');
+}
+
+/* ---------- load ---------- */
+// Three independent reads. One failing must not blank the other two, so they are settled
+// rather than raced: a morning where Stripe is down should still show you your inbox.
+async function loadAll() {
+  const btn = $("btnRefresh");
+  if (btn) btn.disabled = true;
+
+  const [briefs, stripe, checkins] = await Promise.allSettled([
+    jget(API + "?dailybriefs=1"),
+    jget(STRIPE_FEED),
+    jget(API + "?checkins=1"),
+  ]);
+
+  // The brief: today's if it is there, otherwise the most recent one, clearly flagged.
+  briefState = null;
+  if (briefs.status === "fulfilled" && briefs.value && briefs.value.briefs) {
+    const map = briefs.value.briefs;
+    const keys = Object.keys(map).sort();
+    const today = ymd(new Date());
+    const pick = map[today] ? today : keys[keys.length - 1];
+    if (pick && map[pick]) briefState = { brief: map[pick], date: pick, isToday: pick === today };
+    else briefState = { brief: null, date: "", isToday: false };
+  }
+
+  stripeState = stripe.status === "fulfilled" ? stripe.value : null;
+
+  checkinState = null;
+  if (checkins.status === "fulfilled" && checkins.value && checkins.value.checkins) {
+    checkinState = checkins.value.checkins[ymd(new Date())] || null;
+  }
+
+  renderHead();
+  renderMail();
+  renderMoney();
+  renderToday();
+  if (btn) btn.disabled = false;
+}
+
+$("btnRefresh").addEventListener("click", loadAll);
+loadAll();
+
+/* Test harness hook: read-only views of what the page decided, so a test can assert the
+   fallbacks without scraping innerHTML. Nothing here can change anything. */
+window.__dayState = {
+  get brief() { return briefState; },
+  get stripe() { return stripeState; },
+  get checkin() { return checkinState; },
+  get tiers() { return TIERS.map((t) => t.id); },
+};
+</script>
+
+</body>
+</html>

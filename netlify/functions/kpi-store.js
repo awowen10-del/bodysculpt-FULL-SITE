@@ -53,6 +53,56 @@ const TRAINING_DEFAULTS_KEY = "weekly-training-defaults";
 // v80: daily check-in history — a single blob holding a map { "YYYY-MM-DD": entry }, so every
 // day's answers accumulate and are trivially retrievable as a list for a future AI advisor.
 const DAILY_CHECKINS_KEY = "daily-checkins";
+// v135: the Daily Dashboard's morning brief. Ash's scheduled email triage already labels
+// the inbox (Triage/Urgent, Triage/Today, Triage/This week, Triage/FYI); after it has done
+// that it POSTs a digest here, and daily.html renders it. One blob holding a map keyed
+// "YYYY-MM-DD", exactly like daily-checkins — so the history accumulates, one GET returns
+// the lot, and a bad push can only ever spoil the day it was pushed for.
+const DAILY_BRIEFS_KEY = "daily-briefs";
+const BRIEF_TIERS = ["urgent", "today", "week", "fyi"];   // the hierarchy, most-urgent first
+const BRIEF_ITEM_CAP = 60;      // a morning's inbox, not an archive
+const BRIEF_DAYS_KEPT = 30;     // the map is pruned to the newest 30 dates on every write
+// Whitelist + coerce one brief. Everything here arrives from an AI job over an open
+// endpoint, so nothing is trusted: unknown fields are dropped, unknown tiers are dropped,
+// every string is capped, and the item list is truncated rather than rejected.
+function cleanBriefItem(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const str = (v, n) => (typeof v === "string" ? v.slice(0, n) : "");
+  const tier = BRIEF_TIERS.includes(raw.tier) ? raw.tier : "";
+  if (!tier) return null;                       // no tier, no place on the page
+  const subject = str(raw.subject, 400).trim();
+  const from = str(raw.from, 200).trim();
+  if (!subject && !from) return null;           // nothing to show
+  return {
+    tier,
+    from,
+    subject,
+    why: str(raw.why, 400).trim(),
+    action: str(raw.action, 80).trim(),
+    threadId: str(raw.threadId, 60).replace(/[^A-Za-z0-9_-]/g, ""),
+    receivedAt: str(raw.receivedAt, 40),
+  };
+}
+function cleanBrief(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const str = (v, n) => (typeof v === "string" ? v.slice(0, n) : "");
+  const date = str(raw.date, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const items = (Array.isArray(raw.items) ? raw.items : [])
+    .map(cleanBriefItem).filter(Boolean).slice(0, BRIEF_ITEM_CAP);
+  // The counts are DERIVED here rather than taken on trust, so the page's tier headings can
+  // never disagree with the rows underneath them.
+  const counts = {};
+  for (const t of BRIEF_TIERS) counts[t] = items.filter((i) => i.tier === t).length;
+  return {
+    date,
+    summary: str(raw.summary, 1200).trim(),
+    source: str(raw.source, 40) || "claude-triage",
+    items,
+    counts,
+    generatedAt: new Date().toISOString(),
+  };
+}
 // v88: the daily non-negotiables ride the same per-date entry (`habits`). Ids must match
 // WP_HABITS in index.html — anything else, and any non-boolean value, is stripped.
 const VALID_HABITS = ["read", "mobility", "house"];
@@ -462,6 +512,13 @@ export default async (req) => {
     return Response.json({ checkins });
   }
 
+  // v135 Daily brief: GET ?dailybriefs=1 returns the whole date-keyed map (empty when none).
+  // The Daily Dashboard picks today's, and falls back to the most recent one it finds.
+  if (req.method === "GET" && url.searchParams.get("dailybriefs") === "1") {
+    const briefs = (await store.get(DAILY_BRIEFS_KEY, { type: "json" })) || {};
+    return Response.json({ briefs });
+  }
+
   // v84 Location defaults: GET ?locationdefaults=1 returns the default weekly pattern
   // ({ mon:"warrington", … }) — empty when never set, so every day starts unset.
   if (req.method === "GET" && url.searchParams.get("locationdefaults") === "1") {
@@ -869,6 +926,23 @@ export default async (req) => {
       map[date] = entry;
       await store.set(DAILY_CHECKINS_KEY, JSON.stringify(map));
       return Response.json({ ok:true, checkin: entry });
+    }
+
+    // v135 Daily brief: POST { dailyBrief: { date, summary, items:[...] } }. The scheduled
+    // email triage calls this once it has finished labelling. One date is replaced whole —
+    // the job always sends the complete morning, so a partial write cannot half-erase a day
+    // — and the map is then pruned to the newest BRIEF_DAYS_KEPT dates so one blob cannot
+    // grow without limit. It touches NOTHING but its own key.
+    if (body.dailyBrief && typeof body.dailyBrief === "object") {
+      const brief = cleanBrief(body.dailyBrief);
+      if (!brief) return new Response("Bad dailyBrief (need a YYYY-MM-DD date)", { status: 400 });
+      const map = (await store.get(DAILY_BRIEFS_KEY, { type: "json" })) || {};
+      map[brief.date] = brief;
+      const keep = Object.keys(map).sort().slice(-BRIEF_DAYS_KEPT);
+      const pruned = {};
+      for (const d of keep) pruned[d] = map[d];
+      await store.set(DAILY_BRIEFS_KEY, JSON.stringify(pruned));
+      return Response.json({ ok: true, date: brief.date, counts: brief.counts, kept: keep.length });
     }
 
     // Save one quarter's Thinking Time record under "qtt-YYYY-QN". Merges over existing
