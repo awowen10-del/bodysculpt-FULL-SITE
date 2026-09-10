@@ -793,7 +793,7 @@
 <symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="M2.5 9.8h19M6 15.2h3.4"/></symbol>
 <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.05" fill="currentColor" stroke="none"/></symbol>
 </defs></svg>
-<!-- build v142 · the-reply-is-written -->
+<!-- build v143 · read-the-inbox -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -1157,12 +1157,43 @@ function tierHtml(tier, items) {
 
 // No brief yet is not a broken page — it is a page with one thing left to switch on.
 function mailSetupHtml(reason) {
-  return '<div class="setup">' +
-    "<b>" + esc(reason) + "</b><br>" +
-    "Your scheduled triage is already labelling the inbox. To see the list here rather than in Gmail, add the step in <code>DAILY-SETUP.md</code> to that job — it sends the morning's list to this dashboard once it has finished labelling." +
-    '<div class="setup-links">' +
-      TIERS.map((t) => '<a class="abtn" href="' + esc(labelUrl(t.label)) + '" target="_blank" rel="noopener">' + esc(t.name) + " in Gmail</a>").join("") +
-    "</div></div>";
+  const links = '<div class="setup-links">' +
+    TIERS.map((t) => '<a class="abtn" href="' + esc(labelUrl(t.label)) + '" target="_blank" rel="noopener">' + esc(t.name) + " in Gmail</a>").join("") +
+    "</div>";
+
+  if (reason === "connect") {
+    return '<div class="setup"><b>One tap and your triaged inbox appears here.</b><br>' +
+      "Google will ask whether this dashboard may <b>read</b> your mail. Read is all it can do — it cannot send, delete, archive or change a single email or draft, and you can withdraw it at any time in your Google account." +
+      '<div class="setup-links"><button type="button" class="abtn primary" id="mailConnect">Connect Gmail</button></div></div>';
+  }
+  if (reason === "Google is not connected yet.") {
+    return '<div class="setup"><b>Google is not connected yet.</b><br>' +
+      "The calendar card above has the steps — the same connection covers both, so doing it once does both." + links + "</div>";
+  }
+  return '<div class="setup"><b>' + esc(reason) + "</b><br>" +
+    "Your scheduled triage labels each thread <code>Triage/Urgent</code>, <code>Triage/Today</code>, <code>Triage/This week</code> or <code>Triage/FYI</code>, and this card reads those labels straight from Gmail. If nothing is showing, the job may not have run yet this morning." +
+    links + "</div>";
+}
+
+/* What the card shows, in order of what is actually available:
+     1. Gmail, read live — the labels and drafts as they stand this second.
+     2. The pushed brief, if one ever arrives, merged ON TOP by thread id: it is the only
+        source of a hand-written "why this matters", so where it has one it wins.
+     3. Neither — instructions, and the four labels as links.
+   Live first, because a morning the triage did not run should show fewer labels rather
+   than an empty card. */
+function mailItems() {
+  const brief = briefState && briefState.brief;
+  const pushed = brief && Array.isArray(brief.items) ? brief.items : [];
+  if (!mailLive) return { items: pushed, source: pushed.length ? "brief" : "" };
+  if (!pushed.length) return { items: mailLive, source: "gmail" };
+  const byThread = new Map(pushed.filter((i) => i.threadId).map((i) => [i.threadId, i]));
+  const merged = mailLive.map((it) => {
+    const p = byThread.get(it.threadId);
+    if (!p) return it;
+    return { ...it, why: p.why || it.why, action: p.action || it.action, tier: p.tier || it.tier };
+  });
+  return { items: merged, source: "both" };
 }
 
 function renderMail() {
@@ -1170,13 +1201,25 @@ function renderMail() {
   if (!body) return;
   right.innerHTML = tipBtn("triage");
 
-  if (!briefState || !briefState.brief) {
+  if (mailLoading && !mailLive) {
     sub.textContent = "Your inbox, sorted this morning — hardest first.";
-    body.innerHTML = mailSetupHtml(briefState === null ? "Could not reach the store." : "No triage has been sent here yet.");
+    body.innerHTML = '<div class="loading">Reading your inbox…</div>';
     return;
   }
-  const brief = briefState.brief;
-  const items = Array.isArray(brief.items) ? brief.items : [];
+
+  const src = mailItems();
+  if (!src.items.length) {
+    sub.textContent = "Your inbox, sorted this morning — hardest first.";
+    body.innerHTML = mailSetupHtml(
+      !gcalClientId ? "Google is not connected yet."
+      : !gcalReady() ? "connect"
+      : mailError === "none" ? "Your inbox has no Triage labels on it yet."
+      : mailError ? mailError
+      : "Nothing is labelled for triage at the moment.");
+    return;
+  }
+  const brief = (briefState && briefState.brief) || null;
+  const items = src.items;
   const needing = items.filter((i) => i.tier !== "fyi").length;
 
   // What this card is FOR changed once the job started writing the replies: it is not a
@@ -1190,10 +1233,14 @@ function renderMail() {
       : needing + (needing === 1 ? " thread needs you." : " threads need you.") + " FYI is folded away.";
 
   let html = "";
-  if (!briefState.isToday) {
+  // The stale-brief warning only makes sense when the brief is the ONLY thing on show.
+  // Read live from Gmail, the card is current by definition.
+  if (src.source === "brief" && briefState && !briefState.isToday && brief) {
     html += '<div class="setup" style="margin-bottom:14px;"><b>This is ' + esc(dateWords(new Date(brief.date + "T12:00:00"))) + "'s triage.</b> Today's has not arrived yet.</div>";
   }
-  if (brief.summary) html += '<div class="mail-why" style="margin-bottom:4px;font-size:13px;">' + esc(brief.summary) + "</div>";
+  if (brief && brief.summary && src.source !== "gmail") {
+    html += '<div class="mail-why" style="margin-bottom:4px;font-size:13px;">' + esc(brief.summary) + "</div>";
+  }
 
   let any = false;
   for (const tier of TIERS) {
@@ -1211,6 +1258,12 @@ function renderMail() {
   const t = $("fyiToggle");
   if (t) t.addEventListener("click", () => { fyiOpen = !fyiOpen; renderMail(); });
 
+  const mc = $("mailConnect");
+  if (mc) mc.addEventListener("click", async () => {
+    try { await gcalAuth(false); await loadGmail(); renderMail(); renderHead(); calRefresh(); }
+    catch (e) { mailError = (e && e.message) || "Google would not sign you in."; renderMail(); }
+  });
+
   // "Open the draft" lives INSIDE the row's own link — an <a> inside an <a> is not valid
   // markup and browsers pull it apart — so it is a span that opens itself, and stops the
   // click reaching the row underneath.
@@ -1227,6 +1280,128 @@ function renderMail() {
       window.open(el.dataset.draft, "_blank", "noopener");
     });
   });
+}
+
+/* =====================================================================
+   READING THE INBOX  (v143)
+
+   Ash's scheduled triage runs on Anthropic's servers — it labels every thread
+   Triage/Urgent, Triage/Today, Triage/This week or Triage/FYI, writes the reply and saves
+   it as a draft. What it CANNOT do is post any of that to this dashboard: a scheduled
+   routine can reach your mail, and cannot reach an outside web address.
+
+   So the dashboard reads the result instead of waiting to be told about it. That turns out
+   to be the better half of the bargain anyway: there is nothing to break between the two,
+   nothing to go stale, and a morning the job did not run shows fewer labels rather than an
+   empty card.
+
+   READ ONLY. `gmail.readonly` cannot send, delete, archive, or alter one word of an email
+   or a draft. Everything on this card opens Gmail in a new tab to do anything at all.
+
+   How the labels become the page:
+     labels.list          -> the four Triage label ids
+     threads.list x4      -> the thread ids under each, newest first
+     threads.get x N      -> one call per thread gives EVERYTHING the row needs: the sender
+                             and subject off the newest real message, and the draft — which
+                             is just another message in the thread carrying the DRAFT label,
+                             with its own snippet to preview.
+   ===================================================================== */
+const GM_PER_TIER = { urgent: 10, today: 10, week: 8, fyi: 8 };
+const GM_CONCURRENCY = 8;      // Gmail counts a thread read as 10 quota units; this stays well under
+
+let mailLive = null;      // items read from Gmail, or null
+let mailError = "";
+let mailLoading = false;
+
+// Run jobs a few at a time. All at once trips Gmail's per-second quota on a busy inbox and
+// the whole card fails for the sake of finishing a second earlier.
+async function inChunks(items, size, fn) {
+  const out = [];
+  for (let i = 0; i < items.length; i += size) {
+    const part = await Promise.all(items.slice(i, i + size).map(fn));
+    out.push(...part);
+  }
+  return out;
+}
+
+const gmHeader = (msg, name) => {
+  const hs = (msg.payload && msg.payload.headers) || [];
+  const h = hs.find((x) => String(x.name).toLowerCase() === name);
+  return h ? String(h.value) : "";
+};
+// "Karen Whitfield <karen@co.uk>" is a name; "karen@co.uk" is the best we can do.
+function gmSender(raw) {
+  const m = /^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/.exec(raw || "");
+  if (m && m[1].trim()) return m[1].trim();
+  if (m) return m[2].trim();
+  return (raw || "").trim();
+}
+
+// One thread -> one row on the card. The newest message that is NOT a draft is the email;
+// a message carrying the DRAFT label is the reply already waiting to be sent.
+function gmThreadToItem(thread, tier) {
+  const msgs = (thread.messages || []).filter(Boolean);
+  if (!msgs.length) return null;
+  const isDraft = (m) => (m.labelIds || []).includes("DRAFT");
+  const real = msgs.filter((m) => !isDraft(m));
+  const last = real[real.length - 1] || msgs[msgs.length - 1];
+  const draft = msgs.filter(isDraft).pop() || null;
+
+  const dateMs = Number(last.internalDate);
+  return {
+    tier,
+    from: gmSender(gmHeader(last, "from")),
+    subject: gmHeader(last, "subject"),
+    // No AI reasoning is available from Gmail alone, so the email's own opening stands in.
+    // Where a pushed brief exists it overwrites this with the better line — see renderMail.
+    why: String(last.snippet || "").replace(/\s+/g, " ").trim(),
+    action: draft ? "Send the reply" : "",
+    threadId: thread.id,
+    receivedAt: isFinite(dateMs) ? new Date(dateMs).toISOString() : "",
+    draftId: draft ? draft.id : "",
+    draftPreview: draft ? String(draft.snippet || "").replace(/\s+/g, " ").trim() : "",
+  };
+}
+
+async function loadGmail() {
+  mailLoading = true;
+  mailError = "";
+  try {
+    const labels = await gmailGet("labels");
+    const byName = new Map((labels.labels || []).map((l) => [String(l.name), l.id]));
+    const missing = TIERS.filter((t) => !byName.has(t.label));
+    if (missing.length === TIERS.length) {
+      mailError = "none";      // the triage has never run here — a different message entirely
+      return;
+    }
+
+    // The thread ids under each tier, in parallel: four small calls.
+    const lists = await Promise.all(TIERS.map((t) => {
+      const id = byName.get(t.label);
+      if (!id) return Promise.resolve({ tier: t, ids: [] });
+      return gmailGet("threads?labelIds=" + encodeURIComponent(id) +
+        "&maxResults=" + GM_PER_TIER[t.id])
+        .then((r) => ({ tier: t, ids: (r.threads || []).map((x) => x.id) }))
+        .catch(() => ({ tier: t, ids: [] }));
+    }));
+
+    // Then one read per thread, a few at a time. Settled per thread: one awkward thread
+    // costs its own row and nothing else.
+    const jobs = [];
+    for (const { tier, ids } of lists) for (const id of ids) jobs.push({ tier, id });
+    const rows = await inChunks(jobs, GM_CONCURRENCY, async (j) => {
+      try {
+        const th = await gmailGet("threads/" + encodeURIComponent(j.id) +
+          "?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date");
+        return gmThreadToItem(th, j.tier.id);
+      } catch { return null; }
+    });
+    mailLive = rows.filter(Boolean);
+  } catch (e) {
+    mailError = (e && e.message) || "Could not read Gmail.";
+  } finally {
+    mailLoading = false;
+  }
 }
 
 /* ---------- money ---------- */
@@ -1389,11 +1564,18 @@ function renderHead() {
   const today = new Date();
   $("dayDate").textContent = dateWords(today);
   const bits = [];
-  if (briefState && briefState.brief && briefState.brief.generatedAt) {
-    const fresh = briefState.isToday;
+  if (mailLive) {
+    // Read live, so the only honest thing to report is how many are labelled right now.
+    const n = mailLive.length;
+    const drafted = mailLive.filter((i) => i.draftId).length;
+    bits.push('<svg class="ic"><use href="#ic-mail"/></svg>Inbox read <b>just now</b> · ' +
+      n + " triaged" + (drafted ? ", <b>" + drafted + "</b> drafted" : ""));
+  } else if (briefState && briefState.brief && briefState.brief.generatedAt) {
     bits.push('<svg class="ic"><use href="#ic-mail"/></svg>Triage ran <b>' +
       esc(ago(briefState.brief.generatedAt)) + "</b>" +
-      (fresh ? "" : ' <span class="stale">(not yet today)</span>'));
+      (briefState.isToday ? "" : ' <span class="stale">(not yet today)</span>'));
+  } else if (gcalClientId && !gcalReady()) {
+    bits.push('<svg class="ic"><use href="#ic-mail"/></svg><span class="stale">Gmail not connected</span>');
   } else {
     bits.push('<svg class="ic"><use href="#ic-mail"/></svg><span class="stale">No triage yet</span>');
   }
@@ -1421,8 +1603,15 @@ function renderHead() {
    actually guard it. The token is kept in this browser and renewed quietly when it lapses.
    ===================================================================== */
 const GCAL_BASE = "https://www.googleapis.com/calendar/v3/";
-const GCAL_SCOPE = "https://www.googleapis.com/auth/calendar.events";
-const GCAL_STORE_KEY = "bodysculpt:gcal";   // { token, expires } — this browser only
+/* v143: ONE Google sign-in, two things read.
+   `calendar.events` lets the week strip read and the New event sheet write.
+   `gmail.readonly` lets the mail card read the Triage labels and the drafts the scheduled
+   job has already written — READ ONLY, so this page can never send, delete, archive or
+   alter a single email. Both are asked for together, once. */
+const GCAL_SCOPE = "https://www.googleapis.com/auth/calendar.events" +
+  " https://www.googleapis.com/auth/gmail.readonly";
+const GCAL_STORE_KEY = "bodysculpt:gcal";   // { token, expires, scope } — this browser only
+const GMAIL_BASE = "https://gmail.googleapis.com/gmail/v1/users/me/";
 const CAL_MAX_CHIPS = 4;                    // per day, before "+2 more"
 
 let gcalClientId = "";
@@ -1439,13 +1628,19 @@ function gcalLoadToken() {
     const raw = localStorage.getItem(GCAL_STORE_KEY);
     if (!raw) return null;
     const t = JSON.parse(raw);
+    // A token granted before Gmail was asked for cannot read Gmail. Rather than let the
+    // mail card fail with a 403 nobody can interpret, a token that does not cover
+    // everything now needed is treated as no token: one more consent screen, then done.
+    if (t && t.scope && !GCAL_SCOPE.split(" ").every((sc) => String(t.scope).includes(sc))) return null;
+    if (t && !t.scope) return null;                      // pre-v143, scope unknown — start again
     // a minute of slack, so a request cannot set off with a token that expires mid-flight
     if (t && t.token && t.expires && t.expires - 60000 > Date.now()) return t;
   } catch { /* a browser that refuses storage just means signing in again */ }
   return null;
 }
-function gcalSaveToken(token, expiresIn) {
-  gcalToken = { token, expires: Date.now() + (Number(expiresIn) || 3600) * 1000 };
+function gcalSaveToken(token, expiresIn, scope) {
+  gcalToken = { token, expires: Date.now() + (Number(expiresIn) || 3600) * 1000,
+    scope: scope || GCAL_SCOPE };
   try { localStorage.setItem(GCAL_STORE_KEY, JSON.stringify(gcalToken)); } catch {}
 }
 function gcalForget() {
@@ -1470,7 +1665,7 @@ function gcalAuth(silent) {
     }
     gcalClient.callback = (resp) => {
       if (resp && resp.access_token) {
-        gcalSaveToken(resp.access_token, resp.expires_in);
+        gcalSaveToken(resp.access_token, resp.expires_in, resp.scope);
         resolve(gcalToken);
       } else {
         reject(new Error((resp && resp.error_description) || "Google did not grant access."));
@@ -1505,6 +1700,23 @@ async function gcalFetch(path, options) {
   if (!res.ok) throw new Error(await gcalMessage(res));
   return await res.json();
 }
+/* Gmail, read only. This function passes fetch a URL and headers and NOTHING else — there
+   is no options object it could grow a method on, which is the same guarantee jget(url)
+   gives the Bodysculpt store. */
+async function gmailGet(path) {
+  if (!gcalReady()) await gcalAuth(true);
+  const res = await fetch(GMAIL_BASE + path, { headers: { Authorization: "Bearer " + gcalToken.token } });
+  if (res.status === 401) {
+    gcalForget();
+    await gcalAuth(true);
+    const again = await fetch(GMAIL_BASE + path, { headers: { Authorization: "Bearer " + gcalToken.token } });
+    if (!again.ok) throw new Error(await gcalMessage(again));
+    return await again.json();
+  }
+  if (!res.ok) throw new Error(await gcalMessage(res));
+  return await res.json();
+}
+
 async function gcalMessage(res) {
   try {
     const b = await res.json();
@@ -1884,12 +2096,22 @@ async function loadAll() {
   renderToday();
   if (btn) btn.disabled = false;
 
-  // The calendar goes last and on its own: it is a different service with a different
-  // sign-in, and a Google outage must not hold up the three cards above it.
+  // The calendar and the inbox go last and on their own: they are a different service with
+  // a different sign-in, and a Google outage must not hold up the cards above them. They
+  // share one token, so neither waits on the other for anything but that.
   calRefresh();
+  if (gcalClientId && gcalReady()) {
+    mailLoading = true;
+    renderMail();
+    await loadGmail();
+    renderMail();
+    renderHead();
+  } else {
+    renderMail();
+  }
 }
 
-$("btnRefresh").addEventListener("click", loadAll);
+$("btnRefresh").addEventListener("click", () => { mailLive = null; loadAll(); });
 loadAll();
 
 /* Test harness hook: read-only views of what the page decided, so a test can assert the
@@ -1899,6 +2121,7 @@ window.__dayState = {
   get stripe() { return stripeState; },
   get checkin() { return checkinState; },
   get tiers() { return TIERS.map((t) => t.id); },
+  get mail() { return { live: mailLive, error: mailError, source: mailItems().source }; },
   get calendar() { return { clientId: gcalClientId, connected: gcalReady(), offset: calWeekOffset, events: calEvents, error: calError }; },
 };
 </script>

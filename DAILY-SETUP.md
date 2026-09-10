@@ -43,84 +43,66 @@ If the key is missing the card says so and tells you these steps. It never shows
 
 ## 2. Email — the hierarchy of importance
 
-Your scheduled triage already does the hard part: it reads the inbox, labels every thread
-with one of four labels, **writes the reply and saves it as a draft**. So the card is not a
-list of work — it is a list of decisions. Read it, and send it.
+**Nothing to add to your scheduled job.** It carries on exactly as it is.
 
-| Label | Tier on the dashboard |
+Your triage runs on Anthropic's servers, so it works with the laptop shut. What it cannot
+do is send anything to an outside web address — a routine can reach your mail and nothing
+else. So the dashboard reads the result instead of waiting to be told about it.
+
+That is the better half of the bargain anyway: there is nothing between the two to break,
+nothing to go stale, and a morning the job did not run shows fewer labels rather than an
+empty card.
+
+| Label your job applies | Tier on the dashboard |
 |---|---|
 | `Triage/Urgent` | Urgent — before anything else |
 | `Triage/Today` | Today — before the day is out |
 | `Triage/This week` | This week |
 | `Triage/FYI` | FYI — folded away as a count |
 
-The dashboard cannot read Gmail itself (it is a static page and has no business holding
-your mail credentials). So the triage job sends it the list once it has finished labelling.
+Wherever your job has saved a draft reply, the dashboard finds it in the thread, shows the
+first lines of it, and links straight to Gmail's composer.
 
-**Add this to the end of your existing scheduled triage job's instructions:**
+### Switching it on
 
-> Once you have finished labelling, send the morning's list to the Daily Dashboard.
-> Build a JSON object of this exact shape:
->
-> ```json
-> {
->   "dailyBrief": {
->     "date": "YYYY-MM-DD",
->     "summary": "One sentence on what the morning looks like.",
->     "items": [
->       {
->         "tier": "urgent",
->         "from": "Who it is from",
->         "subject": "The subject line",
->         "why": "One short line on why it matters",
->         "action": "Send the reply",
->         "threadId": "the Gmail thread id",
->         "receivedAt": "2026-09-10T06:40:00Z",
->         "draftId": "the id of the draft you saved, if you saved one",
->         "draftPreview": "The first line or two of the reply you wrote."
->       }
->     ]
->   }
-> }
-> ```
->
-> `tier` must be exactly one of `urgent`, `today`, `week`, `fyi` — matching the
-> `Triage/Urgent`, `Triage/Today`, `Triage/This week` and `Triage/FYI` labels you just
-> applied. Anything else is dropped. `action` is two or three words: "Send the reply",
-> "Pay this", "Ring them", "Read later". Include every labelled thread, FYI ones too.
->
-> **Wherever you have drafted and saved a reply, send it across with the item.**
-> `draftId` is the draft's message id — `draft.message.id` from the Gmail API, not the
-> draft id itself — and `draftPreview` is the first line or two of what you wrote, plain
-> text, no greeting needed. The dashboard shows the preview under the email and links
-> straight to the composer, so a reply can be judged and sent without opening five tabs to
-> find out what it says. Leave both out for anything you did not draft.
->
-> Then POST it to:
->
-> ```
-> https://<your-netlify-site>/.netlify/functions/kpi-store
-> ```
->
-> with `Content-Type: application/json`. A 200 back means it landed.
+It rides on the **same Google connection as the calendar** — one sign-in covers both.
 
-If that job cannot make HTTP calls, the same thing works as a separate scheduled Claude
-Code routine in this repo — one that reads the four labels and sends the same payload.
+1. In the Google Cloud console, with your `Bodysculpt Dashboard` project selected, search
+   for **Gmail API** and click **Enable**. (Same as you did for the Calendar API.)
+2. Open the Daily Dashboard and press **Connect Gmail** on the email card. Google will ask
+   once more, because it is a new permission.
+3. That is it.
 
-### What the store does with it
+If you already connected the calendar, you will be asked to sign in again the first time.
+That is expected — the old permission covered the calendar only, so it is replaced with one
+covering both.
 
-- One blob, `daily-briefs`, holding a map keyed by date — exactly like `daily-checkins`.
-- One date is replaced whole on each push, so a partial send cannot half-erase a morning.
-- The map is pruned to the newest **30 days**.
-- Every field is whitelisted, every string capped, unknown tiers dropped, and the list
-  truncated at **60 items**. The counts shown on the page — including how many replies are
-  drafted — are recalculated from the rows that survived, so a heading can never disagree
-  with what is under it.
-- It touches nothing but its own key.
+### What it can and cannot do
 
-### If today's brief has not arrived
+The dashboard asks for **read-only** access to Gmail. It cannot send, reply, delete,
+archive, label, or change one word of an email or a draft. Every button on the card opens
+Gmail in a new tab to do anything at all.
 
-The page falls back to the most recent one it has and says whose morning it is showing.
+You can see or withdraw it any time at **myaccount.google.com → Security → Your connections
+to third-party apps**.
+
+### If the card is empty
+
+- **"Google is not connected yet"** — do the calendar setup in `CALENDAR-SETUP.md`; the
+  same connection covers both.
+- **"Your inbox has no Triage labels on it yet"** — the job has not run since the labels
+  were set up, or it is using different label names. They must be exactly `Triage/Urgent`,
+  `Triage/Today`, `Triage/This week` and `Triage/FYI`.
+- **"Nothing is labelled for triage at the moment"** — the labels exist and nothing
+  currently carries one. A genuinely clear inbox looks like this.
+
+### The optional extra
+
+If you ever move the triage somewhere that CAN make a web request, it can also push a brief
+to `POST /.netlify/functions/kpi-store` with `{ "dailyBrief": { … } }`. The dashboard merges
+it on top of what it reads live, matching on thread id — the only thing it adds is the
+hand-written "why this matters" line under each email, which Gmail alone cannot supply.
+Everything still works without it.
 
 ---
 

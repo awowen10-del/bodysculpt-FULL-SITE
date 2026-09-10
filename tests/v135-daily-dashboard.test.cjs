@@ -83,8 +83,8 @@ async function loadStripe(env, responder) {
   // relaxed once v136 shipped: the newest release's test pins the exact stamp, this one
   // only checks the build never goes backwards and that the pages still agree on it.
   const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(MONTHLY);
-  assert.strictEqual(stamp[1], "142", "monthly.html is stamped v142");
-  assert.strictEqual(stamp[2], "the-reply-is-written", "…as the release that put the drafts on the card");
+  assert.strictEqual(stamp[1], "143", "monthly.html is stamped v143");
+  assert.strictEqual(stamp[2], "read-the-inbox", "…as the release that stopped waiting to be told");
   const text = "build v" + stamp[1] + " · " + stamp[2];
   for (const f of ["index.html", "finances.html", "daily.html"]) {
     assert.ok(read(f).includes(text), f + " carries the same stamp");
@@ -107,6 +107,47 @@ async function loadStripe(env, responder) {
   assert.ok(/jget\(STRIPE_FEED\)/.test(js), "it reads the Stripe feed");
   // one feed being down must not blank the other two
   assert.ok(/Promise\.allSettled\(/.test(js), "the three reads are settled, not raced — a dead feed loses one card");
+
+  /* ============ 1b. v143: THE CARD READS GMAIL ITSELF ============
+     Ash's triage is a claude.ai routine. It runs on Anthropic's servers — laptop shut,
+     Chrome closed, it still runs — but a routine can reach his mail and CANNOT reach an
+     outside web address, so the push this file was built around was never going to happen.
+     The dashboard reads the labels instead of waiting to be told about them, which is the
+     better half of the bargain anyway: nothing between the two to break, nothing to go
+     stale, and a morning the job did not run shows fewer labels rather than an empty card. */
+  assert.ok(/gmail\.readonly/.test(js), "the page asks for Gmail READ access");
+  assert.ok(!/gmail\.modify|gmail\.send|mail\.google\.com\/"/.test(js),
+    "…and nothing wider — it cannot send, delete or alter one word");
+  // the read path takes no options, exactly like the store's
+  assert.ok(/async function gmailGet\(path\) \{[\s\S]{0,200}?fetch\(GMAIL_BASE \+ path, \{ headers: \{ Authorization/.test(js),
+    "Gmail is read through one function that passes a url and headers and nothing else");
+  assert.ok(/const GMAIL_BASE = "https:\/\/gmail\.googleapis\.com\/gmail\/v1\/users\/me\/";/.test(js),
+    "…against a fixed Google address");
+  // one token covers both, and a token granted before Gmail was asked for is not reused
+  assert.ok(/GCAL_SCOPE\.split\(" "\)\.every\(/.test(js),
+    "a stored token that does not cover every scope now needed is discarded, not used and failed with");
+  assert.ok(/if \(t && !t\.scope\) return null;/.test(js), "…as is one saved before scopes were recorded");
+
+  // the labels ARE the tiers, and one thread read gives the row everything
+  assert.ok(/gmailGet\("labels"\)/.test(js), "it looks the Triage label ids up by name");
+  assert.ok(/gmailGet\("threads\?labelIds="/.test(js), "…lists the threads under each");
+  assert.ok(/format=metadata&metadataHeaders=From&metadataHeaders=Subject/.test(js),
+    "…and reads only the headers it needs, not whole messages");
+  assert.ok(/\(m\.labelIds \|\| \[\]\)\.includes\("DRAFT"\)/.test(js),
+    "the saved reply is found as the DRAFT-labelled message in the thread");
+  assert.ok(/draftPreview: draft \? String\(draft\.snippet/.test(js),
+    "…and previewed from its own snippet, so no message body is ever fetched");
+  // quota: a busy inbox must not take the card down
+  assert.ok(/async function inChunks\(/.test(js) && /GM_CONCURRENCY/.test(js),
+    "thread reads are chunked, so a busy inbox does not trip Gmail's per-second quota");
+  assert.ok(/catch \{ return null; \}/.test(js), "…and one awkward thread costs its own row only");
+
+  // live wins, but a pushed brief still enriches it — the "why" only ever comes from the job
+  assert.ok(/function mailItems\(\)/.test(js), "the two sources are reconciled in one place");
+  assert.ok(/why: p\.why \|\| it\.why/.test(js),
+    "a pushed brief's hand-written reason wins over the email's own opening line");
+  assert.ok(/if \(!mailLive\) return \{ items: pushed/.test(js),
+    "…and the brief alone still works if Gmail is not connected");
 
   /* ================= 2. the page's shape ================= */
   assert.ok(/<title>Bodysculpt Daily<\/title>/.test(DAILY), "daily.html has its own title");
