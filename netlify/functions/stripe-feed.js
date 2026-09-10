@@ -29,6 +29,7 @@
 const STRIPE_API = "https://api.stripe.com/v1";
 const FAILED_WINDOW_DAYS = 14;   // how far back a failed one-off charge is still news
 const PAGE_LIMIT = 50;           // per Stripe list call; a gym will never approach this
+const CHARGE_PAGES = 3;          // up to 300 charges in the window — see listCharges()
 
 /* ---------- talking to Stripe ---------- */
 // Stripe's API is form-encoded and takes repeated keys for arrays (expand[]), so the
@@ -116,6 +117,27 @@ function shapeCharge(ch) {
   };
 }
 
+
+/* One fortnight of charges, all of it. v138: this used to be a single page of 100. A gym
+   billing a few hundred memberships puts more than that through a fortnight, and the
+   cross-check below can only clear a failure it can see the payment for — so a short list
+   does not merely lose rows, it leaves failures on screen that were in fact paid. Newest
+   first, so the pages walk backwards through the window. */
+async function listCharges(key, since) {
+  const out = [];
+  let after = "";
+  for (let page = 0; page < CHARGE_PAGES; page++) {
+    const params = [["limit", 100], ["created[gte]", since], ["expand[]", "data.invoice"]];
+    if (after) params.push(["starting_after", after]);
+    const r = await stripeGet(key, "/charges", params);
+    const rows = r.data || [];
+    out.push(...rows);
+    if (!r.has_more || !rows.length) break;
+    after = rows[rows.length - 1].id;
+  }
+  return { data: out };
+}
+
 export default async (req) => {
   if (req.method !== "GET") return new Response("Method not allowed", { status: 405 });
 
@@ -155,11 +177,7 @@ export default async (req) => {
       // The INVOICE is expanded with them, because for anything on a membership the invoice
       // — not the charge — is the thing that says whether the money ever arrived. See
       // settledReason() below.
-      stripeGet(key, "/charges", [
-        ["limit", 100],
-        ["created[gte]", since],
-        ["expand[]", "data.invoice"],
-      ]),
+      listCharges(key, since),
     ]);
 
     // Only disputes that are still yours to answer. Won/lost/warning_closed are history,
@@ -175,61 +193,121 @@ export default async (req) => {
       .sort((a, b) => (a.since < b.since ? -1 : 1));
 
     /* ---------- which failures still need him? ----------
-       v137. A failed charge is NOT the same thing as money you are still owed. A card
-       bounces on the Tuesday, Stripe retries on the Thursday, the money lands — and the
-       Tuesday failure sits in the API forever. Showing those is worse than showing
-       nothing: a page that cries wolf stops being read, and then the one that matters
-       gets missed too.
+       v137 built this. v138 rebuilt it, because Ash found it wrong: "Jen Lawton's payment
+       is showing as insufficient funds, that was last pulled through on the 6th, but full
+       payment was then made on the 8th."
 
-       So every failure is checked against what happened afterwards, cheapest and most
-       reliable test first. All of this runs on data already fetched — no extra calls. */
+       Three faults, and the first was the bad one:
+
+       · THE INVOICE TEST SHORT-CIRCUITED. If a failure had an invoice and that invoice was
+         still open, the function returned there and never ran the other three tests. An
+         open invoice is EVIDENCE that money is owed, not proof — pay the same money any
+         other way (a fresh card payment, a link, in person) and the original invoice can
+         sit open for good while the debt is long settled. Evidence must narrow the search,
+         never end it. Now every test runs and the first one to clear it wins.
+       · IDENTITY WAS THE CUSTOMER ID ALONE. A payment taken through a link, a fresh
+         checkout or the card machine may carry no customer, or a different one. Now a
+         person is matched on customer id, then email, then the card's own fingerprint —
+         the same card is the same person whatever record Stripe filed it under.
+       · THE AMOUNT HAD TO MATCH EXACTLY. I chose that deliberately and argued for it, and
+         it is too strict for how people actually pay: they settle a bounced payment along
+         with something else, or with a catch-up that covers more. A LATER payment of AT
+         LEAST the failed amount, from the same person, now clears it — with a different
+         reason recorded, so an over-eager clearance is visible rather than silent.
+
+       Every test runs on data already fetched. Each surviving failure carries `why` — what
+       is keeping it on screen — so the next time this is wrong it says so itself instead of
+       waiting to be noticed. */
     const all = charges.data || [];
     const succeeded = all.filter((c) => c.status === "succeeded");
+    const RETRY_WINDOW = 10 * 86400;   // how long after a failure a payment still reads as settling it
+
+    // Every way one person can be recognised across two charge records, best first.
+    function whoIs(ch) {
+      const keys = [];
+      const cust = typeof ch.customer === "string" ? ch.customer : (ch.customer && ch.customer.id);
+      if (cust) keys.push("c:" + cust);
+      const bd = ch.billing_details || {};
+      const email = (bd.email || ch.receipt_email || "").trim().toLowerCase();
+      if (email) keys.push("e:" + email);
+      const card = ch.payment_method_details && ch.payment_method_details.card;
+      if (card && card.fingerprint) keys.push("f:" + card.fingerprint);
+      return keys;
+    }
+
     // A PaymentIntent can hold several attempts. If any attempt on it succeeded, it is paid.
     const paidIntents = new Set(succeeded.map((c) => c.payment_intent).filter(Boolean));
-    // Everything a customer successfully paid inside the window, for the one-off backstop.
-    const paidByCustomer = new Map();
+    // Successful payments indexed under every identity they can be reached by.
+    const paidBy = new Map();
     for (const c of succeeded) {
-      const cust = typeof c.customer === "string" ? c.customer : (c.customer && c.customer.id);
-      if (!cust) continue;
-      if (!paidByCustomer.has(cust)) paidByCustomer.set(cust, []);
-      paidByCustomer.get(cust).push(c);
+      for (const k of whoIs(c)) {
+        if (!paidBy.has(k)) paidBy.set(k, []);
+        paidBy.get(k).push(c);
+      }
     }
     // A membership already listed as "stopped paying" says everything this row would.
-    const pastDueCustomers = new Set([...(pastDue.data || []), ...(unpaid.data || [])]
-      .map((sub) => (typeof sub.customer === "string" ? sub.customer : (sub.customer && sub.customer.id)))
-      .filter(Boolean));
-    const RETRY_WINDOW = 7 * 86400;   // seconds after a failure in which a payment reads as the retry
+    const pastDueKeys = new Set();
+    for (const sub of [...(pastDue.data || []), ...(unpaid.data || [])]) {
+      const c = sub.customer;
+      const id = typeof c === "string" ? c : (c && c.id);
+      if (id) pastDueKeys.add("c:" + id);
+      const email = (c && typeof c === "object" && c.email || "").trim().toLowerCase();
+      if (email) pastDueKeys.add("e:" + email);
+    }
+
+    // Everything this person successfully paid AFTER this failure, inside the window.
+    function paymentsAfter(ch) {
+      const seen = new Set(), out = [];
+      for (const k of whoIs(ch)) {
+        for (const p of paidBy.get(k) || []) {
+          if (seen.has(p.id)) continue;
+          if (p.created <= ch.created || p.created - ch.created > RETRY_WINDOW) continue;
+          seen.add(p.id);
+          out.push(p);
+        }
+      }
+      return out;
+    }
 
     // Returns a short reason when the failure has been dealt with, or "" when it still needs him.
     function settledReason(ch) {
-      // 1. THE INVOICE IS THE TRUTH. For anything on a membership the invoice is what
-      //    Stripe is trying to collect; the charges under it are just attempts. Paid means
-      //    paid, however many attempts it took. Void means it was cancelled, so there is
-      //    nothing to chase either.
+      // 1. THE INVOICE, when there is one and it has an answer. Paid means paid, however
+      //    many attempts it took; void means it was cancelled, so there is nothing to chase.
+      //    Anything else falls THROUGH to the tests below — it is not the last word.
       const inv = ch.invoice && typeof ch.invoice === "object" ? ch.invoice : null;
       if (inv) {
-        if (inv.status === "paid") return "the invoice was paid";
+        if (inv.status === "paid" || inv.amount_remaining === 0) return "the invoice was paid";
         if (inv.status === "void") return "the invoice was cancelled";
-        return "";     // open, draft or uncollectible — still outstanding, still his problem
       }
       // 2. Same PaymentIntent, later attempt succeeded.
       if (ch.payment_intent && paidIntents.has(ch.payment_intent)) return "it went through on a retry";
-      // 3. THE BACKSTOP, for one-off payments with no invoice behind them: the same
-      //    customer paid the SAME amount within a week afterwards. Exact amount on purpose
-      //    — a different figure is a different transaction, and a false all-clear on money
-      //    you are owed is the one mistake this must not make.
-      const cust = typeof ch.customer === "string" ? ch.customer : (ch.customer && ch.customer.id);
-      if (cust) {
-        const paid = paidByCustomer.get(cust) || [];
-        if (paid.some((p) => p.amount === ch.amount && p.created > ch.created && p.created - ch.created <= RETRY_WINDOW)) {
-          return "they paid it again";
-        }
-        // 4. Already on the "stopped paying" list above. Still owed, but saying it twice
-        //    turns one problem into two.
-        if (pastDueCustomers.has(cust)) return "shown under Stopped paying";
-      }
+      // 3. They paid afterwards. Exact first, because it is the confident one and worth
+      //    saying differently; then at least as much, which covers a catch-up or a payment
+      //    that settled this along with something else.
+      const after = paymentsAfter(ch);
+      if (after.some((p) => p.amount === ch.amount)) return "they paid it again";
+      if (after.some((p) => p.amount >= ch.amount)) return "they paid at least that much afterwards";
+      // 4. Already on the "stopped paying" list above. Still owed, but saying it twice
+      //    turns one problem into two.
+      if (whoIs(ch).some((k) => pastDueKeys.has(k))) return "shown under Stopped paying";
       return "";
+    }
+
+    // Why a failure is STILL on screen. Said out loud on the row, so a wrong call announces
+    // itself rather than waiting to be spotted.
+    function whyStillHere(ch) {
+      const inv = ch.invoice && typeof ch.invoice === "object" ? ch.invoice : null;
+      const after = paymentsAfter(ch);
+      if (after.length) {
+        return "They have paid since, but less than this — nothing covering it in full.";
+      }
+      if (inv && (inv.status === "open" || inv.status === "draft")) {
+        return "The invoice behind this is still open in Stripe.";
+      }
+      if (inv && inv.status === "uncollectible") {
+        return "Stripe has given up collecting this one.";
+      }
+      return "Nothing has come in from them since.";
     }
 
     const failedAll = all.filter((ch) => ch.status === "failed");
@@ -237,7 +315,7 @@ export default async (req) => {
     for (const ch of failedAll) (settledReason(ch) ? settled : stillOwed).push(ch);
 
     const failedRows = stillOwed
-      .map(shapeCharge)
+      .map((ch) => ({ ...shapeCharge(ch), why: whyStillHere(ch) }))
       .sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1));
 
     const sum = (rows) => rows.reduce((t, r) => t + r.amount, 0);

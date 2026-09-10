@@ -1,4 +1,4 @@
-// v137 — a failed payment is not the same thing as money you are owed.
+// v137/v138 — a failed payment is not the same thing as money you are owed.
 //
 // Ash, the morning after the Stripe key went in: "it's showing failed payments that have
 // actually since gone through."
@@ -22,6 +22,11 @@
 // NOT been paid. So the amount match in (3) is exact, the payment has to come after the
 // failure, and an invoice that is open, draft or uncollectible keeps the row. All four are
 // checked below, in both directions.
+//
+// v138 REBUILT THIS after Ash found it still wrong. See the block marked "the cases v137
+// got wrong" below, and the long note in the function. In short: an open invoice used to
+// END the check instead of merely failing that one test; identity was the customer id
+// alone; and the amount had to match to the penny. All three are fixed and pinned here.
 //
 // And it must not go quietly silent: the count it cleared comes back in the payload so the
 // page can say what it took off. A card that drops rows without saying so is a card you
@@ -95,9 +100,9 @@ const sub = (id, customer, status) => ({
   /* ================= 0. the stamp ================= */
   const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(read("monthly.html"));
   assert.ok(stamp, "monthly.html carries a build stamp");
-  assert.strictEqual(stamp[1], "137", "monthly.html is stamped v137");
-  assert.strictEqual(stamp[2], "still-unpaid", "…as the still-unpaid release");
-  const text = "build v137 · still-unpaid";
+  assert.strictEqual(stamp[1], "138", "monthly.html is stamped v138");
+  assert.strictEqual(stamp[2], "jen-lawton", "…as the release named after the row that was wrong");
+  const text = "build v138 · jen-lawton";
   for (const f of ["index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the same stamp");
   }
@@ -123,10 +128,11 @@ const sub = (id, customer, status) => ({
   assert.strictEqual(out.body.totals.count, 0, "nothing needs him");
 
   /* ================= 3. …and the opposite, which must NOT be cleared ================= */
+  // An unanswered invoice and no payment since: this is money he is owed, and it stays.
   for (const status of ["open", "draft", "uncollectible"]) {
     out = await run({ charges: [failed("ch_x", { customer: "cus_2", invoice: { id: "in_2", status } }) ] });
     assert.strictEqual(out.body.failed.length, 1,
-      "an invoice that is " + status + " is money still owed and STAYS on the list");
+      "an invoice that is " + status + " with nothing paid since STAYS on the list");
     assert.strictEqual(out.body.resolved.count, 0, "…and is not counted as cleared");
   }
   // void means it was cancelled, so there is nothing to chase either
@@ -153,13 +159,15 @@ const sub = (id, customer, status) => ({
   assert.strictEqual(out.body.failed.length, 0, "same customer, same amount, afterwards -> cleared");
   assert.deepStrictEqual(out.body.resolved.reasons, ["they paid it again"], "…for that reason");
 
-  // a DIFFERENT amount is a different transaction, and must not clear it
+  // A SMALLER payment does not clear it — that is them paying for something else, or
+  // paying part of it. (A BIGGER one does, as of v138: see 6b(c). v137 required the amount
+  // to match to the penny, which was too strict for how people actually settle up.)
   out = await run({
-    charges: [failed("ch_e", { customer: "cus_5", daysAgo: 5, amount: 3500 }),
-              paid("ch_f", { customer: "cus_5", daysAgo: 3, amount: 9900 })],
+    charges: [failed("ch_e", { customer: "cus_5", daysAgo: 5, amount: 9900 }),
+              paid("ch_f", { customer: "cus_5", daysAgo: 3, amount: 3500 })],
   });
   assert.strictEqual(out.body.failed.length, 1,
-    "a different amount does not clear a failure — that is somebody buying something else");
+    "a smaller payment does not clear a failure — nothing covering it in full");
 
   // a payment BEFORE the failure proves nothing
   out = await run({
@@ -192,6 +200,131 @@ const sub = (id, customer, status) => ({
   assert.deepStrictEqual(out.body.resolved.reasons, ["shown under Stopped paying"], "…and says where it went");
   assert.strictEqual(out.body.totals.count, 1, "one problem is counted once");
 
+  /* ============ 6b. THE CASES v137 GOT WRONG (v138) ============
+     Ash: "Jen Lawton's payment is showing as insufficient funds, that was last pulled
+     through on the 6th, but full payment was then made on the 8th."
+
+     Three separate faults could each produce that row on their own, so each is pinned on
+     its own below. The first is the one that mattered: an open invoice ENDED the check. */
+
+  // (a) THE SHORT-CIRCUIT. An invoice still open, and she paid two days later by some other
+  //     route. v137 returned at the invoice and never looked. It is evidence, not proof.
+  out = await run({
+    charges: [
+      failed("ch_jen", { customer: "cus_jen", name: "Jen Lawton", daysAgo: 4, amount: 4900,
+        invoice: { id: "in_jen", status: "open", amount_remaining: 4900 } }),
+      paid("ch_jen_paid", { customer: "cus_jen", name: "Jen Lawton", daysAgo: 2, amount: 4900 }),
+    ],
+  });
+  assert.strictEqual(out.body.failed.length, 0,
+    "an OPEN invoice no longer ends the check — she paid, so the row goes");
+  assert.deepStrictEqual(out.body.resolved.reasons, ["they paid it again"], "…cleared by the payment, not the invoice");
+
+  // …and the same shape with NOTHING paid since still stands, so the fall-through has not
+  // simply turned the invoice test off.
+  out = await run({
+    charges: [failed("ch_jen2", { customer: "cus_jen", daysAgo: 4, invoice: { id: "in_j2", status: "open", amount_remaining: 4900 } })],
+  });
+  assert.strictEqual(out.body.failed.length, 1, "an open invoice with no payment since still stands");
+  assert.strictEqual(out.body.failed[0].why, "The invoice behind this is still open in Stripe.",
+    "…and the row says what is keeping it there");
+
+  // an invoice marked paid only by amount_remaining:0 counts as paid
+  out = await run({ charges: [failed("ch_ar", { customer: "cus_ar", invoice: { id: "in_ar", status: "open", amount_remaining: 0 } })] });
+  assert.strictEqual(out.body.failed.length, 0, "nothing left to collect on the invoice is paid, whatever the label says");
+
+  // (b) IDENTITY. A payment taken through a link or the card machine may carry no customer
+  //     at all, or a different one. The same email, or the same card, is the same person.
+  out = await run({
+    charges: [
+      failed("ch_e1", { customer: "cus_e", daysAgo: 4, amount: 3500 }),
+      { id: "ch_e2", status: "succeeded", amount: 3500, currency: "gbp", created: NOW - 2 * DAY,
+        billing_details: { name: "A Member", email: "A.Member@Example.com" } },
+    ],
+  });
+  assert.strictEqual(out.body.failed.length, 1, "with no shared identity there is nothing to match on");
+  out = await run({
+    charges: [
+      { ...failed("ch_e3", { daysAgo: 4, amount: 3500 }), customer: undefined,
+        billing_details: { name: "A Member", email: "a.member@example.com" } },
+      { id: "ch_e4", status: "succeeded", amount: 3500, currency: "gbp", created: NOW - 2 * DAY,
+        billing_details: { name: "A Member", email: "A.Member@Example.com" } },
+    ],
+  });
+  assert.strictEqual(out.body.failed.length, 0, "the same email is the same person, whatever the case");
+  out = await run({
+    charges: [
+      { ...failed("ch_f1", { daysAgo: 4, amount: 3500 }), customer: undefined, billing_details: {},
+        payment_method_details: { card: { fingerprint: "fp_same" } } },
+      { id: "ch_f2", status: "succeeded", amount: 3500, currency: "gbp", created: NOW - 2 * DAY,
+        billing_details: {}, payment_method_details: { card: { fingerprint: "fp_same" } } },
+    ],
+  });
+  assert.strictEqual(out.body.failed.length, 0, "the same card is the same person, with no customer record at all");
+
+  // (c) THE AMOUNT. Paying MORE than the failure, afterwards, settles it — people pay a
+  //     bounced amount along with something else all the time.
+  out = await run({
+    charges: [failed("ch_m1", { customer: "cus_m", daysAgo: 4, amount: 3500 }),
+              paid("ch_m2", { customer: "cus_m", daysAgo: 2, amount: 9900 })],
+  });
+  assert.strictEqual(out.body.failed.length, 0, "a bigger payment afterwards covers it");
+  assert.deepStrictEqual(out.body.resolved.reasons, ["they paid at least that much afterwards"],
+    "…recorded as the less certain reason, not passed off as an exact match");
+
+  // paying LESS does not, and the row says exactly that
+  out = await run({
+    charges: [failed("ch_m3", { customer: "cus_n", daysAgo: 4, amount: 9900 }),
+              paid("ch_m4", { customer: "cus_n", daysAgo: 2, amount: 1000 })],
+  });
+  assert.strictEqual(out.body.failed.length, 1, "a smaller payment does not cover it");
+  assert.strictEqual(out.body.failed[0].why, "They have paid since, but less than this — nothing covering it in full.",
+    "…and the row says so, rather than looking like nothing happened");
+
+  // the ordering rules survive the loosening
+  out = await run({
+    charges: [failed("ch_o1", { customer: "cus_o", daysAgo: 2, amount: 3500 }),
+              paid("ch_o2", { customer: "cus_o", daysAgo: 6, amount: 9900 })],
+  });
+  assert.strictEqual(out.body.failed.length, 1, "a bigger payment BEFORE the failure still settles nothing");
+
+  /* ============ 6c. the window is fetched whole ============
+     A gym billing a few hundred memberships puts more than 100 charges through a
+     fortnight. A cross-check that can only see the first page leaves failures on screen
+     that were paid — the very thing being fixed. */
+  {
+    const page1 = Array.from({ length: 100 }, (_, i) => paid("bulk" + i, { customer: "cus_b" + i, daysAgo: 1 }));
+    const page2 = [paid("ch_late", { customer: "cus_late", daysAgo: 2, amount: 4900 }),
+                   failed("ch_early", { customer: "cus_late", daysAgo: 5, amount: 4900 })];
+    const tmp = path.join(os.tmpdir(), "stripe-pages-" + process.pid + ".mjs");
+    fs.writeFileSync(tmp, SRC);
+    const mod = await import("file://" + tmp);
+    fs.unlinkSync(tmp);
+    const savedEnv = { ...process.env }, savedFetch = globalThis.fetch;
+    process.env.STRIPE_SECRET_KEY = "rk_test_x";
+    let chargeCalls = 0;
+    globalThis.fetch = async (url) => {
+      const u = String(url);
+      if (!u.includes("/charges")) return { ok: true, status: 200, json: async () => ({ data: [] }) };
+      chargeCalls++;
+      const first = !u.includes("starting_after");
+      return { ok: true, status: 200,
+        json: async () => ({ data: first ? page1 : page2, has_more: first }) };
+    };
+    let body;
+    try {
+      const res = await mod.default(new Request("https://x/.netlify/functions/stripe-feed"));
+      body = await res.json();
+    } finally {
+      globalThis.fetch = savedFetch;
+      for (const k of Object.keys(process.env)) if (!(k in savedEnv)) delete process.env[k];
+      Object.assign(process.env, savedEnv);
+    }
+    assert.strictEqual(chargeCalls, 2, "it went back for the second page");
+    assert.strictEqual(body.failed.length, 0,
+      "a failure on page two, paid on page two, is cleared — one page of 100 would have shown it");
+  }
+
   /* ================= 7. a real morning: some of each ================= */
   out = await run({
     disputes: [{ id: "dp_1", status: "needs_response", amount: 4900, currency: "gbp", created: NOW - 2 * DAY,
@@ -203,7 +336,7 @@ const sub = (id, customer, status) => ({
       paid("ch_3", { customer: "cus_23", daysAgo: 1 }),                                  // an ordinary payment
       failed("ch_4", { customer: "cus_20", daysAgo: 1 }),                                // already past due
       failed("ch_5", { customer: "cus_24", daysAgo: 6, amount: 2500 }),                  // still owed
-      paid("ch_6", { customer: "cus_24", daysAgo: 4, amount: 9900 }),                    // …for something else
+      paid("ch_6", { customer: "cus_24", daysAgo: 4, amount: 1000 }),                    // …only part of it
     ],
   });
   assert.strictEqual(out.body.disputes.length, 1, "the dispute stands");
