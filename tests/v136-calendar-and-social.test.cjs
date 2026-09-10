@@ -103,7 +103,8 @@ async function runIg(env, url, responder, seed) {
   // relaxed once v137 shipped: the newest release's test pins the exact stamp, this one
   // only checks the build never goes backwards and that the pages still agree on it.
   const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(read("monthly.html"));
-  assert.ok(stamp && Number(stamp[1]) >= 136, "monthly.html is stamped v136 or later");
+  assert.strictEqual(stamp[1], "141", "monthly.html is stamped v141");
+  assert.strictEqual(stamp[2], "today-at-a-glance", "…as the release that gave today its own panel");
   const text = "build v" + stamp[1] + " · " + stamp[2];
   for (const f of ["index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the same stamp");
@@ -149,6 +150,31 @@ async function runIg(env, url, responder, seed) {
   const dstyle = styleOf(DAILY);
   assert.ok(/\.cal-week\{display:grid;grid-template-columns:repeat\(7,minmax\(0,1fr\)\)/.test(dstyle),
     "the week is seven columns across, not a list down");
+
+  /* v141: TODAY IS ITS OWN THING. Ash: "I asked for Today's schedule at a glance with a
+     horizontal week view … I don't have that, I just have weekly glance." He was right — a
+     tinted column and a one-line summary is not today's schedule, it is the week with
+     today's square coloured in. The panel below answers the question the morning actually
+     asks, and the strip beside it still answers the other one. */
+  assert.ok(/function calTodayHtml\(events\)/.test(djs), "today has its own panel, built from today's events");
+  assert.ok(/\.cal-split\{display:grid;grid-template-columns:minmax\(230px,290px\) minmax\(0,1fr\)/.test(dstyle),
+    "…beside the week strip, not instead of it");
+  assert.ok(/calWeekOffset === 0\s*\?\s*'<div class="cal-split">' \+ calTodayHtml/.test(djs),
+    "…and only on the week that actually contains today");
+  assert.ok(/\.ct-item\.now\{/.test(dstyle) && /live \? " now"/.test(djs),
+    "what is on RIGHT NOW is marked in the list");
+  assert.ok(/\.ct-item\.done\{opacity/.test(dstyle), "…and what has gone is dimmed");
+  assert.ok(/still to come/.test(djs), "the panel leads with how much of the day is left");
+  // sorted by time, all-day first — a schedule you read down
+  assert.ok(/\.sort\(\(a, b\) => \(a\.allDay === b\.allDay \? a\.startAt - b\.startAt : a\.allDay \? -1 : 1\)\)/.test(djs),
+    "today reads down the page in time order");
+
+  /* …and MAKING one is not hidden in a corner: the header button, a button in the today
+     panel, and a "+" on every day so Tuesday's event starts on Tuesday. */
+  assert.ok(/id="calNewToday"/.test(djs), "the today panel offers a new event");
+  assert.ok(/data-newday="' \+ key \+ '"/.test(djs), "every day column has its own add button");
+  assert.ok(/evOpen\(b\.dataset\.newday\)/.test(djs), "…which opens the sheet on that day");
+  assert.ok(/function evOpen\(onDate\)/.test(djs), "…because the sheet can be told which day to start on");
   assert.ok(/CAL_DNAMES = \["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"\]/.test(djs),
     "Monday-based, like every other week in this suite");
   // today has to be findable at a glance

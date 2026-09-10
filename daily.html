@@ -630,6 +630,62 @@
   .cal-rng{font-size:11.5px;color:var(--ink-faint);font-weight:600;white-space:nowrap;
     padding:0 var(--sp-2);font-variant-numeric:tabular-nums;}
 
+  /* --- v141: TODAY, AT A GLANCE ---
+     The week strip answers "how full is Thursday". It does not answer "what am I doing in
+     the next hour", which is the question you actually open this page with — and a tinted
+     column plus a one-line summary was me pretending it did. Today gets its own panel,
+     beside the week rather than instead of it: the day read down in time order, what is on
+     now marked, what has gone dimmed. */
+  .cal-split{display:grid;grid-template-columns:minmax(230px,290px) minmax(0,1fr);
+    gap:var(--sp-4);align-items:start;}
+  @media(max-width:1080px){ .cal-split{grid-template-columns:1fr;} }
+  .cal-today{border:1px solid rgba(var(--orange-rgb),.34);border-radius:var(--r-md);
+    background:rgba(var(--orange-rgb),.05);padding:12px 13px 13px;min-width:0;}
+  .ct-head{display:flex;align-items:baseline;gap:8px;margin-bottom:2px;}
+  .ct-day{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.11em;
+    color:var(--orange);}
+  .ct-date{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--ink-faint);
+    font-variant-numeric:tabular-nums;}
+  .ct-sum{font-size:12px;color:var(--ink-dim);margin-bottom:10px;line-height:1.45;}
+  .ct-sum b{color:var(--ink-strong);font-weight:700;}
+  .ct-list{display:flex;flex-direction:column;}
+  .ct-item{display:flex;gap:10px;text-decoration:none;color:inherit;padding:7px 6px;
+    border-radius:var(--r-sm);border-left:2.5px solid transparent;margin-left:-2px;
+    transition:background var(--tap);}
+  .ct-item + .ct-item{border-top:1px solid rgba(var(--orange-rgb),.14);}
+  .ct-item:hover{background:rgba(var(--orange-rgb),.09);}
+  .ct-item:focus-visible{outline:none;box-shadow:var(--focus);}
+  .ct-item.done{opacity:.45;}
+  .ct-item.now{background:var(--card);border-left-color:var(--orange);
+    box-shadow:var(--shadow);border-top-color:transparent;}
+  .ct-t{font-size:11.5px;font-weight:700;color:var(--ink-faint);white-space:nowrap;
+    font-variant-numeric:tabular-nums;padding-top:1px;flex:0 0 auto;width:38px;}
+  .ct-item.now .ct-t{color:var(--orange);}
+  /* these are spans so the whole row can be one <a>; without display:block they run
+     together on one line — "6am classThe gym" — which is how the panel first shipped. */
+  .ct-b{min-width:0;flex:1;display:block;}
+  .ct-n{display:block;font-size:12.5px;font-weight:600;color:var(--ink);line-height:1.35;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .ct-s{display:block;font-size:11px;color:var(--ink-faint);margin-top:2px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;}
+  .ct-now{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;
+    color:var(--orange);}
+  .ct-none{font-size:12.5px;color:var(--ink-dim);line-height:1.5;padding:6px 2px 10px;}
+  .ct-foot{margin-top:10px;}
+  .ct-foot .abtn{width:100%;justify-content:center;}
+
+  /* a "+" on each day, so making something happen on Tuesday starts on Tuesday */
+  .cal-dadd{margin-left:6px;width:18px;height:18px;padding:0;border:0;background:transparent;
+    color:var(--ink-faint);border-radius:var(--r-sm);cursor:pointer;display:inline-flex;
+    align-items:center;justify-content:center;opacity:0;flex:0 0 auto;
+    transition:opacity var(--tap),color var(--tap),background var(--tap);}
+  .cal-dadd .ic{width:12px;height:12px;}
+  .cal-day:hover .cal-dadd,.cal-dadd:focus-visible{opacity:1;}
+  .cal-dadd:hover{color:var(--orange);background:rgba(var(--orange-rgb),.12);}
+  .cal-dadd:focus-visible{outline:none;box-shadow:var(--focus);}
+  /* on a touch screen there is no hover, so they are simply always there */
+  @media(hover:none){ .cal-dadd{opacity:.55;} }
+
   /* --- the new-event sheet --- */
   .evback{position:fixed;inset:0;z-index:200;background:rgba(var(--backdrop-rgb),.55);
     display:flex;align-items:center;justify-content:center;padding:20px;}
@@ -715,7 +771,7 @@
 <symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="M2.5 9.8h19M6 15.2h3.4"/></symbol>
 <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.05" fill="currentColor" stroke="none"/></symbol>
 </defs></svg>
-<!-- build v140 · one-debt-not-eight -->
+<!-- build v141 · today-at-a-glance -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -1457,6 +1513,8 @@ function calDayHtml(day, events, todayKey) {
   }
   return '<div class="cal-day' + (isToday ? " today" : isPast ? " past" : "") + '">' +
     '<div class="cal-dhead"><span class="cal-dname">' + CAL_DNAMES[(day.getDay() + 6) % 7] + "</span>" +
+    '<button type="button" class="cal-dadd" data-newday="' + key + '" aria-label="New event on ' +
+      CAL_DNAMES[(day.getDay() + 6) % 7] + " " + day.getDate() + '"><svg class="ic"><use href="#ic-plus"/></svg></button>' +
     '<span class="cal-dnum">' + day.getDate() + "</span></div>" +
     '<div class="cal-evs">' + chips + "</div></div>";
 }
@@ -1476,6 +1534,51 @@ function calNextLine(events) {
   return (live ? "On now: " : "Next up: ") + "<b>" + esc(next.title) + "</b> " +
     '<span class="tm">' + (live ? "until " + pad(next.endAt.getHours()) + ":" + pad(next.endAt.getMinutes()) : when) + "</span>" +
     (rest ? " · " + rest + " more after that" : " · nothing after it");
+}
+
+/* Today, read down the page in time order. This is the question the morning actually asks
+   — what am I doing in the next hour — and the week strip beside it answers the other one. */
+function calTodayHtml(events) {
+  const now = Date.now();
+  const todayKey = ymd(new Date());
+  const mine = events.filter((e) => ymd(e.startAt) === todayKey)
+    .sort((a, b) => (a.allDay === b.allDay ? a.startAt - b.startAt : a.allDay ? -1 : 1));
+  const left = mine.filter((e) => e.endAt.getTime() > now).length;
+
+  const head = '<div class="ct-head"><span class="ct-day">Today</span>' +
+    '<span class="ct-date">' + new Date().getDate() + " " + MONTHS[new Date().getMonth()].slice(0, 3) + "</span></div>";
+
+  if (!mine.length) {
+    return '<div class="cal-today">' + head +
+      '<div class="ct-none">Nothing in the calendar today. A clear day is a decision, so make sure it was yours.</div>' +
+      '<div class="ct-foot"><button type="button" class="abtn primary" id="calNewToday">' +
+      '<svg class="ic"><use href="#ic-plus"/></svg> New event</button></div></div>';
+  }
+
+  const sum = left
+    ? "<b>" + left + "</b> of " + mine.length + " still to come."
+    : "All " + mine.length + (mine.length === 1 ? " thing" : " things") + " done.";
+
+  const rows = mine.map((e) => {
+    const live = !e.allDay && e.startAt.getTime() <= now && e.endAt.getTime() > now;
+    const done = e.endAt.getTime() < now;
+    const t = e.allDay ? "All<br>day" : pad(e.startAt.getHours()) + ":" + pad(e.startAt.getMinutes());
+    const sub = e.guests ? e.guests + (e.guests === 1 ? " guest" : " guests")
+      : e.location ? esc(e.location)
+      : (!e.allDay ? "until " + pad(e.endAt.getHours()) + ":" + pad(e.endAt.getMinutes()) : "");
+    return '<a class="ct-item' + (live ? " now" : done ? " done" : "") + '" ' +
+      (e.link ? 'href="' + esc(e.link) + '" target="_blank" rel="noopener"' : 'href="#"') + ">" +
+      '<span class="ct-t">' + t + "</span>" +
+      '<span class="ct-b"><span class="ct-n">' + esc(e.title) + "</span>" +
+      (live ? '<span class="ct-s"><span class="ct-now">On now</span></span>'
+            : sub ? '<span class="ct-s">' + sub + "</span>" : "") +
+      "</span></a>";
+  }).join("");
+
+  return '<div class="cal-today">' + head + '<div class="ct-sum">' + sum + "</div>" +
+    '<div class="ct-list">' + rows + "</div>" +
+    '<div class="ct-foot"><button type="button" class="abtn" id="calNewToday">' +
+    '<svg class="ic"><use href="#ic-plus"/></svg> New event</button></div></div>';
 }
 
 function renderCalendar() {
@@ -1539,7 +1642,11 @@ function renderCalendar() {
       const d = new Date(start); d.setDate(d.getDate() + i);
       cols += calDayHtml(d, calEvents, todayKey);
     }
-    body.innerHTML = '<div class="cal-week">' + cols + "</div>";
+    // Today beside the week, never instead of it — and only on the week you are actually in.
+    const weekHtml = '<div class="cal-week">' + cols + "</div>";
+    body.innerHTML = calWeekOffset === 0
+      ? '<div class="cal-split">' + calTodayHtml(calEvents) + weekHtml + "</div>"
+      : weekHtml;
   }
 
   const on = (id, fn) => { const el = $(id); if (el) el.addEventListener("click", fn); };
@@ -1547,6 +1654,11 @@ function renderCalendar() {
   on("calNextWk", () => { calWeekOffset++; calRefresh(); });
   on("calToday", () => { calWeekOffset = 0; calRefresh(); });
   on("calNew", () => evOpen());
+  on("calNewToday", () => evOpen(ymd(new Date())));
+  // "+" on a day column starts the sheet on that day, so Tuesday's event starts on Tuesday
+  body.querySelectorAll("[data-newday]").forEach((b) => {
+    b.addEventListener("click", (e) => { e.stopPropagation(); evOpen(b.dataset.newday); });
+  });
 }
 
 async function calRefresh() {
@@ -1560,10 +1672,11 @@ async function calRefresh() {
 }
 
 /* ---------- making one ---------- */
-function evOpen() {
+function evOpen(onDate) {
   const back = $("evBack");
   const start = calWeekStart(calWeekOffset);
-  const todayInWeek = calWeekOffset === 0 ? new Date() : start;
+  const todayInWeek = onDate ? new Date(onDate + "T12:00:00")
+    : calWeekOffset === 0 ? new Date() : start;
   // Default to the next round half hour, because that is when a thing you are arranging
   // right now actually starts.
   const t = new Date();

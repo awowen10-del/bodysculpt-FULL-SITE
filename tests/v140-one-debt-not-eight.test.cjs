@@ -115,9 +115,10 @@ const sub = (id, customer, status) => ({
   /* ================= 0. the stamp ================= */
   const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(read("monthly.html"));
   assert.ok(stamp, "monthly.html carries a build stamp");
-  assert.strictEqual(stamp[1], "140", "monthly.html is stamped v140");
-  assert.strictEqual(stamp[2], "one-debt-not-eight", "…as the release that stopped counting attempts as problems");
-  const text = "build v140 · one-debt-not-eight";
+  // relaxed once v141 shipped: the newest release's test pins the exact stamp, this one
+  // only checks the build never goes backwards and that the pages still agree on it.
+  assert.ok(Number(stamp[1]) >= 140, "monthly.html is stamped v140 or later");
+  const text = "build v" + stamp[1] + " · " + stamp[2];
   for (const f of ["index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the same stamp");
   }
