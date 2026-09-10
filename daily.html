@@ -536,6 +536,14 @@
     text-transform:uppercase;letter-spacing:.09em;color:var(--ink-faint);}
   .mgroup-h .ic{width:13px;height:13px;}
 
+  /* What was checked and cleared. Quiet, but present: a card that silently drops rows is a
+     card you stop trusting, and the whole point of v137 was to earn that trust back. */
+  .cleared{display:flex;align-items:flex-start;gap:8px;font-size:11.5px;line-height:1.5;
+    color:var(--ink-faint);margin-top:var(--sp-3);padding-top:var(--sp-3);
+    border-top:1px solid var(--line);}
+  .cleared .ic{width:13px;height:13px;color:var(--tint-green);flex:0 0 auto;margin-top:1px;}
+  .cleared b{color:var(--ink-dim);font-weight:700;}
+
   /* nothing wrong is a RESULT, and gets said properly rather than left blank */
   .allclear{display:flex;align-items:center;gap:10px;padding:16px 4px;font-size:13px;
     color:var(--ink-dim);line-height:1.5;}
@@ -703,7 +711,7 @@
 <symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="M2.5 9.8h19M6 15.2h3.4"/></symbol>
 <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.05" fill="currentColor" stroke="none"/></symbol>
 </defs></svg>
-<!-- build v136 · calendar-and-social -->
+<!-- build v137 · still-unpaid -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -789,7 +797,7 @@
       <div class="cardhead">
         <div>
           <div class="chead"><svg class="ic"><use href="#ic-card"/></svg> Money needing attention</div>
-          <div class="csub">Disputes, memberships that have stopped paying, and cards that failed in the last fortnight.</div>
+          <div class="csub">Disputes, memberships that have stopped paying, and payments that failed and still have not been paid. Anything that bounced and then went through is left off.</div>
         </div>
       </div>
       <div id="moneyBody"><div class="loading">Asking Stripe…</div></div>
@@ -938,7 +946,8 @@ const TIPS = {
   triage: ["Triage", "Your scheduled morning job reads the inbox, labels every thread Urgent / Today / This week / FYI, and sends the list here. Nothing is moved or replied to — it is only sorted."],
   dispute: ["Dispute", "A member has told their bank the payment was wrong, and the bank has taken the money back off you while it decides. There is a deadline to send your side. Miss it and the money is gone automatically, so these always come first."],
   pastdue: ["Stopped paying", "A membership whose payment failed and has not gone through since. The member is normally still training. This is recurring income quietly leaking, and it is usually one message to fix."],
-  failed: ["Failed payment", "A single payment that did not go through in the last fortnight — nearly always an expired or blocked card. Quick to sort while it is fresh."],
+  failed: ["Failed payment", "A payment that did not go through in the last fortnight AND still has not been paid. Nearly always an expired or blocked card. Quick to sort while it is fresh."],
+  cleared: ["Already sorted", "Cards bounce and then go through a day or two later all the time, and Stripe keeps the failed attempt on file forever. These are the ones that failed and have since been paid — either the retry worked, the invoice got settled, or they paid it again. Nothing to do; they are counted here so you can see the page checked rather than just went quiet."],
   onething: ["Your one thing", "The single thing you said this morning would make today count. It comes from the check-in in the weekly app; this card only shows it back to you."],
 };
 let tipEl = null, tipFor = null;
@@ -1156,24 +1165,36 @@ function renderMoney() {
   const d = stripeState.disputes || [], p = stripeState.pastDue || [], f = stripeState.failed || [];
   const n = d.length + p.length + f.length;
 
+  // What failed and has since been paid. Never a row — just a line saying it was looked at.
+  const res = stripeState.resolved || { count: 0 };
+  const days = stripeState.windowDays || 14;
+  const clearedHtml = res.count
+    ? '<div class="cleared"><svg class="ic"><use href="#ic-check"/></svg><div><b>' + res.count +
+      (res.count === 1 ? " payment</b> failed and has since been paid" : " payments</b> failed and have since been paid") +
+      " — not shown." + tipBtn("cleared") + "</div></div>"
+    : "";
+
   if (!n) {
     body.innerHTML = '<div class="allclear"><svg class="ic"><use href="#ic-check"/></svg>' +
-      "<div>Nothing disputed, nothing past due, and no failed cards in the last " +
-      ((stripeState.windowDays || 14)) + " days.</div></div>";
+      "<div>Nothing disputed, nothing past due, and nothing unpaid in the last " + days + " days." +
+      (res.count ? " " + res.count + (res.count === 1 ? " card bounced" : " cards bounced") +
+        " and " + (res.count === 1 ? "was" : "were") + " paid without you having to do anything." : "") +
+      "</div></div>";
     return;
   }
 
   body.innerHTML =
     moneyGroupHtml("Disputes", "dispute", "ic-alert", d, "dispute") +
     moneyGroupHtml("Stopped paying", "pastdue", "ic-trend-down", p, "pastdue") +
-    moneyGroupHtml("Failed payments", "failed", "ic-card", f, "failed");
+    moneyGroupHtml("Still unpaid", "failed", "ic-card", f, "failed") +
+    clearedHtml;
 
   // The doorway line. Deadlines lead it, because a deadline is the only part of this
   // that gets worse on its own.
   const bits = [];
   if (d.length) bits.push("<b>" + d.length + (d.length === 1 ? " dispute" : " disputes") + "</b> to answer");
   if (p.length) bits.push("<b>" + p.length + "</b> " + (p.length === 1 ? "membership has" : "memberships have") + " stopped paying");
-  if (f.length) bits.push("<b>" + f.length + "</b> failed " + (f.length === 1 ? "payment" : "payments"));
+  if (f.length) bits.push("<b>" + f.length + "</b> " + (f.length === 1 ? "payment is" : "payments are") + " still unpaid");
   const total = (stripeState.totals && (stripeState.totals.disputed + stripeState.totals.pastDue + stripeState.totals.failed)) || 0;
   alert.innerHTML = '<svg class="ic"><use href="#ic-alert"/></svg>' +
     '<span class="t">' + bits.join(" · ") + ' — <span class="n">' + esc(fromPence(total, "gbp")) + "</span> in the balance</span>" +

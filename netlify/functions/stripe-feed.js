@@ -1,4 +1,4 @@
-// Netlify Function: stripe-feed  (v135)
+// Netlify Function: stripe-feed  (v135, revised v137)
 //
 // Read-only. Answers one question for the Daily Dashboard: "is there any money that
 // needs me today?" — and nothing else. It never creates, refunds, cancels or changes
@@ -9,8 +9,13 @@
 //                      loses the money automatically. Always first.
 //   2. PAST DUE      — a membership whose payment failed and is still failing. This is
 //                      recurring revenue quietly walking out.
-//   3. FAILED CHARGES— one-off failures in the last 14 days, which are usually an
-//                      expired card and usually fixable with one message.
+//   3. FAILED CHARGES— failures in the last 14 days THAT ARE STILL OUTSTANDING. A failed
+//                      charge is not the same thing as money you are owed: cards bounce on
+//                      the Tuesday and go through on the Thursday all the time, and the
+//                      Tuesday failure stays in the API forever. v137 checks every failure
+//                      against what happened afterwards and only shows the ones nobody has
+//                      paid. See settledReason(). The count it cleared is reported back, so
+//                      the page can say what it took off rather than going quietly silent.
 //
 // The secret key lives in the Netlify environment and NEVER reaches the browser — that
 // is the whole reason this function exists rather than the page calling Stripe directly.
@@ -122,7 +127,7 @@ export default async (req) => {
       configured: false,
       message: "No Stripe key set. Add STRIPE_SECRET_KEY in Netlify → Site configuration → Environment variables, then redeploy.",
       fetchedAt: new Date().toISOString(),
-      disputes: [], pastDue: [], failed: [],
+      disputes: [], pastDue: [], failed: [], resolved: { count: 0, amount: 0, reasons: [] },
     });
   }
 
@@ -147,9 +152,13 @@ export default async (req) => {
         ["expand[]", "data.customer"],
       ]),
       // Stripe cannot filter charges by status, so the window is filtered here instead.
+      // The INVOICE is expanded with them, because for anything on a membership the invoice
+      // — not the charge — is the thing that says whether the money ever arrived. See
+      // settledReason() below.
       stripeGet(key, "/charges", [
         ["limit", 100],
         ["created[gte]", since],
+        ["expand[]", "data.invoice"],
       ]),
     ]);
 
@@ -165,8 +174,69 @@ export default async (req) => {
       .map(shapeSubscription)
       .sort((a, b) => (a.since < b.since ? -1 : 1));
 
-    const failedRows = (charges.data || [])
-      .filter((ch) => ch.status === "failed")
+    /* ---------- which failures still need him? ----------
+       v137. A failed charge is NOT the same thing as money you are still owed. A card
+       bounces on the Tuesday, Stripe retries on the Thursday, the money lands — and the
+       Tuesday failure sits in the API forever. Showing those is worse than showing
+       nothing: a page that cries wolf stops being read, and then the one that matters
+       gets missed too.
+
+       So every failure is checked against what happened afterwards, cheapest and most
+       reliable test first. All of this runs on data already fetched — no extra calls. */
+    const all = charges.data || [];
+    const succeeded = all.filter((c) => c.status === "succeeded");
+    // A PaymentIntent can hold several attempts. If any attempt on it succeeded, it is paid.
+    const paidIntents = new Set(succeeded.map((c) => c.payment_intent).filter(Boolean));
+    // Everything a customer successfully paid inside the window, for the one-off backstop.
+    const paidByCustomer = new Map();
+    for (const c of succeeded) {
+      const cust = typeof c.customer === "string" ? c.customer : (c.customer && c.customer.id);
+      if (!cust) continue;
+      if (!paidByCustomer.has(cust)) paidByCustomer.set(cust, []);
+      paidByCustomer.get(cust).push(c);
+    }
+    // A membership already listed as "stopped paying" says everything this row would.
+    const pastDueCustomers = new Set([...(pastDue.data || []), ...(unpaid.data || [])]
+      .map((sub) => (typeof sub.customer === "string" ? sub.customer : (sub.customer && sub.customer.id)))
+      .filter(Boolean));
+    const RETRY_WINDOW = 7 * 86400;   // seconds after a failure in which a payment reads as the retry
+
+    // Returns a short reason when the failure has been dealt with, or "" when it still needs him.
+    function settledReason(ch) {
+      // 1. THE INVOICE IS THE TRUTH. For anything on a membership the invoice is what
+      //    Stripe is trying to collect; the charges under it are just attempts. Paid means
+      //    paid, however many attempts it took. Void means it was cancelled, so there is
+      //    nothing to chase either.
+      const inv = ch.invoice && typeof ch.invoice === "object" ? ch.invoice : null;
+      if (inv) {
+        if (inv.status === "paid") return "the invoice was paid";
+        if (inv.status === "void") return "the invoice was cancelled";
+        return "";     // open, draft or uncollectible — still outstanding, still his problem
+      }
+      // 2. Same PaymentIntent, later attempt succeeded.
+      if (ch.payment_intent && paidIntents.has(ch.payment_intent)) return "it went through on a retry";
+      // 3. THE BACKSTOP, for one-off payments with no invoice behind them: the same
+      //    customer paid the SAME amount within a week afterwards. Exact amount on purpose
+      //    — a different figure is a different transaction, and a false all-clear on money
+      //    you are owed is the one mistake this must not make.
+      const cust = typeof ch.customer === "string" ? ch.customer : (ch.customer && ch.customer.id);
+      if (cust) {
+        const paid = paidByCustomer.get(cust) || [];
+        if (paid.some((p) => p.amount === ch.amount && p.created > ch.created && p.created - ch.created <= RETRY_WINDOW)) {
+          return "they paid it again";
+        }
+        // 4. Already on the "stopped paying" list above. Still owed, but saying it twice
+        //    turns one problem into two.
+        if (pastDueCustomers.has(cust)) return "shown under Stopped paying";
+      }
+      return "";
+    }
+
+    const failedAll = all.filter((ch) => ch.status === "failed");
+    const stillOwed = [], settled = [];
+    for (const ch of failedAll) (settledReason(ch) ? settled : stillOwed).push(ch);
+
+    const failedRows = stillOwed
       .map(shapeCharge)
       .sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1));
 
@@ -181,6 +251,13 @@ export default async (req) => {
       disputes: disputeRows,
       pastDue: subRows,
       failed: failedRows,
+      // What was checked and cleared. A page that silently drops rows is a page you stop
+      // trusting, so it says how many it took off and why.
+      resolved: {
+        count: settled.length,
+        amount: settled.reduce((t, c) => t + (c.amount || 0), 0),
+        reasons: [...new Set(settled.map(settledReason))].filter(Boolean),
+      },
       totals: {
         count: disputeRows.length + subRows.length + failedRows.length,
         disputed: sum(disputeRows),
@@ -203,7 +280,7 @@ export default async (req) => {
       configured: true,
       error: clip(e && e.message ? e.message : "Could not reach Stripe", 300),
       fetchedAt: new Date().toISOString(),
-      disputes: [], pastDue: [], failed: [],
+      disputes: [], pastDue: [], failed: [], resolved: { count: 0, amount: 0, reasons: [] },
     });
   }
 };
