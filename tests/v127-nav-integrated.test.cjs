@@ -20,6 +20,8 @@
 // page you are on), and a hairline under the app bar makes the header two registers of one
 // block. Finances keeps its prominence through position and colour, not a fill.
 //
+// v136 UPDATE: Social joined too — three rules now, same single rule taking the slack.
+//
 // v135 UPDATE: a third group (Today) joined the bar, so there are two rules in it now and
 // only the LAST one may take the slack — if both did, Planning would be shoved to the right
 // as well and the row would come apart. The claim is unchanged: Finances sits at the far
@@ -32,7 +34,7 @@ const fs = require("fs");
 const path = require("path");
 
 const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
-const FILES = ["index.html", "monthly.html", "quarterly.html", "finances.html", "daily.html"];
+const FILES = ["index.html", "monthly.html", "quarterly.html", "finances.html", "daily.html", "social.html"];
 const SRC = {};
 FILES.forEach((f) => { SRC[f] = read(f); });
 const styleOf = (src) => src.slice(src.indexOf("<style>") + 7, src.indexOf("</style>"));

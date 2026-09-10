@@ -59,6 +59,29 @@ const DAILY_CHECKINS_KEY = "daily-checkins";
 // "YYYY-MM-DD", exactly like daily-checkins — so the history accumulates, one GET returns
 // the lot, and a bad push can only ever spoil the day it was pushed for.
 const DAILY_BRIEFS_KEY = "daily-briefs";
+// v136: the Instagram accounts Ash watches. Just the list — the posts themselves are never
+// stored here, they come live (and cached for half an hour) from netlify/functions/
+// instagram-feed.js under its own `ig-cache-*` keys. Ten is the cap because eleven accounts
+// is not monitoring, it is a hobby.
+const IG_COMPETITORS_KEY = "ig-competitors";
+const IG_COMPETITOR_CAP = 10;
+// An Instagram username is letters, digits, dots and underscores. Ash will paste a profile
+// URL or an @handle at some point, so both are unwrapped rather than rejected.
+function cleanCompetitor(raw) {
+  const src = typeof raw === "string" ? raw : (raw && typeof raw === "object" ? raw.username : "");
+  const username = String(src || "")
+    .trim()
+    .replace(/^https?:\/\/(www\.)?instagram\.com\//i, "")
+    .replace(/[/?#].*$/, "")
+    .replace(/^@/, "")
+    .replace(/[^A-Za-z0-9._]/g, "")
+    .toLowerCase()
+    .slice(0, 40);
+  if (!username) return null;
+  const label = (raw && typeof raw === "object" && typeof raw.label === "string")
+    ? raw.label.trim().slice(0, 60) : "";
+  return { username, label };
+}
 const BRIEF_TIERS = ["urgent", "today", "week", "fyi"];   // the hierarchy, most-urgent first
 const BRIEF_ITEM_CAP = 60;      // a morning's inbox, not an archive
 const BRIEF_DAYS_KEPT = 30;     // the map is pruned to the newest 30 dates on every write
@@ -519,6 +542,26 @@ export default async (req) => {
     return Response.json({ briefs });
   }
 
+  // v136 Front-end config: GET ?webconfig=1 returns the handful of PUBLIC values the pages
+  // need that are set per-deployment rather than written into the HTML. A Google OAuth
+  // client id is public by design — it identifies the app, it does not authorise anything,
+  // and the consent screen plus the authorised-origins list are what actually guard it.
+  // Keeping it here means Ash sets it once in Netlify, next to the Stripe and Instagram
+  // values, instead of pasting it into a browser on every device he uses.
+  // NOTHING SECRET GOES IN THIS ROUTE. Secrets belong in the functions that use them.
+  if (req.method === "GET" && url.searchParams.get("webconfig") === "1") {
+    return Response.json({
+      googleClientId: process.env.GOOGLE_CLIENT_ID || "",
+      timeZone: process.env.TIMEZONE || "Europe/London",
+    });
+  }
+
+  // v136 Competitors: GET ?igcompetitors=1 returns the watch list (empty when none set).
+  if (req.method === "GET" && url.searchParams.get("igcompetitors") === "1") {
+    const competitors = (await store.get(IG_COMPETITORS_KEY, { type: "json" })) || [];
+    return Response.json({ competitors: Array.isArray(competitors) ? competitors : [] });
+  }
+
   // v84 Location defaults: GET ?locationdefaults=1 returns the default weekly pattern
   // ({ mon:"warrington", … }) — empty when never set, so every day starts unset.
   if (req.method === "GET" && url.searchParams.get("locationdefaults") === "1") {
@@ -943,6 +986,23 @@ export default async (req) => {
       for (const d of keep) pruned[d] = map[d];
       await store.set(DAILY_BRIEFS_KEY, JSON.stringify(pruned));
       return Response.json({ ok: true, date: brief.date, counts: brief.counts, kept: keep.length });
+    }
+
+    // v136 Competitors: POST { igCompetitors: [...] }. A whole-list write — the page holds
+    // the order and hands back the full list — de-duplicated and capped at ten. Touches
+    // nothing but its own key.
+    if (Array.isArray(body.igCompetitors)) {
+      const seen = new Set();
+      const list = [];
+      for (const raw of body.igCompetitors) {
+        const c = cleanCompetitor(raw);
+        if (!c || seen.has(c.username)) continue;
+        seen.add(c.username);
+        list.push(c);
+        if (list.length >= IG_COMPETITOR_CAP) break;
+      }
+      await store.set(IG_COMPETITORS_KEY, JSON.stringify(list));
+      return Response.json({ ok: true, competitors: list });
     }
 
     // Save one quarter's Thinking Time record under "qtt-YYYY-QN". Merges over existing

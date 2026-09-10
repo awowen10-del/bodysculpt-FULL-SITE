@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<title>Bodysculpt Social</title>
+<!-- v119: Inter, the one typeface for the whole suite. The system stack stays behind it
+     as the fallback, so an offline/blocked load renders exactly as it did before. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  /* ===================== THEME TOKENS =====================
+     Every colour in this stylesheet resolves to one of these — there are no literal
+     colours below this block. ONE theme: the neutral light palette. (v106 shipped a
+     dark/light pair and v108 re-cut the light half; v121 dropped dark entirely, because
+     it was never used. Every token NAME is unchanged, so all ~140 var(--x) references
+     across the three pages still resolve.)
+     The *-rgb tokens are bare "r,g,b" triples, so the many rgba(<accent>,<alpha>) tints
+     throughout the stylesheet stay tied to the same single source of truth.
+     The accents CARRY MEANING and must stay distinct from each other:
+       orange = business / brand          teal  = recurring
+       green  = training + done           blue  = home location, buffer, decisions
+       amber  = watch / warning           red   = problem / delete
+       info   = acquisition + decision panels   loc-warrington = the other location badge
+     "orange" is a TOKEN NAME, not a promise of hue. Renaming it would touch every one of
+     those references across three files, so the name stayed. */
+  :root{
+    /* ===== METRICS — not colours =====
+       v121 put the ad-hoc numbers on scales. Radius was six values (8/10/12/16/20/pill)
+       often nested inside each other; it is now three plus the pill. Spacing was 14/16/26
+       used interchangeably for the same job; it is now a 4-based ramp. --radius is kept as
+       the old name for the card radius so existing rules keep resolving. */
+    --r-sm:6px;      /* chips, inputs, the small stuff inside a control */
+    --r-md:10px;     /* buttons, selects, toolbars */
+    --r-lg:14px;     /* cards, panels, modals */
+    --r-pill:999px;
+    --radius:var(--r-lg);
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px; --sp-7:48px;
+    /* motion + focus. Every interactive element takes --focus on :focus-visible. */
+    --tap:.12s ease;
+    --chev-mask:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>');
+    --focus:0 0 0 2px var(--card), 0 0 0 4px rgba(var(--orange-rgb),.55);
+  }
+  :root{
+    color-scheme:light;
+    /* THREE TIERS OF DEPTH, and they must stay three: the page (--navy) is a soft, slightly
+       cool grey; the card (--card) is near-white and therefore visibly LIFTS off it; --line
+       is a fine neutral hairline that draws the card's edge. Tone step + hairline do the
+       work — the shadows below are deliberately soft. --navy-2 is the recessed inset inside
+       a card (toolbars, sticky heads, sub-panels), so it sits BELOW the card, not above.
+       v121 deepened the page a step and tightened the hairline, so a white card reads as an
+       object on the page rather than blending into it. */
+    --navy:#eef0f4; --navy-2:#e4e8ef; --card:#ffffff; --card-2:#f6f8fb;
+    --line:#d9dee7; --line-rgb:217,222,231;
+    /* dark-but-soft ink — a cool near-black, never #000; --ink-dim/-faint are muted greys.
+       The ramp runs strong → ink → dim → faint, lightening at every step. */
+    --ink:#171b22; --ink-dim:#59616f; --ink-faint:#737c8a; --ink-strong:#0b0e14;
+    --ink-dim-rgb:89,97,111; --ink-faint-rgb:115,124,138;
+    --on-accent:#fff;
+    /* THE BRAND. v108 pointed this at a muted slate-blue, which was safe and completely
+       anonymous — near enough the framework default that the app read as unbranded. v121
+       brings back the terracotta the dark theme always had, deepened so it holds its own
+       on a near-white card (5.44:1 on --card, and white on the solid fill is the same). */
+    --orange:#b4471b; --orange-soft:#93380f; --orange-rgb:180,71,27; --orange-soft-rgb:147,56,15;
+    --green:#17804d; --green-2:#0f6d40; --green-rgb:23,128,77; --green2-rgb:15,109,64;
+    /* amber shifted yellower and red shifted toward crimson: both had to clear the brand by
+       85 of summed RGB distance once the brand went warm, or "watch" and "problem" would
+       have read as shades of the brand instead of as states. */
+    --amber:#96700a; --amber-2:#85620a; --amber-rgb:150,112,10; --amber2-rgb:133,98,10;
+    --red:#ab1338; --red-2:#911029; --red-rgb:171,19,56; --red2-rgb:145,16,41;
+    --teal:#0d7d8a; --teal-soft:#0a6873; --teal-bright:#08555e; --teal-rgb:13,125,138;
+    /* home/buffer is indigo; the Warrington badge moved off copper to plum in v121, because
+       copper existed only to dodge a blue brand and now sat right on top of a warm one. */
+    --blue:#6247b5; --blue-soft:#513a99; --blue-rgb:98,71,181;
+    --info:#2b6cd9; --info-rgb:43,108,217;
+    --loc-warrington:#7a3363; --grad-mid:#6d9a2e;
+    /* the DEEP version of each accent — the chip behind them is a pale tint of the same
+       hue, so a pale text colour would vanish */
+    --tint-red:#8f1030; --tint-amber:#6f5308; --tint-green:#136540;
+    --tint-blue:#46337f; --tint-orange:#8f3813;
+    --panel-0:#f4f6fa; --panel-1:#eff2f8; --panel-2:#e8ecf4;
+    --hero-1:#f6f8fc; --hero-2:#eef0f4; --hero-3:#e6eaf2;
+    --mark-bg:#eaedf4; --chart-grid:#dfe4ee;
+    /* a cool near-black scrim genuinely dims the page behind a modal; the shadow and the
+       hover "lift" are the ink tone at low alpha, so a hover DARKENS the surface it sits on. */
+    --backdrop-rgb:20,26,38;
+    --shadow-rgb:23,27,34;
+    --lift-rgb:23,27,34;
+    /* TWO shadow steps, not one. A single large soft shadow on every card reads as haze on
+       a light page: --shadow just separates a card from the ground, --shadow-lift is for
+       things that genuinely float (modals, popovers, the week picker). */
+    --shadow:0 1px 2px rgba(var(--shadow-rgb),.04), 0 1px 3px rgba(var(--shadow-rgb),.07);
+    --shadow-lift:0 4px 6px -1px rgba(var(--shadow-rgb),.06), 0 12px 24px -6px rgba(var(--shadow-rgb),.14);
+  }
+  /* v121: every icon in the suite. Sized in em so it always matches its text, and drawn
+     in currentColor so it always matches its colour — the whole reason the emoji went. */
+  .ic{width:1em;height:1em;display:inline-block;vertical-align:-.135em;flex:0 0 auto;}
+  .ic-lg{width:1.25em;height:1.25em;}
+  /* v121: there was no :focus-visible styling anywhere in the suite. One ring, everywhere. */
+  a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,
+  textarea:focus-visible,[tabindex]:focus-visible,[contenteditable]:focus-visible{
+    outline:none;box-shadow:var(--focus);border-radius:var(--r-sm);}
+  @media (prefers-reduced-motion:reduce){ *,*::before,*::after{
+    animation-duration:.01ms!important;animation-iteration-count:1!important;
+    transition-duration:.01ms!important;scroll-behavior:auto!important;} }
+  /* v121: the collapse caret is one icon that rotates, not two different glyphs. */
+  .chev .ic,.qsnap-chev .ic,.mp-chev .ic{transition:transform var(--tap);transform:rotate(-90deg);}
+  .chev.open .ic,.open>.chev .ic,.qsnap-chev.open .ic{transform:rotate(0deg);}
+  /* carets that used to be a " ▾" in a ::after. Masked so they still follow currentColor. */
+  .chev-after::after{content:"";display:inline-block;width:.62em;height:.62em;margin-left:.34em;
+    background:currentColor;vertical-align:.02em;
+    -webkit-mask:var(--chev-mask) center/contain no-repeat;mask:var(--chev-mask) center/contain no-repeat;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{background:var(--navy);color:var(--ink);}
+  /* v94: the same container as the Weekly Dashboard's .wrap — max-width:1500px, centred,
+     20px gutters — so the two pages render at one width. Weekly puts this on a .wrap div;
+     here the body IS the container, so the same numbers live on it. Keep them in step. */
+  body{font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;line-height:1.4;padding:0 20px 64px;max-width:1500px;margin:0 auto;}
+  a{color:inherit;}
+  h1{font-size:14.5px;font-weight:600;letter-spacing:-.012em;line-height:1.15;}
+  .sub{font-size:10.5px;color:var(--ink-faint);font-weight:500;letter-spacing:.05em;
+    text-transform:uppercase;margin-top:1px;}
+  header{padding:18px 0 8px;}
+  .htop{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .mark{width:32px;height:32px;border-radius:var(--r-md);overflow:hidden;flex:0 0 auto;
+    border:1px solid var(--line);background:var(--mark-bg);}
+  .monthpick{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-dim);}
+  .periodbar{display:flex;align-items:center;gap:10px;margin-top:12px;background:var(--navy-2);
+    border:1px solid var(--line);border-radius:12px;padding:8px 10px;}
+  .pb-arrow{background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:8px;
+    width:38px;height:36px;font-size:16px;font-weight:800;cursor:pointer;flex:0 0 auto;}
+  .pb-arrow:hover:not(:disabled){border-color:var(--orange);color:var(--orange-soft);}
+  .pb-arrow:disabled{opacity:.35;cursor:not-allowed;}
+  .pb-label{flex:1;text-align:center;font-size:15px;font-weight:800;color:var(--ink-strong);letter-spacing:-.2px;}
+  .pb-jump{background:var(--card);border:1px solid var(--line);color:var(--ink-dim);border-radius:8px;
+    padding:8px 13px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;flex:0 0 auto;}
+  .pb-jump:hover{border-color:var(--orange);color:var(--ink);}
+  .monthpick select{font-family:inherit;background:var(--card);color:var(--ink);border:1px solid var(--line);
+    border-radius:10px;padding:8px 10px;font-size:13px;font-weight:600;}
+  /* ===================== v121: THE APP BAR =====================
+     Until v120 the header was TWO identical full-width pill bars stacked on top of each
+     other — same shape, same weight, same filled active state — so nothing said which was
+     the product and which was the page. Now there are two clearly different treatments:
+       .appbar  — sticky chrome: the brand, then a compact segmented control for the three
+                  PERIODS (Weekly / Monthly / Quarterly), sized to its content;
+       .viewtoggle — quiet underline tabs for the SECTIONS inside the page.
+     .topnav and #tabBar keep their names and their handlers; only the dress changed. */
+  .appbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:var(--sp-6);
+    background:var(--card);border:1px solid var(--line);
+    border-radius:var(--r-lg) var(--r-lg) 0 0;padding:var(--sp-3) var(--sp-4);min-height:64px;flex-wrap:wrap;}
+  .appbar .brand{flex:0 0 auto;}
+  /* v127: the hairline under the app bar makes the header TWO REGISTERS of one block —
+     places above, sections below — instead of one tall empty slab. */
+  .vt-right{flex:0 0 auto;margin-left:auto;display:flex;align-items:center;gap:var(--sp-2);
+    padding-left:var(--sp-4);}
+  /* ===== v127: THE NAV STOPPED BEING FURNITURE =====
+     v126 got the STRUCTURE right — Planning above its three periods, Finances fenced off —
+     and the dress wrong. Three shapes competed inside one bar (a grey capsule TRACK, a
+     solid brand capsule, underline tabs under both), and the nav floated centred while the
+     brand sat left and a month picker sat right, so nothing lined up with anything: three
+     loose objects, not one row.
+     The rules the bar now follows:
+       · NO capsule track. The links are plain text and only the one you are on takes a
+         soft chip — the container was doing a job the active state already does.
+       · The nav sits directly after the brand, left-aligned on the same line; the Finances
+         group is pushed to the far edge behind a rule, so its separation is SPATIAL.
+       · Finances carries the brand as COLOUR — caption, label, and a tinted chip when you
+         are on it — never as a saturated fill. A place you go is not a call to action, and
+         nothing in the chrome may outshout the page.
+       · A caption's left edge lines up with its first link's TEXT, not its padding box.
+     Structure, names and handlers are v126's; only the dress changed. */
+  .topnav{display:flex;align-items:center;gap:var(--sp-2);flex:1 1 auto;margin:0;}
+  .navgrp{display:flex;flex-direction:column;gap:4px;min-width:0;}
+  .navgroup{display:flex;align-items:center;gap:5px;font-size:9.5px;text-transform:uppercase;
+    letter-spacing:.14em;font-weight:700;color:var(--ink-faint);padding-left:12px;white-space:nowrap;}
+  .navgroup .ic{width:1.3em;height:1.3em;flex:0 0 auto;}
+  .navgrp-money .navgroup{color:var(--orange);}
+  /* The LAST rule takes the slack, so it and Finances travel together to the far edge.
+     v136: there are THREE rules now (Today | Planning | Social | Finances) and only the
+     one before
+     Finances may absorb the space — if both did, Planning would be shoved right as well
+     and the bar would read as three things adrift instead of one row. */
+  .navsep{width:1px;height:34px;align-self:center;background:var(--line);flex:0 0 auto;}
+  .topnav>.navsep:last-of-type{margin-left:auto;}
+  .navsep + .navgrp{margin-left:var(--sp-4);}
+  .navlinks{display:flex;gap:2px;}
+  .topnav a{text-decoration:none;font-size:13.5px;font-weight:500;color:var(--ink-dim);
+    padding:7px 12px;border-radius:var(--r-md);letter-spacing:-.005em;white-space:nowrap;
+    transition:color var(--tap),background var(--tap);}
+  .topnav a:hover{color:var(--ink);background:var(--navy-2);}
+  .topnav a.active{background:var(--navy-2);color:var(--ink-strong);font-weight:600;}
+  .navgrp-money a{color:var(--orange);font-weight:600;}
+  .navgrp-money a:hover{color:var(--orange-soft);background:rgba(var(--orange-rgb),.09);}
+  .navgrp-money a.active{background:rgba(var(--orange-rgb),.12);color:var(--orange-soft);}
+  .topnav a:focus-visible{outline:none;box-shadow:var(--focus);}
+  .viewtoggle{display:flex;gap:2px;background:var(--card);border:1px solid var(--line);
+    border-top:0;border-radius:0 0 var(--r-lg) var(--r-lg);padding:0 var(--sp-4);
+    margin:0 0 var(--sp-4);overflow-x:auto;}
+  .viewtoggle .vt{flex:0 0 auto;font-family:inherit;font-size:13.5px;font-weight:500;
+    color:var(--ink-dim);background:transparent;border:0;border-bottom:2px solid transparent;
+    border-radius:0;padding:12px 15px 10px;cursor:pointer;white-space:nowrap;
+    letter-spacing:-.005em;transition:color var(--tap),border-color var(--tap);}
+  .viewtoggle .vt:hover{color:var(--ink);}
+  .viewtoggle .vt.active{color:var(--ink);font-weight:600;border-bottom-color:var(--orange);}
+  .viewtoggle .vt:focus-visible{outline:none;box-shadow:var(--focus);border-radius:var(--r-sm);}
+  @media(max-width:720px){
+    .appbar{min-height:0;padding:var(--sp-3);gap:var(--sp-3);}
+    .topnav{flex-wrap:wrap;gap:var(--sp-3);margin:var(--sp-1) 0 0;width:100%;}
+    .navgrp{flex:1 1 100%;}
+    .navsep{display:none;}
+    .navsep + .navgrp{margin-left:0;}
+    .topnav a{flex:1;text-align:center;padding:7px 8px;}
+    .vt-right{padding-left:0;}
+  }
+  /* v106: theme toggle — a quiet chip at the end of the top nav, same family as the links */
+  .actionbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px;}
+  .abtn{font-family:inherit;font-size:13px;font-weight:500;color:var(--ink);background:var(--card);
+    border:1px solid var(--line);border-radius:var(--r-md);padding:9px 14px;cursor:pointer;
+    display:inline-flex;align-items:center;gap:7px;letter-spacing:-.005em;box-shadow:var(--shadow);
+    transition:border-color var(--tap),background var(--tap);}
+  .abtn:hover{border-color:var(--ink-faint);}
+  .abtn.primary{background:var(--orange);color:var(--on-accent);border-color:transparent;font-weight:600;}
+  .abtn.ghost{background:transparent;color:var(--ink-dim);}
+  .abtn.primary{background:var(--orange);border-color:var(--orange);color:var(--on-accent);}
+  .msg{font-size:12px;color:var(--ink-faint);}
+  section{margin-top:18px;}
+  .view[hidden]{display:none;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;box-shadow:var(--shadow);}
+  .card + .card{margin-top:14px;}
+  .ctitle{font-size:11.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-faint);
+    font-weight:700;margin-bottom:12px;}
+  .ctitle-white{color:var(--ink);}
+  .home-head{margin-top:18px;}
+  .home-head .rule-pill{display:inline-block;margin-top:4px;}
+  .hsec{margin-top:22px;}
+  .hsec-title{font-size:15px;font-weight:800;letter-spacing:-.2px;color:var(--ink-strong);margin-bottom:12px;}
+  /* Growth: tiles left, chart right */
+  .gpair{display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:18px;align-items:start;
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);}
+  .gpair-chart{min-width:0;}
+  .ytiles{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+  .ycell{background:var(--navy-2);border:1px solid var(--line);border-radius:8px;padding:7px 6px;text-align:center;}
+  .ycell .ym{font-size:8.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint);font-weight:700;}
+  .ycell .yv{font-size:14px;font-weight:800;margin-top:2px;letter-spacing:-.3px;}
+  .ycell .yd{font-size:9px;font-weight:600;margin-top:1px;}
+  .ycell.cur{border-color:var(--orange);}
+  @media (max-width:760px){
+    .gpair{grid-template-columns:1fr;}
+  }
+  /* scoreboard */
+  .scoreboard{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:16px;}
+  .score{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;}
+  .score .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);font-weight:700;}
+  .score .val{font-size:28px;font-weight:800;letter-spacing:-.5px;margin-top:6px;}
+  .score .delta{font-size:12px;font-weight:600;margin-top:4px;}
+  .up{color:var(--green);} .down{color:var(--red);} .flat{color:var(--ink-faint);}
+  /* glance tiles */
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;}
+  .tile{background:var(--navy-2);border:1px solid var(--line);border-radius:12px;padding:12px;}
+  .tile .lbl{font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-dim);font-weight:700;}
+  .tile .val{font-size:21px;font-weight:800;margin-top:5px;color:var(--ink-strong);}
+  .tile .sub{font-size:11px;color:var(--ink-dim);margin-top:2px;}
+  .tile .tdelta{font-size:11px;font-weight:700;margin-top:5px;display:inline-block;}
+  .tile .tdelta.up{color:var(--green);}
+  .tile .tdelta.down{color:var(--red);}
+  .tile .tdelta.flat{color:var(--ink-faint);font-weight:600;}
+  /* entry grid */
+  .entry{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-top:16px;}
+  .entry-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .entry-close{background:transparent;border:0;color:var(--ink-faint);font-size:18px;cursor:pointer;font-family:inherit;}
+  .egrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
+  .egrid.cols3{grid-template-columns:repeat(auto-fit,minmax(130px,1fr));}
+  label.f{display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--ink-dim);font-weight:600;}
+  label.f input{font-family:inherit;background:var(--navy-2);color:var(--ink);border:1px solid var(--line);
+    border-radius:10px;padding:10px;font-size:15px;}
+  label.f input:focus{outline:none;border-color:var(--orange);}
+  label.f.over input{border-color:var(--amber);}
+  label.f.calc{color:var(--ink-faint);}
+  label.f.calc input{background:var(--navy);border-style:dashed;color:var(--orange-soft);font-weight:700;cursor:default;}
+  .calc-tag{display:inline-block;font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;
+    color:var(--orange-soft);background:rgba(var(--orange-rgb),.14);border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:1px;}
+  .calc-hint{font-size:9.5px;color:var(--ink-faint);font-weight:600;margin-top:1px;}
+  .esub{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);font-weight:700;margin:16px 0 8px;}
+  .esub-total{font-size:14px;font-weight:800;color:var(--orange-soft);margin:12px 0 4px;}
+  .erow-actions{display:flex;gap:10px;align-items:center;margin-top:16px;flex-wrap:wrap;}
+  .save{font-family:inherit;background:var(--orange);border:0;color:var(--on-accent);font-weight:700;font-size:14px;
+    border-radius:10px;padding:11px 18px;cursor:pointer;}
+  .ghostbtn{font-family:inherit;background:transparent;border:1px solid var(--line);color:var(--ink-dim);
+    font-weight:600;font-size:13px;border-radius:10px;padding:10px 14px;cursor:pointer;}
+  /* tables */
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:12px;}
+  table{border-collapse:collapse;width:100%;font-size:12px;white-space:nowrap;}
+  th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line);}
+  th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--card);font-weight:600;z-index:1;}
+  thead th{position:sticky;top:0;background:var(--navy-2);color:var(--ink-dim);font-weight:700;
+    text-transform:uppercase;letter-spacing:.4px;font-size:10px;}
+  tbody tr:hover td{background:var(--card-2);}
+  /* expense comparison table — readability pass */
+  .cmp-table{border-collapse:separate;border-spacing:0;}
+  .cmp-table th, .cmp-table td{font-variant-numeric:tabular-nums;}
+  .cmp-table thead th{font-size:10px;padding:10px 14px;background:transparent;border-bottom:1px solid var(--line);}
+  .cmp-table thead th:not(:first-child){text-align:right;}
+  .cmp-table td{padding:11px 14px;border-bottom:1px solid rgba(var(--line-rgb),.45);font-size:13px;}
+  .cmp-table td:not(:first-child){text-align:right;}
+  .cmp-table td:first-child{color:var(--ink);font-weight:600;font-size:12px;}
+  .cmp-table tbody tr:nth-child(even) td{background:rgba(var(--lift-rgb),.015);}
+  .cmp-table tbody tr:hover td{background:rgba(var(--lift-rgb),.04);}
+  /* past months: quiet reference, value only */
+  .cmp-table .past{color:var(--ink-faint);font-weight:400;}
+  /* current month: the anchor */
+  .cmp-table thead th.cur-col{color:var(--orange-soft);font-weight:700;
+    background:rgba(var(--orange-rgb),.10);border-bottom:2px solid var(--orange);}
+  .cmp-table td.cur-col{background:rgba(var(--orange-rgb),.08);color:var(--ink);font-weight:700;font-size:14px;
+    border-left:1px solid rgba(var(--orange-rgb),.25);border-right:1px solid rgba(var(--orange-rgb),.25);}
+  .cmp-table tbody tr:nth-child(even) td.cur-col{background:rgba(var(--orange-rgb),.11);}
+  .cmp-table tbody tr:hover td.cur-col{background:rgba(var(--orange-rgb),.15);}
+  /* the single delta lives only in the current column */
+  .vsdelta{display:inline-block;font-size:10px;font-weight:700;margin-left:7px;
+    padding:1px 5px;border-radius:5px;vertical-align:1px;}
+  .vsdelta.up{color:var(--red);background:rgba(var(--red-rgb),.12);}
+  .vsdelta.down{color:var(--green);background:rgba(var(--green-rgb),.12);}
+  .vsdelta.flat{color:var(--ink-faint);background:transparent;}
+  .vsdelta.vd-good{color:var(--green);background:rgba(var(--green-rgb),.12);}
+  .vsdelta.vd-bad{color:var(--red);background:rgba(var(--red-rgb),.12);}
+  .vsdelta.vd-flat{color:var(--ink-faint);background:transparent;}
+  .cmp-table .sect-row td{background:var(--navy-2);color:var(--ink-faint);text-transform:uppercase;
+    letter-spacing:.5px;font-size:10px;font-weight:700;padding:8px 14px;}
+  /* total row */
+  .cmp-table .totrow td{border-top:2px solid var(--line);border-bottom:none;
+    background:var(--navy-2);font-weight:800;font-size:14px;padding-top:14px;padding-bottom:14px;}
+  .cmp-table .totrow td:first-child{color:var(--ink);text-transform:uppercase;letter-spacing:.5px;font-size:11px;}
+  .cmp-table .totrow td.cur-col{background:rgba(var(--orange-rgb),.16);}
+  /* charts */
+  .chart-wrap{width:100%;overflow:hidden;}
+  svg{display:block;width:100%;height:auto;}
+  .legend{display:flex;gap:16px;font-size:11px;color:var(--ink-dim);margin-bottom:8px;flex-wrap:wrap;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .swatch{width:12px;height:12px;border-radius:3px;display:inline-block;}
+  /* retention tiles */
+  .ret-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;}
+  .ret{background:var(--navy-2);border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center;}
+  .ret .m{font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);font-weight:700;}
+  .ret .p{font-size:18px;font-weight:800;margin-top:3px;}
+  .ret .d{font-size:10px;font-weight:600;margin-top:2px;}
+  /* AI mentor */
+  .mentor-ai{margin:16px 0 4px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--card);}
+  .mentor-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;}
+  .mentor-title{display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px;}
+  .mentor-dot{width:9px;height:9px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 4px rgba(var(--orange-rgb),.18);}
+  .mentor-verdict{font-size:13px;color:var(--ink-dim);padding:0 16px 16px;line-height:1.6;white-space:pre-wrap;}
+  .mentor-body{padding:0 16px 16px;border-top:1px solid var(--line);}
+  .mentor-body[hidden]{display:none;}
+  .mentor-text{font-size:13px;line-height:1.7;white-space:pre-wrap;color:var(--ink);margin-top:14px;}
+  .chev{color:var(--ink-faint);font-size:13px;}
+  .loading{font-size:12px;color:var(--ink-faint);font-style:italic;}
+  .empty{font-size:13px;color:var(--ink-dim);text-align:center;padding:28px 16px;line-height:1.6;}
+  .note{font-size:11px;color:var(--ink-faint);margin-top:10px;line-height:1.5;}
+  .rule-pill{display:inline-block;font-size:10px;color:var(--ink-faint);background:var(--navy-2);
+    border:1px solid var(--line);border-radius:999px;padding:4px 9px;margin-top:8px;}
+  @media (max-width:520px){
+    .score .val{font-size:24px;}
+    h1{font-size:18px;}
+  }
+  /* --- the four headline numbers --- */
+  .fin-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp-3);}
+  .fin-stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px 16px 14px;box-shadow:var(--shadow);position:relative;overflow:hidden;}
+  .fin-stat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--ink-faint);}
+  .fin-stat.good::before{background:var(--green);} .fin-stat.bad::before{background:var(--red);}
+  .fin-stat.watch::before{background:var(--amber);} .fin-stat.brand::before{background:var(--orange);}
+  .fin-stat .lab{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;
+    color:var(--ink-faint);display:flex;align-items:center;gap:6px;}
+  .fin-stat .val{font-size:28px;font-weight:800;letter-spacing:-.025em;margin-top:6px;
+    font-variant-numeric:tabular-nums;color:var(--ink-strong);}
+  .fin-stat.good .val{color:var(--tint-green);} .fin-stat.bad .val{color:var(--tint-red);}
+  .fin-stat.watch .val{color:var(--tint-amber);}
+  .fin-stat .sub{font-size:11.5px;color:var(--ink-faint);margin-top:4px;}
+  /* the card header: a heading that reads as one, and a line saying what it is for */
+  .cardhead{display:flex;align-items:flex-start;justify-content:space-between;
+    gap:var(--sp-3);margin-bottom:var(--sp-4);flex-wrap:wrap;}
+  .cardhead>div:first-child{min-width:0;}
+  .chead{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:16px;font-weight:700;
+    letter-spacing:-.022em;line-height:1.2;color:var(--ink-strong);}
+  .chead .mo{color:var(--ink-faint);font-weight:600;}
+  .csub{font-size:12.5px;color:var(--ink-faint);margin-top:5px;line-height:1.45;max-width:56ch;}
+  .cardhead-r{display:flex;align-items:center;gap:var(--sp-2);flex:0 0 auto;}
+  .cardhead .weeknav{margin-bottom:0;}
+  .cardhead .weeknav .rng{flex:0 0 auto;min-width:0;}
+
+  /* the explainer mark, and the one floating box it opens */
+  .finfo{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;
+    padding:0;border:0;background:transparent;color:var(--ink-faint);border-radius:var(--r-pill);
+    cursor:help;flex:0 0 auto;line-height:0;transition:color var(--tap),background var(--tap);}
+  .finfo:hover{color:var(--orange);background:rgba(var(--orange-rgb),.10);}
+  .finfo:focus-visible{outline:none;box-shadow:var(--focus);color:var(--orange);}
+  .finfo .ic{width:14px;height:14px;}
+  .tipbox{position:fixed;z-index:300;width:max-content;max-width:320px;background:var(--ink-strong);
+    color:var(--card);font-size:12.5px;line-height:1.55;padding:11px 13px;border-radius:var(--r-md);
+    box-shadow:var(--shadow-lift);pointer-events:none;}
+  .tipbox .tipbox-t{display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.09em;color:var(--card-2);opacity:.7;margin-bottom:5px;}
+
+  /* Needs Review is a JOB, not a fifth number — one line you can act on, full width */
+  .fin-alert{grid-column:1/-1;display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+    font-family:inherit;cursor:pointer;background:rgba(var(--amber-rgb),.07);
+    border:1px solid rgba(var(--amber-rgb),.3);border-radius:var(--radius);padding:13px 16px;
+    color:var(--ink);transition:background var(--tap),border-color var(--tap);}
+  .fin-alert:hover{background:rgba(var(--amber-rgb),.13);border-color:var(--amber);}
+  .fin-alert:focus-visible{outline:none;box-shadow:var(--focus);}
+  .fin-alert>.ic{width:17px;height:17px;color:var(--tint-amber);flex:0 0 auto;}
+  .fin-alert .t{font-size:13.5px;line-height:1.45;flex:1;min-width:0;}
+  .fin-alert .t b{color:var(--tint-amber);}
+  .fin-alert .n{font-variant-numeric:tabular-nums;font-weight:800;color:var(--tint-amber);}
+  .fin-alert .go{display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:700;
+    color:var(--tint-amber);white-space:nowrap;flex:0 0 auto;}
+  .fin-alert .go .ic{width:14px;height:14px;}
+  @media(max-width:640px){ .fin-alert{flex-wrap:wrap;} .fin-alert .go{padding-left:28px;} }
+
+  /* v123.1: HIDDEN MUST MEAN HIDDEN. The browser hides [hidden] with display:none from
+     its OWN stylesheet, which any author rule beats — and .fin-alert sets display:flex,
+     so `<a class="fin-alert" hidden>` would show the money alarm on every load with
+     nothing in it. One rule, last in the sheet, so nothing added later can undo it. */
+  [hidden]{display:none!important;}
+  /* ===================== v136: SOCIAL =====================
+     Two lists of the same shape — mine and somebody else's — behind one toggle. The cards
+     lead with the picture, because that is how the post was seen and how it is remembered;
+     the two numbers that decide whether it worked are written ON the picture, and the rest
+     sit underneath for when you actually want them. */
+  .sp-head{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--sp-4);
+    flex-wrap:wrap;margin:var(--sp-3) 0 var(--sp-4);}
+  .acct{display:flex;align-items:center;gap:12px;min-width:0;}
+  .acct-av{width:46px;height:46px;border-radius:var(--r-pill);flex:0 0 auto;object-fit:cover;
+    background:var(--navy-2);border:1px solid var(--line);}
+  .acct-n{font-size:18px;font-weight:800;letter-spacing:-.025em;color:var(--ink-strong);line-height:1.2;}
+  .acct-s{font-size:12.5px;color:var(--ink-faint);margin-top:3px;}
+  .acct-s b{color:var(--ink-dim);font-weight:700;font-variant-numeric:tabular-nums;}
+
+  /* the competitor switcher */
+  .rivals{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;margin-bottom:var(--sp-4);}
+  .rchip{display:inline-flex;align-items:center;gap:7px;font-family:inherit;font-size:13px;
+    font-weight:600;color:var(--ink-dim);background:var(--card);border:1px solid var(--line);
+    border-radius:var(--r-pill);padding:6px 8px 6px 13px;cursor:pointer;
+    transition:color var(--tap),background var(--tap),border-color var(--tap);}
+  .rchip:hover{color:var(--ink);border-color:var(--ink-faint);}
+  .rchip:focus-visible{outline:none;box-shadow:var(--focus);}
+  .rchip.on{background:rgba(var(--orange-rgb),.11);border-color:rgba(var(--orange-rgb),.34);
+    color:var(--orange-soft);}
+  .rchip .x{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;
+    border-radius:var(--r-pill);color:var(--ink-faint);}
+  .rchip .x:hover{background:rgba(var(--red-rgb),.13);color:var(--tint-red);}
+  .rchip .x .ic{width:11px;height:11px;}
+  .radd{display:flex;align-items:center;gap:var(--sp-2);}
+  .radd input{font-family:inherit;font-size:13px;background:var(--card);color:var(--ink);
+    border:1px solid var(--line);border-radius:var(--r-pill);padding:7px 14px;width:190px;}
+  .radd input:focus{outline:none;border-color:var(--orange);}
+  .rfull{font-size:12px;color:var(--ink-faint);}
+
+  /* --- a post --- */
+  .post-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));
+    gap:var(--sp-3);}
+  .post{display:flex;flex-direction:column;text-decoration:none;color:inherit;
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    overflow:hidden;transition:border-color var(--tap),box-shadow var(--tap),transform var(--tap);}
+  .post:hover{border-color:var(--ink-faint);box-shadow:var(--shadow-lift);transform:translateY(-2px);}
+  .post:focus-visible{outline:none;box-shadow:var(--focus);}
+  .post.out{border-color:rgba(var(--orange-rgb),.45);}
+  .post-img{position:relative;aspect-ratio:1/1;background:var(--navy-2);overflow:hidden;}
+  /* The caption tile is what is UNDERNEATH the picture, so a link that has gone stale shows
+     the post rather than a grey hole. The image is laid over it — order in the markup would
+     have put it on top of a perfectly good photograph. */
+  .post-alt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:11px;color:var(--ink-faint);padding:14px;text-align:center;line-height:1.5;}
+  .post-im{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;}
+  .post-badge{position:absolute;top:8px;left:8px;font-size:9.5px;font-weight:800;
+    text-transform:uppercase;letter-spacing:.09em;padding:3px 7px;border-radius:var(--r-sm);
+    background:rgba(var(--backdrop-rgb),.62);color:var(--card);}
+  .post-flame{position:absolute;top:8px;right:8px;display:inline-flex;align-items:center;gap:4px;
+    font-size:10.5px;font-weight:800;padding:3px 8px;border-radius:var(--r-pill);
+    background:var(--orange);color:var(--on-accent);font-variant-numeric:tabular-nums;}
+  .post-flame .ic{width:11px;height:11px;}
+  /* the two numbers that decide whether it worked, written on the picture */
+  .post-scrim{position:absolute;left:0;right:0;bottom:0;padding:22px 10px 9px;
+    display:flex;align-items:flex-end;gap:8px;
+    background:linear-gradient(to top,rgba(var(--backdrop-rgb),.80),rgba(var(--backdrop-rgb),0));}
+  .post-er{font-size:20px;font-weight:800;letter-spacing:-.03em;color:var(--card);line-height:1;
+    font-variant-numeric:tabular-nums;flex:0 0 auto;}
+  /* the quiet half of the pair. opacity rather than a white with an alpha, so the colour
+     still comes from the palette and nothing literal creeps into the sheet. */
+  .post-erl{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--card);opacity:.78;padding-bottom:2px;}
+  .post-top{margin-left:auto;text-align:right;padding-bottom:1px;}
+  .post-topn{display:block;font-size:13px;font-weight:800;color:var(--card);
+    font-variant-numeric:tabular-nums;line-height:1.1;}
+  .post-topl{display:block;font-size:9.5px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.08em;color:var(--card);opacity:.78;margin-top:1px;}
+
+  .post-meta{padding:10px 11px 11px;display:flex;flex-direction:column;gap:6px;flex:1;}
+  .post-when{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--ink-faint);}
+  .post-cap{font-size:12px;color:var(--ink-dim);line-height:1.45;display:-webkit-box;
+    -webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .post-nums{display:flex;flex-wrap:wrap;gap:3px 11px;margin-top:auto;padding-top:7px;
+    border-top:1px solid var(--line);}
+  .post-nums span{font-size:11px;color:var(--ink-faint);white-space:nowrap;}
+  .post-nums b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums;}
+  .post-nums span.na{opacity:.55;}
+
+  /* --- the "these two numbers are not the same number" note --- */
+  .basis{display:flex;align-items:flex-start;gap:9px;font-size:12.5px;line-height:1.55;
+    color:var(--ink-dim);background:var(--card-2);border:1px solid var(--line);
+    border-radius:var(--r-md);padding:11px 13px;margin-bottom:var(--sp-4);}
+  .basis .ic{width:16px;height:16px;color:var(--ink-faint);flex:0 0 auto;margin-top:1px;}
+  .basis b{color:var(--ink-strong);}
+
+  /* The orange bar on the leading tile. Deliberately NOT called .brand: that class already
+     belongs to the logo block in the app bar, where it means display:flex — and a stat tile
+     that quietly inherits flex lays its label out beside its number instead of above it.
+     Reusing a chrome class as a modifier is how that happens, so this one has its own name. */
+  .fin-stat.lead::before{background:var(--orange);}
+
+  .sortpick{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-dim);}
+  .sortpick select{font-family:inherit;background:var(--card);color:var(--ink);
+    border:1px solid var(--line);border-radius:var(--r-sm);padding:5px 8px;font-size:12.5px;}
+  .sortpick select:focus{outline:none;border-color:var(--orange);}
+  .outonly{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink-dim);
+    cursor:pointer;white-space:nowrap;}
+  .outonly input{accent-color:var(--orange);width:15px;height:15px;}
+
+  .setup{border:1px dashed var(--line);border-radius:var(--r-md);padding:14px 15px;
+    background:var(--card-2);font-size:12.5px;line-height:1.6;color:var(--ink-dim);}
+  .setup b{color:var(--ink-strong);}
+  .setup ol{margin:8px 0 0;padding-left:18px;}
+  .setup li{margin-top:5px;}
+  .setup code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;
+    background:var(--navy-2);border:1px solid var(--line);border-radius:var(--r-sm);
+    padding:1px 5px;white-space:nowrap;}
+  a.abtn{text-decoration:none;}
+
+  /* v123.1: HIDDEN MUST MEAN HIDDEN. The browser hides [hidden] with display:none from its
+     OWN stylesheet, which any author rule beats — and .view is a plain div here, but the
+     tab bar's second view and the outliers tick both ship hidden. One rule, last in the
+     sheet, so nothing added later can undo it. */
+  [hidden]{display:none!important;}
+</style>
+</head>
+<body>
+<!-- ===================== v121: THE ICON SET =====================
+     One sprite, injected on every page, replacing the emoji and typographic glyphs the
+     suite used to use as icons (✕ ▸ ▾ ▲ ▼ 📅 📍 🗒 🔥 ⚠ ↻ and the training set).
+     Emoji rendered differently on every OS, could not take an accent colour and could not
+     be sized reliably. These are one 24px grid at 1.7 stroke, drawn in currentColor — so
+     an icon is always exactly the colour of the text it sits in, at any size.
+     Use: <svg class="ic"><use href="#ic-close"/></svg>. Prose keeps its typography: the
+     → in "Thinking Time → AI Analysis", the · separators and the • bullets are text. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="ic-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></symbol>
+<symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></symbol>
+<symbol id="ic-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></symbol>
+<symbol id="ic-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></symbol>
+<symbol id="ic-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+<symbol id="ic-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+<symbol id="ic-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.6 7-11a7 7 0 10-14 0c0 5.4 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></symbol>
+<symbol id="ic-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h9l7-7V5a2 2 0 00-2-2z"/><path d="M14 21v-5a2 2 0 012-2h5M8 8h8M8 12h5"/></symbol>
+<symbol id="ic-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.4v5.2M12 16.3v.1"/></symbol>
+<symbol id="ic-flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c3.9 0 7-2.9 7-6.6 0-4.3-3.4-6.6-4.6-10.4-1.5 1-2.2 2.5-2.2 4.2C10.6 7.5 9.4 5.7 9.4 3.7 6.9 5.7 5 9.1 5 15.4 5 19.1 8.1 22 12 22z"/></symbol>
+<symbol id="ic-trend-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></symbol>
+<symbol id="ic-trend-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6 6 4-4 8 8"/><path d="M15 17h6v-6"/></symbol>
+<symbol id="ic-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3.2-6.9"/><path d="M21 4v5h-5"/></symbol>
+<symbol id="ic-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="ic-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></symbol>
+<symbol id="ic-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 018 0v3"/></symbol>
+<symbol id="ic-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 3.5L16 11H5"/></symbol>
+<symbol id="ic-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 13.5a4 4 0 006 .4l2.5-2.5a4.2 4.2 0 00-6-6l-1.4 1.4"/><path d="M13.5 10.5a4 4 0 00-6-.4L5 12.6a4.2 4.2 0 006 6l1.4-1.4"/></symbol>
+<symbol id="ic-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.3l3.4 2"/></symbol>
+<symbol id="ic-dot" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="12" r="5"/></symbol>
+<!-- the training set: wpDetectTrainingEmoji picks one of these from the task's title -->
+<symbol id="ic-lift" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6M6 6.5v11M18 6.5v11M21 9v6M6 12h12"/></symbol>
+<symbol id="ic-run" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="15.5" cy="4.5" r="2"/><path d="M8 21l2.6-4.6.9-4.4L8.5 14 6 12.4"/><path d="M11.5 12l3.6-3.4 2.4 3 2.5.9"/><path d="M15.1 8.6L12 7.2 8.8 8.4"/></symbol>
+<symbol id="ic-bike" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17" r="3.5"/><circle cx="18.5" cy="17" r="3.5"/><path d="M5.5 17l4-9h4M9.5 8l4 9h5M14 5h3"/></symbol>
+<symbol id="ic-swim" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="17" cy="7" r="1.8"/><path d="M3 12.5l3.5-2.5 4 3 3.5-2.5"/><path d="M2 18.5c1.7 0 1.7 1.4 3.3 1.4s1.7-1.4 3.4-1.4 1.7 1.4 3.3 1.4 1.7-1.4 3.4-1.4 1.7 1.4 3.3 1.4 1.7-1.4 3.3-1.4"/></symbol>
+<symbol id="ic-walk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4.2" r="2"/><path d="M9.5 21l2.5-5.5V11L9 13"/><path d="M12 15.5l3 5.5M12 9l3 2 2.5-.8M12 9l-3 1.5"/></symbol>
+<symbol id="ic-yoga" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.2" r="2"/><path d="M12 7v6M12 13l-5 6M12 13l5 6M4 10.5l8 1.5 8-1.5"/></symbol>
+<symbol id="ic-help" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.4 9.3a2.7 2.7 0 1 1 3.5 2.6c-.8.3-1.2.9-1.2 1.7v.5"/><path d="M11.7 17.3h.01"/></symbol>
+<symbol id="ic-wallet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h11.2a1 1 0 0 1 1 1v2"/><path d="M3 7.5v9.8A2.7 2.7 0 0 0 5.7 20h12.8a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 18.5 8H5.5"/><circle cx="16.3" cy="13.6" r="1.15"/></symbol>
+<symbol id="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.6v2M12 19.4v2M4.6 12h-2M21.4 12h-2M6.7 6.7L5.3 5.3M18.7 18.7l-1.4-1.4M6.7 17.3l-1.4 1.4M18.7 5.3l-1.4 1.4"/></symbol>
+<symbol id="ic-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.2"/><path d="M3.6 6.7l7.3 5.2a2 2 0 0 0 2.2 0l7.3-5.2"/></symbol>
+<symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="M2.5 9.8h19M6 15.2h3.4"/></symbol>
+<symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.05" fill="currentColor" stroke="none"/></symbol>
+</defs></svg>
+<!-- build v136 · calendar-and-social -->
+<header>
+  <div class="appbar">
+    <div class="brand">
+      <div class="mark"><img src="data:image/png;base64,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" alt="Bodysculpt" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;"></div>
+      <div><h1>Bodysculpt</h1><div class="sub">Warrington</div></div>
+    </div>
+    <nav class="topnav">
+      <div class="navgrp">
+        <span class="navgroup"><svg class="ic"><use href="#ic-sun"/></svg>Today</span>
+        <div class="navlinks">
+          <a href="/daily.html">Daily Dashboard</a>
+        </div>
+      </div>
+      <span class="navsep"></span>
+      <div class="navgrp">
+        <span class="navgroup"><svg class="ic"><use href="#ic-calendar"/></svg>Planning</span>
+        <div class="navlinks">
+          <a href="/index.html">Weekly</a>
+          <a href="/monthly.html">Monthly</a>
+          <a href="/quarterly.html">Quarterly</a>
+        </div>
+      </div>
+      <span class="navsep"></span>
+      <div class="navgrp">
+        <span class="navgroup"><svg class="ic"><use href="#ic-camera"/></svg>Social</span>
+        <div class="navlinks">
+          <a href="/social.html" class="active">Instagram</a>
+        </div>
+      </div>
+      <span class="navsep"></span>
+      <div class="navgrp navgrp-money">
+        <span class="navgroup"><svg class="ic"><use href="#ic-wallet"/></svg>Finances</span>
+        <div class="navlinks">
+          <a href="/finances.html">Income &amp; Expenses</a>
+        </div>
+      </div>
+    </nav>
+  </div>
+  <div class="viewtoggle" id="tabBar">
+    <button class="vt active" data-view="mine">My posts</button>
+    <button class="vt" data-view="rivals">Competitors</button>
+    <div class="vt-right">
+      <label class="outonly" id="outWrap" hidden><input type="checkbox" id="outOnly"> Only the ones that took off</label>
+      <div class="sortpick"><span>Sort</span>
+        <select id="sortSel">
+          <option value="new">Newest first</option>
+          <option value="er">Best engagement</option>
+          <option value="reach">Most reach</option>
+        </select>
+      </div>
+      <button type="button" class="abtn" id="btnRefresh"><svg class="ic"><use href="#ic-refresh"/></svg> Refresh</button>
+    </div>
+  </div>
+</header>
+
+<!-- ============================= MY POSTS ============================= -->
+<div class="view" id="v-mine">
+  <div class="sp-head"><div class="acct" id="mineAcct"></div></div>
+  <div class="fin-stats" id="mineStats"></div>
+  <div style="height:var(--sp-4)"></div>
+  <div id="mineBody"><div class="loading">Reading your last 25 posts…</div></div>
+</div>
+
+<!-- ============================ COMPETITORS ============================ -->
+<div class="view" id="v-rivals" hidden>
+  <div class="rivals" id="rivalChips"></div>
+  <div class="basis" id="rivalBasis" hidden>
+    <svg class="ic"><use href="#ic-help"/></svg>
+    <div><b>These are not the same number as yours.</b> Reach, views, saves and shares are private —
+    Instagram gives them for accounts you own and for nobody else, at any price. For other accounts
+    the honest measure is likes and comments against their follower count, which is what is shown
+    here. What <i>does</i> compare cleanly is how a post did against its own account's normal:
+    that is what the flame means, on both sides of this toggle.</div>
+  </div>
+  <div class="sp-head"><div class="acct" id="rivalAcct"></div></div>
+  <div class="fin-stats" id="rivalStats"></div>
+  <div style="height:var(--sp-4)"></div>
+  <div id="rivalBody"></div>
+</div>
+
+<script>
+/* =====================================================================
+   SOCIAL — Instagram, mine and theirs.  v136
+
+   One page, one toggle, two lists of the same shape. What differs between the two sides is
+   not the layout, it is what can honestly be measured:
+
+     MY POSTS      reach, views, saves, shares and interactions — the private insights, which
+                   Instagram gives for an account you own. Engagement rate is interactions
+                   divided by REACH: of the people who saw it, how many did something.
+
+     COMPETITORS   likes, comments and follower count, through business_discovery. Reach and
+                   saves are private and cannot be read for anyone else's account — not by
+                   this page, not by any paid tool. Engagement rate is therefore likes plus
+                   comments divided by FOLLOWERS, the public proxy, and it is labelled as a
+                   different number rather than quietly mixed in with the real one.
+
+   What DOES compare cleanly across both is a post against its own account's median. That is
+   what the flame is: this post did at least twice what that account normally does.
+
+   The token lives in Netlify and is used by netlify/functions/instagram-feed.js. Nothing
+   secret reaches this page.
+   ===================================================================== */
+const API = "/.netlify/functions/kpi-store";
+const IG_FEED = "/.netlify/functions/instagram-feed";
+const RIVAL_CAP = 10;
+
+/* ---------- small helpers ---------- */
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
+  ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const nfmt = (n) => (n == null ? "—" : Number(n).toLocaleString("en-GB"));
+const pct = (v, dp) => (v == null ? "—" : (v * 100).toFixed(dp == null ? 1 : dp) + "%");
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function when(iso) {
+  const t = Date.parse(iso);
+  if (!isFinite(t)) return "";
+  const d = new Date(t), days = Math.floor((Date.now() - t) / 86400000);
+  if (days === 0) return "Today";
+  if (days === 1) return "Yesterday";
+  if (days < 7) return days + " days ago";
+  return d.getDate() + " " + MONTHS[d.getMonth()];
+}
+function ago(iso) {
+  const t = Date.parse(iso);
+  if (!isFinite(t)) return "";
+  const m = Math.round((Date.now() - t) / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return m + "m ago";
+  const h = Math.round(m / 60);
+  return h < 24 ? h + "h ago" : Math.round(h / 24) + "d ago";
+}
+const TYPE_LABEL = { VIDEO: "Reel", CAROUSEL_ALBUM: "Carousel", IMAGE: "Photo" };
+
+/* ---------- the explainer marks (the same box the finance page uses) ---------- */
+const TIPS = {
+  er: ["Engagement rate", "Of the people who actually saw the post, how many did something about it — liked, commented, saved or shared. This is the number worth watching, because it does not go up just because you have more followers."],
+  erRival: ["Their engagement rate", "Likes plus comments, against how many followers they have. It is not the same as yours: reach is private, so nobody outside an account can see how many people a post actually reached. Use it to compare their posts with each other, not with yours."],
+  reach: ["Reach", "How many separate accounts saw the post. Not views — one person scrolling past it three times is still one reach."],
+  views: ["Views", "How many times the post was played or shown, including the same person more than once. For reels this is the play count."],
+  saves: ["Saves", "How many people bookmarked it to come back to. The strongest signal there is: someone thought it was worth keeping."],
+  shares: ["Shares", "How many people sent it on to someone else or put it on their story. This is how a post reaches people who do not follow you."],
+  flame: ["Took off", "This post did at least twice what this account normally does. It is measured against that account's own middle post, not against anyone else's — so it means the same thing whichever account you are looking at."],
+};
+let tipEl = null, tipFor = null;
+function tipBtn(key) {
+  return TIPS[key] ? '<button type="button" class="finfo" data-tip="' + key + '" aria-label="What does this mean?"><svg class="ic"><use href="#ic-help"/></svg></button>' : "";
+}
+function tipShow(btn) {
+  const t = TIPS[btn.dataset && btn.dataset.tip];
+  if (!t || !btn.getBoundingClientRect) return;
+  if (!tipEl) { tipEl = document.createElement("div"); tipEl.className = "tipbox"; tipEl.hidden = true; document.body.appendChild(tipEl); }
+  tipEl.innerHTML = '<span class="tipbox-t">' + esc(t[0]) + "</span>" + esc(t[1]);
+  tipEl.hidden = false;
+  const r = btn.getBoundingClientRect();
+  const vw = window.innerWidth || 1200, vh = window.innerHeight || 800;
+  const w = tipEl.offsetWidth || 300, h = tipEl.offsetHeight || 90;
+  let left = Math.max(10, Math.min(r.left + r.width / 2 - w / 2, vw - w - 10));
+  let top = r.bottom + 9;
+  if (top + h > vh - 10) top = Math.max(10, r.top - h - 9);
+  tipEl.style.left = left + "px"; tipEl.style.top = top + "px";
+  tipFor = btn;
+}
+function tipHide() { if (tipEl) tipEl.hidden = true; tipFor = null; }
+const tipAt = (e) => (e.target && e.target.closest) ? e.target.closest(".finfo") : null;
+document.addEventListener("mouseover", (e) => { const b = tipAt(e); if (b && b !== tipFor) tipShow(b); });
+document.addEventListener("mouseout", (e) => { if (tipAt(e)) tipHide(); });
+document.addEventListener("focusin", (e) => { const b = tipAt(e); if (b) tipShow(b); else tipHide(); });
+document.addEventListener("click", (e) => {
+  const b = tipAt(e);
+  if (!b) { tipHide(); return; }
+  e.preventDefault(); e.stopPropagation();
+  if (b === tipFor && tipEl && !tipEl.hidden) tipHide(); else tipShow(b);
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") tipHide(); });
+document.addEventListener("scroll", tipHide, true);
+
+/* ---------- reads and the one write ---------- */
+async function jget(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return await r.json();
+}
+// The competitor list is the ONLY thing this page saves, and it saves the whole list every
+// time: the page holds the order, so a partial write cannot half-erase it.
+async function saveRivals(list) {
+  const r = await fetch(API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ igCompetitors: list }),
+  });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return await r.json();
+}
+
+/* ---------- state ---------- */
+let view = "mine";
+let sortBy = "new";
+let outliersOnly = false;
+let mineData = null;
+let rivals = [];          // [{username,label}]
+let rivalSel = "";        // the username being shown
+let rivalData = {};       // username -> payload
+let rivalBusy = "";
+
+/* ---------- a post card ----------
+   The picture first, the two numbers that matter written on it, everything else beneath. */
+function postCard(p, basis) {
+  const label = TYPE_LABEL[p.type] || "Post";
+  const erLabel = basis === "reach" ? "engaged" : "of followers";
+  // The second number on the scrim: reach if we have it, otherwise likes — always something.
+  const top = p.reach != null ? { n: nfmt(p.reach), l: "reached" } : { n: nfmt(p.likes), l: "likes" };
+
+  const nums = [
+    ["reach", p.reach, "reach"],
+    ["views", p.views, "views"],
+    ["saves", p.saves, "saves"],
+    ["shares", p.shares, "shares"],
+  ].map(([k, v, l]) => v == null
+      ? '<span class="na" title="Private — only the account owner can see this">' + l + " —</span>"
+      : "<span><b>" + nfmt(v) + "</b> " + l + "</span>")
+   .join("");
+
+  return '<a class="post' + (p.outlier ? " out" : "") + '" href="' + esc(p.permalink) + '" target="_blank" rel="noopener">' +
+    '<div class="post-img">' +
+      '<div class="post-alt">' + esc(p.caption ? p.caption.slice(0, 90) : "No preview") + "</div>" +
+      (p.image
+        ? '<img class="post-im" src="' + esc(p.image) + '" alt="" loading="lazy" referrerpolicy="no-referrer">'
+        : "") +
+      '<span class="post-badge">' + esc(label) + "</span>" +
+      (p.outlier ? '<span class="post-flame"><svg class="ic"><use href="#ic-flame"/></svg>' +
+        (p.vsMedian ? p.vsMedian.toFixed(1) + "×" : "") + "</span>" : "") +
+      '<div class="post-scrim">' +
+        '<span class="post-er">' + pct(p.er) + "</span>" +
+        '<span class="post-erl">' + esc(erLabel) + "</span>" +
+        '<span class="post-top"><span class="post-topn">' + top.n + '</span><span class="post-topl">' + top.l + "</span></span>" +
+      "</div>" +
+    "</div>" +
+    '<div class="post-meta">' +
+      '<div class="post-when">' + esc(when(p.timestamp)) + "</div>" +
+      '<div class="post-cap">' + esc(p.caption || "—") + "</div>" +
+      '<div class="post-nums"><span><b>' + nfmt(p.likes) + "</b> likes</span>" +
+      "<span><b>" + nfmt(p.comments) + "</b> comments</span>" + nums + "</div>" +
+    "</div></a>";
+}
+
+// Instagram's picture URLs are signed and go stale after a while. When one does, the tile
+// underneath shows the caption instead of leaving a grey hole where a post was. `error`
+// does not bubble, so it is caught on the way down.
+function wireImageFallbacks(el) {
+  if (!el) return;
+  el.addEventListener("error", (e) => {
+    const img = e.target;
+    if (img && img.classList && img.classList.contains("post-im")) img.style.display = "none";
+  }, true);
+}
+
+function sortPosts(posts) {
+  const list = posts.slice();
+  if (sortBy === "er") list.sort((a, b) => (b.er || 0) - (a.er || 0));
+  else if (sortBy === "reach") list.sort((a, b) => (b.reach || b.likes || 0) - (a.reach || a.likes || 0));
+  else list.sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
+  return outliersOnly ? list.filter((p) => p.outlier) : list;
+}
+
+function gridHtml(data) {
+  const posts = sortPosts(data.posts || []);
+  if (!posts.length) {
+    return '<div class="empty">' + (outliersOnly
+      ? "Nothing in the last 25 posts did twice this account's normal. That is not a bad sign — it means the output is even."
+      : "No posts came back for this account.") + "</div>";
+  }
+  const basis = (data.account && data.account.erBasis) || "reach";
+  return '<div class="post-grid">' + posts.map((p) => postCard(p, basis)).join("") + "</div>";
+}
+
+/* ---------- the numbers above the grid ---------- */
+function statTile(cls, label, value, sub, tip) {
+  return '<div class="fin-stat ' + cls + '"><div class="lab">' + esc(label) + (tip ? tipBtn(tip) : "") + "</div>" +
+    '<div class="val">' + value + "</div>" +
+    (sub ? '<div class="sub">' + sub + "</div>" : "") + "</div>";
+}
+const avg = (rows, f) => {
+  const vals = rows.map(f).filter((v) => typeof v === "number" && isFinite(v));
+  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+};
+const sum = (rows, f) => rows.reduce((t, r) => t + (Number(f(r)) || 0), 0);
+
+function statsHtml(data) {
+  const posts = data.posts || [];
+  const acct = data.account || {};
+  const outs = posts.filter((p) => p.outlier).length;
+  if (acct.erBasis === "followers") {
+    return statTile("lead", "Followers", nfmt(acct.followers), esc(acct.mediaCount ? nfmt(acct.mediaCount) + " posts all told" : "")) +
+      statTile("", "Average engagement", pct(avg(posts, (p) => p.er)), "likes + comments ÷ followers", "erRival") +
+      statTile("", "Best post", pct(Math.max(0, ...posts.map((p) => p.er || 0))), "of these " + posts.length) +
+      statTile(outs ? "good" : "", "Took off", String(outs), outs ? "2× their normal or better" : "nothing unusual", "flame");
+  }
+  const bestReach = Math.max(0, ...posts.map((p) => p.reach || 0));
+  return statTile("lead", "Average reach", nfmt(Math.round(avg(posts, (p) => p.reach) || 0)), "per post, last " + posts.length, "reach") +
+    statTile("", "Average engagement", pct(avg(posts, (p) => p.er)), "of the people who saw it", "er") +
+    statTile("", "Saved", nfmt(sum(posts, (p) => p.saves)), "across these posts", "saves") +
+    statTile(outs ? "good" : "", "Took off", String(outs), outs ? "2× your normal or better" : "nothing unusual", "flame");
+}
+
+function acctHtml(data, extra) {
+  const a = data.account || {};
+  return (a.avatar ? '<img class="acct-av" src="' + esc(a.avatar) + '" alt="" referrerpolicy="no-referrer">' : '<div class="acct-av"></div>') +
+    "<div><div class=\"acct-n\">@" + esc(a.username || "—") + "</div>" +
+    '<div class="acct-s"><b>' + nfmt(a.followers) + "</b> followers · <b>" + (data.posts || []).length + "</b> posts shown" +
+    (data.fetchedAt ? " · read " + esc(ago(data.fetchedAt)) + (data.cached ? " (cached)" : "") : "") +
+    (extra || "") + "</div></div>";
+}
+
+/* ---------- the setup state ---------- */
+function igSetupHtml(payload) {
+  if (payload && payload.configured === false) {
+    return '<div class="setup"><b>Instagram is not connected yet.</b>' +
+      "<ol><li>Your Instagram has to be a <b>Business or Creator</b> account, linked to your Facebook page. It almost certainly already is, because you run ads.</li>" +
+      "<li>Make a token in Meta Business settings, and find your Instagram account's id.</li>" +
+      "<li>In Netlify: Site configuration → Environment variables → add <code>IG_ACCESS_TOKEN</code> and <code>IG_USER_ID</code>.</li>" +
+      "<li>Redeploy, then press Refresh here.</li></ol>" +
+      "SOCIAL-SETUP.md walks through it click by click. The token stays on the server and never reaches this page.</div>";
+  }
+  const e = (payload && payload.error) || "Could not reach Instagram.";
+  const hint = (payload && payload.hint) || "";
+  return '<div class="setup"><b>' + esc(e) + "</b>" + (hint ? "<br>" + esc(hint) : "") + "</div>";
+}
+
+/* ---------- my posts ---------- */
+function renderMine() {
+  const body = $("mineBody"), stats = $("mineStats"), acct = $("mineAcct");
+  if (!mineData) { body.innerHTML = '<div class="loading">Reading your last 25 posts…</div>'; return; }
+  if (!mineData.ok || mineData.configured === false || !mineData.account) {
+    acct.innerHTML = ""; stats.innerHTML = "";
+    body.innerHTML = igSetupHtml(mineData);
+    return;
+  }
+  acct.innerHTML = acctHtml(mineData);
+  stats.innerHTML = statsHtml(mineData);
+  body.innerHTML = gridHtml(mineData);
+  wireImageFallbacks(body);
+}
+
+/* ---------- competitors ---------- */
+function renderRivalChips() {
+  const wrap = $("rivalChips");
+  let html = rivals.map((r) => '<button type="button" class="rchip' + (r.username === rivalSel ? " on" : "") + '" data-u="' + esc(r.username) + '">' +
+    "@" + esc(r.username) +
+    '<span class="x" role="button" data-x="' + esc(r.username) + '" aria-label="Stop watching @' + esc(r.username) + '"><svg class="ic"><use href="#ic-close"/></svg></span></button>').join("");
+  if (rivals.length < RIVAL_CAP) {
+    html += '<span class="radd"><input type="text" id="rivalNew" placeholder="add an account" autocomplete="off" spellcheck="false">' +
+      '<button type="button" class="abtn" id="rivalAdd"><svg class="ic"><use href="#ic-plus"/></svg> Watch</button></span>';
+  } else {
+    html += '<span class="rfull">Ten is the limit — remove one to add another.</span>';
+  }
+  wrap.innerHTML = html;
+
+  wrap.querySelectorAll("[data-u]").forEach((el) => el.addEventListener("click", (e) => {
+    if (e.target.closest("[data-x]")) return;
+    rivalSel = el.dataset.u;
+    renderRivals();
+    loadRival(rivalSel);
+  }));
+  wrap.querySelectorAll("[data-x]").forEach((el) => el.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await removeRival(el.dataset.x);
+  }));
+  const add = $("rivalAdd"), input = $("rivalNew");
+  if (add) add.addEventListener("click", () => addRival(input.value));
+  if (input) input.addEventListener("keydown", (e) => { if (e.key === "Enter") addRival(input.value); });
+}
+
+function renderRivals() {
+  renderRivalChips();
+  const body = $("rivalBody"), stats = $("rivalStats"), acct = $("rivalAcct"), basis = $("rivalBasis");
+  basis.hidden = !rivals.length;
+
+  if (!rivals.length) {
+    acct.innerHTML = ""; stats.innerHTML = "";
+    body.innerHTML = '<div class="setup"><b>Nobody is being watched yet.</b><br>' +
+      "Type an Instagram username above — the bit after the @ — and press Watch. Up to ten. " +
+      "They have to be Business or Creator accounts and public, which every gym marketing itself will be. " +
+      "You will see their recent posts, how each one did against their own normal, and which ones took off.</div>";
+    return;
+  }
+  if (!rivalSel) { acct.innerHTML = ""; stats.innerHTML = ""; body.innerHTML = '<div class="empty">Pick an account above.</div>'; return; }
+
+  const data = rivalData[rivalSel];
+  if (rivalBusy === rivalSel || !data) {
+    acct.innerHTML = ""; stats.innerHTML = "";
+    body.innerHTML = '<div class="loading">Reading @' + esc(rivalSel) + "…</div>";
+    return;
+  }
+  if (!data.ok || data.configured === false || !data.account) {
+    acct.innerHTML = ""; stats.innerHTML = "";
+    body.innerHTML = igSetupHtml(data);
+    return;
+  }
+  acct.innerHTML = acctHtml(data);
+  stats.innerHTML = statsHtml(data);
+  body.innerHTML = gridHtml(data);
+  wireImageFallbacks(body);
+}
+
+async function addRival(raw) {
+  const username = String(raw || "").trim()
+    .replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/[/?#].*$/, "")
+    .replace(/^@/, "").replace(/[^A-Za-z0-9._]/g, "").toLowerCase();
+  if (!username) return;
+  if (rivals.some((r) => r.username === username)) { rivalSel = username; renderRivals(); return; }
+  if (rivals.length >= RIVAL_CAP) return;
+  const next = rivals.concat([{ username, label: "" }]);
+  try {
+    const r = await saveRivals(next);
+    rivals = r.competitors || next;
+    rivalSel = username;
+    renderRivals();
+    loadRival(username);
+  } catch {
+    $("rivalBody").innerHTML = '<div class="setup"><b>Could not save the list.</b><br>The site may still be deploying. Try again in a moment.</div>';
+  }
+}
+async function removeRival(username) {
+  const next = rivals.filter((r) => r.username !== username);
+  try {
+    const r = await saveRivals(next);
+    rivals = r.competitors || next;
+    delete rivalData[username];
+    if (rivalSel === username) rivalSel = rivals.length ? rivals[0].username : "";
+    renderRivals();
+    if (rivalSel && !rivalData[rivalSel]) loadRival(rivalSel);
+  } catch { /* the chip stays; nothing was lost */ }
+}
+async function loadRival(username, force) {
+  if (!username) return;
+  rivalBusy = username;
+  renderRivals();
+  try { rivalData[username] = await jget(IG_FEED + "?mode=competitor&username=" + encodeURIComponent(username) + (force ? "&refresh=1" : "")); }
+  catch { rivalData[username] = { ok: false, configured: true, error: "Could not reach the Instagram feed. The site may still be deploying." }; }
+  rivalBusy = "";
+  renderRivals();
+}
+
+/* ---------- the toggle ---------- */
+function setView(v) {
+  view = v;
+  document.querySelectorAll("#tabBar .vt").forEach((b) => b.classList.toggle("active", b.dataset.view === v));
+  $("v-mine").hidden = v !== "mine";
+  $("v-rivals").hidden = v !== "rivals";
+  // "Only the ones that took off" is meaningless before there is a list to filter
+  $("outWrap").hidden = false;
+  if (v === "rivals" && rivalSel && !rivalData[rivalSel]) loadRival(rivalSel);
+}
+$("tabBar").addEventListener("click", (e) => {
+  const b = e.target.closest(".vt");
+  if (!b) return;
+  setView(b.dataset.view);
+});
+$("sortSel").addEventListener("change", (e) => { sortBy = e.target.value; renderMine(); renderRivals(); });
+$("outOnly").addEventListener("change", (e) => { outliersOnly = e.target.checked; renderMine(); renderRivals(); });
+
+/* ---------- load ---------- */
+async function loadAll(force) {
+  const btn = $("btnRefresh");
+  if (btn) btn.disabled = true;
+  mineData = null;
+  renderMine();
+
+  const [mine, list] = await Promise.allSettled([
+    jget(IG_FEED + "?mode=mine" + (force ? "&refresh=1" : "")),
+    jget(API + "?igcompetitors=1"),
+  ]);
+
+  mineData = mine.status === "fulfilled" ? mine.value
+    : { ok: false, configured: true, error: "Could not reach the Instagram feed. The site may still be deploying." };
+  rivals = (list.status === "fulfilled" && Array.isArray(list.value.competitors)) ? list.value.competitors : [];
+  if (!rivalSel && rivals.length) rivalSel = rivals[0].username;
+  if (force) rivalData = {};
+
+  renderMine();
+  renderRivals();
+  if (view === "rivals" && rivalSel) loadRival(rivalSel, force);
+  if (btn) btn.disabled = false;
+}
+$("btnRefresh").addEventListener("click", () => loadAll(true));
+setView("mine");
+loadAll(false);
+
+/* Test harness hook: read-only views of what the page decided. */
+window.__socialState = {
+  get view() { return view; },
+  get mine() { return mineData; },
+  get rivals() { return rivals.slice(); },
+  get selected() { return rivalSel; },
+  get sort() { return { by: sortBy, outliersOnly }; },
+};
+</script>
+
+</body>
+</html>

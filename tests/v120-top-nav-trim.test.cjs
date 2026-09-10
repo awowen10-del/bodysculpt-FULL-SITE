@@ -35,6 +35,8 @@ const PAGES = [
   ["finances.html", read("finances.html"), "/finances.html"],
   // v135: the Daily Dashboard is a fifth page and lives under the same rules.
   ["daily.html", read("daily.html"), "/daily.html"],
+  // v136: and Social is the sixth.
+  ["social.html", read("social.html"), "/social.html"],
 ];
 
 (async () => {
@@ -64,21 +66,21 @@ const PAGES = [
     // v126: the caption leads with a sprite icon, so the text is what follows it
     const groups = [...nav[1].matchAll(/<span class="navgroup">(?:<svg class="ic"><use href="#(ic-[a-z-]+)"\/><\/svg>)?([^<]+)<\/span>/g)]
       .map((m) => m[2].trim());
-    assert.deepStrictEqual(groups, ["Today", "Planning", "Finances"], label + " names the three groups");
-    assert.strictEqual((nav[1].match(/<span class="navsep"><\/span>/g) || []).length, 2,
-      label + " rules the three groups apart");
+    assert.deepStrictEqual(groups, ["Today", "Planning", "Social", "Finances"], label + " names the four groups");
+    assert.strictEqual((nav[1].match(/<span class="navsep"><\/span>/g) || []).length, 3,
+      label + " rules the four groups apart");
 
     const links = [...nav[1].matchAll(/<a href="([^"]+)"([^>]*)>([\s\S]*?)<\/a>/g)];
-    assert.strictEqual(links.length, 5, label + " top menu has today, the three periods, and finances");
+    assert.strictEqual(links.length, 6, label + " top menu has today, the three periods, social and finances");
 
     assert.deepStrictEqual(
       links.map((m) => m[1]),
-      ["/daily.html", "/index.html", "/monthly.html", "/quarterly.html", "/finances.html"],
-      label + " links to today, then the three periods in order, then finances"
+      ["/daily.html", "/index.html", "/monthly.html", "/quarterly.html", "/social.html", "/finances.html"],
+      label + " links to today, then the three periods in order, then social, then finances"
     );
     assert.deepStrictEqual(
       links.map((m) => m[3].trim()),
-      ["Daily Dashboard", "Weekly", "Monthly", "Quarterly", "Income &amp; Expenses"],
+      ["Daily Dashboard", "Weekly", "Monthly", "Quarterly", "Instagram", "Income &amp; Expenses"],
       label + " labels the periods by period alone"
     );
 

@@ -80,26 +80,26 @@ async function loadStripe(env, responder) {
 (async () => {
   /* ================= 0. the stamp — this is the newest release, so it is exact =========== */
   const MONTHLY = read("monthly.html");
+  // relaxed once v136 shipped: the newest release's test pins the exact stamp, this one
+  // only checks the build never goes backwards and that the pages still agree on it.
   const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(MONTHLY);
-  assert.ok(stamp, "monthly.html carries a build stamp");
-  assert.strictEqual(stamp[1], "135", "monthly.html is stamped v135");
-  assert.strictEqual(stamp[2], "daily-dashboard", "…as the daily-dashboard release");
-  const text = "build v135 · daily-dashboard";
+  assert.ok(stamp && Number(stamp[1]) >= 135, "monthly.html is stamped v135 or later");
+  const text = "build v" + stamp[1] + " · " + stamp[2];
   for (const f of ["index.html", "finances.html", "daily.html"]) {
     assert.ok(read(f).includes(text), f + " carries the same stamp");
   }
 
-  /* ================= 1. THE READ-ONLY GUARANTEE ================= */
-  // This is the whole reason the page is safe to leave open. If any of these three fail,
-  // daily.html has grown a way to touch live data and the failure is the point.
+  /* ================= 1. THE STORE IS READ-ONLY FROM THIS PAGE =================
+     v135 stated this as "daily.html contains no POST". That was a proxy for the thing that
+     matters, and v136's calendar breaks the proxy without touching the thing — creating a
+     Google Calendar event cannot reach a KPI week. So the precise version of the claim now
+     lives in tests/v136-calendar-and-social.test.cjs, which pins BOTH halves: every store
+     read goes through jget with no options, and everything carrying a method goes to
+     googleapis.com and nowhere else. What stays here is the half this file was written for. */
   const js = scriptOf(DAILY);
-  const fetches = [...js.matchAll(/fetch\s*\(/g)];
-  assert.strictEqual(fetches.length, 1, "daily.html calls fetch in exactly ONE place");
   assert.ok(/async function jget\(url\) \{\s*const r = await fetch\(url\);/.test(js),
-    "…and that place is jget(url), which passes no options at all");
-  assert.ok(!/method\s*:/.test(js), "daily.html never names an HTTP method — there is no write to make");
-  assert.ok(!/\bStore\.save\b|\bbody\s*:\s*JSON\.stringify/.test(js),
-    "…and nothing that looks like a save path either");
+    "the store is read through jget(url), which passes no options at all");
+  assert.ok(!/\bStore\.save\b/.test(js), "…and there is no save path on the page");
   // every URL it reads is a known read endpoint
   assert.ok(/jget\(API \+ "\?dailybriefs=1"\)/.test(js), "it reads the daily briefs");
   assert.ok(/jget\(API \+ "\?checkins=1"\)/.test(js), "it reads today's check-in");

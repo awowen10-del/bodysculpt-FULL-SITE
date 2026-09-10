@@ -16,6 +16,8 @@ const SOURCES = [
   ["finances.html", path.join(__dirname, "..", "finances.html")],
   // v135: the Daily Dashboard is a fifth single-file app and gets the same check
   ["daily.html", path.join(__dirname, "..", "daily.html")],
+  // v136: the Social page is the sixth
+  ["social.html", path.join(__dirname, "..", "social.html")],
 ];
 for (const [label, file] of SOURCES) {
   const tmp = path.join(os.tmpdir(), "bodysculpt-extracted-" + process.pid + "-" + label + ".js");
@@ -28,7 +30,7 @@ for (const [label, file] of SOURCES) {
   }
   console.log("syntax check " + label + ": OK");
 }
-for (const fn of ["kpi-store.js", "stripe-feed.js"]) {
+for (const fn of ["kpi-store.js", "stripe-feed.js", "instagram-feed.js"]) {
   const chk = spawnSync(process.execPath, ["--check", path.join(__dirname, "..", "netlify", "functions", fn)], { stdio: "inherit" });
   if (chk.status !== 0) {
     console.error("SYNTAX CHECK FAILED (" + fn + ") — aborting test run");
