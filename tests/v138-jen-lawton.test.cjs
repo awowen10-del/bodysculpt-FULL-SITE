@@ -1,4 +1,4 @@
-// v137/v138 — a failed payment is not the same thing as money you are owed.
+// v137/v138/v139 — a failed payment is not the same thing as money you are owed.
 //
 // Ash, the morning after the Stripe key went in: "it's showing failed payments that have
 // actually since gone through."
@@ -73,12 +73,23 @@ async function run(parts) {
   }
 }
 
+// v139: every fixture charge gets its OWN name unless one is passed. They used to share a
+// default of "A Member", which — once the resolver learned to match people by name — quietly
+// made every charge in a fixture the same person and several tests pass for the wrong
+// reason. A test fixture that shares an identity by accident is worse than no fixture.
+let nameSeq = 0;
+function uniqName() {
+  let n = nameSeq++, s = "";
+  do { s = "abcdefghijklmnopqrstuvwxyz"[n % 26] + s; n = Math.floor(n / 26) - 1; } while (n >= 0);
+  return "Person " + s;
+}
+
 // A failed charge, with whatever context the case under test needs.
 const failed = (id, opts) => ({
   id, status: "failed", amount: (opts && opts.amount) || 4900, currency: "gbp",
   created: NOW - ((opts && opts.daysAgo) != null ? opts.daysAgo : 3) * DAY,
   failure_message: "Your card has expired.",
-  billing_details: { name: (opts && opts.name) || "A Member" },
+  billing_details: { name: (opts && opts.name) || uniqName() },
   customer: opts && opts.customer,
   payment_intent: opts && opts.intent,
   invoice: opts && opts.invoice,
@@ -86,7 +97,7 @@ const failed = (id, opts) => ({
 const paid = (id, opts) => ({
   id, status: "succeeded", amount: (opts && opts.amount) || 4900, currency: "gbp",
   created: NOW - ((opts && opts.daysAgo) != null ? opts.daysAgo : 1) * DAY,
-  billing_details: { name: (opts && opts.name) || "A Member" },
+  billing_details: { name: (opts && opts.name) || uniqName() },
   customer: opts && opts.customer,
   payment_intent: opts && opts.intent,
 });
@@ -100,9 +111,9 @@ const sub = (id, customer, status) => ({
   /* ================= 0. the stamp ================= */
   const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(read("monthly.html"));
   assert.ok(stamp, "monthly.html carries a build stamp");
-  assert.strictEqual(stamp[1], "138", "monthly.html is stamped v138");
-  assert.strictEqual(stamp[2], "jen-lawton", "…as the release named after the row that was wrong");
-  const text = "build v138 · jen-lawton";
+  assert.strictEqual(stamp[1], "139", "monthly.html is stamped v139");
+  assert.strictEqual(stamp[2], "the-amount-is-the-name", "…as the release that learned to read the figure");
+  const text = "build v139 · the-amount-is-the-name";
   for (const f of ["index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the same stamp");
   }
@@ -176,19 +187,29 @@ const sub = (id, customer, status) => ({
   });
   assert.strictEqual(out.body.failed.length, 1, "last month's payment does not settle this month's failure");
 
-  // and outside the retry window it is a fresh payment, not a retry of that one
+  // v139: there is no longer a cutoff INSIDE the fortnight — that arbitrary line is what
+  // missed Jennifer Lawton by two hours. Two payments from one person at one amount twelve
+  // days apart are not a billing cycle, they are somebody sorting something out. What still
+  // holds the line is the window itself: a failure older than the lookback is not fetched
+  // at all, so it cannot be cleared or shown either way.
   out = await run({
     charges: [failed("ch_i", { customer: "cus_7", daysAgo: 13, amount: 3500 }),
               paid("ch_j", { customer: "cus_7", daysAgo: 1, amount: 3500 })],
   });
-  assert.strictEqual(out.body.failed.length, 1, "twelve days later is next month's payment, not a retry");
+  assert.strictEqual(out.body.failed.length, 0, "twelve days later, same person, same amount: settled");
 
-  // a different customer entirely, same amount, never counts
+  // A different customer paying a COMMON amount never counts — that is just another member
+  // paying the standard price. (A different customer paying a RARE amount is a different
+  // matter entirely, and is the whole of Jennifer Lawton's case: see 6d.)
   out = await run({
-    charges: [failed("ch_k", { customer: "cus_8", daysAgo: 4, amount: 3500 }),
-              paid("ch_l", { customer: "cus_9", daysAgo: 2, amount: 3500 })],
+    charges: [
+      failed("ch_k", { customer: "cus_8", daysAgo: 4, amount: 3500, name: "Alan Briggs" }),
+      paid("ch_l", { customer: "cus_9", daysAgo: 2, amount: 3500, name: "Bev Clark" }),
+      paid("ch_l2", { customer: "cus_10b", daysAgo: 2, amount: 3500, name: "Colin Dean" }),
+      paid("ch_l3", { customer: "cus_11b", daysAgo: 3, amount: 3500, name: "Dawn Ellis" }),
+    ],
   });
-  assert.strictEqual(out.body.failed.length, 1, "somebody else paying does not clear his failure");
+  assert.strictEqual(out.body.failed.length, 1, "somebody else paying the usual price clears nothing");
 
   /* ================= 6. no saying the same thing twice ================= */
   out = await run({
@@ -233,34 +254,60 @@ const sub = (id, customer, status) => ({
   out = await run({ charges: [failed("ch_ar", { customer: "cus_ar", invoice: { id: "in_ar", status: "open", amount_remaining: 0 } })] });
   assert.strictEqual(out.body.failed.length, 0, "nothing left to collect on the invoice is paid, whatever the label says");
 
-  // (b) IDENTITY. A payment taken through a link or the card machine may carry no customer
-  //     at all, or a different one. The same email, or the same card, is the same person.
+  // (b) IDENTITY. A payment taken through a link, a fresh checkout or the card machine may
+  //     carry no customer at all, or a different one. The same email, or the same card, or
+  //     the same full name, is the same person.
+  //
+  //     v139 note: these deliberately use a COMMON amount and pad the fortnight with other
+  //     people paying it, so the amount rule added for Jennifer Lawton cannot fire and each
+  //     case tests the identity signal it is named after and nothing else.
+  const CROWD = [
+    paid("crowd1", { customer: "cus_p1", daysAgo: 2, amount: 3500, name: "Colin Dean" }),
+    paid("crowd2", { customer: "cus_p2", daysAgo: 3, amount: 3500, name: "Dawn Ellis" }),
+    paid("crowd3", { customer: "cus_p3", daysAgo: 4, amount: 3500, name: "Eve Fisher" }),
+  ];
   out = await run({
     charges: [
-      failed("ch_e1", { customer: "cus_e", daysAgo: 4, amount: 3500 }),
+      failed("ch_e1", { customer: "cus_e", daysAgo: 6, amount: 3500, name: "Gary Hall" }),
       { id: "ch_e2", status: "succeeded", amount: 3500, currency: "gbp", created: NOW - 2 * DAY,
-        billing_details: { name: "A Member", email: "A.Member@Example.com" } },
+        billing_details: { name: "Ivy Jones", email: "ivy@example.com" } },
+      ...CROWD,
     ],
   });
   assert.strictEqual(out.body.failed.length, 1, "with no shared identity there is nothing to match on");
+
   out = await run({
     charges: [
-      { ...failed("ch_e3", { daysAgo: 4, amount: 3500 }), customer: undefined,
-        billing_details: { name: "A Member", email: "a.member@example.com" } },
+      { ...failed("ch_e3", { daysAgo: 6, amount: 3500 }), customer: undefined,
+        billing_details: { name: "Gary Hall", email: "g.hall@example.com" } },
       { id: "ch_e4", status: "succeeded", amount: 3500, currency: "gbp", created: NOW - 2 * DAY,
-        billing_details: { name: "A Member", email: "A.Member@Example.com" } },
+        billing_details: { name: "Someone Else", email: "G.Hall@Example.com" } },
+      ...CROWD,
     ],
   });
   assert.strictEqual(out.body.failed.length, 0, "the same email is the same person, whatever the case");
+
   out = await run({
     charges: [
-      { ...failed("ch_f1", { daysAgo: 4, amount: 3500 }), customer: undefined, billing_details: {},
+      { ...failed("ch_f1", { daysAgo: 6, amount: 3500 }), customer: undefined, billing_details: {},
         payment_method_details: { card: { fingerprint: "fp_same" } } },
       { id: "ch_f2", status: "succeeded", amount: 3500, currency: "gbp", created: NOW - 2 * DAY,
         billing_details: {}, payment_method_details: { card: { fingerprint: "fp_same" } } },
+      ...CROWD,
     ],
   });
   assert.strictEqual(out.body.failed.length, 0, "the same card is the same person, with no customer record at all");
+
+  // a first name alone is never an identity — half a gym is called Jen
+  out = await run({
+    charges: [
+      { ...failed("ch_g1", { daysAgo: 6, amount: 3500 }), customer: "cus_g1", billing_details: { name: "Jen" } },
+      { id: "ch_g2", status: "succeeded", amount: 3500, currency: "gbp", created: NOW - 2 * DAY,
+        customer: "cus_g2", billing_details: { name: "Jen" } },
+      ...CROWD,
+    ],
+  });
+  assert.strictEqual(out.body.failed.length, 1, "one word is not a name to match people on");
 
   // (c) THE AMOUNT. Paying MORE than the failure, afterwards, settles it — people pay a
   //     bounced amount along with something else all the time.
@@ -287,6 +334,86 @@ const sub = (id, customer, status) => ({
               paid("ch_o2", { customer: "cus_o", daysAgo: 6, amount: 9900 })],
   });
   assert.strictEqual(out.body.failed.length, 1, "a bigger payment BEFORE the failure still settles nothing");
+
+  /* ============ 6d. JENNIFER LAWTON, WITH HER ACTUAL FIGURES (v139) ============
+     v138 still showed it, and Ash sent the two rows side by side:
+
+       failed   "Mrs Jennifer Lawton"  £143.10  "Your card has insufficient funds."  29 Aug
+       succeeded £143.10 GBP  Visa ····0011  "02. 12 Coaching Sessions + Classes"
+                 jennifercooney@hotmail.co.uk  8 Sept, 11:27
+
+     Two things beat it, and the second is the interesting one.
+
+     · THE WINDOW. 29 August to 8 September at 11:27 is ten days AND TWO HOURS. The retry
+       window was ten days. A cutoff picked out of the air will eventually land just the
+       wrong side of a real payment; there is no reason for one inside the fortnight being
+       looked at, so it is now the fortnight.
+     · IDENTITY WAS NEVER GOING TO WORK HERE. She is "Lawton" on one and "jennifercooney@"
+       on the other, and somebody whose card has just been declined pays with a DIFFERENT
+       card — so customer, email, name and fingerprint all miss, correctly. What ties them
+       together is that £143.10 is a coaching block only she was billed for. An amount that
+       rare is an identity. A membership price forty people pay is not, and the rule knows
+       the difference by counting. */
+  const JEN_FAIL = {
+    id: "ch_jen_real", status: "failed", amount: 14310, currency: "gbp",
+    created: NOW - 12 * DAY, failure_message: "Your card has insufficient funds.",
+    billing_details: { name: "Mrs Jennifer Lawton", email: "jenniferlawton@hotmail.co.uk" },
+    customer: "cus_lawton",
+    payment_method_details: { card: { fingerprint: "fp_declined_card" } },
+  };
+  const JEN_PAID = {
+    id: "ch_jen_real_ok", status: "succeeded", amount: 14310, currency: "gbp",
+    created: NOW - 2 * DAY,
+    billing_details: { name: "Jennifer Cooney", email: "jennifercooney@hotmail.co.uk" },
+    customer: "cus_cooney",
+    payment_method_details: { card: { fingerprint: "fp_the_other_card" } },
+  };
+
+  out = await run({ charges: [JEN_FAIL, JEN_PAID] });
+  assert.strictEqual(out.body.failed.length, 0,
+    "£143.10 failed on the 29th and paid on the 8th is ONE debt, and it is settled");
+  assert.strictEqual(out.body.resolved.count, 1, "…counted as cleared");
+  assert.ok(/^the same amount was paid on /.test(out.body.resolved.reasons[0]),
+    "…on the amount, since nothing else about the two records matches: " + out.body.resolved.reasons[0]);
+
+  // nothing about that relies on the identities matching — they deliberately do not
+  assert.notStrictEqual(JEN_FAIL.customer, JEN_PAID.customer, "the fixture uses two customer records");
+  assert.notStrictEqual(JEN_FAIL.billing_details.email, JEN_PAID.billing_details.email, "…two emails");
+  assert.notStrictEqual(JEN_FAIL.payment_method_details.card.fingerprint,
+    JEN_PAID.payment_method_details.card.fingerprint, "…and two cards");
+
+  // AND THE GUARD. The same trick on a COMMON figure must not fire, or every member paying
+  // the standard price would clear every other member's failure.
+  out = await run({
+    charges: [
+      { ...JEN_FAIL, id: "ch_common", amount: 4900 },
+      { ...JEN_PAID, id: "ch_c1", amount: 4900 },
+      { ...JEN_PAID, id: "ch_c2", amount: 4900, customer: "cus_a", created: NOW - 3 * DAY },
+      { ...JEN_PAID, id: "ch_c3", amount: 4900, customer: "cus_b", created: NOW - 4 * DAY },
+    ],
+  });
+  assert.strictEqual(out.body.failed.length, 1,
+    "£49.00 is a price, not a person — a common amount clears nothing on its own");
+  assert.ok(/was paid on .* under a different account/.test(out.body.failed[0].why),
+    "…but the near miss is SAID, not swallowed: " + out.body.failed[0].why);
+  assert.ok(out.body.failed[0].why.includes("£49.00"), "…with the figure in it");
+
+  // a payment of the same rare amount BEFORE the failure still settles nothing
+  out = await run({ charges: [{ ...JEN_FAIL, created: NOW - 2 * DAY }, { ...JEN_PAID, created: NOW - 12 * DAY }] });
+  assert.strictEqual(out.body.failed.length, 1, "the payment has to come afterwards, rare figure or not");
+
+  // and a full name still links two records when it is there to link them
+  out = await run({
+    charges: [
+      { ...JEN_FAIL, id: "ch_n1", amount: 4900, billing_details: { name: "Mrs Jennifer Lawton" } },
+      { ...JEN_PAID, id: "ch_n2", amount: 4900, customer: "cus_other", created: NOW - 3 * DAY,
+        billing_details: { name: "jennifer  lawton" } },
+      { ...JEN_PAID, id: "ch_n3", amount: 4900, customer: "cus_x", created: NOW - 4 * DAY },
+      { ...JEN_PAID, id: "ch_n4", amount: 4900, customer: "cus_y", created: NOW - 5 * DAY },
+    ],
+  });
+  assert.strictEqual(out.body.failed.length, 0,
+    "the same full name, titles and spacing aside, is the same person even on a common amount");
 
   /* ============ 6c. the window is fetched whole ============
      A gym billing a few hundred memberships puts more than 100 charges through a
@@ -333,7 +460,9 @@ const sub = (id, customer, status) => ({
     charges: [
       failed("ch_1", { customer: "cus_21", invoice: { id: "in_a", status: "paid" } }),   // sorted itself out
       failed("ch_2", { customer: "cus_22", intent: "pi_2" }),                            // still owed
-      paid("ch_3", { customer: "cus_23", daysAgo: 1 }),                                  // an ordinary payment
+      paid("ch_3", { customer: "cus_23", daysAgo: 1, amount: 7900 }),                    // an unrelated payment,
+                                                                                        // deliberately a different
+                                                                                        // figure from any failure
       failed("ch_4", { customer: "cus_20", daysAgo: 1 }),                                // already past due
       failed("ch_5", { customer: "cus_24", daysAgo: 6, amount: 2500 }),                  // still owed
       paid("ch_6", { customer: "cus_24", daysAgo: 4, amount: 1000 }),                    // …only part of it
