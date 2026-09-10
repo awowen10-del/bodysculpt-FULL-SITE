@@ -11,6 +11,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<!-- v148: Google Identity Services, the same as the Daily Dashboard uses. This page only
+     ever READS the calendar, and never asks for consent itself — connecting is Today's
+     job, and offering it in two places invites doing it twice. -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   /* ===================== THEME TOKENS =====================
      Every colour in this stylesheet resolves to one of these — there are no literal
@@ -1117,6 +1121,27 @@
      height:1px on the td + height:100% here makes the cell fill the (table-equalised) row
      without stacking a fixed-height empty textarea beneath the chips. */
   table.wp-grid td.wp-daycell{position:relative;}
+  /* --- v148: what is already COMMITTED, inside the grid ---
+     An appointment is a wall, not a task: no drag handle, no controls, its own quiet
+     colour, and it sits ABOVE the chips so you see the constraint before the space. It is
+     read from Google Calendar and never enters the plan. */
+  .wp-appts{display:flex;flex-direction:column;gap:2px;padding:3px 3px 0;}
+  .wp-appt{display:flex;align-items:center;gap:5px;font-size:10.5px;line-height:1.3;
+    padding:3px 5px;border-radius:var(--r-sm);background:var(--navy-2);
+    border-left:2px solid var(--ink-faint);color:var(--ink-dim);cursor:default;min-width:0;}
+  .wp-appt .ic{width:10px;height:10px;flex:0 0 auto;color:var(--ink-faint);}
+  .wp-appt-t{font-weight:700;font-variant-numeric:tabular-nums;flex:0 0 auto;}
+  .wp-appt-n{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* out-of-band: a 3.30 session has no cell to live in, so it rides the day heading rather
+     than disappearing — which is the exact failure this whole thing is here to stop. */
+  .wp-loose{display:block;margin-top:3px;font-size:9.5px;font-weight:600;line-height:1.4;
+    color:var(--ink-faint);text-transform:none;letter-spacing:0;}
+  .wp-loose-i{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .wp-calnote{display:inline-flex;align-items:center;gap:5px;font-size:11px;
+    color:var(--ink-faint);white-space:nowrap;}
+  .wp-calnote .ic{width:12px;height:12px;}
+  .wp-calnote.off a{color:var(--orange);}
+
   .wp-cellwrap{display:flex;flex-direction:column;height:100%;min-height:104px;}
   table.wp-grid td.wp-rowlabel{width:70px;background:var(--navy-2);font-size:12px;font-weight:600;
     color:var(--ink-dim);text-align:center;vertical-align:middle;padding:4px;white-space:nowrap;}
@@ -1764,7 +1789,7 @@
 
   <footer>
     <span class="stage" id="srcPill"><svg class="ic"><use href="#ic-dot"/></svg> Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v147 · not-for-me</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v148 · the-wall-before-the-space</span>
   </footer>
 </div>
 
@@ -3225,6 +3250,12 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
   wpPlan = norm;
   await wpSeedRecurringPlacements(wk);
   renderWeeklyPlan();
+
+  /* v148: then the calendar, on its own and last. It is a different service with a
+     different sign-in, and it must never hold up the plan — a Google outage should cost
+     the appointment layer and nothing else. The plan is already on screen by this point;
+     the appointments drop in when they arrive. */
+  wpCalRefresh();
 }
 // v62: a recurring task's grid slot is stored per-week. A fresh week starts with no
 // placements, so recurring tasks showed up in the list but with a blank day/time. This seeds
@@ -4051,6 +4082,168 @@ function wpDayViewControlHtml(){
   return `<span class="wp-dayview">${slider}<span class="wp-dv-counts">${counts}<span class="wp-dv-lbl">days</span></span></span>`;
 }
 
+/* =====================================================================
+   WHAT IS ALREADY COMMITTED  (v148)
+
+   Ash: "often things can get missed — such as appointments that are added to my Google
+   Calendar automatically … the calendar I have on there is more my 'work blocks'."
+
+   The weekly grid is where he DECIDES where work goes. So it is where the constraint has
+   to be visible: a consultation already sitting in Thursday 12–3 should be on Thursday
+   12–3, not on another page he has to remember to check. A second copy of the week strip
+   would have been two views of one truth and the same eyeballing problem.
+
+   STRICTLY READ ONLY, both ways round. It cannot change the calendar — there is no write
+   path here at all, only wpCalGet — and it cannot change the plan: appointments are drawn
+   into the cell and never enter p.placements, p.timeBlocks or anything that saves. Nothing
+   in this block touches a save path.
+
+   It shares the Daily Dashboard's Google sign-in: same browser, same site, same stored
+   token. Connect once over there and this simply works.
+   ===================================================================== */
+const WPCAL_BASE = "https://www.googleapis.com/calendar/v3/";
+const WPCAL_SCOPE = "https://www.googleapis.com/auth/calendar.events" +
+  " https://www.googleapis.com/auth/gmail.modify";
+const WPCAL_KEY = "bodysculpt:gcal";
+
+// Each band's real hours, so an appointment lands where it actually falls. Keep in step
+// with WP_TIME_ROWS: the ids must match, and "notes" has no hours by design.
+const WPCAL_BANDS = [
+  ["6-9",   6,  9],
+  ["10-12", 9,  11.5],
+  ["1-3",  12, 15],
+  ["5-8",  17, 20],
+];
+
+let wpCalEvents = null;     // events for the week on screen, or null
+let wpCalClientId = "";
+let wpCalToken = null;
+let wpCalClient = null;
+let wpCalNote = "";         // why there is nothing to show, when there is nothing to show
+
+function wpCalLoadToken() {
+  try {
+    const t = JSON.parse(localStorage.getItem(WPCAL_KEY) || "null");
+    if (!t || !t.token || !t.scope) return null;
+    if (!String(t.scope).includes("calendar.events")) return null;
+    if (!(t.expires && t.expires - 60000 > Date.now())) return null;
+    return t;
+  } catch { return null; }
+}
+const wpCalReady = () => !!wpCalLoadToken();
+
+// A quiet renewal only. The weekly page never puts a consent screen in front of anyone —
+// connecting is the Daily Dashboard's job, and doing it in two places invites doing it twice.
+function wpCalAuthSilent() {
+  return new Promise((resolve, reject) => {
+    const g = window.google;
+    if (!g || !g.accounts || !g.accounts.oauth2 || !wpCalClientId) return reject(new Error("no client"));
+    if (!wpCalClient) {
+      wpCalClient = g.accounts.oauth2.initTokenClient({
+        client_id: wpCalClientId, scope: WPCAL_SCOPE, callback: () => {}, error_callback: () => {},
+      });
+    }
+    wpCalClient.callback = (r) => {
+      if (r && r.access_token) {
+        const t = { token: r.access_token, expires: Date.now() + (Number(r.expires_in) || 3600) * 1000,
+          scope: r.scope || WPCAL_SCOPE };
+        try { localStorage.setItem(WPCAL_KEY, JSON.stringify(t)); } catch {}
+        wpCalToken = t; resolve(t);
+      } else reject(new Error("no token"));
+    };
+    wpCalClient.error_callback = () => reject(new Error("no token"));
+    try { wpCalClient.requestAccessToken({ prompt: "" }); } catch (e) { reject(e); }
+  });
+}
+
+async function wpCalGet(path) {
+  if (!wpCalReady()) await wpCalAuthSilent();
+  wpCalToken = wpCalLoadToken();
+  const res = await fetch(WPCAL_BASE + path, { headers: { Authorization: "Bearer " + wpCalToken.token } });
+  if (!res.ok) throw new Error("calendar " + res.status);
+  return await res.json();
+}
+
+// Which band does this appointment fall in? Its START decides, because that is when it
+// takes the slot. Anything outside every band comes back "" and is shown on the day header
+// instead — a 3.30 PT session has nowhere to sit in a 12–3 / 5–8 world and must not vanish.
+function wpCalBandOf(d) {
+  const h = d.getHours() + d.getMinutes() / 60;
+  for (const [id, from, to] of WPCAL_BANDS) if (h >= from && h < to) return id;
+  return "";
+}
+
+async function wpCalLoad() {
+  wpCalNote = "";
+  const monday = NAV_WEEKS[navIdx];
+  if (!monday || !wpCalClientId) { wpCalEvents = null; return; }
+  if (!wpCalReady()) {
+    try { await wpCalAuthSilent(); } catch { wpCalEvents = null; wpCalNote = "connect"; return; }
+  }
+  const start = new Date(monday + "T00:00:00");
+  const end = new Date(start); end.setDate(end.getDate() + 7);
+  try {
+    const r = await wpCalGet("calendars/primary/events" +
+      "?timeMin=" + encodeURIComponent(start.toISOString()) +
+      "&timeMax=" + encodeURIComponent(end.toISOString()) +
+      "&singleEvents=true&orderBy=startTime&maxResults=250");
+    wpCalEvents = (r.items || []).map((e) => {
+      const allDay = !!(e.start && e.start.date);
+      const at = new Date((e.start && (e.start.dateTime || e.start.date)) || 0);
+      const to = new Date((e.end && (e.end.dateTime || e.end.date)) || 0);
+      return {
+        title: e.summary || "(no title)", allDay, at, to,
+        dayKey: WP_DAYS[(at.getDay() + 6) % 7][0],
+        band: allDay ? "" : wpCalBandOf(at),
+        link: e.htmlLink || "",
+      };
+    });
+  } catch (e) {
+    wpCalEvents = null;
+    wpCalNote = "error";
+  }
+}
+
+const wpCalIn = (dayKey, band) =>
+  (wpCalEvents || []).filter((e) => e.dayKey === dayKey && e.band === band);
+// All-day things, and anything that falls outside every band.
+const wpCalLoose = (dayKey) =>
+  (wpCalEvents || []).filter((e) => e.dayKey === dayKey && !e.band);
+
+const wpCalTime = (e) => (e.allDay ? "All day"
+  : String(e.at.getHours()).padStart(2, "0") + ":" + String(e.at.getMinutes()).padStart(2, "0"));
+
+// Drawn as something you cannot pick up: no drag handle, no controls, its own colour.
+// It is a wall, not a task.
+function wpCalChipsHtml(dayKey, band) {
+  const evs = wpCalIn(dayKey, band);
+  if (!evs.length) return "";
+  return `<div class="wp-appts">${evs.map(e =>
+    `<span class="wp-appt" title="${wpEsc(e.title)} — in your calendar, not your plan"
+      ><svg class="ic"><use href="#ic-calendar"/></svg><span class="wp-appt-t">${wpEsc(wpCalTime(e))}</span
+      ><span class="wp-appt-n">${wpEsc(e.title)}</span></span>`).join("")}</div>`;
+}
+function wpCalLooseHtml(dayKey) {
+  const evs = wpCalLoose(dayKey);
+  if (!evs.length) return "";
+  return `<span class="wp-loose" title="In your calendar, outside your time blocks">${evs.map(e =>
+    `<span class="wp-loose-i">${wpEsc(wpCalTime(e))} ${wpEsc(e.title)}</span>`).join("")}</span>`;
+}
+
+// Fetch this week's appointments and redraw. Safe to call at any time: it re-renders only
+// after the read finishes, and a failure leaves the plan exactly as it was.
+async function wpCalRefresh() {
+  if (!wpCalClientId) {
+    try {
+      const cfg = await fetch(WP_STORE + "?webconfig=1").then(x => x.json());
+      wpCalClientId = String((cfg && cfg.googleClientId) || "");
+    } catch { wpCalClientId = ""; }
+  }
+  if (!wpCalClientId) return;
+  await wpCalLoad();
+  if (wpPlan) renderWeeklyPlan();
+}
+
 function renderWeeklyPlan(){
   const p = wpPlan;
 
@@ -4095,7 +4288,7 @@ function renderWeeklyPlan(){
   const visDays = wpVisibleDays();
   const gridHead = `<tr><th class="wp-corner">Time</th>${visDays.map(([dk,l])=>
     `<th class="wp-dayhead" title="Set ${l}'s location" onclick="wpOpenLocPopup('${dk}',this)"
-      ><span class="wp-dayhead-in"><span class="wp-dayname">${l}</span>${wpLocPillHtml(dk)}</span></th>`).join("")}</tr>`;
+      ><span class="wp-dayhead-in"><span class="wp-dayname">${l}</span>${wpLocPillHtml(dk)}</span>${wpCalLooseHtml(dk)}</th>`).join("")}</tr>`;
   // v82: the grid renders the EFFECTIVE placements — the schedule with this week's
   // move/skip exceptions applied on top. p.placements itself is untouched (it stays the
   // schedule, which is what saves and rolls over).
@@ -4107,7 +4300,10 @@ function renderWeeklyPlan(){
       const refs = (gridPlacements[key]||[]);
       const chips = refs.map(ref=>wpChipHtml(ref, dk, "", key)).join("");
       const txt = (p.timeBlocks[rk]&&p.timeBlocks[rk][dk])||"";
-      return `<td class="wp-daycell" ondragover="wpCellDragOver(event)" ondragleave="wpCellDragLeave(event)" ondrop="wpCellDrop(event,'${rk}','${dk}')"><div class="wp-cellwrap">${chips?`<div class="wp-cellchips">${chips}</div>`:""}<textarea data-tb="${key}" onblur="wpSaveSection('timeBlocks')">${wpEsc(txt)}</textarea></div></td>`;
+      // v148: what is already committed goes in FIRST, above the tasks — you should see the
+      // wall before you see the space. It is display only: it never enters placements.
+      const appts = rk === "notes" ? "" : wpCalChipsHtml(dk, rk);
+      return `<td class="wp-daycell" ondragover="wpCellDragOver(event)" ondragleave="wpCellDragLeave(event)" ondrop="wpCellDrop(event,'${rk}','${dk}')"><div class="wp-cellwrap">${appts}${chips?`<div class="wp-cellchips">${chips}</div>`:""}<textarea data-tb="${key}" onblur="wpSaveSection('timeBlocks')">${wpEsc(txt)}</textarea></div></td>`;
     }).join("");
     return `<tr class="${notesRow}"><td class="wp-rowlabel">${rlbl}</td>${cells}</tr>`;
   }).join("");
@@ -4115,6 +4311,8 @@ function renderWeeklyPlan(){
     ${wpBoxHeader("Time Blocks","timeBlocks",
       wpDayViewControlHtml() +
       `<button class="wp-loc-btn" title="Edit the default weekly location pattern" onclick="wpOpenLocDefaultsPopup(this)"><svg class="ic"><use href="#ic-pin"/></svg> Locations</button>` +
+      (wpCalEvents ? `<span class="wp-calnote" title="Read from Google Calendar. This page cannot change it."><svg class="ic"><use href="#ic-calendar"/></svg>${wpCalEvents.length} in your calendar</span>` :
+        wpCalNote === "connect" ? `<span class="wp-calnote off"><svg class="ic"><use href="#ic-calendar"/></svg>Calendar not connected — <a href="/daily.html">connect it on Today</a></span>` : "") +
       `<button class="wp-today-btn" title="Focus on just today" onclick="wpOpenToday()">Today<span class="wp-today-btn-timer" id="wpTodayBtnTimer">${wpEsc(wpTimerBadgeText())}</span></button>`)}
     <div class="wp-box-body"><div class="wp-grid-wrap"><table class="wp-grid wp-cols-${wpDayCount}"><thead>${gridHead}</thead><tbody>${gridBody}</tbody></table></div></div>
   </div>`;
