@@ -83,8 +83,8 @@ async function loadStripe(env, responder) {
   // relaxed once v136 shipped: the newest release's test pins the exact stamp, this one
   // only checks the build never goes backwards and that the pages still agree on it.
   const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(MONTHLY);
-  assert.strictEqual(stamp[1], "145", "monthly.html is stamped v145");
-  assert.strictEqual(stamp[2], "enable-the-api", "…as the release that answered Google's paragraph with a button");
+  assert.strictEqual(stamp[1], "146", "monthly.html is stamped v146");
+  assert.strictEqual(stamp[2], "unread-only", "…as the release that stopped showing you what you had already read");
   const text = "build v" + stamp[1] + " · " + stamp[2];
   for (const f of ["index.html", "finances.html", "daily.html"]) {
     assert.ok(read(f).includes(text), f + " carries the same stamp");
@@ -189,6 +189,38 @@ async function loadStripe(env, responder) {
     "…and a fallback for when Google words it differently");
   assert.ok(/Google\\u2019s own words/.test(js),
     "the original message is kept underneath, so nothing is hidden from someone who wants it");
+
+  /* ============ 1e. v146: AN EMAIL YOU HAVE READ IS NOT A JOB ============
+     Ash: "I need the ability to 'hide' emails that have been read. This should only show
+     unread emails."
+
+     Unread only is the DEFAULT, not an option to go and find — the card is meant to be the
+     short list of what is left, and a fortnight of read threads buries it. The filtering is
+     done by Gmail (UNREAD is a label like any other) rather than by fetching threads and
+     throwing them away, and the "already read" figures come from labels.list, which was
+     already being called and carries exact per-label totals. */
+  assert.ok(/let mailUnreadOnly = \(\(\) => \{[\s\S]{0,140}?!== "0"/.test(js),
+    "unread only is the default, and remembered per browser");
+  assert.ok(/mailUnreadOnly \? "&labelIds=UNREAD" : ""/.test(js),
+    "Gmail does the filtering — the page does not fetch read threads to discard them");
+  assert.ok(/id="mailUnread"/.test(js) && /Unread only/.test(js), "there is a switch, on the card itself");
+  assert.ok(/\$\("mailUnread"\)/.test(wiring) || /const un = \$\("mailUnread"\)/.test(js),
+    "…and it is wired in wireMailCard with everything else");
+  // the counts are Gmail's own, not a guess
+  assert.ok(/threadsTotal\) \|\| 0, unread: Number\(l\.threadsUnread\)/.test(js),
+    "the exact totals come from labels.list, which was already being fetched");
+  assert.ok(/st\.total - st\.unread/.test(js) && /already read<\/span>/.test(js),
+    "each tier says how many it is hiding");
+  assert.ok(/unread: msgs\.some\(\(m\) => \(m\.labelIds \|\| \[\]\)\.includes\("UNREAD"\)\)/.test(js) ||
+    /const unread = msgs\.some/.test(js),
+    "a thread counts as unread if any message in it is — the same rule Gmail's own list uses");
+  // showing them all must not make read ones look like work
+  assert.ok(/it\.unread === false \? " read" : ""/.test(js), "a read row is marked when they are shown");
+  assert.ok(/\.mail\.read \.mail-subj\{font-weight:500/.test(styleOf(DAILY)),
+    "…and reads as context rather than as a job");
+  // an empty card with the filter on means something quite different from a broken one
+  assert.ok(/reason === "unread-none"/.test(js), "nothing unread has its own state");
+  assert.ok(/That is the inbox done, not the card broken/.test(js), "…and says which it is");
 
   /* ================= 2. the page's shape ================= */
   assert.ok(/<title>Bodysculpt Daily<\/title>/.test(DAILY), "daily.html has its own title");

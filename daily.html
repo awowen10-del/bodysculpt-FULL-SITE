@@ -524,6 +524,16 @@
   .mail-act.ready{background:rgba(var(--green-rgb),.10);color:var(--tint-green);
     border-color:rgba(var(--green-rgb),.26);}
 
+  /* the unread switch, and what it hides */
+  .mailtog{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-dim);
+    cursor:pointer;white-space:nowrap;user-select:none;}
+  .mailtog input{accent-color:var(--orange);width:15px;height:15px;margin:0;}
+  .tier-read{font-size:11px;color:var(--ink-faint);font-weight:500;}
+  /* when read threads ARE shown, they are context rather than work, and read as such */
+  .mail.read{background:var(--card-2);}
+  .mail.read .mail-subj{font-weight:500;color:var(--ink-dim);}
+  .mail.read .mail-from{color:var(--ink-faint);}
+
   /* the FYI pile stays shut — it is a count, not a queue */
   .fyi-toggle{font-family:inherit;font-size:12.5px;color:var(--ink-faint);background:none;
     border:0;padding:6px 0;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
@@ -793,7 +803,7 @@
 <symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="M2.5 9.8h19M6 15.2h3.4"/></symbol>
 <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.05" fill="currentColor" stroke="none"/></symbol>
 </defs></svg>
-<!-- build v145 · enable-the-api -->
+<!-- build v146 · unread-only -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -1116,7 +1126,7 @@ function mailItemHtml(it) {
   // otherwise — either way it is one click, and the row itself already opens the thread.
   const draftHref = it.draftId ? draftUrl(it.draftId) : GMAIL + "drafts";
 
-  return '<a class="mail" href="' + esc(href) + '" target="_blank" rel="noopener">' +
+  return '<a class="mail' + (it.unread === false ? " read" : "") + '" href="' + esc(href) + '" target="_blank" rel="noopener">' +
     '<div class="mail-top">' +
       '<span class="mail-from">' + esc(it.from || "Unknown sender") + "</span>" +
       (it.receivedAt ? '<span class="mail-when">' + esc(ago(it.receivedAt)) + "</span>" : "") +
@@ -1139,10 +1149,15 @@ function mailItemHtml(it) {
 function tierHtml(tier, items) {
   const open = '<a class="tier-open" href="' + esc(labelUrl(tier.label)) + '" target="_blank" rel="noopener">' +
     "Open in Gmail<svg class=\"ic\"><use href=\"#ic-arrow-right\"/></svg></a>";
+  // Gmail's own exact figure for this label, so "already read" is a fact, not an estimate.
+  const st = mailStats[tier.id];
+  const hidden = (mailUnreadOnly && st) ? Math.max(0, st.total - st.unread) : 0;
   const head = '<div class="tier-h">' +
     '<span class="tier-dot"></span>' +
     '<span class="tier-name">' + esc(tier.name) + "</span>" +
-    '<span class="tier-n">' + items.length + "</span>" + open + "</div>";
+    '<span class="tier-n">' + items.length + "</span>" +
+    (hidden ? '<span class="tier-read">' + hidden + " already read</span>" : "") +
+    open + "</div>";
 
   // FYI is deliberately a number you can ignore. Everything else is a list you cannot.
   if (tier.id === "fyi") {
@@ -1161,6 +1176,13 @@ function mailSetupHtml(reason) {
     TIERS.map((t) => '<a class="abtn" href="' + esc(labelUrl(t.label)) + '" target="_blank" rel="noopener">' + esc(t.name) + " in Gmail</a>").join("") +
     "</div>";
 
+  if (reason === "unread-none") {
+    const readTotal = TIERS.reduce((t, x) => t + ((mailStats[x.id] && mailStats[x.id].total) || 0), 0);
+    return '<div class="setup"><b>Nothing unread.</b><br>' +
+      "Every triaged email has been read" + (readTotal ? " — all " + readTotal + " of them" : "") +
+      ". That is the inbox done, not the card broken. Untick <b>Unread only</b> above to look back over them." +
+      links + "</div>";
+  }
   if (reason === "connect") {
     return '<div class="setup"><b>One tap and your triaged inbox appears here.</b><br>' +
       "Google will ask whether this dashboard may <b>read</b> your mail. Read is all it can do — it cannot send, delete, archive or change a single email or draft, and you can withdraw it at any time in your Google account." +
@@ -1215,7 +1237,9 @@ function mailItems() {
 function renderMail() {
   const body = $("mailBody"), right = $("mailHeadRight"), sub = $("mailSub");
   if (!body) return;
-  right.innerHTML = tipBtn("triage");
+  right.innerHTML =
+    '<label class="mailtog"><input type="checkbox" id="mailUnread"' + (mailUnreadOnly ? " checked" : "") +
+    "> Unread only</label>" + tipBtn("triage");
 
   if (mailLoading && !mailLive) {
     sub.textContent = "Your inbox, sorted this morning — hardest first.";
@@ -1231,6 +1255,7 @@ function renderMail() {
       : !gcalReady() ? "connect"
       : mailError === "none" ? "Your inbox has no Triage labels on it yet."
       : mailError ? mailError
+      : mailUnreadOnly ? "unread-none"
       : "Nothing is labelled for triage at the moment.");
     wireMailCard(body);
     return;
@@ -1286,6 +1311,17 @@ function wireMailCard(body) {
 
   const t = $("fyiToggle");
   if (t) t.addEventListener("click", () => { fyiOpen = !fyiOpen; renderMail(); });
+
+  const un = $("mailUnread");
+  if (un) un.addEventListener("change", async () => {
+    mailUnreadOnly = un.checked;
+    try { localStorage.setItem(MAIL_UNREAD_KEY, mailUnreadOnly ? "1" : "0"); } catch {}
+    mailLive = null;
+    mailLoading = true;
+    renderMail();
+    await loadGmail();
+    renderMail(); renderHead();
+  });
 
   const mc = $("mailConnect");
   if (mc) mc.addEventListener("click", async () => {
@@ -1349,6 +1385,14 @@ const GM_CONCURRENCY = 8;      // Gmail counts a thread read as 10 quota units; 
 let mailLive = null;      // items read from Gmail, or null
 let mailError = "";
 let mailLoading = false;
+let mailStats = {};       // tier id -> { total, unread }, straight from labels.list
+/* v146: an email you have already read is not a job. Default to unread only — the card is
+   meant to be the short list of what is left, and a fortnight of read threads buries it.
+   The choice is remembered per browser; it changes nothing but what is fetched. */
+const MAIL_UNREAD_KEY = "bodysculpt:mail-unread";
+let mailUnreadOnly = (() => {
+  try { return localStorage.getItem(MAIL_UNREAD_KEY) !== "0"; } catch { return true; }
+})();
 
 // Run jobs a few at a time. All at once trips Gmail's per-second quota on a busy inbox and
 // the whole card fails for the sake of finishing a second earlier.
@@ -1385,8 +1429,11 @@ function gmThreadToItem(thread, tier) {
   const draft = msgs.filter(isDraft).pop() || null;
 
   const dateMs = Number(last.internalDate);
+  // Gmail calls a thread unread if ANY message in it is, which is what its own list shows.
+  const unread = msgs.some((m) => (m.labelIds || []).includes("UNREAD"));
   return {
     tier,
+    unread,
     from: gmSender(gmHeader(last, "from")),
     subject: gmHeader(last, "subject"),
     // No AI reasoning is available from Gmail alone, so the email's own opening stands in.
@@ -1406,6 +1453,13 @@ async function loadGmail() {
   try {
     const labels = await gmailGet("labels");
     const byName = new Map((labels.labels || []).map((l) => [String(l.name), l.id]));
+    // labels.list already carries exact per-label totals, so "how many are hidden" costs
+    // nothing extra and is a real number rather than an estimate.
+    mailStats = {};
+    for (const t of TIERS) {
+      const l = (labels.labels || []).find((x) => String(x.name) === t.label);
+      if (l) mailStats[t.id] = { total: Number(l.threadsTotal) || 0, unread: Number(l.threadsUnread) || 0 };
+    }
     const missing = TIERS.filter((t) => !byName.has(t.label));
     if (missing.length === TIERS.length) {
       mailError = "none";      // the triage has never run here — a different message entirely
@@ -1416,7 +1470,10 @@ async function loadGmail() {
     const lists = await Promise.all(TIERS.map((t) => {
       const id = byName.get(t.label);
       if (!id) return Promise.resolve({ tier: t, ids: [] });
+      // UNREAD is a label like any other, so Gmail does the filtering rather than the page
+      // fetching a fortnight of read threads to throw them away.
       return gmailGet("threads?labelIds=" + encodeURIComponent(id) +
+        (mailUnreadOnly ? "&labelIds=UNREAD" : "") +
         "&maxResults=" + GM_PER_TIER[t.id])
         .then((r) => ({ tier: t, ids: (r.threads || []).map((x) => x.id) }))
         .catch(() => ({ tier: t, ids: [] }));
@@ -1606,7 +1663,8 @@ function renderHead() {
     const n = mailLive.length;
     const drafted = mailLive.filter((i) => i.draftId).length;
     bits.push('<svg class="ic"><use href="#ic-mail"/></svg>Inbox read <b>just now</b> · ' +
-      n + " triaged" + (drafted ? ", <b>" + drafted + "</b> drafted" : ""));
+      n + (mailUnreadOnly ? " unread" : " triaged") +
+      (drafted ? " · <b>" + drafted + "</b> drafted" : ""));
   } else if (briefState && briefState.brief && briefState.brief.generatedAt) {
     bits.push('<svg class="ic"><use href="#ic-mail"/></svg>Triage ran <b>' +
       esc(ago(briefState.brief.generatedAt)) + "</b>" +
