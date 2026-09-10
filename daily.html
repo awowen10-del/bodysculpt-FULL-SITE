@@ -793,7 +793,7 @@
 <symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="M2.5 9.8h19M6 15.2h3.4"/></symbol>
 <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.05" fill="currentColor" stroke="none"/></symbol>
 </defs></svg>
-<!-- build v143 · read-the-inbox -->
+<!-- build v144 · the-button-does-something -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -1216,6 +1216,7 @@ function renderMail() {
       : mailError === "none" ? "Your inbox has no Triage labels on it yet."
       : mailError ? mailError
       : "Nothing is labelled for triage at the moment.");
+    wireMailCard(body);
     return;
   }
   const brief = (briefState && briefState.brief) || null;
@@ -1255,13 +1256,33 @@ function renderMail() {
   }
   body.innerHTML = html;
 
+  wireMailCard(body);
+}
+
+/* Everything on the mail card that has to be clickable, wired in ONE place.
+   v143.1: this used to sit at the foot of renderMail — and the setup-card branch RETURNS
+   before reaching it, so "Connect Gmail" rendered as a perfectly good button with no
+   handler attached. Clicking it did nothing at all, which is the worst way for something
+   to be broken: it looks like it worked, and it looks like your fault. Both paths call
+   this now, and the test asserts every id the setup card can render is wired here. */
+function wireMailCard(body) {
+  if (!body) return;
+
   const t = $("fyiToggle");
   if (t) t.addEventListener("click", () => { fyiOpen = !fyiOpen; renderMail(); });
 
   const mc = $("mailConnect");
   if (mc) mc.addEventListener("click", async () => {
-    try { await gcalAuth(false); await loadGmail(); renderMail(); renderHead(); calRefresh(); }
-    catch (e) { mailError = (e && e.message) || "Google would not sign you in."; renderMail(); }
+    mc.disabled = true;
+    mc.textContent = "Waiting for Google…";
+    try {
+      await gcalAuth(false);
+      await loadGmail();
+      renderMail(); renderHead(); calRefresh();
+    } catch (e) {
+      mailError = (e && e.message) || "Google would not sign you in.";
+      renderMail();
+    }
   });
 
   // "Open the draft" lives INSIDE the row's own link — an <a> inside an <a> is not valid
@@ -1660,7 +1681,8 @@ function gcalAuth(silent) {
       gcalClient = g.accounts.oauth2.initTokenClient({
         client_id: gcalClientId,
         scope: GCAL_SCOPE,
-        callback: () => {},   // replaced per request, below
+        callback: () => {},        // replaced per request, below
+        error_callback: () => {},  // ditto — without one, a blocked popup is silent
       });
     }
     gcalClient.callback = (resp) => {
@@ -1670,6 +1692,19 @@ function gcalAuth(silent) {
       } else {
         reject(new Error((resp && resp.error_description) || "Google did not grant access."));
       }
+    };
+    // The popup never opening is the other way this can quietly do nothing. Browsers block
+    // it when the click is not the thing that asked, and Google closes it if you dismiss
+    // the window — neither reaches the callback above, so both are caught here and turned
+    // into a sentence on the card.
+    gcalClient.error_callback = (err) => {
+      const t = err && err.type;
+      reject(new Error(
+        t === "popup_failed_to_open"
+          ? "Your browser blocked Google's sign-in window. Allow pop-ups for this site and try again."
+        : t === "popup_closed"
+          ? "The Google window was closed before you finished. Try again."
+        : (err && err.message) || "Google's sign-in did not open."));
     };
     try { gcalClient.requestAccessToken({ prompt: silent ? "" : "consent" }); }
     catch (e) { reject(e); }

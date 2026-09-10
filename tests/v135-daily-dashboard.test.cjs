@@ -83,8 +83,8 @@ async function loadStripe(env, responder) {
   // relaxed once v136 shipped: the newest release's test pins the exact stamp, this one
   // only checks the build never goes backwards and that the pages still agree on it.
   const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(MONTHLY);
-  assert.strictEqual(stamp[1], "143", "monthly.html is stamped v143");
-  assert.strictEqual(stamp[2], "read-the-inbox", "…as the release that stopped waiting to be told");
+  assert.strictEqual(stamp[1], "144", "monthly.html is stamped v144");
+  assert.strictEqual(stamp[2], "the-button-does-something", "…as the release where Connect Gmail was wired up");
   const text = "build v" + stamp[1] + " · " + stamp[2];
   for (const f of ["index.html", "finances.html", "daily.html"]) {
     assert.ok(read(f).includes(text), f + " carries the same stamp");
@@ -148,6 +148,31 @@ async function loadStripe(env, responder) {
     "a pushed brief's hand-written reason wins over the email's own opening line");
   assert.ok(/if \(!mailLive\) return \{ items: pushed/.test(js),
     "…and the brief alone still works if Gmail is not connected");
+
+  /* ============ 1c. v143.1: A BUTTON WITH NO HANDLER ============
+     Ash: "Nothing is actually happening when I click 'Connect Gmail'."
+
+     It rendered a perfectly good button and attached nothing to it: the wiring sat at the
+     foot of renderMail, and the setup-card branch RETURNS before reaching it. That is the
+     worst way for something to be broken — it looks like it worked, and it looks like the
+     user's fault. So the wiring lives in one function now, and both paths call it. */
+  assert.ok(/function wireMailCard\(body\) \{/.test(js), "the card's wiring lives in one place");
+  const renderMailBody = js.slice(js.indexOf("function renderMail()"), js.indexOf("function wireMailCard"));
+  assert.strictEqual((renderMailBody.match(/wireMailCard\(body\);/g) || []).length, 2,
+    "…and renderMail calls it on BOTH paths — the early setup-card return included");
+  // every id the setup card can put on screen must be wired, or this happens again
+  const setupHtml = js.slice(js.indexOf("function mailSetupHtml"), js.indexOf("function renderMail"));
+  const wiring = js.slice(js.indexOf("function wireMailCard"));
+  for (const m of setupHtml.matchAll(/id="([a-zA-Z]+)"/g)) {
+    assert.ok(wiring.includes('$("' + m[1] + '")'),
+      "#" + m[1] + " is rendered by the setup card and must be wired in wireMailCard");
+  }
+  // and the OTHER way a sign-in button can silently do nothing
+  assert.ok(/error_callback/.test(js), "a blocked or dismissed Google popup is caught");
+  assert.ok(/popup_failed_to_open/.test(js) && /Allow pop-ups/.test(js),
+    "…and turned into a sentence that says what to do about it");
+  assert.ok(/mc\.textContent = "Waiting for Google…"/.test(js),
+    "the button says something happened the moment it is pressed");
 
   /* ================= 2. the page's shape ================= */
   assert.ok(/<title>Bodysculpt Daily<\/title>/.test(DAILY), "daily.html has its own title");
