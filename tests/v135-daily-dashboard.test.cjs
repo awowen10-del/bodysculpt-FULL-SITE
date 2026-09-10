@@ -83,8 +83,8 @@ async function loadStripe(env, responder) {
   // relaxed once v136 shipped: the newest release's test pins the exact stamp, this one
   // only checks the build never goes backwards and that the pages still agree on it.
   const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(MONTHLY);
-  assert.strictEqual(stamp[1], "146", "monthly.html is stamped v146");
-  assert.strictEqual(stamp[2], "unread-only", "…as the release that stopped showing you what you had already read");
+  assert.strictEqual(stamp[1], "147", "monthly.html is stamped v147");
+  assert.strictEqual(stamp[2], "not-for-me", "…as the release that let him clear things off");
   const text = "build v" + stamp[1] + " · " + stamp[2];
   for (const f of ["index.html", "finances.html", "daily.html"]) {
     assert.ok(read(f).includes(text), f + " carries the same stamp");
@@ -115,9 +115,16 @@ async function loadStripe(env, responder) {
      The dashboard reads the labels instead of waiting to be told about them, which is the
      better half of the bargain anyway: nothing between the two to break, nothing to go
      stale, and a morning the job did not run shows fewer labels rather than an empty card. */
-  assert.ok(/gmail\.readonly/.test(js), "the page asks for Gmail READ access");
-  assert.ok(!/gmail\.modify|gmail\.send|mail\.google\.com\/"/.test(js),
-    "…and nothing wider — it cannot send, delete or alter one word");
+  /* v147 traded gmail.readonly for gmail.modify, because Ash asked to clear things off the
+     card and a dashboard that hides an email while it sits there unread is just a second
+     inbox to keep tidy. What matters is the LINE THAT WAS NOT CROSSED: modify can mark
+     read, relabel and bin; it cannot send mail as him, and it cannot permanently delete.
+     Permanent deletion needs the full mail.google.com scope, which is asserted absent. */
+  assert.ok(/gmail\.modify/.test(js), "the page asks for Gmail modify — read, relabel, bin");
+  assert.ok(!/gmail\.send|gmail\.compose|auth\/mail\.google\.com/.test(js),
+    "…and nothing wider: it cannot send as him, and it cannot delete anything for good");
+  assert.ok(/GMAIL_WRITES = \["modify", "trash", "untrash"\]/.test(js),
+    "…with the three things it may do written down and checked");
   // the read path takes no options, exactly like the store's
   assert.ok(/async function gmailGet\(path\) \{[\s\S]{0,200}?fetch\(GMAIL_BASE \+ path, \{ headers: \{ Authorization/.test(js),
     "Gmail is read through one function that passes a url and headers and nothing else");
@@ -221,6 +228,37 @@ async function loadStripe(env, responder) {
   // an empty card with the filter on means something quite different from a broken one
   assert.ok(/reason === "unread-none"/.test(js), "nothing unread has its own state");
   assert.ok(/That is the inbox done, not the card broken/.test(js), "…and says which it is");
+
+  /* ============ 1f. v147: GETTING RID OF WHAT DOES NOT NEED HIM ============
+     Ash: "Lots of crap I don't need on there. Can we have the option to remove, delete, get
+     rid of any email that doesn't need my attention please."
+
+     "Not for me" marks the thread READ and takes the Triage label off it. BOTH, deliberately:
+     read alone leaves it labelled, so it comes back the moment Unread only is switched off;
+     unlabelled alone leaves it sitting unread in the inbox for ever. Together it means what
+     it says. And every one of these is undoable — the bin is Gmail's bin, thirty days, and
+     this page could not delete permanently if it wanted to. */
+  assert.ok(/removeLabelIds: remove/.test(js) && /\["UNREAD"\]\.concat\(labelId \? \[labelId\] : \[\]\)/.test(js),
+    "clearing takes the UNREAD flag AND the tier label off, not one or the other");
+  assert.ok(/gmailWrite\(threadId, "trash", \{\}\)/.test(js), "there is a bin, and it is Gmail's own");
+  assert.ok(/async function mailClearTier\(tierId\)/.test(js),
+    "a whole tier can go at once — 'read it or don't' is not worth ten clicks");
+  assert.ok(/data-cleartier=/.test(js) && /Clear all/.test(js), "…with a control to do it");
+
+  // UNDO, for all three, offered rather than mentioned
+  assert.ok(/async function mailUndoLast\(\)/.test(js), "the last thing cleared can be put back");
+  assert.ok(/gmailWrite\(row\.threadId, "untrash"/.test(js), "…out of the bin");
+  assert.ok(/addLabelIds: \(row\.labelId \? \[row\.labelId\] : \[\]\)\.concat\(row\.wasUnread \? \["UNREAD"\] : \[\]\)/.test(js),
+    "…or back onto the list, unread again ONLY if it was unread before");
+  assert.ok(/class="undobar"/.test(js) && /id="mailUndoBtn"/.test(js),
+    "and the undo is a button on screen, not a thing you have to know about");
+  assert.ok(/Gmail keeps it for 30 days/.test(js), "…which says what binning actually means");
+
+  // a row that vanishes from the screen but not from Gmail would be a lie
+  assert.ok(/mailLive = \(mailLive \|\| \[\]\)\.concat\(\[it\]\);/.test(js),
+    "if Gmail refuses the change, the row comes straight back");
+  assert.ok(/failed\.push\(it\)/.test(js) && /could not be cleared/.test(js),
+    "…and a part-failed bulk clear returns the ones that did not go, and says how many");
 
   /* ================= 2. the page's shape ================= */
   assert.ok(/<title>Bodysculpt Daily<\/title>/.test(DAILY), "daily.html has its own title");

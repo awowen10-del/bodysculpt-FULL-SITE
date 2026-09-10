@@ -524,6 +524,39 @@
   .mail-act.ready{background:rgba(var(--green-rgb),.10);color:var(--tint-green);
     border-color:rgba(var(--green-rgb),.26);}
 
+  /* --- v147: getting rid of what does not need you ---
+     The tools sit quietly until the row is under the cursor, because a list covered in
+     buttons reads as a form rather than as a morning's post. On a touch screen there is no
+     hover, so they are simply always there. */
+  .mail-foot{display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap;margin-top:8px;}
+  .mail-tools{margin-left:auto;display:flex;gap:2px;opacity:0;transition:opacity var(--tap);}
+  .mail:hover .mail-tools,.mail-tools:focus-within{opacity:1;}
+  @media(hover:none){ .mail-tools{opacity:1;} }
+  .mail-tool{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;
+    color:var(--ink-faint);padding:4px 8px;border-radius:var(--r-sm);cursor:pointer;
+    white-space:nowrap;transition:color var(--tap),background var(--tap);}
+  .mail-tool .ic{width:12px;height:12px;}
+  .mail-tool:hover{color:var(--tint-green);background:rgba(var(--green-rgb),.12);}
+  .mail-tool.bin:hover{color:var(--tint-red);background:rgba(var(--red-rgb),.11);}
+  .mail-tool:focus-visible{outline:none;box-shadow:var(--focus);}
+  .tier-clear{font-family:inherit;font-size:11px;font-weight:600;color:var(--ink-faint);
+    background:none;border:0;padding:3px 7px;border-radius:var(--r-sm);cursor:pointer;
+    white-space:nowrap;}
+  .tier-clear:hover{color:var(--tint-green);background:rgba(var(--green-rgb),.12);}
+  .tier-clear:focus-visible{outline:none;box-shadow:var(--focus);}
+
+  /* undo is OFFERED, not mentioned — nothing here should feel like a one-way door */
+  .undobar{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink-dim);
+    background:rgba(var(--green-rgb),.07);border:1px solid rgba(var(--green-rgb),.26);
+    border-radius:var(--r-md);padding:9px 12px;margin-bottom:12px;line-height:1.45;}
+  .undobar .ic{width:14px;height:14px;color:var(--tint-green);flex:0 0 auto;}
+  .undobar span{flex:1;min-width:0;}
+  .undobtn{font-family:inherit;font-size:12px;font-weight:700;color:var(--tint-green);
+    background:none;border:0;cursor:pointer;padding:3px 9px;border-radius:var(--r-sm);
+    flex:0 0 auto;}
+  .undobtn:hover{background:rgba(var(--green-rgb),.16);}
+  .undobtn:focus-visible{outline:none;box-shadow:var(--focus);}
+
   /* the unread switch, and what it hides */
   .mailtog{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-dim);
     cursor:pointer;white-space:nowrap;user-select:none;}
@@ -803,7 +836,7 @@
 <symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="M2.5 9.8h19M6 15.2h3.4"/></symbol>
 <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.05" fill="currentColor" stroke="none"/></symbol>
 </defs></svg>
-<!-- build v146 · unread-only -->
+<!-- build v147 · not-for-me -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -1133,7 +1166,16 @@ function mailItemHtml(it) {
     "</div>" +
     '<div class="mail-subj">' + esc(it.subject || "(no subject)") + "</div>" +
     (it.why ? '<div class="mail-why">' + esc(it.why) + "</div>" : "") +
-    (it.action ? '<span class="mail-act' + (hasDraft ? " ready" : "") + '">' + esc(it.action) + "</span>" : "") +
+    '<span class="mail-foot">' +
+      (it.action ? '<span class="mail-act' + (hasDraft ? " ready" : "") + '">' + esc(it.action) + "</span>" : "") +
+      '<span class="mail-tools">' +
+        '<span class="mail-tool" role="button" tabindex="0" data-clear="' + esc(it.threadId) + '" ' +
+          'title="Mark it read and take it off this list">' +
+          '<svg class="ic"><use href="#ic-check"/></svg>Not for me</span>' +
+        '<span class="mail-tool bin" role="button" tabindex="0" data-bin="' + esc(it.threadId) + '" ' +
+          'title="Move it to Gmail\u2019s bin — recoverable for 30 days">' +
+          '<svg class="ic"><use href="#ic-close"/></svg>Bin it</span>' +
+      "</span></span>" +
     (hasDraft
       ? '<span class="mail-draft">' +
           '<span class="mail-dhead"><svg class="ic"><use href="#ic-check"/></svg>Reply written' +
@@ -1157,6 +1199,9 @@ function tierHtml(tier, items) {
     '<span class="tier-name">' + esc(tier.name) + "</span>" +
     '<span class="tier-n">' + items.length + "</span>" +
     (hidden ? '<span class="tier-read">' + hidden + " already read</span>" : "") +
+    (items.length > 1
+      ? '<button type="button" class="tier-clear" data-cleartier="' + esc(tier.id) + '">Clear all ' +
+        items.length + "</button>" : "") +
     open + "</div>";
 
   // FYI is deliberately a number you can ignore. Everything else is a list you cannot.
@@ -1275,6 +1320,14 @@ function renderMail() {
       : needing + (needing === 1 ? " thread needs you." : " threads need you.") + " FYI is folded away.";
 
   let html = "";
+  if (mailUndo) {
+    const n = mailUndo.items.length;
+    html += '<div class="undobar"><svg class="ic"><use href="#ic-check"/></svg><span>' +
+      (mailUndo.kind === "bin"
+        ? n + (n === 1 ? " email moved to the bin." : " emails moved to the bin.") + " Gmail keeps it for 30 days."
+        : n + (n === 1 ? " email cleared." : " emails cleared.") + " Marked read and taken off this list.") +
+      '</span><button type="button" class="undobtn" id="mailUndoBtn">Undo</button></div>';
+  }
   // The stale-brief warning only makes sense when the brief is the ONLY thing on show.
   // Read live from Gmail, the card is current by definition.
   if (src.source === "brief" && briefState && !briefState.isToday && brief) {
@@ -1322,6 +1375,19 @@ function wireMailCard(body) {
     await loadGmail();
     renderMail(); renderHead();
   });
+
+  body.querySelectorAll("[data-clear],[data-bin],[data-cleartier]").forEach((el) => {
+    const run = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (el.dataset.clear) mailClear(el.dataset.clear);
+      else if (el.dataset.bin) mailBin(el.dataset.bin);
+      else if (el.dataset.cleartier) mailClearTier(el.dataset.cleartier);
+    };
+    el.addEventListener("click", run);
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") run(e); });
+  });
+  const ub = $("mailUndoBtn");
+  if (ub) ub.addEventListener("click", mailUndoLast);
 
   const mc = $("mailConnect");
   if (mc) mc.addEventListener("click", async () => {
@@ -1386,6 +1452,8 @@ let mailLive = null;      // items read from Gmail, or null
 let mailError = "";
 let mailLoading = false;
 let mailStats = {};       // tier id -> { total, unread }, straight from labels.list
+let mailLabelIds = {};    // tier id -> Gmail label id, needed to take a label back off
+let mailUndo = null;      // the last thing cleared, and how to put it back
 /* v146: an email you have already read is not a job. Default to unread only — the card is
    meant to be the short list of what is left, and a fortnight of read threads buries it.
    The choice is remembered per browser; it changes nothing but what is fetched. */
@@ -1455,6 +1523,8 @@ async function loadGmail() {
     const byName = new Map((labels.labels || []).map((l) => [String(l.name), l.id]));
     // labels.list already carries exact per-label totals, so "how many are hidden" costs
     // nothing extra and is a real number rather than an estimate.
+    mailLabelIds = {};
+    for (const t of TIERS) if (byName.has(t.label)) mailLabelIds[t.id] = byName.get(t.label);
     mailStats = {};
     for (const t of TIERS) {
       const l = (labels.labels || []).find((x) => String(x.name) === t.label);
@@ -1496,6 +1566,91 @@ async function loadGmail() {
   } finally {
     mailLoading = false;
   }
+}
+
+/* ---------- clearing things off ----------
+   "Not for me" marks the thread READ and takes the Triage label off it. Both, deliberately:
+   marking it read alone leaves it labelled, so it returns the moment the Unread only switch
+   comes off; taking the label off alone leaves it sitting unread in the inbox forever. Done
+   together it means what it says — dealt with, and gone from here.
+
+   Everything is undoable, and the undo is offered rather than mentioned. Nothing this page
+   does to an email is irreversible: the bin is Gmail's bin, which keeps things for thirty
+   days, and this page cannot delete permanently even if asked. */
+function mailRemoveLocal(threadId) {
+  if (mailLive) mailLive = mailLive.filter((i) => i.threadId !== threadId);
+}
+
+async function mailClear(threadId) {
+  const it = (mailLive || []).find((i) => i.threadId === threadId);
+  if (!it) return;
+  const labelId = mailLabelIds[it.tier];
+  const remove = ["UNREAD"].concat(labelId ? [labelId] : []);
+  mailRemoveLocal(threadId);
+  mailUndo = { kind: "clear", items: [{ threadId, labelId, wasUnread: it.unread !== false, item: it }] };
+  renderMail();
+  try {
+    await gmailWrite(threadId, "modify", { removeLabelIds: remove });
+  } catch (e) {
+    // put it straight back: a row that vanishes from the screen but not from Gmail is a lie
+    mailUndo = null;
+    mailLive = (mailLive || []).concat([it]);
+    mailError = (e && e.message) || "Gmail would not change that one.";
+    renderMail();
+  }
+}
+
+async function mailBin(threadId) {
+  const it = (mailLive || []).find((i) => i.threadId === threadId);
+  if (!it) return;
+  mailRemoveLocal(threadId);
+  mailUndo = { kind: "bin", items: [{ threadId, item: it }] };
+  renderMail();
+  try {
+    await gmailWrite(threadId, "trash", {});
+  } catch (e) {
+    mailUndo = null;
+    mailLive = (mailLive || []).concat([it]);
+    mailError = (e && e.message) || "Gmail would not bin that one.";
+    renderMail();
+  }
+}
+
+// Clearing a whole tier at once, because "read it or don't" is not worth ten clicks.
+async function mailClearTier(tierId) {
+  const rows = (mailLive || []).filter((i) => i.tier === tierId);
+  if (!rows.length) return;
+  const labelId = mailLabelIds[tierId];
+  mailLive = (mailLive || []).filter((i) => i.tier !== tierId);
+  mailUndo = { kind: "clear", items: rows.map((it) => ({ threadId: it.threadId, labelId, wasUnread: it.unread !== false, item: it })) };
+  renderMail();
+  const failed = [];
+  for (const it of rows) {
+    try { await gmailWrite(it.threadId, "modify", { removeLabelIds: ["UNREAD"].concat(labelId ? [labelId] : []) }); }
+    catch { failed.push(it); }
+  }
+  if (failed.length) {
+    mailLive = (mailLive || []).concat(failed);
+    mailError = failed.length + (failed.length === 1 ? " email" : " emails") + " could not be cleared.";
+    renderMail();
+  }
+}
+
+async function mailUndoLast() {
+  const u = mailUndo;
+  if (!u) return;
+  mailUndo = null;
+  renderMail();
+  for (const row of u.items) {
+    try {
+      if (u.kind === "bin") await gmailWrite(row.threadId, "untrash", {});
+      else await gmailWrite(row.threadId, "modify", {
+        addLabelIds: (row.labelId ? [row.labelId] : []).concat(row.wasUnread ? ["UNREAD"] : []),
+      });
+      if (mailLive) mailLive = mailLive.concat([row.item]);
+    } catch (e) { mailError = (e && e.message) || "Could not put that back."; }
+  }
+  renderMail(); renderHead();
 }
 
 /* ---------- money ---------- */
@@ -1703,8 +1858,16 @@ const GCAL_BASE = "https://www.googleapis.com/calendar/v3/";
    `gmail.readonly` lets the mail card read the Triage labels and the drafts the scheduled
    job has already written — READ ONLY, so this page can never send, delete, archive or
    alter a single email. Both are asked for together, once. */
+/* v147: `gmail.modify` replaces `gmail.readonly`, because clearing something off the card
+   has to mean something in Gmail too — a dashboard that hides an email while it sits there
+   unread is just a second inbox to keep tidy.
+   What modify CAN do: mark read, add and remove labels, move to the bin.
+   What it CANNOT do: send mail as you, and permanently delete anything. Permanent deletion
+   needs the full `https://mail.google.com/` scope, which this page deliberately does not
+   ask for — so the worst it can do is put something in the bin, where Gmail keeps it for
+   thirty days and one click brings it back. */
 const GCAL_SCOPE = "https://www.googleapis.com/auth/calendar.events" +
-  " https://www.googleapis.com/auth/gmail.readonly";
+  " https://www.googleapis.com/auth/gmail.modify";
 const GCAL_STORE_KEY = "bodysculpt:gcal";   // { token, expires, scope } — this browser only
 const GMAIL_BASE = "https://gmail.googleapis.com/gmail/v1/users/me/";
 const CAL_MAX_CHIPS = 4;                    // per day, before "+2 more"
@@ -1822,6 +1985,21 @@ async function gmailGet(path) {
     if (!again.ok) throw new Error(await gcalMessage(again));
     return await again.json();
   }
+  if (!res.ok) throw new Error(await gcalMessage(res));
+  return await res.json();
+}
+
+/* The ONLY way this page changes anything in Gmail. Three operations, named here and
+   nowhere else, so the set cannot grow by accident: mark read / relabel, bin, un-bin. */
+const GMAIL_WRITES = ["modify", "trash", "untrash"];
+async function gmailWrite(threadId, op, body) {
+  if (!GMAIL_WRITES.includes(op)) throw new Error("Not something this page may do.");
+  if (!gcalReady()) await gcalAuth(true);
+  const res = await fetch(GMAIL_BASE + "threads/" + encodeURIComponent(threadId) + "/" + op, {
+    method: "POST",
+    headers: { Authorization: "Bearer " + gcalToken.token, "Content-Type": "application/json" },
+    body: JSON.stringify(body || {}),
+  });
   if (!res.ok) throw new Error(await gcalMessage(res));
   return await res.json();
 }

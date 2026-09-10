@@ -124,15 +124,27 @@ async function runIg(env, url, responder, seed) {
   assert.deepStrictEqual(storeUrls.sort(), ["?checkins=1", "?dailybriefs=1", "?webconfig=1"],
     "the page names exactly three store reads and no writes");
 
-  // (b) everything that carries a method goes to Google, through one funnel
-  const methodSites = [...djs.matchAll(/fetch\(([^,]+),\s*\{[\s\S]{0,160}?method:/g)].map((m) => m[1].trim());
-  assert.ok(methodSites.length > 0, "the calendar does write — otherwise this test proves nothing");
+  /* (b) everything that carries a method goes to Google, through a named funnel.
+     v147 widened this from "the calendar" to "the calendar or Gmail" — clearing an email
+     off the card has to mean something in Gmail too. The claim that matters is unchanged
+     and is what is checked: a request that WRITES is built from one of two fixed Google
+     addresses, so no caller can point one at anything else, least of all the blob store
+     holding the KPI history and the quarterly reviews. */
+  const methodSites = [...djs.matchAll(/fetch\(([^,]+),\s*\{[\s\S]{0,200}?method:/g)].map((m) => m[1].trim());
+  assert.ok(methodSites.length > 0, "the page does write — otherwise this test proves nothing");
   for (const target of methodSites) {
-    assert.ok(/^GCAL_BASE \+ path$/.test(target),
-      "every request carrying a method is built from GCAL_BASE, not from a caller's url: " + target);
+    assert.ok(/^GCAL_BASE \+ path$/.test(target) || /^GMAIL_BASE \+ "threads\/"/.test(target),
+      "every request carrying a method is built from a fixed Google base, not a caller's url: " + target);
   }
   assert.ok(/const GCAL_BASE = "https:\/\/www\.googleapis\.com\/calendar\/v3\/";/.test(djs),
     "…and GCAL_BASE is a fixed Google address");
+  assert.ok(/const GMAIL_BASE = "https:\/\/gmail\.googleapis\.com\/gmail\/v1\/users\/me\/";/.test(djs),
+    "…as is GMAIL_BASE");
+  // the set of things it may do to an email is written down, in one place, and closed
+  assert.ok(/const GMAIL_WRITES = \["modify", "trash", "untrash"\];/.test(djs),
+    "Gmail writes are three named operations and no others");
+  assert.ok(/if \(!GMAIL_WRITES\.includes\(op\)\) throw/.test(djs),
+    "…checked before the request is built, so the list cannot be bypassed");
   // the funnel appends a PATH to that base, so no caller can escape to another host
   assert.ok(!/GCAL_BASE\s*=\s*[a-zA-Z]/.test(djs.replace(/const GCAL_BASE = "[^"]*";/, "")),
     "nothing reassigns GCAL_BASE");
