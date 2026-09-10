@@ -103,8 +103,8 @@ async function runIg(env, url, responder, seed) {
   // relaxed once v137 shipped: the newest release's test pins the exact stamp, this one
   // only checks the build never goes backwards and that the pages still agree on it.
   const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(read("monthly.html"));
-  assert.strictEqual(stamp[1], "141", "monthly.html is stamped v141");
-  assert.strictEqual(stamp[2], "today-at-a-glance", "…as the release that gave today its own panel");
+  // relaxed once v142 shipped: the newest release's test pins the exact stamp.
+  assert.ok(Number(stamp[1]) >= 141, "monthly.html is stamped v141 or later");
   const text = "build v" + stamp[1] + " · " + stamp[2];
   for (const f of ["index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the same stamp");

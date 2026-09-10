@@ -502,6 +502,28 @@
   .tier-today .mail-act{background:rgba(var(--amber-rgb),.10);color:var(--tint-amber);
     border-color:rgba(var(--amber-rgb),.26);}
 
+  /* --- v142: THE REPLY IS ALREADY WRITTEN ---
+     The scheduled job drafts and saves a reply for anything that needs one, so most rows
+     here are not a job, they are a decision: read it, send it. That deserves to look
+     different from a row that still wants writing. */
+  .mail-draft{display:block;margin-top:9px;padding:9px 11px;border-radius:var(--r-sm);
+    background:rgba(var(--green-rgb),.06);border:1px solid rgba(var(--green-rgb),.24);
+    border-left-width:2.5px;border-left-color:var(--green);}
+  .mail-dhead{display:flex;align-items:center;gap:6px;font-size:9.5px;font-weight:800;
+    text-transform:uppercase;letter-spacing:.09em;color:var(--tint-green);}
+  .mail-dhead .ic{width:12px;height:12px;}
+  .mail-dgo{margin-left:auto;display:inline-flex;align-items:center;gap:4px;
+    font-size:10.5px;font-weight:700;color:var(--tint-green);text-decoration:none;
+    letter-spacing:0;text-transform:none;padding:2px 6px;border-radius:var(--r-sm);}
+  .mail-dgo:hover{background:rgba(var(--green-rgb),.16);}
+  .mail-dgo:focus-visible{outline:none;box-shadow:var(--focus);}
+  .mail-dgo .ic{width:11px;height:11px;}
+  .mail-dtext{font-size:12px;color:var(--ink-dim);line-height:1.5;margin-top:5px;
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+  /* a row whose reply is written wants a different verb from one that does not */
+  .mail-act.ready{background:rgba(var(--green-rgb),.10);color:var(--tint-green);
+    border-color:rgba(var(--green-rgb),.26);}
+
   /* the FYI pile stays shut — it is a count, not a queue */
   .fyi-toggle{font-family:inherit;font-size:12.5px;color:var(--ink-faint);background:none;
     border:0;padding:6px 0;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
@@ -771,7 +793,7 @@
 <symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="M2.5 9.8h19M6 15.2h3.4"/></symbol>
 <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.05" fill="currentColor" stroke="none"/></symbol>
 </defs></svg>
-<!-- build v141 · today-at-a-glance -->
+<!-- build v142 · the-reply-is-written -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -1079,12 +1101,21 @@ const TIERS = [
 ];
 const labelUrl = (label) => GMAIL + "label/" + encodeURIComponent(label).replace(/%2F/gi, "%2F");
 const threadUrl = (id) => GMAIL + "all/" + encodeURIComponent(id);
+// Gmail opens a saved draft in its composer from the drafts view.
+const draftUrl = (id) => GMAIL + "drafts?compose=" + encodeURIComponent(id);
 
 let fyiOpen = false;     // the FYI pile is a count until you ask for it
 let briefState = null;   // { brief, date, isToday } or null
 
+// The whole row is one link to the thread, because that is where the draft sits waiting in
+// Gmail — open the thread and the reply is at the bottom of it, ready to send.
 function mailItemHtml(it) {
   const href = it.threadId ? threadUrl(it.threadId) : labelUrl("Triage/" + (it.tier === "week" ? "This week" : it.tier === "fyi" ? "FYI" : it.tier === "today" ? "Today" : "Urgent"));
+  const hasDraft = !!(it.draftId || it.draftPreview);
+  // The composer link is precise when the job sent an id, and Gmail's drafts folder
+  // otherwise — either way it is one click, and the row itself already opens the thread.
+  const draftHref = it.draftId ? draftUrl(it.draftId) : GMAIL + "drafts";
+
   return '<a class="mail" href="' + esc(href) + '" target="_blank" rel="noopener">' +
     '<div class="mail-top">' +
       '<span class="mail-from">' + esc(it.from || "Unknown sender") + "</span>" +
@@ -1092,7 +1123,16 @@ function mailItemHtml(it) {
     "</div>" +
     '<div class="mail-subj">' + esc(it.subject || "(no subject)") + "</div>" +
     (it.why ? '<div class="mail-why">' + esc(it.why) + "</div>" : "") +
-    (it.action ? '<span class="mail-act">' + esc(it.action) + "</span>" : "") +
+    (it.action ? '<span class="mail-act' + (hasDraft ? " ready" : "") + '">' + esc(it.action) + "</span>" : "") +
+    (hasDraft
+      ? '<span class="mail-draft">' +
+          '<span class="mail-dhead"><svg class="ic"><use href="#ic-check"/></svg>Reply written' +
+            '<span class="mail-dgo" role="link" tabindex="0" data-draft="' + esc(draftHref) + '">Open the draft' +
+            '<svg class="ic"><use href="#ic-arrow-right"/></svg></span>' +
+          "</span>" +
+          (it.draftPreview ? '<span class="mail-dtext">' + esc(it.draftPreview) + "</span>" : "") +
+        "</span>"
+      : "") +
   "</a>";
 }
 
@@ -1139,9 +1179,15 @@ function renderMail() {
   const items = Array.isArray(brief.items) ? brief.items : [];
   const needing = items.filter((i) => i.tier !== "fyi").length;
 
-  sub.textContent = needing
-    ? needing + (needing === 1 ? " thread needs you." : " threads need you.") + " FYI is folded away."
-    : "Nothing needs a reply. The rest is for information.";
+  // What this card is FOR changed once the job started writing the replies: it is not a
+  // list of work, it is a list of decisions. Say that in the first line.
+  const drafted = items.filter((i) => i.draftId || i.draftPreview).length;
+  sub.textContent = !needing
+    ? "Nothing needs a reply. The rest is for information."
+    : drafted
+      ? needing + (needing === 1 ? " thread needs you" : " threads need you") + " · " +
+        drafted + (drafted === 1 ? " reply is written and waiting to be sent." : " replies are written and waiting to be sent.")
+      : needing + (needing === 1 ? " thread needs you." : " threads need you.") + " FYI is folded away.";
 
   let html = "";
   if (!briefState.isToday) {
@@ -1164,6 +1210,23 @@ function renderMail() {
 
   const t = $("fyiToggle");
   if (t) t.addEventListener("click", () => { fyiOpen = !fyiOpen; renderMail(); });
+
+  // "Open the draft" lives INSIDE the row's own link — an <a> inside an <a> is not valid
+  // markup and browsers pull it apart — so it is a span that opens itself, and stops the
+  // click reaching the row underneath.
+  body.querySelectorAll("[data-draft]").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      window.open(el.dataset.draft, "_blank", "noopener");
+    });
+    el.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      e.stopPropagation();
+      window.open(el.dataset.draft, "_blank", "noopener");
+    });
+  });
 }
 
 /* ---------- money ---------- */

@@ -104,6 +104,14 @@ function cleanBriefItem(raw) {
     action: str(raw.action, 80).trim(),
     threadId: str(raw.threadId, 60).replace(/[^A-Za-z0-9_-]/g, ""),
     receivedAt: str(raw.receivedAt, 40),
+    // v142: the scheduled job does not only sort the inbox, it WRITES THE REPLY and saves
+    // it as a draft. That changes what this card is for — not "these need answering" but
+    // "these are answered, go and send them" — so the draft comes across with the item.
+    // `draftId` is the draft's message id, used to deep-link Gmail's composer;
+    // `draftPreview` is the opening of what it says, so the reply can be judged from here
+    // rather than by opening five tabs to find out.
+    draftId: str(raw.draftId, 80).replace(/[^A-Za-z0-9_-]/g, ""),
+    draftPreview: str(raw.draftPreview, 600).replace(/\s+/g, " ").trim(),
   };
 }
 function cleanBrief(raw) {
@@ -117,12 +125,16 @@ function cleanBrief(raw) {
   // never disagree with the rows underneath them.
   const counts = {};
   for (const t of BRIEF_TIERS) counts[t] = items.filter((i) => i.tier === t).length;
+  // Derived here, like the tier counts, so the page's headline can never disagree with the
+  // rows under it however the job words its payload.
+  const drafted = items.filter((i) => i.draftId || i.draftPreview).length;
   return {
     date,
     summary: str(raw.summary, 1200).trim(),
     source: str(raw.source, 40) || "claude-triage",
     items,
     counts,
+    drafted,
     generatedAt: new Date().toISOString(),
   };
 }
@@ -985,7 +997,7 @@ export default async (req) => {
       const pruned = {};
       for (const d of keep) pruned[d] = map[d];
       await store.set(DAILY_BRIEFS_KEY, JSON.stringify(pruned));
-      return Response.json({ ok: true, date: brief.date, counts: brief.counts, kept: keep.length });
+      return Response.json({ ok: true, date: brief.date, counts: brief.counts, drafted: brief.drafted, kept: keep.length });
     }
 
     // v136 Competitors: POST { igCompetitors: [...] }. A whole-list write — the page holds

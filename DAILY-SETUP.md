@@ -43,8 +43,9 @@ If the key is missing the card says so and tells you these steps. It never shows
 
 ## 2. Email — the hierarchy of importance
 
-Your scheduled triage already does the hard part: it reads the inbox and labels every
-thread with one of four labels.
+Your scheduled triage already does the hard part: it reads the inbox, labels every thread
+with one of four labels, **writes the reply and saves it as a draft**. So the card is not a
+list of work — it is a list of decisions. Read it, and send it.
 
 | Label | Tier on the dashboard |
 |---|---|
@@ -72,9 +73,11 @@ your mail credentials). So the triage job sends it the list once it has finished
 >         "from": "Who it is from",
 >         "subject": "The subject line",
 >         "why": "One short line on why it matters",
->         "action": "Reply",
+>         "action": "Send the reply",
 >         "threadId": "the Gmail thread id",
->         "receivedAt": "2026-09-10T06:40:00Z"
+>         "receivedAt": "2026-09-10T06:40:00Z",
+>         "draftId": "the id of the draft you saved, if you saved one",
+>         "draftPreview": "The first line or two of the reply you wrote."
 >       }
 >     ]
 >   }
@@ -83,8 +86,15 @@ your mail credentials). So the triage job sends it the list once it has finished
 >
 > `tier` must be exactly one of `urgent`, `today`, `week`, `fyi` — matching the
 > `Triage/Urgent`, `Triage/Today`, `Triage/This week` and `Triage/FYI` labels you just
-> applied. Anything else is dropped. `action` is two or three words: "Reply", "Pay this",
-> "Ring them", "Read later". Include every labelled thread, FYI ones too.
+> applied. Anything else is dropped. `action` is two or three words: "Send the reply",
+> "Pay this", "Ring them", "Read later". Include every labelled thread, FYI ones too.
+>
+> **Wherever you have drafted and saved a reply, send it across with the item.**
+> `draftId` is the draft's message id — `draft.message.id` from the Gmail API, not the
+> draft id itself — and `draftPreview` is the first line or two of what you wrote, plain
+> text, no greeting needed. The dashboard shows the preview under the email and links
+> straight to the composer, so a reply can be judged and sent without opening five tabs to
+> find out what it says. Leave both out for anything you did not draft.
 >
 > Then POST it to:
 >
@@ -103,8 +113,9 @@ Code routine in this repo — one that reads the four labels and sends the same 
 - One date is replaced whole on each push, so a partial send cannot half-erase a morning.
 - The map is pruned to the newest **30 days**.
 - Every field is whitelisted, every string capped, unknown tiers dropped, and the list
-  truncated at **60 items**. The counts shown on the page are recalculated from the rows
-  that survived, so a heading can never disagree with what is under it.
+  truncated at **60 items**. The counts shown on the page — including how many replies are
+  drafted — are recalculated from the rows that survived, so a heading can never disagree
+  with what is under it.
 - It touches nothing but its own key.
 
 ### If today's brief has not arrived

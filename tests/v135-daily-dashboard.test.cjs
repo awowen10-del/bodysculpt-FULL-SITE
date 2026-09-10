@@ -83,7 +83,8 @@ async function loadStripe(env, responder) {
   // relaxed once v136 shipped: the newest release's test pins the exact stamp, this one
   // only checks the build never goes backwards and that the pages still agree on it.
   const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(MONTHLY);
-  assert.ok(stamp && Number(stamp[1]) >= 135, "monthly.html is stamped v135 or later");
+  assert.strictEqual(stamp[1], "142", "monthly.html is stamped v142");
+  assert.strictEqual(stamp[2], "the-reply-is-written", "…as the release that put the drafts on the card");
   const text = "build v" + stamp[1] + " · " + stamp[2];
   for (const f of ["index.html", "finances.html", "daily.html"]) {
     assert.ok(read(f).includes(text), f + " carries the same stamp");
@@ -201,6 +202,58 @@ async function loadStripe(env, responder) {
   assert.ok(!("lastUpdated" in brief), "unknown top-level fields are dropped");
   assert.ok(brief.generatedAt, "the server stamps when it arrived");
   assert.strictEqual(brief.items[0].subject, "Confirmation statement overdue", "the real rows are kept verbatim");
+
+  /* ---- v142: THE REPLY IS ALREADY WRITTEN ----
+     Ash: "I have a scheduled task that basically reads my inbox, tags my emails based on
+     the importance of needing a reply, DRAFTS THAT REPLY AND SAVES IT."
+
+     That changes what this card is for. It is not a list of work — the work is done — it is
+     a list of decisions: read it, send it. So the draft travels with the item and the page
+     shows what it says, because a reply you have to open Gmail to read is a reply you will
+     put off reading. */
+  r = await POST(h, { dailyBrief: {
+    date: "2026-09-12",
+    items: [
+      { tier: "urgent", from: "Karen at Whitfield & Co", subject: "VAT return", why: "Chased twice.",
+        action: "Send the reply", threadId: "18aa1", draftId: "r-8899001122",
+        draftPreview: "Hi Karen,\n\n  Sorry for the delay — the Q2   figures are attached.\n" },
+      { tier: "today", from: "A member", subject: "Cancelling", action: "Ring them", threadId: "18aa2" },
+      // an id that is not an id, and a preview that is mostly whitespace
+      { tier: "week", from: "Someone", subject: "Later", draftId: "../../etc/passwd", draftPreview: "   \n\t  " },
+    ],
+  } });
+  out = await r.json();
+  assert.strictEqual(out.drafted, 2, "the store counts how many replies are written, derived from the rows");
+
+  r = await GET(h, "dailybriefs=1");
+  const withDrafts = (await r.json()).briefs["2026-09-12"];
+  assert.strictEqual(withDrafts.items[0].draftId, "r-8899001122", "a draft id rides along with the item");
+  assert.strictEqual(withDrafts.items[0].draftPreview,
+    "Hi Karen, Sorry for the delay — the Q2 figures are attached.",
+    "…and the preview arrives as one clean line, whatever whitespace the job sent");
+  assert.strictEqual(withDrafts.items[1].draftId, "", "an item with no draft carries none");
+  assert.strictEqual(withDrafts.items[1].draftPreview, "", "…and no preview either");
+  assert.strictEqual(withDrafts.items[2].draftId, "etcpasswd", "a draft id is stripped to id characters");
+  assert.strictEqual(withDrafts.items[2].draftPreview, "", "whitespace is not a preview");
+  assert.strictEqual(withDrafts.drafted, 2, "the count survives the round trip");
+
+  // and the page shows it
+  assert.ok(/const hasDraft = !!\(it\.draftId \|\| it\.draftPreview\);/.test(js),
+    "the row knows whether its reply is written");
+  assert.ok(/class="mail-draft"/.test(js), "…and gives it its own block, not a footnote");
+  assert.ok(/Reply written/.test(js), "…that says so in words");
+  assert.ok(/mail-dtext/.test(js), "…and shows what it actually says");
+  assert.ok(/draftUrl = \(id\) => GMAIL \+ "drafts\?compose="/.test(js),
+    "…linking straight to Gmail's composer when there is an id to link to");
+  assert.ok(/GMAIL \+ "drafts"/.test(js), "…and to the drafts folder when there is not");
+  // an <a> inside an <a> is not valid markup and browsers pull it apart
+  assert.ok(!/<a class="mail-dgo"/.test(js), "the draft link is not a nested anchor");
+  assert.ok(/data-draft="/.test(js) && /window\.open\(el\.dataset\.draft/.test(js),
+    "…it is a span that opens itself");
+  assert.ok(/role="link" tabindex="0"/.test(js), "…reachable by keyboard, and announced as a link");
+  assert.ok(/e\.stopPropagation\(\)/.test(js), "…and its click does not also open the thread underneath");
+  assert.ok(/replies are written and waiting to be sent/.test(js),
+    "the card's first line says how many replies are waiting, not just how many emails there are");
 
   // a date is required — a brief with no date has nowhere to live
   r = await POST(h, { dailyBrief: { summary: "no date", items: [] } });
