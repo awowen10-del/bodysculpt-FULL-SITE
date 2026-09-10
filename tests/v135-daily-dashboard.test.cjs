@@ -83,8 +83,8 @@ async function loadStripe(env, responder) {
   // relaxed once v136 shipped: the newest release's test pins the exact stamp, this one
   // only checks the build never goes backwards and that the pages still agree on it.
   const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(MONTHLY);
-  assert.strictEqual(stamp[1], "144", "monthly.html is stamped v144");
-  assert.strictEqual(stamp[2], "the-button-does-something", "…as the release where Connect Gmail was wired up");
+  assert.strictEqual(stamp[1], "145", "monthly.html is stamped v145");
+  assert.strictEqual(stamp[2], "enable-the-api", "…as the release that answered Google's paragraph with a button");
   const text = "build v" + stamp[1] + " · " + stamp[2];
   for (const f of ["index.html", "finances.html", "daily.html"]) {
     assert.ok(read(f).includes(text), f + " carries the same stamp");
@@ -173,6 +173,22 @@ async function loadStripe(env, responder) {
     "…and turned into a sentence that says what to do about it");
   assert.ok(/mc\.textContent = "Waiting for Google…"/.test(js),
     "the button says something happened the moment it is pressed");
+
+  /* ============ 1d. v145: "Gmail API has not been used in project 189946618351…" ============
+     Ash enabled the Calendar API, connected, and got a paragraph of Google's own prose with
+     a URL buried in the middle of it. The two APIs are switched on separately, so doing one
+     and not the other lands here every time — it is not an edge case, it is the next step,
+     and it deserves a sentence and a button rather than a stack trace. */
+  assert.ok(/has not been used in project\|it is disabled\|accessNotConfigured/.test(js) ||
+    /has not been used in project/.test(js), "the not-enabled error is recognised, not just displayed");
+  assert.ok(/The Gmail API is not switched on yet/.test(js), "…and answered in plain words");
+  assert.ok(/Enable the Gmail API/.test(js), "…with a button");
+  assert.ok(/\(https:\\\/\\\/console\\\.\[\^\\s\]\+\)/.test(js) || /https:\\\/\\\/console/.test(js),
+    "…that uses the link Google put in the message, project id and all");
+  assert.ok(/apis\/library\/gmail\.googleapis\.com/.test(js),
+    "…and a fallback for when Google words it differently");
+  assert.ok(/Google\\u2019s own words/.test(js),
+    "the original message is kept underneath, so nothing is hidden from someone who wants it");
 
   /* ================= 2. the page's shape ================= */
   assert.ok(/<title>Bodysculpt Daily<\/title>/.test(DAILY), "daily.html has its own title");
