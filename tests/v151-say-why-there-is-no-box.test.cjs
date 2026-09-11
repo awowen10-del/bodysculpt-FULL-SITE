@@ -59,9 +59,9 @@ const POST = (h, body) => h(new Request("https://x/.netlify/functions/kpi-store"
 (async () => {
   /* ================= 0. the stamp ================= */
   const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(read("monthly.html"));
-  assert.strictEqual(stamp[1], "150", "monthly.html is stamped v150");
-  assert.strictEqual(stamp[2], "tick-it-anywhere", "…as the release that made the tick work from either page");
-  const text = "build v150 · tick-it-anywhere";
+  assert.strictEqual(stamp[1], "151", "monthly.html is stamped v151");
+  assert.strictEqual(stamp[2], "say-why-there-is-no-box", "…as the release that stopped a missing box looking like a broken one");
+  const text = "build v151 · say-why-there-is-no-box";
   for (const f of ["index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the same stamp");
   }
@@ -272,5 +272,19 @@ const POST = (h, body) => h(new Request("https://x/.netlify/functions/kpi-store"
   assert.ok(/row\.done = want;\s*\n\s*renderCalendar\(\);/.test(djs), "the tick lands on screen first");
   assert.ok(/row\.done = was;/.test(djs), "…and is put straight back if the store refuses it");
 
-  console.log("v150-tick-it-anywhere.test: all assertions passed");
+  /* ============ 7. v151: A MISSING BOX MUST SAY WHY ============
+     Ash: "I can't see a way to tick on the daily card?"
+
+     Because his stored agenda was published by v149, before rows carried a tick address —
+     so every box silently had nothing to hook onto. A feature that renders as simply absent
+     is the worst kind of broken: it looks like it was never built, and it looks like the
+     reader is missing something obvious. Exactly the v144 dead-button failure again. */
+  assert.ok(/function agendaNeedsRepublish\(\)/.test(djs), "the page notices when rows have no tick address");
+  assert.ok(/cell\.some\(\(row\) => !row\.tgt\)/.test(djs), "…by looking for the address itself");
+  assert.ok(/No tick boxes yet — <a href="\/index\.html">open the weekly plan once<\/a>/.test(djs),
+    "…and says so, with the one action that fixes it");
+  assert.ok(/} else if \(warn\) warn\.remove\(\);/.test(djs),
+    "…and takes the message away again once it is no longer true");
+
+  console.log("v151-say-why-there-is-no-box.test: all assertions passed");
 })();

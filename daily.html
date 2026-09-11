@@ -727,6 +727,8 @@
   .cal-key{display:flex;gap:var(--sp-4);flex-wrap:wrap;margin-top:7px;}
   .cal-key-i{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-faint);}
   .cal-key-i .ic{width:12px;height:12px;}
+  .cal-stale{color:var(--tint-amber);}
+  .cal-stale a{color:var(--tint-amber);font-weight:600;}
   .cal-key-box{width:11px;height:11px;border-radius:3px;border:1.5px solid var(--teal);
     flex:0 0 auto;}
 
@@ -894,7 +896,7 @@
 <symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="M2.5 9.8h19M6 15.2h3.4"/></symbol>
 <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.05" fill="currentColor" stroke="none"/></symbol>
 </defs></svg>
-<!-- build v150 · tick-it-anywhere -->
+<!-- build v151 · say-why-there-is-no-box -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -1711,6 +1713,16 @@ function agendaForDay(dayKey) {
 }
 const agendaDayKey = (d) => WP_DAY_KEYS[(d.getDay() + 6) % 7];
 
+/* v151: a task can only be ticked from here if the weekly page told us WHERE its tick
+   lives, and it only started doing that in v150. An agenda published before then has rows
+   with no address, so the boxes silently do not appear — which looks like a broken feature
+   and, worse, looks like the reader's fault. Say it instead. One render of the weekly page
+   republishes the lot and this disappears for good. */
+function agendaNeedsRepublish() {
+  if (!wpAgenda || !wpAgenda.cells) return false;
+  return Object.values(wpAgenda.cells).some((cell) => cell.some((row) => !row.tgt));
+}
+
 /* ---------- clearing things off ----------
    "Not for me" marks the thread READ and takes the Triage label off it. Both, deliberately:
    marking it read alone leaves it labelled, so it returns the moment the Unread only switch
@@ -2404,6 +2416,20 @@ function renderCalendar() {
       : calEvents.length + (calEvents.length === 1 ? " event" : " events") + " that week.") +
       (wpAgenda ? "" :
         ' · <span class="cal-noplan">no tasks yet — <a href="/index.html">open the weekly plan</a></span>');
+
+    const key = body.parentNode ? body.parentNode.querySelector(".cal-key") : null;
+    if (key) {
+      const warn = key.querySelector(".cal-stale");
+      if (agendaNeedsRepublish()) {
+        if (!warn) {
+          const el = document.createElement("span");
+          el.className = "cal-key-i cal-stale";
+          el.innerHTML = '<svg class="ic"><use href="#ic-alert"/></svg>' +
+            'No tick boxes yet — <a href="/index.html">open the weekly plan once</a> and they appear.';
+          key.appendChild(el);
+        }
+      } else if (warn) warn.remove();
+    }
     const todayKey = ymd(new Date());
     let cols = "";
     for (let i = 0; i < 7; i++) {
