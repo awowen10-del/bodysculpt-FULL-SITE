@@ -59,9 +59,9 @@ const POST = (h, body) => h(new Request("https://x/.netlify/functions/kpi-store"
 (async () => {
   /* ================= 0. the stamp ================= */
   const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(read("monthly.html"));
-  assert.strictEqual(stamp[1], "151", "monthly.html is stamped v151");
-  assert.strictEqual(stamp[2], "say-why-there-is-no-box", "…as the release that stopped a missing box looking like a broken one");
-  const text = "build v151 · say-why-there-is-no-box";
+  // relaxed once v152 shipped: the newest release's test pins the exact stamp.
+  assert.ok(Number(stamp[1]) >= 151, "monthly.html is stamped v151 or later");
+  const text = "build v" + stamp[1] + " · " + stamp[2];
   for (const f of ["index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the same stamp");
   }

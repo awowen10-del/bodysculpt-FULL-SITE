@@ -142,14 +142,25 @@ async function runIg(env, url, responder, seed) {
      is "the page can write exactly one boolean and has no way to express anything else".
      Every store READ still goes through jget(url) with no options, which is checked above. */
   const storeWrites = [...djs.matchAll(/fetch\(API, \{[\s\S]{0,400}?\}\);/g)].map((m) => m[0]);
-  assert.strictEqual(storeWrites.length, 1, "there is exactly ONE place that writes to the store");
-  assert.ok(/method: "POST"/.test(storeWrites[0]), "…and it is a POST");
-  assert.ok(/JSON\.stringify\(\{ weeklyTick: \{ weekEnding: [^,]+, tgt, done \} \}\)/.test(storeWrites[0]),
-    "…whose body can only ever be { weeklyTick: { weekEnding, tgt, done } }");
+  assert.strictEqual(storeWrites.length, 2, "there are exactly TWO places that write to the store");
+  for (const w of storeWrites) assert.ok(/method: "POST"/.test(w), "…both POSTs");
+  /* v152 added the second, when the daily check-in moved here from the weekly page's Today
+     modal. Two named payloads, each built by one function that can express nothing else:
+       { weeklyTick } — one boolean against one task's tick address
+       { checkin }    — one day's own entry in the daily-checkins map
+     Every store READ still goes through jget(url) with no options, checked above. */
+  const bodies = storeWrites.map((w) => /JSON\.stringify\(\{ ([a-zA-Z]+)[:,]/.exec(w))
+    .map((m) => (m ? m[1] : "")).sort();
+  assert.deepStrictEqual(bodies, ["checkin", "weeklyTick"],
+    "…and their bodies can only ever be { weeklyTick } and { checkin }");
+  // Scoped to the write bodies themselves. Scanning the whole script for these names finds
+  // innocent ones — `week: 8` is a Gmail tier cap, not a KPI week — and a test that cries
+  // wolf about its own page is worse than no test.
+  const writeText = storeWrites.join("\n");
   for (const payload of ["weeklyplan", "weeklyPlan", "dailyBrief", "igCompetitors", "weeklyAgenda",
-                         "recurringDefaults", "trainingDefaults", "checkin", "settings", "finTxns"]) {
-    assert.ok(!new RegExp("\\b" + payload + "\\b\\s*:").test(djs),
-      "the daily page names no other store payload — it cannot write " + payload);
+                         "recurringDefaults", "trainingDefaults", "settings", "finTxns", "week", "month"]) {
+    assert.ok(!new RegExp("\\b" + payload + "\\b\\s*:").test(writeText),
+      "no store write on the daily page can carry " + payload);
   }
   assert.ok(/const GCAL_BASE = "https:\/\/www\.googleapis\.com\/calendar\/v3\/";/.test(djs),
     "…and GCAL_BASE is a fixed Google address");
