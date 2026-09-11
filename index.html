@@ -1789,7 +1789,7 @@
 
   <footer>
     <span class="stage" id="srcPill"><svg class="ic"><use href="#ic-dot"/></svg> Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v152 · the-day-itself</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v153 · stop-asking-me-to-sign-in</span>
   </footer>
 </div>
 
@@ -4134,7 +4134,23 @@ const wpCalReady = () => !!wpCalLoadToken();
 
 // A quiet renewal only. The weekly page never puts a consent screen in front of anyone —
 // connecting is the Daily Dashboard's job, and doing it in two places invites doing it twice.
-function wpCalAuthSilent() {
+// v153: the sign-in script is loaded `async`, so on a cold page it may not have arrived
+// yet — and a renewal that gives up because the script is half a second late looks exactly
+// like being signed out.
+function wpCalWaitForGoogle(ms) {
+  const end = Date.now() + (ms || 4000);
+  return new Promise((resolve) => {
+    const look = () => {
+      const g = window.google;
+      if (g && g.accounts && g.accounts.oauth2) return resolve(true);
+      if (Date.now() > end) return resolve(false);
+      setTimeout(look, 120);
+    };
+    look();
+  });
+}
+async function wpCalAuthSilent() {
+  if (!(await wpCalWaitForGoogle())) throw new Error("no client");
   return new Promise((resolve, reject) => {
     const g = window.google;
     if (!g || !g.accounts || !g.accounts.oauth2 || !wpCalClientId) return reject(new Error("no client"));

@@ -1005,7 +1005,7 @@
 <symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="M2.5 9.8h19M6 15.2h3.4"/></symbol>
 <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.05" fill="currentColor" stroke="none"/></symbol>
 </defs></svg>
-<!-- build v152 · the-day-itself -->
+<!-- build v153 · stop-asking-me-to-sign-in -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -2501,6 +2501,35 @@ function gcalForget() {
 }
 const gcalReady = () => !!(gcalToken && gcalToken.expires - 60000 > Date.now());
 
+/* The sign-in script is loaded `async`, so on a cold page it may not be there yet. Waiting
+   a moment for it is the difference between renewing quietly and showing somebody a Connect
+   button they have already pressed. */
+function gcalWaitForGoogle(ms) {
+  const end = Date.now() + (ms || 4000);
+  return new Promise((resolve) => {
+    const look = () => {
+      const g = window.google;
+      if (g && g.accounts && g.accounts.oauth2) return resolve(true);
+      if (Date.now() > end) return resolve(false);
+      setTimeout(look, 120);
+    };
+    look();
+  });
+}
+
+/* v153: RENEW BEFORE ASKING.
+   Google's access tokens last about an hour. The stored one expiring is the normal state of
+   affairs, not a sign-out — the CONSENT behind it lasts until it is withdrawn — so an
+   expired token should be swapped for a fresh one without anybody being told. This is what
+   `prompt: ""` is for, and not calling it is why the page asked Ash to sign in every time he
+   came back to it. Only when the quiet renewal genuinely fails is there anything to say. */
+async function gcalTryRenew() {
+  if (!gcalClientId || gcalReady()) return gcalReady();
+  if (!(await gcalWaitForGoogle())) return false;
+  try { await gcalAuth(true); } catch (e) { /* a real sign-in is needed; the card will say so */ }
+  return gcalReady();
+}
+
 // Ask Google for a token. `silent` reuses an existing consent and shows nothing; the first
 // time round it has to be a real click, because browsers block unrequested popups.
 function gcalAuth(silent) {
@@ -3042,6 +3071,9 @@ async function loadAll() {
     gcalTimeZone = String(config.value.timeZone || gcalTimeZone);
   }
   gcalToken = gcalLoadToken();
+  // An hour-old token is not a sign-out. Try to swap it for a fresh one before anything on
+  // the page decides there is nobody signed in.
+  if (gcalClientId && !gcalReady()) await gcalTryRenew();
 
   // The brief: today's if it is there, otherwise the most recent one, clearly flagged.
   briefState = null;
