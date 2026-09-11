@@ -77,6 +77,22 @@ const AGENDA_CELL_CAP = 60;      // cells; the grid has 7 days x 5 rows
 const AGENDA_ITEM_CAP = 12;      // per cell — more than that and nobody is reading it anyway
 const AGENDA_KINDS = ["project", "buffer", "recurring", "training"];
 function agendaKeyOf(d) { return WEEKLY_AGENDA_PREFIX + d; }
+/* v150: where a task's tick is kept. Two shapes, and nothing else is ever accepted:
+     { l: "projectItems" | "bufferItems", k: "<item id>" }     -> item.done
+     { m: "recurringDone" | "trainingDone", k: "<id>" | "<id>:<day>" } -> map[key]
+   The RULE for which shape applies, and whether the key carries a day, lives in index.html
+   where the grid engine is. This end only writes to the address it is given — but it checks
+   that address hard, because it is the one thing on the daily page that can reach a plan. */
+const TICK_LISTS = ["projectItems", "bufferItems"];
+const TICK_MAPS = ["recurringDone", "trainingDone"];
+function cleanTickTarget(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const k = typeof raw.k === "string" ? raw.k : "";
+  if (!/^[A-Za-z0-9_-]{1,60}(:[a-z]{3})?$/.test(k)) return null;
+  if (TICK_LISTS.includes(raw.l)) return { l: raw.l, k };
+  if (TICK_MAPS.includes(raw.m)) return { m: raw.m, k };
+  return null;
+}
 function cleanAgenda(raw) {
   if (!raw || typeof raw !== "object") return null;
   const weekEnding = typeof raw.weekEnding === "string" ? raw.weekEnding : "";
@@ -97,6 +113,7 @@ function cleanAgenda(raw) {
           title,
           kind: AGENDA_KINDS.includes(it.kind) ? it.kind : "project",
           done: it.done === true,
+          tgt: cleanTickTarget(it.tgt),     // may be null; a row without one simply cannot be ticked
         };
       })
       .filter(Boolean)
@@ -1063,6 +1080,59 @@ export default async (req) => {
       if (!agenda) return new Response("Bad weeklyAgenda (need a YYYY-MM-DD weekEnding)", { status: 400 });
       await store.set(agendaKeyOf(agenda.weekEnding), JSON.stringify(agenda));
       return Response.json({ ok: true, weekEnding: agenda.weekEnding, cells: Object.keys(agenda.cells).length });
+    }
+
+    // v150 Ticking a task off from the Daily Dashboard.
+    // POST { weeklyTick: { weekEnding, tgt, done } }
+    //
+    // This is the ONE thing the daily page can write to a weekly plan, and it is deliberately
+    // the narrowest write in the codebase: it flips a single boolean at an address the weekly
+    // page worked out. It reads the plan, changes that one field, and writes it back — it
+    // never replaces a plan, never creates one, and refuses outright if there is no plan
+    // there, because a tick is not a reason to bring a week into existence.
+    if (body.weeklyTick && typeof body.weeklyTick === "object") {
+      const t = body.weeklyTick;
+      const weekEnding = typeof t.weekEnding === "string" ? t.weekEnding : "";
+      if (!validWeekDate(weekEnding)) return new Response("Bad weekEnding", { status: 400 });
+      const tgt = cleanTickTarget(t.tgt);
+      if (!tgt) return new Response("Bad tick target", { status: 400 });
+      const done = t.done === true;
+
+      const key = weeklyPlanKeyOf(weekEnding);
+      const plan = await store.get(key, { type: "json" });
+      if (!plan) return Response.json({ ok: false, error: "No plan for that week yet." }, { status: 404 });
+
+      if (tgt.m) {
+        plan[tgt.m] = plan[tgt.m] || {};
+        plan[tgt.m][tgt.k] = done;
+      } else {
+        const list = Array.isArray(plan[tgt.l]) ? plan[tgt.l] : null;
+        const item = list && list.find((x) => x && x.id === tgt.k);
+        if (!item) return Response.json({ ok: false, error: "That task is not in the plan any more." }, { status: 404 });
+        item.done = done;
+      }
+      plan.lastUpdated = new Date().toISOString();
+      await store.set(key, JSON.stringify(plan));
+
+      // Keep the display cache honest in the same breath, or the daily page shows the old
+      // state until the weekly page is next opened.
+      try {
+        const ag = await store.get(agendaKeyOf(weekEnding), { type: "json" });
+        if (ag && ag.cells) {
+          let touched = false;
+          for (const cell of Object.values(ag.cells)) {
+            for (const row of cell) {
+              if (!row.tgt) continue;
+              if (row.tgt.k !== tgt.k) continue;
+              if ((row.tgt.m || "") !== (tgt.m || "") || (row.tgt.l || "") !== (tgt.l || "")) continue;
+              row.done = done; touched = true;
+            }
+          }
+          if (touched) await store.set(agendaKeyOf(weekEnding), JSON.stringify(ag));
+        }
+      } catch { /* the cache is disposable; the plan is what matters and it is already saved */ }
+
+      return Response.json({ ok: true, weekEnding, done });
     }
 
     // v136 Competitors: POST { igCompetitors: [...] }. A whole-list write — the page holds

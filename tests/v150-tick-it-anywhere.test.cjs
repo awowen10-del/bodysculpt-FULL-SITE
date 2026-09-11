@@ -59,9 +59,9 @@ const POST = (h, body) => h(new Request("https://x/.netlify/functions/kpi-store"
 (async () => {
   /* ================= 0. the stamp ================= */
   const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(read("monthly.html"));
-  assert.strictEqual(stamp[1], "149", "monthly.html is stamped v149");
-  assert.strictEqual(stamp[2], "one-engine", "…as the release that did NOT write a second grid engine");
-  const text = "build v149 · one-engine";
+  assert.strictEqual(stamp[1], "150", "monthly.html is stamped v150");
+  assert.strictEqual(stamp[2], "tick-it-anywhere", "…as the release that made the tick work from either page");
+  const text = "build v150 · tick-it-anywhere";
   for (const f of ["index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the same stamp");
   }
@@ -180,5 +180,97 @@ const POST = (h, body) => h(new Request("https://x/.netlify/functions/kpi-store"
   assert.ok(/no tasks yet — <a href="\/index\.html">open the weekly plan<\/a>/.test(djs),
     "an unpublished week says so, instead of implying there is nothing planned");
 
-  console.log("v149-one-engine.test: all assertions passed");
+  /* ============ 5. v150: TICKING FROM EITHER PAGE ============
+     Ash: "Can I not have the ability to tick them off on the Daily Calendar, just like I can
+     the weekly? And the two sync so if I tick off on the daily it ticks off on the weekly
+     and vice versa."
+
+     Where a tick LIVES differs by task type — a project task carries `done` on the item, a
+     recurring one is a key in recurringDone, and that key gains the day only when the task
+     runs on more than one. That rule stays in index.html beside wpSetDone. The agenda
+     carries the resolved ADDRESS, the daily page posts a boolean to it, and the store writes
+     to the address it is handed. Nobody but index.html knows the rule. */
+  assert.ok(/function wpDoneTarget\(source, item, day\)/.test(wjs), "the weekly page resolves each tick's address");
+  assert.ok(/wpMultiDay\(item\) && day \? item\.id \+ ":" \+ day : String\(item\.id\)/.test(wjs),
+    "…including the rule that only a multi-day task's key carries the day");
+  assert.ok(/tgt: wpDoneTarget\(source, it, day\)/.test(wjs), "…and it rides along with the row");
+  // the daily page still knows nothing
+  for (const name of ["wpSetDone", "wpIsDone", "recurringDone", "trainingDone", "projectItems", "bufferItems"]) {
+    assert.ok(!dailyCode.includes(name),
+      "daily.html must not know about " + name + " — it posts to an address, it does not know the rules");
+  }
+
+  // the store applies it, and refuses anything that is not one of the two shapes
+  const store2 = fakeStore({
+    "weekly-plan-2026-09-14": JSON.stringify({
+      weekEnding: "2026-09-14",
+      projectItems: [{ id: "p1", title: "Ad copy", done: false }],
+      recurringDone: {},
+    }),
+    "weekly-agenda-2026-09-14": JSON.stringify({ weekEnding: "2026-09-14", cells: {
+      "1-3:mon": [{ title: "Ad copy", kind: "project", done: false, tgt: { l: "projectItems", k: "p1" } }],
+      "6-9:tue": [{ title: "Huddle", kind: "recurring", done: false, tgt: { m: "recurringDone", k: "r1:tue" } }],
+    } }),
+    "planning-2026-Q3": JSON.stringify({ year: 2026, quarter: "Q3", goals: [{ id: "g1" }] }),
+  });
+  globalThis.__fakeStore = store2;
+  const h2 = await loadHandler();
+
+  let t = await POST(h2, { weeklyTick: { weekEnding: "2026-09-14", tgt: { l: "projectItems", k: "p1" }, done: true } });
+  assert.strictEqual(t.status, 200, "a project task ticks");
+  let plan = JSON.parse(store2._m.get("weekly-plan-2026-09-14"));
+  assert.strictEqual(plan.projectItems[0].done, true, "…on the item itself");
+  assert.strictEqual(plan.projectItems[0].title, "Ad copy", "…without disturbing anything else on it");
+
+  t = await POST(h2, { weeklyTick: { weekEnding: "2026-09-14", tgt: { m: "recurringDone", k: "r1:tue" }, done: true } });
+  assert.strictEqual(t.status, 200, "a recurring task ticks");
+  plan = JSON.parse(store2._m.get("weekly-plan-2026-09-14"));
+  assert.deepStrictEqual(plan.recurringDone, { "r1:tue": true }, "…as a key in its own map");
+
+  // the display cache is kept honest in the same breath
+  const ag2 = JSON.parse(store2._m.get("weekly-agenda-2026-09-14"));
+  assert.strictEqual(ag2.cells["1-3:mon"][0].done, true, "the cached agenda is updated too");
+  assert.strictEqual(ag2.cells["6-9:tue"][0].done, true, "…for both");
+
+  // and untick works, because a tick you cannot take back is a trap
+  t = await POST(h2, { weeklyTick: { weekEnding: "2026-09-14", tgt: { l: "projectItems", k: "p1" }, done: false } });
+  assert.strictEqual(JSON.parse(store2._m.get("weekly-plan-2026-09-14")).projectItems[0].done, false, "…and unticks");
+
+  // REFUSALS. This is the one route on the daily page that can reach a plan.
+  for (const bad of [
+    { m: "somethingElse", k: "x" },                 // not a map it may write
+    { l: "weeks", k: "x" },                         // not a list it may write
+    { l: "projectItems", k: "../../etc" },          // not an id
+    { l: "projectItems", k: "p1:monday" },          // day must be three letters
+    { k: "p1" },                                    // no destination at all
+    "nope",
+  ]) {
+    const bad1 = await POST(h2, { weeklyTick: { weekEnding: "2026-09-14", tgt: bad, done: true } });
+    assert.strictEqual(bad1.status, 400, "a bad tick target is refused: " + JSON.stringify(bad));
+  }
+  const noWeek = await POST(h2, { weeklyTick: { weekEnding: "2026-09-21", tgt: { l: "projectItems", k: "p1" }, done: true } });
+  assert.strictEqual(noWeek.status, 404, "a tick does not bring a week into existence");
+  assert.ok(!store2._m.has("weekly-plan-2026-09-21"), "…and writes no plan for it");
+  const gone = await POST(h2, { weeklyTick: { weekEnding: "2026-09-14", tgt: { l: "projectItems", k: "deleted" }, done: true } });
+  assert.strictEqual(gone.status, 404, "…nor tick a task that is no longer in the plan");
+  assert.strictEqual(JSON.parse(store2._m.get("planning-2026-Q3")).goals[0].id, "g1",
+    "and the quarterly review is byte-for-byte where it was through all of that");
+  delete globalThis.__fakeStore;
+
+  /* ============ 6. one is Google's, one is yours, and you can see which ============ */
+  assert.ok(/class="ct-src ct-src-goog"/.test(djs) && /Google<\/span>/.test(djs),
+    "an appointment says where it came from");
+  assert.ok(/class="ct-src ct-src-plan">Weekly plan/.test(djs), "…and so does a task");
+  assert.ok(/class="cal-key"/.test(DAILY) && /Booked in Google Calendar/.test(DAILY) &&
+    /Planned on your weekly dashboard/.test(DAILY), "…and the card carries a key for both");
+  // the strongest signal is the one you do not have to read
+  assert.ok(/class="ct-box" role="checkbox"/.test(djs), "a task has a box you can tick");
+  assert.ok(/class="cal-tbox" role="checkbox"/.test(djs), "…in the week strip as well as today");
+  assert.ok(!/class="cal-ev[^"]*"[\s\S]{0,200}?role="checkbox"/.test(djs),
+    "…and an appointment has no box at all, which is the difference you can see without reading");
+  // ticking must feel instant, and must not lie
+  assert.ok(/row\.done = want;\s*\n\s*renderCalendar\(\);/.test(djs), "the tick lands on screen first");
+  assert.ok(/row\.done = was;/.test(djs), "…and is put straight back if the store refuses it");
+
+  console.log("v150-tick-it-anywhere.test: all assertions passed");
 })();

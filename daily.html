@@ -688,6 +688,48 @@
   .cal-free{font-size:11.5px;color:var(--ink-faint);padding:4px 2px;}
   .cal-more{font-size:10.5px;font-weight:700;color:var(--ink-faint);padding:2px;}
 
+  /* --- v150: a tick box, and telling the two sources apart at a glance ---
+     Ash: "can we make it obvious on the calendar that one is direct from Google (team
+     meeting appts etc) and one is from my weekly dashboard." So: an appointment carries a
+     calendar mark and says Google; a task carries a BOX YOU CAN TICK and says Weekly plan.
+     A thing you can tick and a thing you cannot is the clearest difference there is — you
+     can see it without reading a word. */
+  .ct-box{flex:0 0 auto;width:17px;height:17px;margin-top:1px;border-radius:5px;
+    border:1.5px solid var(--ink-faint);display:inline-flex;align-items:center;
+    justify-content:center;cursor:pointer;transition:background var(--tap),border-color var(--tap);}
+  .ct-box .ic{width:11px;height:11px;color:var(--card);}
+  .ct-box:hover{border-color:var(--teal);}
+  .ct-box:focus-visible{outline:none;box-shadow:var(--focus);}
+  .ct-item.done .ct-box{background:var(--teal);border-color:var(--teal);}
+  .ct-src{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:800;
+    text-transform:uppercase;letter-spacing:.08em;}
+  .ct-src .ic{width:10px;height:10px;}
+  .ct-src-goog{color:var(--ink-faint);}
+  .ct-src-plan{color:var(--teal-bright);}
+  .ct-band{font-size:10px;color:var(--ink-faint);font-variant-numeric:tabular-nums;}
+  .ct-item .ct-s{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+  a.ct-n{text-decoration:none;}
+  a.ct-n:hover{text-decoration:underline;}
+  .ct-item.ct-task{display:flex;gap:10px;padding:7px 6px;}
+  /* the week strip's smaller box */
+  .cal-task{display:flex;align-items:center;gap:6px;}
+  .cal-tname{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .cal-tbox{flex:0 0 auto;width:13px;height:13px;border-radius:4px;
+    border:1.5px solid var(--ink-faint);display:inline-flex;align-items:center;
+    justify-content:center;cursor:pointer;}
+  .cal-tbox .ic{width:9px;height:9px;color:var(--card);}
+  .cal-tbox:hover{border-color:var(--teal);}
+  .cal-tbox:focus-visible{outline:none;box-shadow:var(--focus);}
+  .cal-task.done .cal-tbox{background:var(--teal);border-color:var(--teal);}
+  .cal-evt{display:flex;align-items:center;gap:4px;}
+  .cal-evt .ic{width:9px;height:9px;}
+  /* the key, so none of it needs explaining */
+  .cal-key{display:flex;gap:var(--sp-4);flex-wrap:wrap;margin-top:7px;}
+  .cal-key-i{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-faint);}
+  .cal-key-i .ic{width:12px;height:12px;}
+  .cal-key-box{width:11px;height:11px;border-radius:3px;border:1.5px solid var(--teal);
+    flex:0 0 auto;}
+
   /* --- v149: what the weekly plan says you are doing ---
      A task is a commitment to yourself and an appointment is one to somebody else, so they
      read differently: a task carries its BAND rather than a clock time, because a job you
@@ -852,7 +894,7 @@
 <symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="M2.5 9.8h19M6 15.2h3.4"/></symbol>
 <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.05" fill="currentColor" stroke="none"/></symbol>
 </defs></svg>
-<!-- build v149 · one-engine -->
+<!-- build v150 · tick-it-anywhere -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -913,6 +955,10 @@
     <div>
       <div class="chead"><svg class="ic"><use href="#ic-calendar"/></svg> This week</div>
       <div class="csub cal-next" id="calNext">Loading your calendar…</div>
+      <div class="cal-key">
+        <span class="cal-key-i"><svg class="ic"><use href="#ic-calendar"/></svg>Booked in Google Calendar</span>
+        <span class="cal-key-i"><span class="cal-key-box"></span>Planned on your weekly dashboard — tick it off in either place</span>
+      </div>
     </div>
     <div class="cardhead-r" id="calTools"></div>
   </div>
@@ -1608,6 +1654,39 @@ function agendaWeekOf(offset) {
   return ymd(d);
 }
 
+/* THE ONE THING THIS PAGE CAN WRITE TO A PLAN.
+   It builds the only payload it is able to build — a single boolean at an address the
+   weekly page worked out — and there is no other function here that posts to the store. The
+   test asserts that: every request to the store that carries a method posts { weeklyTick }
+   and nothing else. Where a task's tick actually LIVES is not known here and must not be. */
+async function tickTask(tgt, done) {
+  const r = await fetch(API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ weeklyTick: { weekEnding: agendaWeekOf(calWeekOffset), tgt, done } }),
+  });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return await r.json();
+}
+
+// Flip it on screen first, then tell the store. A tick that waits for the network feels
+// broken; a tick that lies gets put straight back.
+async function toggleTask(cellKey, idx, want) {
+  if (!wpAgenda || !wpAgenda.cells || !wpAgenda.cells[cellKey]) return;
+  const row = wpAgenda.cells[cellKey][idx];
+  if (!row || !row.tgt) return;
+  const was = row.done;
+  row.done = want;
+  renderCalendar();
+  try {
+    await tickTask(row.tgt, want);
+  } catch (e) {
+    row.done = was;
+    calError = "";
+    renderCalendar();
+  }
+}
+
 async function loadAgenda() {
   wpAgenda = null;
   try {
@@ -1623,9 +1702,10 @@ function agendaForDay(dayKey) {
   if (!wpAgenda || !wpAgenda.cells) return [];
   const out = [];
   for (const [slot, label, hour] of WP_BANDS) {
-    for (const row of wpAgenda.cells[slot + ":" + dayKey] || []) {
-      out.push({ ...row, slot, bandLabel: label, hour });
-    }
+    const cellKey = slot + ":" + dayKey;
+    (wpAgenda.cells[cellKey] || []).forEach((row, idx) => {
+      out.push({ ...row, slot, bandLabel: label, hour, cellKey, idx });
+    });
   }
   return out;
 }
@@ -2127,7 +2207,7 @@ function calDayHtml(day, events, todayKey) {
         : pad(e.startAt.getHours()) + ":" + pad(e.startAt.getMinutes());
       chips += '<a class="cal-ev' + (live ? " now" : done ? " done" : "") + '" ' +
         (e.link ? 'href="' + esc(e.link) + '" target="_blank" rel="noopener"' : 'href="#"') + ">" +
-        '<span class="cal-evt">' + esc(when) + "</span>" +
+        '<span class="cal-evt"><svg class="ic"><use href="#ic-calendar"/></svg>' + esc(when) + "</span>" +
         '<span class="cal-evn">' + esc(e.title) + "</span>" +
         (e.guests ? '<span class="who">' + e.guests + (e.guests === 1 ? " guest" : " guests") + "</span>"
           : e.location ? '<span class="who">' + esc(e.location) + "</span>" : "") +
@@ -2142,7 +2222,14 @@ function calDayHtml(day, events, todayKey) {
   if (dayTasks.length) {
     for (const t of dayTasks.slice(0, CAL_MAX_CHIPS)) {
       chips += '<span class="cal-task' + (t.done ? " done" : "") + '" title="' +
-        esc(t.bandLabel + " · " + t.title) + '">' + esc(t.title) + "</span>";
+        esc(t.bandLabel + " · " + t.title + " — from your weekly plan") + '">' +
+        (t.tgt
+          ? '<span class="cal-tbox" role="checkbox" tabindex="0" aria-checked="' + (t.done ? "true" : "false") +
+            '" data-cell="' + esc(t.cellKey) + '" data-idx="' + t.idx +
+            '" aria-label="' + esc((t.done ? "Untick " : "Tick off ") + t.title) + '">' +
+            (t.done ? '<svg class="ic"><use href="#ic-check"/></svg>' : "") + "</span>"
+          : "") +
+        '<span class="cal-tname">' + esc(t.title) + "</span></span>";
     }
     if (dayTasks.length > CAL_MAX_CHIPS) {
       chips += '<div class="cal-more">+' + (dayTasks.length - CAL_MAX_CHIPS) + " planned</div>";
@@ -2209,9 +2296,13 @@ function calTodayHtml(events) {
   // v149: the plan's tasks sit in the same list as the appointments, ordered by when they
   // start. An appointment is a commitment to somebody else; a task is a commitment to
   // yourself. Both are the day, so both belong in it.
+  // The tick address and the row's place in the agenda have to come along, or the box has
+  // nothing to flip — which is exactly how the first version shipped, with today's tasks
+  // falling back to showing their band where the box should have been.
   const tasks = agendaForDay(agendaDayKey(new Date())).map((t) => ({
     task: true, title: t.title, kind: t.kind, done: t.done,
     bandLabel: t.bandLabel, sortAt: t.hour,
+    tgt: t.tgt, cellKey: t.cellKey, idx: t.idx,
   }));
   const merged = mine.map((e) => ({
     task: false, e, sortAt: e.allDay ? -1 : e.startAt.getHours() + e.startAt.getMinutes() / 60,
@@ -2219,11 +2310,19 @@ function calTodayHtml(events) {
 
   const rows = merged.map((row) => {
     if (row.task) {
-      return '<a class="ct-item ct-task' + (row.done ? " done" : "") + '" href="/index.html">' +
-        '<span class="ct-t">' + esc(row.bandLabel) + "</span>" +
-        '<span class="ct-b"><span class="ct-n">' + esc(row.title) + "</span>" +
-        '<span class="ct-s"><span class="ct-kind ct-' + esc(row.kind) + '">' +
-        esc(row.done ? "done" : row.kind) + "</span></span></span></a>";
+      // A task is something YOU said you would do, so it gets a box you can tick. The row
+      // stops being one big link — the title is the link, and the box is a box.
+      const tickable = !!row.tgt;
+      return '<div class="ct-item ct-task' + (row.done ? " done" : "") + '">' +
+        (tickable
+          ? '<span class="ct-box" role="checkbox" tabindex="0" aria-checked="' + (row.done ? "true" : "false") +
+            '" data-cell="' + esc(row.cellKey) + '" data-idx="' + row.idx +
+            '" aria-label="' + esc((row.done ? "Untick " : "Tick off ") + row.title) + '">' +
+            (row.done ? '<svg class="ic"><use href="#ic-check"/></svg>' : "") + "</span>"
+          : '<span class="ct-t">' + esc(row.bandLabel) + "</span>") +
+        '<span class="ct-b"><a class="ct-n" href="/index.html">' + esc(row.title) + "</a>" +
+        '<span class="ct-s"><span class="ct-src ct-src-plan">Weekly plan</span>' +
+        '<span class="ct-band">' + esc(row.bandLabel) + "</span></span></span></div>";
     }
     const e = row.e;
     const live = !e.allDay && e.startAt.getTime() <= now && e.endAt.getTime() > now;
@@ -2236,9 +2335,10 @@ function calTodayHtml(events) {
       (e.link ? 'href="' + esc(e.link) + '" target="_blank" rel="noopener"' : 'href="#"') + ">" +
       '<span class="ct-t">' + t + "</span>" +
       '<span class="ct-b"><span class="ct-n">' + esc(e.title) + "</span>" +
-      (live ? '<span class="ct-s"><span class="ct-now">On now</span></span>'
-            : sub ? '<span class="ct-s">' + sub + "</span>" : "") +
-      "</span></a>";
+      '<span class="ct-s"><span class="ct-src ct-src-goog">' +
+        '<svg class="ic"><use href="#ic-calendar"/></svg>Google</span>' +
+      (live ? '<span class="ct-now">On now</span>' : sub ? "<span>" + sub + "</span>" : "") +
+      "</span></span></a>";
   }).join("");
 
   return '<div class="cal-today">' + head + '<div class="ct-sum">' + sum + "</div>" +
@@ -2322,6 +2422,17 @@ function renderCalendar() {
   on("calNextWk", () => { calWeekOffset++; calRefresh(); });
   on("calToday", () => { calWeekOffset = 0; calRefresh(); });
   on("calNew", () => evOpen());
+  // Ticking, in both halves of the card. The box is a span so it can sit inside the week
+  // strip's link; it behaves like a checkbox to a keyboard and a screen reader.
+  body.querySelectorAll("[data-cell]").forEach((el) => {
+    const fire = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const want = el.getAttribute("aria-checked") !== "true";
+      toggleTask(el.dataset.cell, Number(el.dataset.idx), want);
+    };
+    el.addEventListener("click", fire);
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") fire(e); });
+  });
   on("calNewToday", () => evOpen(ymd(new Date())));
   // "+" on a day column starts the sheet on that day, so Tuesday's event starts on Tuesday
   body.querySelectorAll("[data-newday]").forEach((b) => {

@@ -1789,7 +1789,7 @@
 
   <footer>
     <span class="stage" id="srcPill"><svg class="ic"><use href="#ic-dot"/></svg> Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v149 · one-engine</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v150 · tick-it-anywhere</span>
   </footer>
 </div>
 
@@ -4267,6 +4267,16 @@ async function wpCalRefresh() {
    ===================================================================== */
 let wpAgendaLast = "";     // the last payload written, so an unchanged grid writes nothing
 
+// The one place that knows where a given task's done-state is kept. Mirrors wpSetDone
+// exactly — if that ever changes, this must change with it, which is why they sit together
+// in the test rather than being remembered.
+function wpDoneTarget(source, item, day) {
+  if (!item || !item.id) return null;
+  if (!wpIsDefaultsSource(source)) return { l: source + "Items", k: String(item.id) };
+  const m = source === "training" ? "trainingDone" : "recurringDone";
+  return { m, k: wpMultiDay(item) && day ? item.id + ":" + day : String(item.id) };
+}
+
 function wpBuildAgenda(placements) {
   const cells = {};
   Object.keys(placements || {}).forEach((key) => {
@@ -4275,7 +4285,18 @@ function wpBuildAgenda(placements) {
       const it = wpResolveRef(ref);
       if (!it || !it.title) return null;
       const source = ref.split(":")[0];
-      return { title: String(it.title), kind: source, done: !!wpIsDone(source, it, day) };
+      return {
+        title: String(it.title),
+        kind: source,
+        done: !!wpIsDone(source, it, day),
+        // v150: WHERE this task's tick lives, worked out here where the rules already are.
+        // A project or buffer task carries `done` on the item itself; a recurring or
+        // training one is a key in recurringDone/trainingDone, and that key gains the day
+        // only when the task runs on more than one. Resolving it here means the daily page
+        // can tick something off without knowing any of that, and the store can apply it
+        // without knowing it either — it just writes to the address it is handed.
+        tgt: wpDoneTarget(source, it, day),
+      };
     }).filter(Boolean);
     if (rows.length) cells[key] = rows;
   });

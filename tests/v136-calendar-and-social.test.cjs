@@ -134,8 +134,22 @@ async function runIg(env, url, responder, seed) {
   const methodSites = [...djs.matchAll(/fetch\(([^,]+),\s*\{[\s\S]{0,200}?method:/g)].map((m) => m[1].trim());
   assert.ok(methodSites.length > 0, "the page does write — otherwise this test proves nothing");
   for (const target of methodSites) {
-    assert.ok(/^GCAL_BASE \+ path$/.test(target) || /^GMAIL_BASE \+ "threads\/"/.test(target),
-      "every request carrying a method is built from a fixed Google base, not a caller's url: " + target);
+    assert.ok(/^GCAL_BASE \+ path$/.test(target) || /^GMAIL_BASE \+ "threads\/"/.test(target) || target === "API",
+      "every request carrying a method goes to a fixed Google base or to the store: " + target);
+  }
+  /* v150 added the store to that list, for ONE thing: ticking a task off. So the claim gets
+     narrower rather than looser — it is no longer "the page cannot write to the store", it
+     is "the page can write exactly one boolean and has no way to express anything else".
+     Every store READ still goes through jget(url) with no options, which is checked above. */
+  const storeWrites = [...djs.matchAll(/fetch\(API, \{[\s\S]{0,400}?\}\);/g)].map((m) => m[0]);
+  assert.strictEqual(storeWrites.length, 1, "there is exactly ONE place that writes to the store");
+  assert.ok(/method: "POST"/.test(storeWrites[0]), "…and it is a POST");
+  assert.ok(/JSON\.stringify\(\{ weeklyTick: \{ weekEnding: [^,]+, tgt, done \} \}\)/.test(storeWrites[0]),
+    "…whose body can only ever be { weeklyTick: { weekEnding, tgt, done } }");
+  for (const payload of ["weeklyplan", "weeklyPlan", "dailyBrief", "igCompetitors", "weeklyAgenda",
+                         "recurringDefaults", "trainingDefaults", "checkin", "settings", "finTxns"]) {
+    assert.ok(!new RegExp("\\b" + payload + "\\b\\s*:").test(djs),
+      "the daily page names no other store payload — it cannot write " + payload);
   }
   assert.ok(/const GCAL_BASE = "https:\/\/www\.googleapis\.com\/calendar\/v3\/";/.test(djs),
     "…and GCAL_BASE is a fixed Google address");
