@@ -688,10 +688,26 @@
   .cal-free{font-size:11.5px;color:var(--ink-faint);padding:4px 2px;}
   .cal-more{font-size:10.5px;font-weight:700;color:var(--ink-faint);padding:2px;}
 
+  /* --- v149: what the weekly plan says you are doing ---
+     A task is a commitment to yourself and an appointment is one to somebody else, so they
+     read differently: a task carries its BAND rather than a clock time, because a job you
+     have given yourself the afternoon for should not pretend to start at 14:00. */
+  .ct-item.ct-task{border-left-color:var(--teal);background:rgba(var(--teal-rgb),.05);}
+  .ct-task .ct-t{font-size:10px;letter-spacing:-.02em;color:var(--teal-bright);}
+  .ct-kind{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--ink-faint);}
+  .ct-item.ct-task.done .ct-n{text-decoration:line-through;}
+  .cal-task{display:block;font-size:10.5px;font-weight:500;color:var(--ink-dim);line-height:1.3;
+    padding:4px 7px;border-radius:var(--r-sm);background:rgba(var(--teal-rgb),.09);
+    border-left:2px solid var(--teal);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .cal-task.done{opacity:.5;text-decoration:line-through;}
+
   /* the one line above the strip: what is next, and how much is left after it */
   .cal-next{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-dim);}
   .cal-next b{color:var(--ink-strong);font-weight:700;}
   .cal-next .tm{font-variant-numeric:tabular-nums;color:var(--orange);font-weight:700;}
+  .cal-noplan{color:var(--ink-faint);}
+  .cal-noplan a{color:var(--orange);}
   .cal-rng{font-size:11.5px;color:var(--ink-faint);font-weight:600;white-space:nowrap;
     padding:0 var(--sp-2);font-variant-numeric:tabular-nums;}
 
@@ -836,7 +852,7 @@
 <symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="M2.5 9.8h19M6 15.2h3.4"/></symbol>
 <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.05" fill="currentColor" stroke="none"/></symbol>
 </defs></svg>
-<!-- build v148 · the-wall-before-the-space -->
+<!-- build v149 · one-engine -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -1568,6 +1584,53 @@ async function loadGmail() {
   }
 }
 
+/* ---------- what the weekly plan says you are doing (v149) ----------
+   Read, never computed. The grid's placement engine — schedules, cadence, this week's
+   move/skip exceptions, within-cell order — lives in index.html and stays there; the weekly
+   page writes down what it worked out and this page renders it. Nothing here knows what a
+   placement is.
+
+   Tasks have a BAND, not a time, so they are shown at the band's start and labelled with the
+   band rather than a clock time: a job you have given yourself the afternoon for should not
+   pretend to be a 14:00 appointment. */
+const WP_BANDS = [
+  ["6-9",   "6–9",     6],
+  ["10-12", "9–11.30", 9],
+  ["1-3",   "12–3",   12],
+  ["5-8",   "5–8",    17],
+];
+const WP_DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+let wpAgenda = null;      // { weekEnding, cells } for the week on screen, or null
+
+// The Monday-based plan is keyed by its own week; the strip may be showing another one.
+function agendaWeekOf(offset) {
+  const d = calWeekStart(offset);
+  return ymd(d);
+}
+
+async function loadAgenda() {
+  wpAgenda = null;
+  try {
+    const r = await jget(API + "?weeklyagenda=" + encodeURIComponent(agendaWeekOf(calWeekOffset)));
+    wpAgenda = (r && r.agenda) || null;
+  } catch { wpAgenda = null; }
+}
+
+// Everything planned for one day, in band order. Returns [] when the weekly plan has not
+// been opened since it last changed — which the card says out loud rather than implying
+// the day is empty.
+function agendaForDay(dayKey) {
+  if (!wpAgenda || !wpAgenda.cells) return [];
+  const out = [];
+  for (const [slot, label, hour] of WP_BANDS) {
+    for (const row of wpAgenda.cells[slot + ":" + dayKey] || []) {
+      out.push({ ...row, slot, bandLabel: label, hour });
+    }
+  }
+  return out;
+}
+const agendaDayKey = (d) => WP_DAY_KEYS[(d.getDay() + 6) % 7];
+
 /* ---------- clearing things off ----------
    "Not for me" marks the thread READ and takes the Triage label off it. Both, deliberately:
    marking it read alone leaves it labelled, so it returns the moment the Unread only switch
@@ -2052,10 +2115,11 @@ function calDayHtml(day, events, todayKey) {
   const mine = events.filter((e) => ymd(e.startAt) === key)
     .sort((a, b) => (a.allDay === b.allDay ? a.startAt - b.startAt : a.allDay ? -1 : 1));
 
+  const dayTasks = agendaForDay(agendaDayKey(day));
   let chips = "";
-  if (!mine.length) {
+  if (!mine.length && !dayTasks.length) {
     chips = '<div class="cal-free">' + (isPast ? "—" : "Clear") + "</div>";
-  } else {
+  } else if (mine.length) {
     for (const e of mine.slice(0, CAL_MAX_CHIPS)) {
       const live = !e.allDay && e.startAt.getTime() <= now && e.endAt.getTime() > now;
       const done = e.endAt.getTime() < now;
@@ -2073,6 +2137,17 @@ function calDayHtml(day, events, todayKey) {
       chips += '<div class="cal-more">+' + (mine.length - CAL_MAX_CHIPS) + " more</div>";
     }
   }
+  // Then what has been PLANNED for that day, beneath what is booked: the appointments are
+  // fixed, the tasks are the work you chose to fit around them.
+  if (dayTasks.length) {
+    for (const t of dayTasks.slice(0, CAL_MAX_CHIPS)) {
+      chips += '<span class="cal-task' + (t.done ? " done" : "") + '" title="' +
+        esc(t.bandLabel + " · " + t.title) + '">' + esc(t.title) + "</span>";
+    }
+    if (dayTasks.length > CAL_MAX_CHIPS) {
+      chips += '<div class="cal-more">+' + (dayTasks.length - CAL_MAX_CHIPS) + " planned</div>";
+    }
+  }
   return '<div class="cal-day' + (isToday ? " today" : isPast ? " past" : "") + '">' +
     '<div class="cal-dhead"><span class="cal-dname">' + CAL_DNAMES[(day.getDay() + 6) % 7] + "</span>" +
     '<button type="button" class="cal-dadd" data-newday="' + key + '" aria-label="New event on ' +
@@ -2087,8 +2162,14 @@ function calNextLine(events) {
   const today = events.filter((e) => ymd(e.startAt) === todayKey);
   if (!today.length) return "Nothing in the calendar today.";
   const ahead = today.filter((e) => e.endAt.getTime() > now && !e.allDay);
-  if (!ahead.length) return "Everything in today's calendar is done. " + today.length +
-    (today.length === 1 ? " event" : " events") + " in total.";
+  if (!ahead.length) {
+    // v149: the panel beneath counts tasks as well, and two adjacent lines disagreeing
+    // about whether the day is finished is how a page stops being believed.
+    const leftTasks = agendaForDay(agendaDayKey(new Date())).filter((t) => !t.done).length;
+    return "Nothing else booked today." +
+      (leftTasks ? " <b>" + leftTasks + "</b> planned " + (leftTasks === 1 ? "job" : "jobs") + " still to do."
+                 : " " + today.length + (today.length === 1 ? " event" : " events") + ", all done.");
+  }
   const next = ahead[0];
   const live = next.startAt.getTime() <= now;
   const when = pad(next.startAt.getHours()) + ":" + pad(next.startAt.getMinutes());
@@ -2105,23 +2186,46 @@ function calTodayHtml(events) {
   const todayKey = ymd(new Date());
   const mine = events.filter((e) => ymd(e.startAt) === todayKey)
     .sort((a, b) => (a.allDay === b.allDay ? a.startAt - b.startAt : a.allDay ? -1 : 1));
-  const left = mine.filter((e) => e.endAt.getTime() > now).length;
+  const todayTasks = agendaForDay(agendaDayKey(new Date()));
+  const left = mine.filter((e) => e.endAt.getTime() > now).length +
+    todayTasks.filter((t) => !t.done).length;
 
   const head = '<div class="ct-head"><span class="ct-day">Today</span>' +
     '<span class="ct-date">' + new Date().getDate() + " " + MONTHS[new Date().getMonth()].slice(0, 3) + "</span></div>";
 
-  if (!mine.length) {
+  if (!mine.length && !todayTasks.length) {
     return '<div class="cal-today">' + head +
       '<div class="ct-none">Nothing in the calendar today. A clear day is a decision, so make sure it was yours.</div>' +
       '<div class="ct-foot"><button type="button" class="abtn primary" id="calNewToday">' +
       '<svg class="ic"><use href="#ic-plus"/></svg> New event</button></div></div>';
   }
 
+  const total = mine.length + todayTasks.length;
   const sum = left
-    ? "<b>" + left + "</b> of " + mine.length + " still to come."
-    : "All " + mine.length + (mine.length === 1 ? " thing" : " things") + " done.";
+    ? "<b>" + left + "</b> of " + total + " still to come." +
+      (todayTasks.length ? " " + todayTasks.length + " planned, " + mine.length + " booked." : "")
+    : "All " + total + (total === 1 ? " thing" : " things") + " done.";
 
-  const rows = mine.map((e) => {
+  // v149: the plan's tasks sit in the same list as the appointments, ordered by when they
+  // start. An appointment is a commitment to somebody else; a task is a commitment to
+  // yourself. Both are the day, so both belong in it.
+  const tasks = agendaForDay(agendaDayKey(new Date())).map((t) => ({
+    task: true, title: t.title, kind: t.kind, done: t.done,
+    bandLabel: t.bandLabel, sortAt: t.hour,
+  }));
+  const merged = mine.map((e) => ({
+    task: false, e, sortAt: e.allDay ? -1 : e.startAt.getHours() + e.startAt.getMinutes() / 60,
+  })).concat(tasks).sort((a, b) => a.sortAt - b.sortAt);
+
+  const rows = merged.map((row) => {
+    if (row.task) {
+      return '<a class="ct-item ct-task' + (row.done ? " done" : "") + '" href="/index.html">' +
+        '<span class="ct-t">' + esc(row.bandLabel) + "</span>" +
+        '<span class="ct-b"><span class="ct-n">' + esc(row.title) + "</span>" +
+        '<span class="ct-s"><span class="ct-kind ct-' + esc(row.kind) + '">' +
+        esc(row.done ? "done" : row.kind) + "</span></span></span></a>";
+    }
+    const e = row.e;
     const live = !e.allDay && e.startAt.getTime() <= now && e.endAt.getTime() > now;
     const done = e.endAt.getTime() < now;
     const t = e.allDay ? "All<br>day" : pad(e.startAt.getHours()) + ":" + pad(e.startAt.getMinutes());
@@ -2196,8 +2300,10 @@ function renderCalendar() {
     next.textContent = "";
     body.innerHTML = '<div class="loading">Reading your week…</div>';
   } else {
-    next.innerHTML = calWeekOffset === 0 ? calNextLine(calEvents)
-      : calEvents.length + (calEvents.length === 1 ? " event" : " events") + " that week.";
+    next.innerHTML = (calWeekOffset === 0 ? calNextLine(calEvents)
+      : calEvents.length + (calEvents.length === 1 ? " event" : " events") + " that week.") +
+      (wpAgenda ? "" :
+        ' · <span class="cal-noplan">no tasks yet — <a href="/index.html">open the weekly plan</a></span>');
     const todayKey = ymd(new Date());
     let cols = "";
     for (let i = 0; i < 7; i++) {
@@ -2228,8 +2334,10 @@ async function calRefresh() {
   calEvents = null;
   renderCalendar();
   if (!gcalClientId || !gcalReady()) return;
-  try { calEvents = await calLoadWeek(); }
-  catch (e) { calError = (e && e.message) || "Could not read the calendar."; }
+  // The plan's grid and the calendar are two different services; neither waits on the other.
+  const [evs] = await Promise.allSettled([calLoadWeek(), loadAgenda()]);
+  if (evs.status === "fulfilled") calEvents = evs.value;
+  else calError = (evs.reason && evs.reason.message) || "Could not read the calendar.";
   renderCalendar();
 }
 

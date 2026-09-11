@@ -34,9 +34,9 @@ const js = WEEKLY.slice(WEEKLY.indexOf("<script>", WEEKLY.indexOf("</style>")) +
   /* ================= 0. the stamp ================= */
   const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(read("monthly.html"));
   assert.ok(stamp, "monthly.html carries a build stamp");
-  assert.strictEqual(stamp[1], "148", "monthly.html is stamped v148");
-  assert.strictEqual(stamp[2], "the-wall-before-the-space", "…as the release that put commitments in the grid");
-  const text = "build v148 · the-wall-before-the-space";
+  // relaxed once v149 shipped: the newest release's test pins the exact stamp.
+  assert.ok(Number(stamp[1]) >= 148, "monthly.html is stamped v148 or later");
+  const text = "build v" + stamp[1] + " · " + stamp[2];
   for (const f of ["index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the same stamp");
   }

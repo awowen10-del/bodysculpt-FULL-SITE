@@ -63,6 +63,51 @@ const DAILY_BRIEFS_KEY = "daily-briefs";
 // stored here, they come live (and cached for half an hour) from netlify/functions/
 // instagram-feed.js under its own `ig-cache-*` keys. Ten is the cap because eleven accounts
 // is not monitoring, it is a hobby.
+// v149: the weekly plan's grid, resolved to titles, so the Daily Dashboard can show what
+// Ash has planned for today beside what is already in his calendar.
+//
+// THIS IS A DERIVED CACHE, NOT DATA. Everything in it comes from `weekly-plan-<date>` plus
+// the recurring/training defaults, run through the placement engine that lives in
+// index.html — schedules, this week's move/skip exceptions, cadence, within-cell order. That
+// engine is NOT duplicated here or in daily.html; the weekly page writes what it has already
+// worked out, and the daily page reads it. Losing this key costs nothing: open the weekly
+// plan once and it is rewritten.
+const WEEKLY_AGENDA_PREFIX = "weekly-agenda-";   // + "YYYY-MM-DD" (the week ending)
+const AGENDA_CELL_CAP = 60;      // cells; the grid has 7 days x 5 rows
+const AGENDA_ITEM_CAP = 12;      // per cell — more than that and nobody is reading it anyway
+const AGENDA_KINDS = ["project", "buffer", "recurring", "training"];
+function agendaKeyOf(d) { return WEEKLY_AGENDA_PREFIX + d; }
+function cleanAgenda(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const weekEnding = typeof raw.weekEnding === "string" ? raw.weekEnding : "";
+  if (!validWeekDate(weekEnding)) return null;
+  const cells = {};
+  const src = (raw.cells && typeof raw.cells === "object" && !Array.isArray(raw.cells)) ? raw.cells : {};
+  let n = 0;
+  for (const key of Object.keys(src)) {
+    if (n >= AGENDA_CELL_CAP) break;
+    // a cell key is "<slot>:<day>" and nothing else
+    if (!/^[a-z0-9-]{1,12}:[a-z]{3}$/.test(key)) continue;
+    const rows = (Array.isArray(src[key]) ? src[key] : [])
+      .map((it) => {
+        if (!it || typeof it !== "object") return null;
+        const title = typeof it.title === "string" ? it.title.slice(0, 200).trim() : "";
+        if (!title) return null;
+        return {
+          title,
+          kind: AGENDA_KINDS.includes(it.kind) ? it.kind : "project",
+          done: it.done === true,
+        };
+      })
+      .filter(Boolean)
+      .slice(0, AGENDA_ITEM_CAP);
+    if (!rows.length) continue;
+    cells[key] = rows;
+    n++;
+  }
+  return { weekEnding, cells, updatedAt: new Date().toISOString() };
+}
+
 const IG_COMPETITORS_KEY = "ig-competitors";
 const IG_COMPETITOR_CAP = 10;
 // An Instagram username is letters, digits, dots and underscores. Ash will paste a profile
@@ -568,6 +613,15 @@ export default async (req) => {
     });
   }
 
+  // v149 Weekly agenda: GET ?weeklyagenda=YYYY-MM-DD returns the resolved grid for that
+  // week, or null when the weekly plan has not been opened since it last changed.
+  if (req.method === "GET" && url.searchParams.get("weeklyagenda")) {
+    const d = url.searchParams.get("weeklyagenda");
+    if (!validWeekDate(d)) return new Response("Bad week (expected YYYY-MM-DD)", { status: 400 });
+    const agenda = (await store.get(agendaKeyOf(d), { type: "json" })) || null;
+    return Response.json({ agenda });
+  }
+
   // v136 Competitors: GET ?igcompetitors=1 returns the watch list (empty when none set).
   if (req.method === "GET" && url.searchParams.get("igcompetitors") === "1") {
     const competitors = (await store.get(IG_COMPETITORS_KEY, { type: "json" })) || [];
@@ -998,6 +1052,17 @@ export default async (req) => {
       for (const d of keep) pruned[d] = map[d];
       await store.set(DAILY_BRIEFS_KEY, JSON.stringify(pruned));
       return Response.json({ ok: true, date: brief.date, counts: brief.counts, drafted: brief.drafted, kept: keep.length });
+    }
+
+    // v149 Weekly agenda: POST { weeklyAgenda: { weekEnding, cells } }. Replaces that week's
+    // cache wholesale — the weekly page always holds the whole grid, so a partial write
+    // cannot half-describe a week. Touches nothing but its own key, and nothing that reads
+    // it treats it as a source of truth.
+    if (body.weeklyAgenda && typeof body.weeklyAgenda === "object") {
+      const agenda = cleanAgenda(body.weeklyAgenda);
+      if (!agenda) return new Response("Bad weeklyAgenda (need a YYYY-MM-DD weekEnding)", { status: 400 });
+      await store.set(agendaKeyOf(agenda.weekEnding), JSON.stringify(agenda));
+      return Response.json({ ok: true, weekEnding: agenda.weekEnding, cells: Object.keys(agenda.cells).length });
     }
 
     // v136 Competitors: POST { igCompetitors: [...] }. A whole-list write — the page holds

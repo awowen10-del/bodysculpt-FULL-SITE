@@ -121,8 +121,9 @@ async function runIg(env, url, responder, seed) {
   }
   // every store URL named on the page is a read
   const storeUrls = [...djs.matchAll(/API \+ "(\?[^"]+)"/g)].map((m) => m[1]);
-  assert.deepStrictEqual(storeUrls.sort(), ["?checkins=1", "?dailybriefs=1", "?webconfig=1"],
-    "the page names exactly three store reads and no writes");
+  assert.deepStrictEqual(storeUrls.sort(),
+    ["?checkins=1", "?dailybriefs=1", "?webconfig=1", "?weeklyagenda="],
+    "the page names exactly four store URLs, and every one of them is a read");
 
   /* (b) everything that carries a method goes to Google, through a named funnel.
      v147 widened this from "the calendar" to "the calendar or Gmail" — clearing an email

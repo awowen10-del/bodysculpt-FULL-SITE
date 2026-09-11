@@ -1789,7 +1789,7 @@
 
   <footer>
     <span class="stage" id="srcPill"><svg class="ic"><use href="#ic-dot"/></svg> Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v148 · the-wall-before-the-space</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v149 · one-engine</span>
   </footer>
 </div>
 
@@ -4244,6 +4244,57 @@ async function wpCalRefresh() {
   if (wpPlan) renderWeeklyPlan();
 }
 
+/* =====================================================================
+   PUBLISHING THE GRID  (v149)
+
+   Ash: "what's displayed on the weekly calendar (and what's moved around) also shows on the
+   Google Calendar on the daily dashboard."
+
+   The obvious way to do that would be to teach daily.html how the grid works. It would have
+   needed the schedule engine, cadence, this week's move/skip exceptions and within-cell
+   order — several hundred lines of the most intricate code in the suite, kept in step with
+   this copy by hand. This repo has been bitten by a duplicated engine before.
+
+   So nothing is duplicated. renderWeeklyPlan has ALREADY worked all of it out by the time
+   the grid is drawn, and this simply writes down what it decided: cell key -> titles. The
+   daily page reads that and does no thinking at all.
+
+   IT IS A CACHE, NOT DATA. Every word of it is derived from the plan and the defaults.
+   Losing it costs nothing — open the weekly plan once and it is rewritten. It is written
+   ONLY when it has actually changed, so idle renders and week-flicking cost no requests,
+   and a failure is swallowed: the grid on screen is the thing that matters, and a daily
+   dashboard missing today's tasks must never be allowed to interrupt planning the week.
+   ===================================================================== */
+let wpAgendaLast = "";     // the last payload written, so an unchanged grid writes nothing
+
+function wpBuildAgenda(placements) {
+  const cells = {};
+  Object.keys(placements || {}).forEach((key) => {
+    const day = key.split(":")[1];
+    const rows = (placements[key] || []).map((ref) => {
+      const it = wpResolveRef(ref);
+      if (!it || !it.title) return null;
+      const source = ref.split(":")[0];
+      return { title: String(it.title), kind: source, done: !!wpIsDone(source, it, day) };
+    }).filter(Boolean);
+    if (rows.length) cells[key] = rows;
+  });
+  return cells;
+}
+
+function wpPublishAgenda(placements) {
+  try {
+    const weekEnding = wpWeekEnding;
+    if (!weekEnding) return;
+    const cells = wpBuildAgenda(placements);
+    const payload = JSON.stringify({ weeklyAgenda: { weekEnding, cells } });
+    if (payload === wpAgendaLast) return;          // nothing moved; nothing to say
+    wpAgendaLast = payload;
+    fetch(WP_STORE, { method: "POST", headers: { "Content-Type": "application/json" }, body: payload })
+      .catch(() => { wpAgendaLast = ""; });        // let the next render try again
+  } catch (e) { /* never let the cache disturb the plan */ }
+}
+
 function renderWeeklyPlan(){
   const p = wpPlan;
 
@@ -4293,6 +4344,8 @@ function renderWeeklyPlan(){
   // move/skip exceptions applied on top. p.placements itself is untouched (it stays the
   // schedule, which is what saves and rolls over).
   const gridPlacements = wpEffectivePlacements();
+  // v149: the daily page shows what this grid says. Written only when it has changed.
+  wpPublishAgenda(gridPlacements);
   const gridBody = WP_TIME_ROWS.map(([rk,rlbl])=>{
     const notesRow = rk==="notes" ? " wp-grid-notes" : "";
     const cells = visDays.map(([dk])=>{
