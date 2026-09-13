@@ -152,13 +152,9 @@ const notesPostsFor = (posts, field) =>
     // grid chip: green chip class + emoji, distinct from recurring's teal wp-recur
     assert.ok(body.includes("wp-cellchip") && body.includes("wp-train"), "training grid chip carries the wp-train accent");
     assert.ok(body.includes(`wpToggleDoneRef('training:t1'`), "training chip ticks through the shared done path");
-    // Today modal: same chip styling via the shared renderer
-    ctx.wpOpenToday();
-    const modal = ctx.document.getElementById("wpTodayBody").innerHTML;
-    assert.ok(modal.includes("wp-train") && modal.includes('href="#ic-lift"'),
-      "training chip keeps the barbell icon + green in the Today modal");
-    assert.ok(modal.includes(`wpTodayToggleDone('training:t1'`), "training placed today is tickable in the modal");
-    ctx.wpCloseToday();
+    // v154: the Today modal is gone — the day lives on the Daily Dashboard now. The
+    // assertions that checked the grid and the modal AGREED have nothing left to agree
+    // with; the grid half above still tests the thing this block is named for.
   }
 
   /* ================= PART 2 — NOTES TABS ================= */
@@ -301,28 +297,25 @@ const notesPostsFor = (posts, field) =>
     assert.strictEqual(ctx.document.getElementById("wpmsg-foodNotes").textContent, "Copied ✓", "Copied ✓ feedback shown in the tab");
   }
 
-  /* ---------- 12: the Today modal still reads and writes ONLY the Notes field ---------- */
+  /* ---------- 12: a notes save still carries ONLY the notes field ----------
+     This block used to prove it through the Today modal, which had its own notes editor
+     mirroring into the weekly card's. v154 moved the day to the Daily Dashboard and the
+     modal went with it — but the claim the block was really making has nothing to do with
+     the modal: the two tabs share one editor and one section save, and saving one must
+     never carry the other. That is now driven through the card, which is the only path
+     left and always was the one that mattered. */
   {
     const plans = { [TODAY_WEEK]: { weekEnding: TODAY_WEEK, placements: {}, notes: "brain dump", foodNotes: "food plan" } };
     const { ctx, posts } = await boot({ plans });
     await ctx.loadWeeklyPlan(TODAY_WEEK);
-    ctx.wpOpenToday();
-    const modal = ctx.document.getElementById("wpTodayBody").innerHTML;
-    assert.ok(modal.includes("brain dump"), "modal shows the Notes / Brain Dump field");
-    assert.ok(!modal.includes("food plan") && !modal.includes("Intentions Around Food"), "modal never shows the food field");
-    // editing in the modal writes notes only, food untouched, mirror-before-save intact.
-    // Touch the weekly Notes editor so it exists for the mirror to write into (the real
-    // DOM has it present after render; the stub only materialises it on first access).
-    ctx.document.getElementById("wpWeekNotesEd");
-    ctx.document.getElementById("wpTodayNotes").innerHTML = "edited via modal";
-    await ctx.wpTodaySaveNotes();
-    assert.strictEqual(ctx.__wpState.plan.notes, MARK + "edited via modal", "modal edit lands in notes");
-    assert.strictEqual(ctx.__wpState.plan.foodNotes, "food plan", "foodNotes untouched by the modal (stays exactly as loaded)");
+    const body = ctx.document.getElementById("wpBody").innerHTML;
+    assert.ok(body.includes("brain dump"), "the card shows the Notes / Brain Dump field");
+    ctx.document.getElementById("wpWeekNotesEd").innerHTML = "edited in the card";
+    await ctx.wpSaveSection("notes");
+    assert.strictEqual(ctx.__wpState.plan.notes, MARK + "edited in the card", "the edit lands in notes");
+    assert.strictEqual(ctx.__wpState.plan.foodNotes, "food plan", "foodNotes is untouched, exactly as loaded");
     const nPost = lastPost(posts, (p) => p.body.weeklyPlan && "notes" in p.body.weeklyPlan);
-    assert.ok(!("foodNotes" in nPost.body.weeklyPlan), "modal save carries only the notes field");
-    // the weekly Notes editor was mirrored (kept in sync without a re-render)
-    assert.strictEqual(ctx.document.getElementById("wpWeekNotesEd").innerHTML, "edited via modal", "weekly Notes editor mirrored from the modal");
-    ctx.wpCloseToday();
+    assert.ok(!("foodNotes" in nPost.body.weeklyPlan), "the notes save carries only the notes field");
   }
 
   console.log("v71-training-and-notes-tabs.test: all assertions passed");

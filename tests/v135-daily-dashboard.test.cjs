@@ -491,7 +491,13 @@ async function loadStripe(env, responder) {
   /* ================= 6. it degrades into instructions, never into a blank ============= */
   assert.ok(/function mailSetupHtml\(/.test(js), "no brief yet has its own state");
   assert.ok(/Stripe is not connected yet/.test(js), "no Stripe key has its own state");
-  assert.ok(/No check-in yet today/.test(js), "no check-in has its own state");
+  // v154: this used to read "No check-in yet today" and send people to the weekly app for
+  // the questions. The questions are in the card beside it now, so the empty state says so
+  // — and says something different again once the day has been started without one.
+  assert.ok(/Answer the three questions beside this/.test(js),
+    "an unanswered check-in points at the card next to it, not at another page");
+  assert.ok(/No one thing set for today/.test(js),
+    "…while a day started WITHOUT one says that instead, and offers to set one");
   // with nothing switched on at all, the four Gmail labels are still one click away
   assert.ok(/TIERS\.map\(\(t\) => '<a class="abtn" href="' \+ esc\(labelUrl\(t\.label\)\)/.test(js),
     "…and the unconfigured mail card still links straight into the four Gmail labels");

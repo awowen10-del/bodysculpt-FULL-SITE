@@ -1789,7 +1789,7 @@
 
   <footer>
     <span class="stage" id="srcPill"><svg class="ic"><use href="#ic-dot"/></svg> Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v153 · stop-asking-me-to-sign-in</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v154 · the-day-moved</span>
   </footer>
 </div>
 
@@ -1797,18 +1797,9 @@
 <textarea id="copyScratch" style="position:absolute;left:-9999px;top:-9999px;"></textarea>
 
 <!-- v67: TODAY focus modal — just today's time blocks + the weekly notes, read-and-tick -->
-<div id="wpTodayOverlay" class="wp-today-overlay" hidden onclick="if(event.target===this)wpCloseToday()">
-  <div class="wp-today-modal" role="dialog" aria-modal="true" aria-labelledby="wpTodayDate">
-    <div class="wp-today-h">
-      <div>
-        <div class="wp-today-title">Today</div>
-        <div class="wp-today-date" id="wpTodayDate"></div>
-      </div>
-      <button class="wp-today-close" title="Close (Esc)" onclick="wpCloseToday()"><svg class="ic"><use href="#ic-close"/></svg></button>
-    </div>
-    <div class="wp-today-body" id="wpTodayBody"></div>
-  </div>
-</div>
+<!-- v154: #wpTodayOverlay lived here. The day moved to the Daily Dashboard; the overlay
+     SHELL it shared (.wp-today-overlay) stays in the stylesheet, because the anchor-notes
+     viewer still uses it. -->
 
 <!-- v104: READ-ONLY viewer for a monthly anchor item's notes. Same modal shell as Today
      (and as the v93 notes popup on the Monthly Plan) — ✕ / Esc / backdrop close, blurred
@@ -3616,7 +3607,7 @@ function wpChipHtml(ref, dk, mode, cellKey){
   const done = wpIsDone(source, item, dk);
   const recCls = source==="recurring" ? " wp-recur" : (source==="training" ? " wp-train" : "");
   // v73: training chips lead with the type emoji (override or auto-detected) — same
-  // resolver as the card row, so it's identical in card, grid and Today modal.
+  // resolver as the card row, so it is identical in the card and the grid.
   const emoji = source==="training" ? (wpTrainingEmoji(item) + " ") : "";
   // v66: same link affordance as the list row — ↗ only when wpValidUrl passes.
   // (An <a> inside a <label> is excluded from label activation, so clicking it
@@ -3625,11 +3616,9 @@ function wpChipHtml(ref, dk, mode, cellKey){
   const linkOut = linkHref
     ? `<a class="wp-rec-link wp-chip-link" href="${wpEsc(linkHref)}" target="_blank" rel="noopener noreferrer" title="${wpEsc(linkHref)}" onclick="event.stopPropagation()">↗</a>`
     : "";
-  if(mode==="today"){
-    return `<label class="wp-cellchip${done?" wp-done":""}${recCls}" title="${wpEsc(item.title)}">
-      <input type="checkbox" ${done?"checked":""} onchange="wpTodayToggleDone('${ref}',this.checked,'${dk}')">
-      <span class="wp-chip-title">${emoji}${wpEsc(item.title)}</span>${linkOut}</label>`;
-  }
+  // v154: a `mode==="today"` branch lived here, rendering the same chip with the Today
+  // modal's own tick handler. The modal moved to the Daily Dashboard, so the branch has no
+  // caller — every remaining caller passes "" and gets the grid chip below.
   // v82: a ✕ per chip. A scheduled task asks "skip this week / remove entirely" first; a
   // one-off just comes off the grid, as it always did from the popup. (A <button> inside a
   // <label> is interactive content, so it doesn't toggle the done checkbox — the handler
@@ -3801,11 +3790,10 @@ document.addEventListener("click", (e)=>{
   const on = !t.hasAttribute("checked");
   if(on) t.setAttribute("checked",""); else t.removeAttribute("checked");
   t.checked = on;
-  // v71: route the save to whichever notes field this editor edits (modal = weekly notes)
-  // v80: check-in editors (id prefix "wpCk") save through the check-in path instead.
-  if(ed.id === "wpTodayNotes") wpTodaySaveNotes();
-  else if(ed.id === "wpRecurNotesEd") wpRecurNotesCommit();   // v117: recurring task's own notes
-  else if(ed.id && ed.id.indexOf("wpCk") === 0) wpCheckinSaveFromEditors();
+  // v71: route the save to whichever notes field this editor edits.
+  // v154: the Today modal's editor and the check-in's editors were two of these branches.
+  // Both moved to the Daily Dashboard, so both are gone from here.
+  if(ed.id === "wpRecurNotesEd") wpRecurNotesCommit();        // v117: recurring task's own notes
   // v119: the guided review's editors write through the card first — saving them the plain
   // way would let wpSyncFromDom re-read the card's stale value straight back over the tick.
   else if(ed.id === "wpEowFoodEd") wpEowSaveNotesField("foodNotes","wpEowFoodEd");
@@ -4403,7 +4391,10 @@ function renderWeeklyPlan(){
       `<button class="wp-loc-btn" title="Edit the default weekly location pattern" onclick="wpOpenLocDefaultsPopup(this)"><svg class="ic"><use href="#ic-pin"/></svg> Locations</button>` +
       (wpCalEvents ? `<span class="wp-calnote" title="Read from Google Calendar. This page cannot change it."><svg class="ic"><use href="#ic-calendar"/></svg>${wpCalEvents.length} in your calendar</span>` :
         wpCalNote === "connect" ? `<span class="wp-calnote off"><svg class="ic"><use href="#ic-calendar"/></svg>Calendar not connected — <a href="/daily.html">connect it on Today</a></span>` : "") +
-      `<button class="wp-today-btn" title="Focus on just today" onclick="wpOpenToday()">Today<span class="wp-today-btn-timer" id="wpTodayBtnTimer">${wpEsc(wpTimerBadgeText())}</span></button>`)}
+      // v154: the Today button is gone. The day — the questions, the non-negotiables and the
+      // focus timer — lives on the Daily Dashboard now, which is where a day belongs. This
+      // page is for deciding what a WEEK looks like.
+      `<a class="wp-today-btn" href="/daily.html" title="The day itself lives on the Daily Dashboard">Today <svg class="ic"><use href="#ic-arrow-right"/></svg></a>`)}
     <div class="wp-box-body"><div class="wp-grid-wrap"><table class="wp-grid wp-cols-${wpDayCount}"><thead>${gridHead}</thead><tbody>${gridBody}</tbody></table></div></div>
   </div>`;
 
@@ -4691,7 +4682,7 @@ function wpToggleReviewChecklist(id){
    THE TRAP THIS CREATES: wpSaveSection() calls wpSyncFromDom(), which re-reads those fields
    from the CARD inside #wpBody. A modal edit that only updated wpPlan would be clobbered by
    the card's stale value on the very next save. So every write from this modal follows the
-   v67 wpTodaySaveNotes pattern — wpPlan field, THEN the matching element inside #wpBody,
+   the v67 modal-write pattern — wpPlan field, THEN the matching element inside #wpBody,
    THEN the section save — which is what wpEowSaveNotesField / wpEowSaveReview do below. */
 
 // The steps are the checklist, plus a closing screen. WP_REVIEW_CHECKLIST stays the single
@@ -6157,8 +6148,6 @@ async function wpToggleDoneRef(ref, checked, day){
 // no adding, no recurrence editing — everything routes through the existing save
 // paths (wpToggleDoneRef / wpSaveSection), so it writes the same keys as the grid.
 const WP_DAY_OF = ["sun","mon","tue","wed","thu","fri","sat"]; // getUTCDay() index → WP_DAYS key
-let wpTodayOpen = false;
-let wpTodayCloseTimer = null;
 
 // Day key + week Monday derived from the SAME date, using the app's existing week
 // math (mondayOf), so "is today in this week" and "which column is today" always agree.
@@ -6172,106 +6161,17 @@ function wpTodayInfo(){
   };
 }
 
-function wpRenderTodayBody(){
-  if(!wpPlan) return;
-  const body = document.getElementById("wpTodayBody");
-  if(!body) return;
-  const t = wpTodayInfo();
-  const dateEl = document.getElementById("wpTodayDate");
-  if(dateEl) dateEl.textContent = t.label;
-  // v80: the daily check-in leads the modal (before the day's content), for TODAY's date —
-  // independent of which week is being viewed, so it shows even in the off-week case.
-  const checkinBlock = wpCheckinBlockHtml(t.date);
-  // v88: yesterday's catch-up nudge, then today's non-negotiables (both purely date-based,
-  // so they show regardless of which week the grid is on).
-  const habitBlocks = wpHabitCatchupHtml() + wpHabitsBlockHtml(t.date);
-  // Today outside the viewed week → say so clearly, never a confusing empty day.
-  if(t.weekMonday !== wpWeekEnding){
-    let wkLbl = wpWeekEnding || "";
-    try{ wkLbl = new Date(wpWeekEnding+"T00:00:00Z").toLocaleDateString("en-GB",{day:"numeric",month:"long"}); }catch(e){}
-    body.innerHTML = checkinBlock + habitBlocks + wpTimerHtml() + `<div class="wp-today-offweek">
-      <strong>Today isn't in the week you're viewing.</strong>
-      <span>You're on the week starting ${wpEsc(wkLbl)}. Use "Current week" in the week bar, then open Today again.</span>
-    </div>`;
-    return;
-  }
-  // The four preset time rows as one vertical column (the grid's Notes row isn't a time slot).
-  // v84: today's location, same precedence as the grid header (override → default pattern).
-  const locKey = wpLocationOf(t.dayKey);
-  const locLine = locKey
-    ? `<div class="wp-today-loc"><span class="wp-locpill wp-loc-${locKey}${wpLocIsOverride(t.dayKey)?" wp-loc-ovr":""}">${wpEsc(wpLocLabel(locKey))}</span>
-        <span>Where you are today</span></div>`
-    : "";
-  const todayPlacements = wpEffectivePlacements();   // v82: same precedence as the grid
-  const rows = WP_TIME_ROWS.filter(([rk])=>rk!=="notes").map(([rk,rlbl])=>{
-    const refs = (todayPlacements[rk+":"+t.dayKey]||[]);
-    const chips = refs.map(ref=>wpChipHtml(ref, t.dayKey, "today")).join("");
-    const txt = (wpPlan.timeBlocks[rk]&&wpPlan.timeBlocks[rk][t.dayKey])||"";
-    const inner = ((chips?`<div class="wp-cellchips">${chips}</div>`:"") +
-      (txt?`<div class="wp-today-freetext">${wpEsc(txt)}</div>`:"")) ||
-      `<div class="wp-today-empty">Nothing planned.</div>`;
-    return `<div class="wp-today-row"><div class="wp-today-time">${rlbl}</div><div class="wp-today-slot">${inner}</div></div>`;
-  }).join("");
-  // The existing WEEKLY notes — same field, same save path, kept in sync with the week
-  // view. v70: the same rich editor as the weekly panel (shared toolbar + sanitiser).
-  const notes = `<div class="wp-today-notes">
-    <label>Notes — this week</label>
-    <div class="wp-notes-rich">
-      ${wpNotesToolbarHtml("wpTodayNotes")}
-      <div class="wp-notes-editor" id="wpTodayNotes" contenteditable="true" data-ph="Things to think about, ideas for next week, observations, stuff to discuss with the team…" onblur="wpTodaySaveNotes()" onkeydown="wpNotesKeydown(event)">${wpNotesToEditorHtml(wpPlan.notes)}</div>
-    </div>
-  </div>`;
-  body.innerHTML = checkinBlock + habitBlocks + locLine + wpTimerHtml() + rows + notes;
-}
 
-function wpOpenToday(){
-  if(!wpPlan) return;
-  const ov = document.getElementById("wpTodayOverlay");
-  if(!ov) return;
-  wpSyncFromDom();          // capture any unsaved grid/notes edits so the modal shows fresh data
-  wpRenderTodayBody();
-  if(wpTodayCloseTimer){ clearTimeout(wpTodayCloseTimer); wpTodayCloseTimer=null; }
-  ov.hidden = false;
-  wpTodayOpen = true;
-  document.body.style.overflow = "hidden";   // the page behind must not scroll
-  // double-rAF so the fade/scale transition runs from the hidden state instead of snapping
-  requestAnimationFrame(()=>requestAnimationFrame(()=>ov.classList.add("open")));
-}
 
-function wpCloseToday(){
-  const ov = document.getElementById("wpTodayOverlay");
-  if(!ov || !wpTodayOpen) return;
-  wpTodaySaveNotes();       // Escape-close doesn't blur the textarea — catch unsaved notes edits
-  wpTodayOpen = false;
-  document.body.style.overflow = "";
-  ov.classList.remove("open");
-  wpTodayCloseTimer = setTimeout(()=>{ ov.hidden = true; wpTodayCloseTimer=null; }, 200);
-}
 
 // One write path for modal notes: wpPlan.notes + the weekly panel's editor (so
 // wpSyncFromDom can't re-read a stale value), then the normal notes section save —
 // same blob field, same merge as editing notes in the week view. v70: serialise the
 // rich editor through the sanitiser; "unchanged" now compares the stored form, so a
 // legacy plain-text note migrates to rich on the first modal save and never re-saves.
-function wpTodaySaveNotes(){
-  if(!wpPlan) return;
-  const el = document.getElementById("wpTodayNotes");
-  if(!el || typeof el.innerHTML !== "string") return;
-  const stored = wpNotesFromEditor(el);
-  if(stored === wpPlan.notes) return;
-  wpPlan.notes = stored;
-  const wb = document.getElementById("wpBody");
-  const weekEl = wb && wb.querySelector && wb.querySelector('[data-field="notes"]');
-  if(weekEl) weekEl.innerHTML = wpNotesToEditorHtml(stored);   // keep the weekly Notes panel in sync without a re-render
-  return wpSaveSection("notes");
-}
 
 // Tick from a modal chip: the REAL done path (same per-day recurringDone keys, same
 // section save, weekly grid re-renders underneath), then refresh the modal itself.
-async function wpTodayToggleDone(ref, checked, day){
-  await wpToggleDoneRef(ref, checked, day);
-  wpRenderTodayBody();
-}
 
 // Escape closes the v82 question first (it sits above everything), then any open location
 // popup (v84), then the v117 recurring-notes editor and the v104 anchor notes viewer (both
@@ -6284,7 +6184,6 @@ document.addEventListener("keydown", (e)=>{
   if(wpRecurNotesId){ wpCloseRecurNotes(); return; }   // v117: the recurring-notes editor
   if(wpAnchorNotesOpen){ wpCloseAnchorNotes(); return; }
   if(wpEowIsOpen){ wpEowClose(); return; }             // v119: the guided End-of-Week Review
-  if(wpTodayOpen) wpCloseToday();
 });
 
 /* ===================== v80: DAILY CHECK-IN ===================== */
@@ -6298,13 +6197,7 @@ document.addEventListener("keydown", (e)=>{
 // it never touches the weekly plan, tasks, notes or done-state. The clean, consistent per-day
 // shape { date, mind, gratitude, oneThing, oneThingDone, doneNote, dismissed, updatedAt } is
 // the input for a future AI advisor (see wpCheckinList).
-const WP_CHECKIN_EVENING_HOUR = 14;   // from ~mid-afternoon the "did you do it" field appears
 // The three morning fields, in the required order (dump → gratitude → focus).
-const WP_CHECKIN_FIELDS = [
-  { key:"mind",      edId:"wpCkMind",      label:"What's on your mind today?",                    ph:"Brain dump — clear the head…" },
-  { key:"gratitude", edId:"wpCkGratitude", label:"What are you grateful for?",                     ph:"A line or two…" },
-  { key:"oneThing",  edId:"wpCkOneThing",  label:"If you only complete one thing today, what is it?", ph:"The one thing…" },
-];
 
 async function wpLoadCheckins(){
   if(wpCheckins != null) return wpCheckins;
@@ -6353,156 +6246,35 @@ function wpCheckinEntry(date){
   };
 }
 // All entries as a chronological list — the shape a future AI advisor consumes.
-function wpCheckinList(){
-  const m = wpCheckins || {};
-  return Object.keys(m).sort().map(d=>wpCheckinEntry(d));
-}
-function wpCheckinIsEvening(){
-  try{ return new Date().getHours() >= WP_CHECKIN_EVENING_HOUR; }catch(e){ return false; }
-}
 // Merge a patch into a date's entry and persist through the check-in store path.
-async function wpCheckinSave(date, patch){
-  await wpLoadCheckins();
-  const next = Object.assign({}, wpCheckinEntry(date), patch, { date });
-  wpCheckins[date] = next;
-  try{
-    const r = await fetch(WP_STORE, {method:"POST",headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ checkin: next })}).then(x=>x.json());
-    if(r && r.checkin) wpCheckins[date] = r.checkin;   // server stamps updatedAt / re-cleans
-  }catch(e){}
-  return wpCheckins[date];
-}
 // Read the on-screen editors → sanitised HTML → save if anything changed (blur autosave,
 // same pattern as notes; never re-renders, so typing isn't interrupted). Only reads the
 // fields ACTUALLY on screen — the three morning fields when the form is open (not dismissed),
 // the note when the evening field is showing — so a summary-view save never wipes an answer.
-function wpCheckinReadEditors(){
-  const t = wpTodayInfo();
-  const entry = wpCheckinEntry(t.date);
-  const patch = {};
-  if(!entry.dismissed){
-    WP_CHECKIN_FIELDS.forEach(f=>{ const el = document.getElementById(f.edId); if(el && typeof el.innerHTML === "string") patch[f.key] = wpNotesFromEditor(el); });
-  }
-  if(wpCheckinIsEvening()){
-    const noteEl = document.getElementById("wpCkDoneNote");
-    if(noteEl && typeof noteEl.innerHTML === "string") patch.doneNote = wpNotesFromEditor(noteEl);
-  }
-  return patch;
-}
-async function wpCheckinSaveFromEditors(){
-  const t = wpTodayInfo();
-  const patch = wpCheckinReadEditors();
-  const cur = wpCheckinEntry(t.date);
-  if(Object.keys(patch).every(k=>patch[k] === cur[k])) return;   // nothing changed — skip the write
-  await wpCheckinSave(t.date, patch);
-}
 // "Start the day" → capture answers + dismiss the questions. "Skip" → dismiss only.
-async function wpCheckinStart(){ const t=wpTodayInfo(); await wpCheckinSaveFromEditors(); await wpCheckinSave(t.date,{dismissed:true}); wpRenderTodayBody(); }
-async function wpCheckinSkip(){  const t=wpTodayInfo(); await wpCheckinSave(t.date,{dismissed:true}); wpRenderTodayBody(); }
-async function wpCheckinEdit(){  const t=wpTodayInfo(); await wpCheckinSave(t.date,{dismissed:false}); wpRenderTodayBody(); }
 // Evening close-the-loop yes/no. Independent field — saves oneThingDone (and any note),
 // never touches the three morning answers beyond capturing an in-progress edit.
-async function wpCheckinSetDone(val){ const t=wpTodayInfo(); await wpCheckinSaveFromEditors(); await wpCheckinSave(t.date,{oneThingDone: (val===true||val===false)?val:null}); wpRenderTodayBody(); }
 
 // One rich-editor field (no per-field toolbar — kept quiet; still full sanitise + ⌘B/I/U).
-function wpCheckinFieldHtml(f, value){
-  return `<div class="wp-ck-q">
-    <label>${f.label}</label>
-    <div class="wp-notes-editor wp-ck-ed" id="${f.edId}" contenteditable="true" data-ph="${f.ph}" onblur="wpCheckinSaveFromEditors()" onkeydown="wpNotesKeydown(event)">${wpNotesToEditorHtml(value)}</div>
-  </div>`;
-}
 // The evening "did you do the one thing?" field (yes/no + optional note).
-function wpCheckinEveningHtml(entry){
-  const yes = entry.oneThingDone === true, no = entry.oneThingDone === false;
-  return `<div class="wp-ck-evening">
-    <label>Did you do the one thing?</label>
-    <div class="wp-ck-yesno">
-      <button type="button" class="wp-ck-yn wp-ck-yes${yes?" on":""}" onclick="wpCheckinSetDone(true)">Yes</button>
-      <button type="button" class="wp-ck-yn wp-ck-no${no?" on":""}" onclick="wpCheckinSetDone(false)">No</button>
-    </div>
-    <div class="wp-notes-editor wp-ck-ed wp-ck-note" id="wpCkDoneNote" contenteditable="true" data-ph="Optional note…" onblur="wpCheckinSaveFromEditors()" onkeydown="wpNotesKeydown(event)">${wpNotesToEditorHtml(entry.doneNote)}</div>
-  </div>`;
-}
 /* ---- v88: the habit data layer (all per DATE, never per week) ---- */
 function wpHabitsOf(date){ return wpCheckinEntry(date).habits; }
 function wpHabitDone(date, id){ return !!wpHabitsOf(date)[id]; }
-function wpHabitCount(date){ const h = wpHabitsOf(date); return WP_HABITS.reduce((n,x)=>n+(h[x.id]?1:0),0); }
-// Was this date's day actually started? (Start the day / Skip both dismiss the check-in.)
+// v154: this survived the Today modal's removal because COPY WEEK still needs it — it asks
+// whether a day was actually started before deciding whether the non-negotiables are worth
+// putting in the week's text. The ticking moved to the Daily Dashboard; the reading did not.
 function wpDayStarted(date){ return !!(wpCheckins && wpCheckins[date]) && wpCheckinEntry(date).dismissed; }
+// Was this date's day actually started? (Start the day / Skip both dismiss the check-in.)
 // The day before an ISO date, in UTC (same basis as wpTodayInfo().date).
-function wpPrevDate(date){
-  try{
-    const d = new Date(date + "T00:00:00Z");
-    d.setUTCDate(d.getUTCDate() - 1);
-    return d.toISOString().slice(0,10);
-  }catch(e){ return ""; }
-}
 // Tick / untick one habit for one date. Writes through the v80 check-in save (whole entry,
 // server re-cleans + stamps), so a date's habits can never bleed into another date.
-async function wpToggleHabit(date, id){
-  if(!wpHabit(id) || !date) return;
-  await wpLoadCheckins();
-  const habits = Object.assign({}, wpHabitsOf(date));
-  habits[id] = !habits[id];
-  await wpCheckinSave(date, { habits });
-  wpRenderTodayBody();
-}
 // v88 CATCH-UP: on a new day, ask about YESTERDAY ONLY (never older days), only when that day
 // was actually started and left something unticked, and only until it's been answered today.
 // Returns { date, missing:[habit] } or null.
-function wpHabitCatchup(){
-  const t = wpTodayInfo();
-  if(wpCheckinEntry(t.date).habitsAsked) return null;   // already handled today
-  const y = wpPrevDate(t.date);
-  if(!y || !wpDayStarted(y)) return null;               // no started day yesterday → nothing to ask
-  const missing = WP_HABITS.filter(h=>!wpHabitDone(y, h.id));
-  return missing.length ? { date:y, missing } : null;
-}
 // "Yes I did it" after the fact — updates YESTERDAY's record (never today's).
-async function wpHabitCatchupMark(id){
-  const c = wpHabitCatchup();
-  if(!c || !wpHabit(id) || wpHabitDone(c.date, id)) return;
-  await wpToggleHabit(c.date, id);
-}
 // "Leave as missed" / done with the prompt — flags TODAY as asked so it doesn't come back.
-async function wpHabitCatchupDismiss(){
-  const t = wpTodayInfo();
-  await wpCheckinSave(t.date, { habitsAsked:true });
-  wpRenderTodayBody();
-}
 // The tickable checklist shown in the Today modal once the day has been started.
-function wpHabitsBlockHtml(date){
-  if(!wpDayStarted(date)) return "";   // appears after "Start the day" (or Skip)
-  const done = wpHabitCount(date);
-  const rows = WP_HABITS.map(h=>{
-    const on = wpHabitDone(date, h.id);
-    return `<label class="wp-nn-item${on?" done":""}">
-      <input type="checkbox" ${on?"checked":""} onchange="wpToggleHabit('${date}','${h.id}')">
-      <span class="wp-nn-text">${wpEsc(h.label)}</span>
-    </label>`;
-  }).join("");
-  return `<div class="wp-nn">
-    <div class="wp-nn-head"><span class="wp-nn-title">Daily non-negotiables</span>
-      <span class="wp-nn-progress">${done} of ${WP_HABITS.length}</span></div>
-    <div class="wp-nn-list">${rows}</div>
-  </div>`;
-}
 // The catch-up prompt (nothing rendered when there's nothing to ask).
-function wpHabitCatchupHtml(){
-  const c = wpHabitCatchup();
-  if(!c) return "";
-  const names = c.missing.map(h=>h.short).join(", ");
-  const btns = c.missing.map(h=>
-    `<button type="button" class="wp-nn-catch-yes" onclick="wpHabitCatchupMark('${h.id}')">${wpEsc(h.short)} — I did it</button>`).join("");
-  let lbl = c.date;
-  try{ lbl = new Date(c.date+"T00:00:00Z").toLocaleDateString("en-GB",{weekday:"long"}); }catch(e){}
-  return `<div class="wp-nn wp-nn-catch">
-    <div class="wp-nn-head"><span class="wp-nn-title">Yesterday (${wpEsc(lbl)})</span></div>
-    <div class="wp-nn-catch-msg">You didn't tick: <b>${wpEsc(names)}</b>. Did you actually do them?</div>
-    <div class="wp-nn-catch-btns">${btns}</div>
-    <button type="button" class="wp-nn-catch-no" onclick="wpHabitCatchupDismiss()">No — leave as missed</button>
-  </div>`;
-}
 // Week totals per habit, derived on the fly (never stored) from the per-date entries. Uses
 // the v81 wpWeekDates(monday) helper — Mon..Sun ISO dates, aligned index-for-index with
 // WP_DAYS — so the tracker, Copy week and the check-in section all speak the same dates.
@@ -6548,35 +6320,6 @@ function wpHabitCardHtml(){
 }
 
 // The block that leads the modal: the questions form (fresh/editing) or the compact summary.
-function wpCheckinBlockHtml(date){
-  const entry = wpCheckinEntry(date);
-  const evening = wpCheckinIsEvening();
-  if(!entry.dismissed){
-    // Questions view — prominent, but the day's content still renders below (never blocked).
-    const fields = WP_CHECKIN_FIELDS.map(f=>wpCheckinFieldHtml(f, entry[f.key])).join("");
-    return `<div class="wp-ck wp-ck-form">
-      <div class="wp-ck-head"><span class="wp-ck-title">Daily check-in</span></div>
-      ${fields}
-      ${evening ? wpCheckinEveningHtml(entry) : ""}
-      <div class="wp-ck-actions">
-        <button type="button" class="wp-ck-start" onclick="wpCheckinStart()">Start the day →</button>
-        <button type="button" class="wp-ck-skip" onclick="wpCheckinSkip()">Skip to today</button>
-      </div>
-    </div>`;
-  }
-  // Summary view — compact, one-thing forward, with an Edit affordance and (evening) the loop-closer.
-  const oneThing = entry.oneThing ? wpNotesToEditorHtml(entry.oneThing) : `<span class="wp-ck-empty">— not set</span>`;
-  const doneTag = entry.oneThingDone === true ? `<span class="wp-ck-done-tag yes">Done ✓</span>`
-                : entry.oneThingDone === false ? `<span class="wp-ck-done-tag no">Not done</span>` : "";
-  return `<div class="wp-ck wp-ck-summary">
-    <div class="wp-ck-sum-head">
-      <span class="wp-ck-title">One thing today</span>
-      <button type="button" class="wp-ck-edit" onclick="wpCheckinEdit()">Edit</button>
-    </div>
-    <div class="wp-ck-onething">${oneThing}${doneTag}</div>
-    ${evening ? wpCheckinEveningHtml(entry) : ""}
-  </div>`;
-}
 
 /* ===================== v68: FOCUS TIMER ===================== */
 // Module-level state, deliberately OUTSIDE the modal's render: closing/reopening the
@@ -6587,166 +6330,19 @@ function wpCheckinBlockHtml(date){
 //   running:  { durationMin, endAt: ms-epoch, pausedRemaining: null, finished: false }
 //   paused:   { durationMin, endAt: null, pausedRemaining: ms, finished: false }
 //   finished: { durationMin, ..., finished: true }   null = idle (presets shown)
-let wpTimer = null;
-let wpTimerTick = null;   // the one 500ms interval, live only while running
 
 // v69: "Dial in" — the focus playlist, easy to swap. The app URI is a KNOWN-SAFE
 // hardcoded constant (custom schemes deliberately do NOT pass wpValidUrl — it is
 // not loosened for this); the https fallback runs through the same wpValidUrl
 // path as v63 task links.
-const WP_FOCUS_PLAYLIST_URI = "spotify:playlist:1VKtv1xJtFFkS3OsaFY3WZ";
-const WP_FOCUS_PLAYLIST_URL = "https://open.spotify.com/playlist/1VKtv1xJtFFkS3OsaFY3WZ";
-let wpDialInFallback = false;   // set only by the fallback timer, consumed by the re-click
 
-function wpTimerRemainingMs(){
-  if(!wpTimer || wpTimer.finished) return 0;
-  if(wpTimer.pausedRemaining != null) return wpTimer.pausedRemaining;
-  return Math.max(0, wpTimer.endAt - Date.now());
-}
-function wpTimerFmt(ms){
-  const s = Math.ceil(ms/1000);
-  return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0");
-}
-function wpStartTimer(min){
-  wpTimer = { durationMin:min, endAt: Date.now() + min*60000, pausedRemaining:null, finished:false };
-  wpTimerEnsureTick();
-  wpTimerRefresh();
-}
-function wpPauseTimer(){
-  if(!wpTimer || wpTimer.finished || wpTimer.pausedRemaining != null) return;
-  wpTimer.pausedRemaining = Math.max(0, wpTimer.endAt - Date.now());   // freeze what's left
-  wpTimer.endAt = null;
-  if(wpTimerTick){ clearInterval(wpTimerTick); wpTimerTick = null; }   // nothing moves while paused
-  wpTimerRefresh();
-}
-function wpResumeTimer(){
-  if(!wpTimer || wpTimer.finished || wpTimer.pausedRemaining == null) return;
-  wpTimer.endAt = Date.now() + wpTimer.pausedRemaining;                // resume from the frozen point
-  wpTimer.pausedRemaining = null;
-  wpTimerEnsureTick();
-  wpTimerRefresh();
-}
-function wpResetTimer(){
-  wpTimer = null;
-  if(wpTimerTick){ clearInterval(wpTimerTick); wpTimerTick = null; }
-  wpTimerRefresh();
-}
-function wpTimerEnsureTick(){
-  if(!wpTimerTick) wpTimerTick = setInterval(wpTimerOnTick, 500);
-}
 // Each tick only patches the clock text + header badge — it never re-renders the modal
 // body, so notes typing / chip state are untouched. Runs whether the modal is open or not.
-function wpTimerOnTick(){
-  if(!wpTimer || wpTimer.finished || wpTimer.pausedRemaining != null){
-    if(wpTimerTick){ clearInterval(wpTimerTick); wpTimerTick = null; }
-    return;
-  }
-  if(wpTimer.endAt - Date.now() <= 0){
-    wpTimer.finished = true;
-    if(wpTimerTick){ clearInterval(wpTimerTick); wpTimerTick = null; }
-    wpTimerChime();
-    wpTimerRefresh();   // green done state — shown now, or on next open if the modal is closed
-    return;
-  }
-  const clock = document.getElementById("wpTimerClock");
-  if(clock) clock.textContent = wpTimerFmt(wpTimerRemainingMs());
-  wpTimerBadgeRefresh();
-}
-function wpTimerBoxCls(){ return "wp-today-timer" + (wpTimer && wpTimer.finished ? " wp-timer-boxdone" : ""); }
-function wpTimerHtml(){ return `<div class="${wpTimerBoxCls()}" id="wpTimerBox">${wpTimerInnerHtml()}</div>`; }
-function wpTimerInnerHtml(){
-  if(!wpTimer){
-    return `<div class="wp-timer-idle">
-      <span class="wp-timer-label">Focus timer</span>
-      ${[30,60,90,120].map(m=>`<button class="wp-timer-preset" onclick="wpStartTimer(${m})">${m}m</button>`).join("")}
-      ${wpDialInHtml()}
-    </div>`;
-  }
-  if(wpTimer.finished){
-    return `<div class="wp-timer-run wp-timer-done">
-      <span class="wp-timer-clock">0:00</span>
-      <span class="wp-timer-donemsg">Time's up — nice focus block.</span>
-      <button class="wp-timer-ctl" onclick="wpResetTimer()">Reset</button>
-    </div>`;
-  }
-  const paused = wpTimer.pausedRemaining != null;
-  return `<div class="wp-timer-run${paused?" wp-timer-paused":""}">
-    <span class="wp-timer-clock" id="wpTimerClock">${wpTimerFmt(wpTimerRemainingMs())}</span>
-    <span class="wp-timer-meta">${wpTimer.durationMin}m block${paused?" · paused":""}</span>
-    ${paused
-      ? `<button class="wp-timer-ctl wp-timer-go" onclick="wpResumeTimer()">Resume</button>`
-      : `<button class="wp-timer-ctl" onclick="wpPauseTimer()">Pause</button>`}
-    <button class="wp-timer-ctl" onclick="wpResetTimer()">Reset</button>
-  </div>`;
-}
 // State transitions redraw just the timer box (if the modal markup exists) + the badge.
-function wpTimerRefresh(){
-  const box = document.getElementById("wpTimerBox");
-  if(box){ box.className = wpTimerBoxCls(); box.innerHTML = wpTimerInnerHtml(); }
-  wpTimerBadgeRefresh();
-}
 // Small indicator on the Today header button: remaining time while running/paused, ✓ when done.
-function wpTimerBadgeText(){
-  if(!wpTimer) return "";
-  if(wpTimer.finished) return "✓";
-  return wpTimerFmt(wpTimerRemainingMs());
-}
-function wpTimerBadgeRefresh(){
-  const el = document.getElementById("wpTodayBtnTimer");
-  if(el) el.textContent = wpTimerBadgeText();
-}
 // "Dial in" renders as a real validated https anchor (target/_blank + noopener), so
-// the web fallback is plain markup and works even with scripting oddities. Its click
-// handler tries the desktop app first and only lets the anchor fire when the app
-// didn't take it — never both.
-function wpDialInHtml(){
-  const href = wpValidUrl(WP_FOCUS_PLAYLIST_URL);   // same validation path as task links
-  if(!href) return "";
-  return `<a class="wp-dialin" href="${wpEsc(href)}" target="_blank" rel="noopener noreferrer"
-    title="Open the focus playlist in Spotify" onclick="return wpDialIn(this)"><svg class="ic"><use href="#ic-dot"/></svg> Dial in</a>`;
-}
-// App-first with a quiet web fallback: navigate to the spotify: URI (the page itself
-// never leaves), then ~1.2s later re-click the anchor UNLESS the page lost focus or
-// visibility in the meantime — i.e. the desktop app took over. Normal cases open
-// exactly one thing: app installed → app only; not installed → one web-player tab.
-// The re-click happens inside the browser's transient-activation window, so it isn't
-// popup-blocked, and wpDialInFallback lets it through as a plain link follow.
-function wpDialIn(a){
-  if(wpDialInFallback){ wpDialInFallback = false; return true; }   // fallback re-click → follow the https link
-  let taken = false;
-  const cancel = ()=>{ taken = true; };
-  window.addEventListener("blur", cancel);
-  document.addEventListener("visibilitychange", cancel);
-  setTimeout(()=>{
-    window.removeEventListener("blur", cancel);
-    document.removeEventListener("visibilitychange", cancel);
-    if(!taken){ wpDialInFallback = true; a.click(); }
-  }, 1200);
-  try{ window.location.href = WP_FOCUS_PLAYLIST_URI; }catch(e){}
-  return false;   // suppress the tab on this pass — only the fallback path opens it
-}
-
 // Short two-note chime — obvious but not obnoxious, never blocking, silently skipped
 // if Web Audio is unavailable or the context can't start.
-function wpTimerChime(){
-  try{
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if(!AC) return;
-    const ac = new AC();
-    if(ac.state === "suspended" && ac.resume) ac.resume();
-    const g = ac.createGain();
-    g.connect(ac.destination);
-    g.gain.setValueAtTime(0.0001, ac.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.12, ac.currentTime + 0.03);
-    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 1.1);
-    [[880,0],[1174.66,0.22]].forEach(([f,dt])=>{
-      const o = ac.createOscillator();
-      o.type = "sine"; o.frequency.value = f; o.connect(g);
-      o.start(ac.currentTime + dt); o.stop(ac.currentTime + 1.2);
-    });
-    setTimeout(()=>{ try{ ac.close(); }catch(e){} }, 1600);
-  }catch(e){}
-}
 
 (async function(){
   // load saved targets first (if any) so flags use the latest

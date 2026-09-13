@@ -96,12 +96,9 @@ const TODAY = ALL_DAYS[NOW.getUTCDay()];
     assert.ok(body.includes(`<svg class="ic"><use href="#ic-run"/></svg> Morning run`), "grid chip leads with the run icon");
     assert.ok(!body.includes("lift Morning run"), "the run chip is not the default barbell");
 
-    // Today modal: same chip, same run via the shared renderer
-    c2.wpOpenToday();
-    const modal = c2.document.getElementById("wpTodayBody").innerHTML;
-    assert.ok(modal.includes(`<svg class="ic"><use href="#ic-run"/></svg> Morning run`), "Today modal chip shows the same run icon");
-    assert.ok(modal.includes("wp-train"), "…keeping the green training accent");
-    c2.wpCloseToday();
+    // v154: the Today modal is gone — the day lives on the Daily Dashboard now. The
+    // assertions that checked the grid and the modal AGREED have nothing left to agree
+    // with; the grid half above still tests the thing this block is named for.
 
     // one resolver everywhere: rename t1 and every surface follows after a re-render
     c2.__wpState.training.find((t) => t.id === "t1").title = "Pool swim";
@@ -109,9 +106,6 @@ const TODAY = ALL_DAYS[NOW.getUTCDay()];
     const body2 = c2.document.getElementById("wpBody").innerHTML;
     assert.ok(body2.includes(`<svg class="ic"><use href="#ic-swim"/></svg> Pool swim`), "grid chip follows the retitle to swim");
     assert.ok(body2.includes(`<span class="wp-train-emoji" aria-hidden="true"><svg class="ic"><use href="#ic-swim"/></svg></span>`), "card row follows the retitle to swim");
-    c2.wpOpenToday();
-    assert.ok(c2.document.getElementById("wpTodayBody").innerHTML.includes(`<svg class="ic"><use href="#ic-swim"/></svg> Pool swim`), "modal chip follows the retitle to swim");
-    c2.wpCloseToday();
   }
 
   /* ---------- 7: the emoji field is never written back to the store ---------- */

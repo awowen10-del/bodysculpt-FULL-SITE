@@ -77,10 +77,9 @@ const setInputValue = (ctx, value) => { ctx.document.querySelector = () => ({ va
     assert.ok(body.includes(`value="NewShinyName"`), "card row input shows the new title");
     assert.ok(!body.includes("OldName"), "old title gone from the card");
     assert.ok(body.includes("NewShinyName"), "grid chip shows the new title");
-    // Today modal reads the same placement/title on open
-    ctx.wpOpenToday();
-    assert.ok(ctx.document.getElementById("wpTodayBody").innerHTML.includes("NewShinyName"), "Today modal shows the new title");
-    ctx.wpCloseToday();
+    // v154: the Today modal is gone — the day lives on the Daily Dashboard now. The
+    // assertions that checked the grid and the modal AGREED have nothing left to agree
+    // with; the grid half above still tests the thing this block is named for.
   }
 
   /* ---------- 3: empty title reverts to the previous title (never blanks/deletes) ---------- */

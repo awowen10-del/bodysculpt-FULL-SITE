@@ -25,9 +25,9 @@ const style = DAILY.slice(DAILY.indexOf("<style>") + 7, DAILY.indexOf("</style>"
 (async () => {
   /* ================= 0. the stamp ================= */
   const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(read("monthly.html"));
-  assert.strictEqual(stamp[1], "153", "monthly.html is stamped v153");
-  assert.strictEqual(stamp[2], "stop-asking-me-to-sign-in", "…as the release that renewed instead of asking");
-  const text = "build v153 · stop-asking-me-to-sign-in";
+  // relaxed once v154 shipped: the newest release's test pins the exact stamp.
+  assert.ok(Number(stamp[1]) >= 153, "monthly.html is stamped v153 or later");
+  const text = "build v" + stamp[1] + " · " + stamp[2];
   for (const f of ["index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the same stamp");
   }
@@ -114,12 +114,13 @@ const style = DAILY.slice(DAILY.indexOf("<style>") + 7, DAILY.indexOf("</style>"
     assert.ok(new RegExp('on\\("' + id + '"').test(wired), "#" + id + " is wired in the same function that renders it");
   }
 
-  /* ============ 7. the weekly page still has its copy, for now ============
-     Stated rather than assumed, because the ORDER was the point: build it here, let him use
-     it against real data, then delete the other one. */
+  /* ============ 7. …and v154 removed the weekly copy ============
+     v152 asserted the weekly modal was STILL there, deliberately: build it here, use it
+     against real data, then delete the other one. It has been used and the other one is
+     gone, so the guard flips to guarding the opposite — there must never be two places
+     writing the same day again. */
   const WEEKLY = read("index.html");
-  assert.ok(/function wpOpenToday\(\)/.test(WEEKLY),
-    "the weekly Today modal is still there — removing it is the next release, not this one");
+  assert.ok(!/function wpOpenToday\(\)/.test(WEEKLY), "the weekly Today modal is gone");
   // and both halves write the same entries, so there is nothing to reconcile
   assert.ok(/\?checkins=1/.test(WEEKLY) && /\?checkins=1/.test(js),
     "both read the same daily-checkins map");

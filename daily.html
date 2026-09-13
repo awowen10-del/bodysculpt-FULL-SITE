@@ -845,13 +845,26 @@
   .evmsg.good{background:rgba(var(--green-rgb),.08);border:1px solid rgba(var(--green-rgb),.28);
     color:var(--tint-green);}
 
+  /* --- v154: the morning, side by side ---
+     Starting the day and running the day are two halves of the same five minutes. The
+     questions are the wider half while they are still questions; once the day has started
+     the card shrinks to one line and the two even out on their own. */
+  .day-top{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,1fr);
+    gap:var(--sp-4);align-items:start;margin-bottom:var(--sp-4);}
+  @media(max-width:980px){ .day-top{grid-template-columns:1fr;} }
+  .day-top .card{margin:0;}
+  .ck-card[hidden] + .today-card{grid-column:1 / -1;}
+  .today-card{padding:16px 20px 18px;}
+  /* the alert now lives inside the money card, so it wants the card's own margins */
+  #moneyBody + .fin-alert,.card > .fin-alert{margin:0 0 var(--sp-3);}
+
   /* ===================== v152: THE DAY ITSELF =====================
      The check-in, the non-negotiables and the focus timer moved here from a modal on the
      weekly page. The weekly page is where you decide what a WEEK looks like; none of this
      was ever about a week. */
 
   /* --- the morning's three questions --- */
-  .ck-card{margin-bottom:var(--sp-4);padding:16px 20px 18px;}
+  .ck-card{padding:16px 20px 18px;}
   .ck-card.open{border-color:rgba(var(--orange-rgb),.35);
     background:linear-gradient(180deg,rgba(var(--orange-rgb),.05),var(--card) 120px);}
   .ck-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:var(--sp-4);}
@@ -906,6 +919,11 @@
   .ft-preset:hover{background:rgba(var(--orange-rgb),.10);border-color:var(--orange);color:var(--orange);}
   .ft-preset:focus-visible{outline:none;box-shadow:var(--focus);}
   .ft-hint{font-size:11.5px;color:var(--ink-faint);margin-top:7px;line-height:1.45;}
+  .ft-dial{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;
+    font-weight:600;color:var(--teal-bright);text-decoration:none;padding:5px 10px;
+    border-radius:var(--r-pill);background:rgba(var(--teal-rgb),.10);}
+  .ft-dial:hover{background:rgba(var(--teal-rgb),.2);}
+  .ft-dial .ic{width:11px;height:11px;}
 
   /* --- THE FOCUS BAR ---
      "it needs to be like 'wow, this is time sensitive, focus'." So when a block is running
@@ -1005,7 +1023,7 @@
 <symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="M2.5 9.8h19M6 15.2h3.4"/></symbol>
 <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.05" fill="currentColor" stroke="none"/></symbol>
 </defs></svg>
-<!-- build v153 · stop-asking-me-to-sign-in -->
+<!-- build v154 · the-day-moved -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -1054,16 +1072,25 @@
   <button type="button" class="abtn" id="btnRefresh"><svg class="ic"><use href="#ic-refresh"/></svg> Refresh</button>
 </div>
 
-<!-- The one line that has to survive a glance from the doorway. It exists only when there
-     is money in trouble; the rest of the time the page never mentions it. -->
-<a class="fin-alert" id="moneyAlert" href="https://dashboard.stripe.com/payments" target="_blank" rel="noopener" hidden></a>
-
 <!-- The focus timer lives here when one is running, and nowhere at all when one is not. -->
 <div id="ftHost"></div>
 
-<!-- The morning's three questions. Full width and first, because it is the first thing you
-     do; once the day is started it collapses to a line and gets out of the way. -->
-<section class="card ck-card" id="ckCard" hidden></section>
+<!-- v154: THE MORNING, side by side and first.
+     Starting the day and running the day are two halves of the same five minutes, and they
+     were a full-width card at the top and a card down in the right-hand rail. Now they open
+     the page together: the questions on the left, what the day is made of on the right. -->
+<div class="day-top">
+  <section class="card ck-card" id="ckCard" hidden></section>
+  <section class="card today-card">
+    <div class="cardhead">
+      <div>
+        <div class="chead"><svg class="ic"><use href="#ic-target"/></svg> Today</div>
+        <div class="csub">The three that are not optional, and a block of time to put your head down in.</div>
+      </div>
+    </div>
+    <div id="todayBody"><div class="loading">Loading…</div></div>
+  </section>
+</div>
 
 <!-- The week, above everything else: what you are doing today is the frame the email and
      the money hang in. Read-only until you press New event; nothing here touches the
@@ -1105,17 +1132,10 @@
           <div class="csub">Disputes, memberships that have stopped paying, and payments that failed and still have not been paid. Anything that bounced and then went through is left off.</div>
         </div>
       </div>
+      <!-- v154: the headline sits WITH the thing it is a headline for. It used to be a
+           strip near the top of the page, a screen away from the rows it was counting. -->
+      <a class="fin-alert" id="moneyAlert" href="https://dashboard.stripe.com/payments" target="_blank" rel="noopener" hidden></a>
       <div id="moneyBody"><div class="loading">Asking Stripe…</div></div>
-    </section>
-
-    <section class="card">
-      <div class="cardhead">
-        <div>
-          <div class="chead"><svg class="ic"><use href="#ic-target"/></svg> Today</div>
-          <div class="csub">What you said this morning mattered most. Set it in the weekly app; this is only a reminder.</div>
-        </div>
-      </div>
-      <div id="todayBody"><div class="loading">Loading…</div></div>
     </section>
   </div>
 </div>
@@ -2155,6 +2175,29 @@ async function ckToggleHabit(id) {
 let ftTimer = null;      // { durationMin, endAt, pausedRemaining, finished } — null = idle
 let ftTick = null;       // the one interval, alive only while running
 const FT_PRESETS = [25, 45, 60, 90];
+/* v154: "Dial in" came across with the timer. The app URI is a known-safe hardcoded
+   constant; the https address is the fallback for a machine with no desktop Spotify. App
+   first, then the web player ~1.2s later UNLESS the page lost focus in the meantime — which
+   means the app took it. Normal cases open exactly one thing. */
+const FT_PLAYLIST_URI = "spotify:playlist:1VKtv1xJtFFkS3OsaFY3WZ";
+const FT_PLAYLIST_URL = "https://open.spotify.com/playlist/1VKtv1xJtFFkS3OsaFY3WZ";
+let ftDialFallback = false;
+function ftDialIn(a) {
+  if (ftDialFallback) { ftDialFallback = false; return true; }   // the fallback re-click: follow the link
+  let taken = false;
+  const noteTaken = () => { taken = true; };
+  window.addEventListener("blur", noteTaken, { once: true });
+  document.addEventListener("visibilitychange", noteTaken, { once: true });
+  try { window.location.href = FT_PLAYLIST_URI; } catch (e) { /* no handler for the scheme */ }
+  setTimeout(() => {
+    window.removeEventListener("blur", noteTaken);
+    document.removeEventListener("visibilitychange", noteTaken);
+    if (taken || document.hidden) return;     // the desktop app took it; do not also open a tab
+    ftDialFallback = true;
+    a.click();
+  }, 1200);
+  return false;                                // never both
+}
 const FT_TITLE = document.title;
 
 const ftRemaining = () => {
@@ -2365,9 +2408,14 @@ function renderToday() {
       (done ? '<svg class="ic" style="width:16px;height:16px;"><use href="#ic-check"/></svg> ' : "") +
       esc(oneThing) + "</div>";
   } else {
-    html += '<div class="setup"><b>No check-in yet today.</b><br>' +
-      'The weekly app asks three questions first thing; whatever you answer as your one thing shows up here.' +
-      '<div class="setup-links"><a class="abtn primary" href="/index.html">Open the weekly plan</a></div></div>';
+    // v154: this used to send people to the weekly app for the questions. The questions are
+    // in the card immediately to the left of this one now, so saying that would be daft.
+    const asking = !ckEntry(ckToday()).dismissed;
+    html += '<div class="setup">' + (asking
+      ? '<b>Nothing set yet.</b><br>Answer the three questions beside this and your one thing lands here.'
+      : '<b>No one thing set for today.</b><br>You started the day without one. That is allowed, but a day with one goes better.' +
+        '<div class="setup-links"><button type="button" class="abtn" id="oneThingAdd">Set one now</button></div>') +
+      "</div>";
   }
 
   // v152: the non-negotiables are TICKED here now, not read here and ticked somewhere else.
@@ -2393,13 +2441,18 @@ function renderToday() {
   } else {
     html += '<div class="ft-presets">' + FT_PRESETS.map((m) =>
       '<button type="button" class="ft-preset" id="ftGo' + m + '" data-min="' + m + '">' + m + "m</button>").join("") +
-      '</div><div class="ft-hint">Pick a length and everything else can wait.</div>';
+      '</div><a class="ft-dial" href="' + esc(FT_PLAYLIST_URL) + '" target="_blank" rel="noopener noreferrer" ' +
+      'title="Open the focus playlist in Spotify" onclick="return ftDialIn(this)">' +
+      '<svg class="ic"><use href="#ic-dot"/></svg>Dial in</a>' +
+      '<div class="ft-hint">Pick a length and everything else can wait.</div>';
   }
   html += "</div>";
-  if (oneThing) html += '<div class="setup-links"><a class="abtn" href="/index.html">Open the weekly plan</a></div>';
+
   body.innerHTML = html;
   body.querySelectorAll("[data-habit]").forEach((el) =>
     el.addEventListener("click", () => ckToggleHabit(el.dataset.habit)));
+  const add = $("oneThingAdd");
+  if (add) add.addEventListener("click", () => { ckEdit(); setTimeout(() => { const el = $("ck_oneThing"); if (el) el.focus(); }, 60); });
 }
 
 /* ---------- freshness ---------- */

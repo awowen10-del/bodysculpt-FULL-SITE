@@ -175,16 +175,15 @@ const weeklyPosts = (posts) => posts.filter((p) => p.body && p.body.weeklyPlan);
     const thisWeek = d.toISOString().slice(0, 10);
     const { ctx } = await boot({ locations: { [dayKey]: "home" }, plans: { [thisWeek]: { weekEnding: thisWeek, placements: {} } } });
     await ctx.loadWeeklyPlan(thisWeek);
-    ctx.wpRenderTodayBody();
-    const html = ctx.document.getElementById("wpTodayBody").innerHTML;
-    assert.ok(html.includes("wp-today-loc") && html.includes("Home"), "the modal shows today's location");
-    assert.ok(html.includes("Where you are today"));
+    // v154: this block used to read today's location out of the Today modal, which has
+    // moved to the Daily Dashboard. The location itself has not moved anywhere — it is the
+    // day header's pill in the grid, which is what is checked here instead, override and all.
+    const html = ctx.document.getElementById("wpBody").innerHTML;
+    assert.ok(html.includes("wp-loctext") && html.includes("wp-loc-home"), "the day header shows today's location");
 
-    // a per-week override wins there too
     await ctx.wpSetWeekLocation(dayKey, "warrington");
-    ctx.wpRenderTodayBody();
-    const html2 = ctx.document.getElementById("wpTodayBody").innerHTML;
-    assert.ok(html2.includes("Warrington") && !html2.includes(">Home<"), "override reflected in the modal");
+    const html2 = ctx.document.getElementById("wpBody").innerHTML;
+    assert.ok(html2.includes("wp-loc-warrington") && html2.includes("wp-loc-ovr"), "a per-week override wins there too");
   }
 
   // ---------- 7: nothing about tasks / placements / exceptions changes ----------

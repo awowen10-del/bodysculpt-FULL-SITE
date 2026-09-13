@@ -89,10 +89,12 @@ const lastNotesPost = (posts) => {
     const plans = { [WEEK]: { weekEnding: WEEK, placements: {}, notes: "" } };
     const { ctx, posts } = await boot({ plans });
     await ctx.loadWeeklyPlan(WEEK);
-    ctx.wpOpenToday();
-    // type into the (modal) editor, save through the real path
-    ctx.document.getElementById("wpTodayNotes").innerHTML = RICH;
-    await ctx.wpTodaySaveNotes();
+    // v154: typed into the CARD's editor. This used to go through the Today modal's own
+    // notes box, which mirrored into this one before saving; the modal moved to the Daily
+    // Dashboard and the mirror went with it. The path under test — editor to sanitiser to
+    // store — is the same one it always was, with one less hop in front of it.
+    ctx.document.getElementById("wpWeekNotesEd").innerHTML = RICH;
+    await ctx.wpSaveSection("notes");
     const post = lastNotesPost(posts);
     assert.ok(post, "notes save posted");
     assert.strictEqual(post.body.weeklyPlan.weekEnding, WEEK, "saved against the viewed week");
@@ -115,9 +117,9 @@ const lastNotesPost = (posts) => {
     // ---------- 3: checkbox ticked-state persists (and unticked stays unticked) ----------
     assert.ok(wpBody.includes(`<input type="checkbox" checked>&nbsp;ring supplier`), "ticked checkbox comes back ticked");
     assert.ok(wpBody.includes(`<input type="checkbox">&nbsp;order chalk`), "unticked checkbox comes back unticked");
-    // the modal renders the same notes
-    ctx.wpOpenToday();
-    assert.ok(ctx.document.getElementById("wpTodayBody").innerHTML.includes(RICH), "Today modal renders the same rich note");
+    // v154: the Today modal is gone — the day lives on the Daily Dashboard now. The
+    // assertions that checked the grid and the modal AGREED have nothing left to agree
+    // with; the grid half above still tests the thing this block is named for.
     // ticking = flipping the checked ATTRIBUTE (what the delegated click handler does),
     // then serialising — the flip survives the save path
     const reticked = RICH.replace(`<input type="checkbox">&nbsp;order chalk`, `<input type="checkbox" checked>&nbsp;order chalk`);
@@ -143,10 +145,11 @@ const lastNotesPost = (posts) => {
     const plans = { [WEEK]: { weekEnding: WEEK, placements: {}, notes: "" } };
     const { ctx, posts } = await boot({ plans });
     await ctx.loadWeeklyPlan(WEEK);
-    ctx.wpOpenToday();
-    // SAVE side: pasted-in nastiness never reaches the store
-    ctx.document.getElementById("wpTodayNotes").innerHTML = EVIL;
-    await ctx.wpTodaySaveNotes();
+    // SAVE side: pasted-in nastiness never reaches the store. v154 routed this through the
+    // card's editor when the Today modal moved to the Daily Dashboard — same sanitiser,
+    // same save, one less hop.
+    ctx.document.getElementById("wpWeekNotesEd").innerHTML = EVIL;
+    await ctx.wpSaveSection("notes");
     const saved = lastNotesPost(posts).body.weeklyPlan.notes;
     for (const bad of ["<script", "alert(", "onclick", "onerror", "onmouseover", "onload",
       "javascript:", "data:", "<iframe", "<img", "<svg", "<a ", "href", "style="]) {
@@ -167,42 +170,45 @@ const lastNotesPost = (posts) => {
     ctx.renderWeeklyPlan();
     const wpBody = ctx.document.getElementById("wpBody").innerHTML;
     assert.ok(!wpBody.includes("alert(") && !wpBody.includes("<script") && !wpBody.includes("javascript:"), "tampered store value never reaches the page unsanitised");
-    ctx.wpRenderTodayBody();
-    const modal = ctx.document.getElementById("wpTodayBody").innerHTML;
-    assert.ok(!modal.includes("alert(") && !modal.includes("<script") && !modal.includes("javascript:"), "…nor the Today modal");
+    // v154: the Today modal was the second surface here and has moved to the Daily
+    // Dashboard, which never renders weekly notes at all. The page above is the surface
+    // that has to stay clean, and it does.
     // and wpValidUrl is exactly as strict as before — not loosened for notes
     assert.strictEqual(ctx.wpValidUrl("javascript:alert(1)"), null, "wpValidUrl still rejects javascript:");
     assert.strictEqual(ctx.wpValidUrl("data:text/html,x"), null, "wpValidUrl still rejects data:");
     assert.strictEqual(ctx.wpValidUrl("example.com/x"), "https://example.com/x", "wpValidUrl still normalises bare domains");
   }
 
-  /* ---------- 5: Today modal ↔ weekly panel stay in sync ---------- */
+  /* ---------- 5: ONE notes field, ONE save path ----------
+     This block used to prove it by editing in the Today modal and watching the weekly panel
+     agree. v154 moved the day to the Daily Dashboard and the modal went with it — but the
+     mirror was only ever machinery for keeping two editors of the same field honest, and
+     there is one editor now. What the block was really asserting survives intact: the edit
+     lands in one field, goes through wpSaveSection("notes") against the viewed week, an
+     unchanged note does not re-save, and an emptied editor stores "" rather than a shell. */
   {
     const plans = { [WEEK]: { weekEnding: WEEK, placements: {}, notes: "start point" } };
     const { ctx, posts } = await boot({ plans });
     await ctx.loadWeeklyPlan(WEEK);
     const st = ctx.__wpState;
-    // weekly → modal: the modal renders the current weekly note
-    ctx.wpOpenToday();
-    assert.ok(ctx.document.getElementById("wpTodayBody").innerHTML.includes("start point"), "modal shows the weekly note");
-    // modal edit → one field, one save path, weekly panel re-render agrees
-    ctx.document.getElementById("wpTodayNotes").innerHTML = "<b>synced</b> from the modal";
-    await ctx.wpTodaySaveNotes();
-    assert.strictEqual(st.plan.notes, MARK + "<b>synced</b> from the modal", "single notes field updated");
+    assert.ok(ctx.document.getElementById("wpBody").innerHTML.includes("start point"), "the card shows the weekly note");
+
+    ctx.document.getElementById("wpWeekNotesEd").innerHTML = "<b>synced</b> from the card";
+    await ctx.wpSaveSection("notes");
+    assert.strictEqual(st.plan.notes, MARK + "<b>synced</b> from the card", "single notes field updated");
     const post = lastNotesPost(posts);
-    assert.strictEqual(post.body.weeklyPlan.notes, st.plan.notes, "modal writes through wpSaveSection('notes')");
+    assert.strictEqual(post.body.weeklyPlan.notes, st.plan.notes, "written through wpSaveSection('notes')");
     assert.strictEqual(post.body.weeklyPlan.weekEnding, WEEK, "…against the viewed week");
     ctx.renderWeeklyPlan();
-    assert.ok(ctx.document.getElementById("wpBody").innerHTML.includes("<b>synced</b> from the modal"), "weekly panel shows the modal edit");
-    ctx.wpRenderTodayBody();
-    assert.ok(ctx.document.getElementById("wpTodayBody").innerHTML.includes("<b>synced</b> from the modal"), "modal re-render reads the same value");
-    // mirror-before-save: unchanged content doesn't re-save (no clobber loop)
-    const n = posts.length;
-    await ctx.wpTodaySaveNotes();
-    assert.strictEqual(posts.length, n, "no redundant save when the note is unchanged");
-    // clearing the note stores plain "" (not a marker-wrapped shell)
-    ctx.document.getElementById("wpTodayNotes").innerHTML = "<div><br></div>";
-    await ctx.wpTodaySaveNotes();
+    assert.ok(ctx.document.getElementById("wpBody").innerHTML.includes("<b>synced</b> from the card"), "the panel shows the edit");
+
+    // (The old "no redundant save" check went with the modal. It was a property of the
+    // mirror-before-save the modal needed to keep two editors of one field in step, not of
+    // the card's own section save — which has always written when asked. Asserting it here
+    // would be asserting something that was never true of this path.)
+
+    ctx.document.getElementById("wpWeekNotesEd").innerHTML = "<div><br></div>";
+    await ctx.wpSaveSection("notes");
     assert.strictEqual(st.plan.notes, "", "emptied editor normalises to a blank note");
   }
 

@@ -367,8 +367,11 @@ async function week(wk, defaults, plan) {
     assert.deepStrictEqual(cell(P, "10-12:sun"), ["recurring:m1"], "the one derivation both surfaces read");
     const copy = env.ctx.wpCopyWeekText ? env.ctx.wpCopyWeekText() : null;
     if (copy !== null) assert.ok(copy.includes("Invoices"), "Copy week includes the occurrence");
-    assert.ok(/const todayPlacements = wpEffectivePlacements\(\)/.test(WEEKLY),
-      "the Today modal reads the same effective placements");
+    // v154: the Today modal was the second surface here and has moved to the Daily
+    // Dashboard, which reads the published agenda rather than the engine. What still has to
+    // be true is that everything left on THIS page derives from the one call.
+    assert.ok(/const gridPlacements = wpEffectivePlacements\(\)/.test(WEEKLY),
+      "the grid reads the effective placements");
     assert.ok(/const tbPlacements = wpEffectivePlacements\(\)/.test(WEEKLY),
       "…and so does Copy week");
   }

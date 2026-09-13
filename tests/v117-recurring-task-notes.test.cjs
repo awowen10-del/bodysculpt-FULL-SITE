@@ -273,7 +273,9 @@ const item = (env, id) => Array.from(env.ctx.__wpState.defaults).find((t) => t.i
       "…in the same modal shell as Today, the v93 popup and the v104 viewer");
 
     // a checkbox ticked inside THIS editor saves through this path, not the weekly notes one
-    assert.ok(/else if\(ed\.id === "wpRecurNotesEd"\) wpRecurNotesCommit\(\);/.test(WEEKLY),
+    // v154: this used to be an else-if behind the Today modal's own editor. The modal moved
+    // to the Daily Dashboard, so this is the first branch now — the routing is unchanged.
+    assert.ok(/if\(ed\.id === "wpRecurNotesEd"\) wpRecurNotesCommit\(\);/.test(WEEKLY),
       "a tick inside the task notes saves the task, never the weekly notes");
   }
 
