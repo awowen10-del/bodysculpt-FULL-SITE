@@ -33,10 +33,11 @@ const between = (a, b) => js.slice(js.indexOf(a), js.indexOf(b));
 (async () => {
   /* ================= 0. the stamp ================= */
   const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(read("monthly.html"));
-  assert.strictEqual(stamp[1], "155", "monthly.html is stamped v155");
-  assert.strictEqual(stamp[2], "send-it-from-here", "…as the release that sends from the card");
+  // relaxed once v156 shipped: the newest release's test pins the exact stamp.
+  assert.ok(Number(stamp[1]) >= 155, "monthly.html is stamped v155 or later");
+  const text = "build v" + stamp[1] + " · " + stamp[2];
   for (const f of ["index.html", "finances.html", "daily.html", "social.html"]) {
-    assert.ok(read(f).includes("build v155 · send-it-from-here"), f + " carries the same stamp");
+    assert.ok(read(f).includes(text), f + " carries the same stamp");
   }
 
   /* ============ 1. the scope is the SAME; the lists of what it may do are closed ============ */
@@ -244,7 +245,7 @@ const between = (a, b) => js.slice(js.indexOf(a), js.indexOf(b));
   const tierH = fn("tierHtml");
   assert.ok(/\(items\.length \? "" : " \\u2014 untick Unread only to see " \+ \(hidden === 1 \? "it" : "them"\)\)/.test(tierH),
     "an all-read tier's heading says how to see them");
-  assert.ok(/if \(!items\.length\) return '<div class="tier tier-fyi">' \+ head \+ "<\/div>";/.test(tierH),
+  assert.ok(/if \(!items\.length\) return '<div class="tier tier-' \+ esc\(tier\.id\) \+ '">' \+ head \+ "<\/div>";/.test(tierH),
     "an all-read FYI tier is a heading with no toggle to show nothing");
 
   console.log("v155-send-it-from-here.test: all assertions passed");

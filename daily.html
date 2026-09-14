@@ -474,6 +474,9 @@
      and the inbox agree at a glance: red, orange, blue, grey */
   .tier-week   .tier-dot{background:var(--blue);}    .tier-week   .tier-name{color:var(--tint-blue);}
   .tier-fyi    .tier-dot{background:var(--ink-faint);}
+  /* v156: the two live sections */
+  .tier-inbox  .tier-dot{background:var(--orange);}  .tier-inbox  .tier-name{color:var(--tint-orange);}
+  .tier-other  .tier-dot{background:var(--ink-faint);}
 
   /* one email */
   .mail{display:block;text-decoration:none;color:inherit;position:relative;
@@ -486,6 +489,8 @@
   .tier-today  .mail{border-left-color:var(--amber);}
   .tier-week   .mail{border-left-color:var(--blue);}
   .tier-fyi    .mail{border-left-color:var(--line);}
+  .tier-inbox  .mail{border-left-color:var(--orange);}
+  .tier-other  .mail{border-left-color:var(--line);}
   .mail-top{display:flex;align-items:baseline;gap:9px;}
   .mail-from{font-size:12px;font-weight:700;color:var(--ink-dim);white-space:nowrap;
     overflow:hidden;text-overflow:ellipsis;max-width:40%;flex:0 0 auto;}
@@ -1071,7 +1076,7 @@
 <symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="M2.5 9.8h19M6 15.2h3.4"/></symbol>
 <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.05" fill="currentColor" stroke="none"/></symbol>
 </defs></svg>
-<!-- build v155 · send-it-from-here -->
+<!-- build v156 · read-the-inbox-itself -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -1325,7 +1330,7 @@ function richToText(html) {
 
 /* ---------- the explainer marks (the v128 finance pattern, same box, same wiring) ---- */
 const TIPS = {
-  triage: ["Triage", "Your scheduled morning job reads the inbox, labels every thread Urgent / Today / This week / FYI, and sends the list here. Nothing is moved or replied to — it is only sorted."],
+  triage: ["Your inbox", "Read straight from Gmail every time this page refreshes. Where your scheduled morning triage has labelled a thread Urgent / Today / This week / FYI, it sits under that heading. Anything unread it has not labelled yet is under Inbox, ranked by how much it looks like it needs you, with newsletters and notifications folded into Everything else. Nothing is labelled or moved by this page unless you press a button."],
   dispute: ["Dispute", "A member has told their bank the payment was wrong, and the bank has taken the money back off you while it decides. There is a deadline to send your side. Miss it and the money is gone automatically, so these always come first."],
   pastdue: ["Stopped paying", "A membership whose payment failed and has not gone through since. The member is normally still training. This is recurring income quietly leaking, and it is usually one message to fix."],
   failed: ["Failed payment", "A payment that did not go through in the last fortnight AND still has not been paid. Nearly always an expired or blocked card. Quick to sort while it is fresh."],
@@ -1392,12 +1397,54 @@ const TIERS = [
   { id: "week",   name: "This week", label: "Triage/This week", blurb: "Fits anywhere this week." },
   { id: "fyi",    name: "FYI",       label: "Triage/FYI",       blurb: "Read it or don't." },
 ];
+/* v156: THE CARD READS THE INBOX ITSELF.
+   Ash: "for this to work it assumes Claude is triaging all my emails first but for instance
+   that hasn't happened this morning." Right — a card that is only a view of four labels is
+   empty on any morning the job did not run, however full the inbox is. So the page now reads
+   the inbox as well (the other dashboard's approach: unread, in the inbox, live), and:
+     · a thread the triage HAS labelled keeps its tier, exactly as before;
+     · a thread it has not is ranked here, the other dashboard's way — a keyword score
+       (+2 a hit, +3 for Gmail's own Important flag) with newsletters, notifications and
+       anything Gmail files under Promotions / Social / Updates / Forums pushed to the bottom
+       (−10) — and lands in one of two sections: INBOX, newest and highest first, or
+       EVERYTHING ELSE, a folded count.
+   No label is written for either; the scheduled triage still owns the labels, and the day it
+   runs the same threads simply move up into their tiers. */
+const LIVE_TIERS = [
+  { id: "inbox", name: "Inbox",           href: GMAIL + "inbox", blurb: "Unread, not yet triaged — newest and likeliest first." },
+  { id: "other", name: "Everything else", href: GMAIL + "inbox", blurb: "Newsletters, notifications, promotions.", fold: true },
+];
+// urgent, today, then what has just landed, then the rest of the week, then the two piles
+const MAIL_ORDER = ["urgent", "today", "inbox", "week", "fyi", "other"];
+const tierById = (id) => TIERS.find((t) => t.id === id) || LIVE_TIERS.find((t) => t.id === id) || null;
+const GM_INBOX_MAX = 30;                   // unread inbox threads read per refresh
+const GM_INBOX_QUERY_UNREAD = "in:inbox is:unread";
+const GM_INBOX_QUERY_ALL = "in:inbox newer_than:14d";
+// the other dashboard's scoring, kept as it was because it is a ranking, not a verdict
+const GM_HOT_WORDS = ["invoice","payment","urgent","reply","proposal","contract","partnership","revenue","client","deal","opportunity","meeting","call","asap","important","deadline","stripe","question","help","ready","confirm",
+  // …plus the words a gym's inbox actually turns on
+  "membership","session","cancel","book","booking","pt","class","injury","refund","direct debit","gocardless","trial","join","joining"];
+const GM_NOISE_WORDS = ["unsubscribe","noreply","no-reply","newsletter","notification","donotreply","do-not-reply"];
+const GM_NOISE_CATS = ["CATEGORY_PROMOTIONS","CATEGORY_SOCIAL","CATEGORY_UPDATES","CATEGORY_FORUMS"];
+// whole words only — "pt" must not fire on "receipt", nor "deal" on "ideal"
+const gmHasWord = (text, w) => new RegExp("(^|[^a-z0-9])" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "($|[^a-z0-9])").test(text);
+function gmPriority(text, labelIds) {
+  const t = String(text || "").toLowerCase();
+  let score = 0;
+  for (const w of GM_HOT_WORDS) if (gmHasWord(t, w)) score += 2;
+  for (const w of GM_NOISE_WORDS) if (gmHasWord(t, w)) { score -= 10; break; }
+  const ls = labelIds || [];
+  if (GM_NOISE_CATS.some((c) => ls.includes(c))) score -= 10;
+  if (ls.includes("IMPORTANT")) score += 3;
+  return score;
+}
 const labelUrl = (label) => GMAIL + "label/" + encodeURIComponent(label).replace(/%2F/gi, "%2F");
 const threadUrl = (id) => GMAIL + "all/" + encodeURIComponent(id);
 // Gmail opens a saved draft in its composer from the drafts view.
 const draftUrl = (id) => GMAIL + "drafts?compose=" + encodeURIComponent(id);
 
 let fyiOpen = false;     // the FYI pile is a count until you ask for it
+let otherOpen = false;   // so is Everything else (v156)
 let briefState = null;   // { brief, date, isToday } or null
 
 /* v155: the row OPENS HERE. Until now it was one link to Gmail, because Gmail was where the
@@ -1407,7 +1454,8 @@ let briefState = null;   // { brief, date, isToday } or null
    tools rather than the only thing a click could do. A div, not an anchor: an editor cannot
    live inside a link. */
 function mailItemHtml(it) {
-  const href = it.threadId ? threadUrl(it.threadId) : labelUrl("Triage/" + (it.tier === "week" ? "This week" : it.tier === "fyi" ? "FYI" : it.tier === "today" ? "Today" : "Urgent"));
+  const tierDef = tierById(it.tier);
+  const href = it.threadId ? threadUrl(it.threadId) : (tierDef && tierDef.label ? labelUrl(tierDef.label) : GMAIL + "inbox");
   const hasDraft = !!(it.draftId || it.draftPreview);
   const open = !!it.threadId && mailOpenId === it.threadId;
 
@@ -1509,7 +1557,7 @@ function mailReplyHtml(it, th) {
 }
 
 function tierHtml(tier, items) {
-  const open = '<a class="tier-open" href="' + esc(labelUrl(tier.label)) + '" target="_blank" rel="noopener">' +
+  const open = '<a class="tier-open" href="' + esc(tier.label ? labelUrl(tier.label) : tier.href) + '" target="_blank" rel="noopener">' +
     "Open in Gmail<svg class=\"ic\"><use href=\"#ic-arrow-right\"/></svg></a>";
   // Gmail's own exact figure for this label, so "already read" is a fact, not an estimate.
   const st = mailStats[tier.id];
@@ -1529,14 +1577,17 @@ function tierHtml(tier, items) {
         items.length + "</button>" : "") +
     open + "</div>";
 
-  // FYI is deliberately a number you can ignore. Everything else is a list you cannot.
-  if (tier.id === "fyi") {
-    if (!items.length) return '<div class="tier tier-fyi">' + head + "</div>";
-    const toggle = '<button type="button" class="fyi-toggle" id="fyiToggle" aria-expanded="' + (fyiOpen ? "true" : "false") + '">' +
+  // FYI is deliberately a number you can ignore, and so is Everything else (v156). The
+  // rest is a list you cannot.
+  if (tier.id === "fyi" || tier.fold) {
+    const isFyi = tier.id === "fyi";
+    if (!items.length) return '<div class="tier tier-' + esc(tier.id) + '">' + head + "</div>";
+    const shown = isFyi ? fyiOpen : otherOpen;
+    const toggle = '<button type="button" class="fyi-toggle" id="' + (isFyi ? "fyiToggle" : "otherToggle") + '" aria-expanded="' + (shown ? "true" : "false") + '">' +
       "<svg class=\"ic\"><use href=\"#ic-chevron\"/></svg>" +
-      (fyiOpen ? "Hide" : "Show") + " " + items.length + " for information</button>";
-    return '<div class="tier tier-fyi">' + head + toggle +
-      (fyiOpen ? items.map(mailItemHtml).join("") : "") + "</div>";
+      (shown ? "Hide" : "Show") + " " + items.length + (isFyi ? " for information" : " you can probably ignore") + "</button>";
+    return '<div class="tier tier-' + esc(tier.id) + '">' + head + toggle +
+      (shown ? items.map(mailItemHtml).join("") : "") + "</div>";
   }
   return '<div class="tier tier-' + tier.id + '">' + head + items.map(mailItemHtml).join("") + "</div>";
 }
@@ -1548,10 +1599,8 @@ function mailSetupHtml(reason) {
     "</div>";
 
   if (reason === "unread-none") {
-    const readTotal = TIERS.reduce((t, x) => t + ((mailStats[x.id] && mailStats[x.id].total) || 0), 0);
-    return '<div class="setup"><b>Nothing unread.</b><br>' +
-      "Every triaged email has been read" + (readTotal ? " — all " + readTotal + " of them" : "") +
-      ". That is the inbox done, not the card broken. Untick <b>Unread only</b> above to look back over them." +
+    return '<div class="setup"><b>Nothing unread in your inbox.</b><br>' +
+      "That is the inbox done, not the card broken. Untick <b>Unread only</b> above to look back over the last fortnight." +
       links + "</div>";
   }
   if (reason === "connect") {
@@ -1580,7 +1629,7 @@ function mailSetupHtml(reason) {
   }
 
   return '<div class="setup"><b>' + esc(reason) + "</b><br>" +
-    "Your scheduled triage labels each thread <code>Triage/Urgent</code>, <code>Triage/Today</code>, <code>Triage/This week</code> or <code>Triage/FYI</code>, and this card reads those labels straight from Gmail. If nothing is showing, the job may not have run yet this morning." +
+    "This card reads your inbox straight from Gmail. Where your scheduled triage has labelled a thread <code>Triage/Urgent</code>, <code>Triage/Today</code>, <code>Triage/This week</code> or <code>Triage/FYI</code> it is shown under that heading; everything else unread is shown as it stands." +
     links + "</div>";
 }
 
@@ -1624,16 +1673,15 @@ function renderMail() {
     body.innerHTML = mailSetupHtml(
       !gcalClientId ? "Google is not connected yet."
       : !gcalReady() ? "connect"
-      : mailError === "none" ? "Your inbox has no Triage labels on it yet."
       : mailError ? mailError
       : mailUnreadOnly ? "unread-none"
-      : "Nothing is labelled for triage at the moment.");
+      : "Nothing in your inbox from the last fortnight.");
     wireMailCard(body);
     return;
   }
   const brief = (briefState && briefState.brief) || null;
   const items = src.items;
-  const needing = items.filter((i) => i.tier !== "fyi").length;
+  const needing = items.filter((i) => i.tier !== "fyi" && i.tier !== "other").length;
   // v155.1: threads that need a reply but are hidden because they have been read — Gmail's
   // own per-label counts, so this is exact. The first line must not say "nothing" over them.
   const readHidden = (mailUnreadOnly && src.source !== "brief")
@@ -1678,7 +1726,7 @@ function renderMail() {
   }
 
   let any = false;
-  for (const tier of TIERS) {
+  for (const tier of MAIL_ORDER.map(tierById)) {
     const mine = items.filter((i) => i.tier === tier.id);
     // v155.1: a tier with nothing unread but something read still gets its heading, so the
     // count and the way to see them are on screen rather than nowhere.
@@ -1711,6 +1759,8 @@ function wireMailCard(body) {
 
   const t = $("fyiToggle");
   if (t) t.addEventListener("click", () => { fyiOpen = !fyiOpen; renderMail(); });
+  const ot = $("otherToggle");
+  if (ot) ot.addEventListener("click", () => { otherOpen = !otherOpen; renderMail(); });
 
   const un = $("mailUnread");
   if (un) un.addEventListener("change", async () => {
@@ -1806,8 +1856,9 @@ function wireMailCard(body) {
    empty card.
 
    v155: the card can now READ a thread in full and SEND the reply — see "SENDING" below.
-   The list itself is still read exactly as before: headers only, one call per thread. The
-   body of an email is fetched only when its row is opened, and only for that thread.
+   v156: the card reads the INBOX as well as the four labels — see LIVE_TIERS above. The list
+   is still read the same way: headers only, one call per thread. The body of an email is
+   fetched only when its row is opened, and only for that thread.
 
    How the labels become the page:
      labels.list          -> the four Triage label ids
@@ -1876,8 +1927,22 @@ function gmThreadToItem(thread, tier) {
   const dateMs = Number(last.internalDate);
   // Gmail calls a thread unread if ANY message in it is, which is what its own list shows.
   const unread = msgs.some((m) => (m.labelIds || []).includes("UNREAD"));
+  /* v156: the tier is read off the thread's own labels, so one read decides it whichever
+     list it came from. A Triage label wins; without one the thread is scored and lands in
+     Inbox or Everything else. */
+  const all = [].concat(...msgs.map((m) => m.labelIds || []));
+  let score = 0;
+  if (!tier || tier === "inbox") {
+    const labelled = TIERS.find((t) => mailLabelIds[t.id] && all.includes(mailLabelIds[t.id]));
+    if (labelled) tier = labelled.id;
+    else {
+      score = gmPriority(gmHeader(last, "from") + " " + gmHeader(last, "subject") + " " + (last.snippet || ""), all);
+      tier = score < 0 ? "other" : "inbox";
+    }
+  }
   return {
     tier,
+    score,
     unread,
     from: gmSender(gmHeader(last, "from")),
     subject: gmHeader(last, "subject"),
@@ -1908,13 +1973,10 @@ async function loadGmail() {
       const l = (labels.labels || []).find((x) => String(x.name) === t.label);
       if (l) mailStats[t.id] = { total: Number(l.threadsTotal) || 0, unread: Number(l.threadsUnread) || 0 };
     }
-    const missing = TIERS.filter((t) => !byName.has(t.label));
-    if (missing.length === TIERS.length) {
-      mailError = "none";      // the triage has never run here — a different message entirely
-      return;
-    }
+    // v156: no Triage labels at all is not an error any more — it is a morning the job has
+    // not run, and the inbox is read regardless.
 
-    // The thread ids under each tier, in parallel: four small calls.
+    // The thread ids under each tier, in parallel: four small calls — plus the inbox itself.
     const lists = await Promise.all(TIERS.map((t) => {
       const id = byName.get(t.label);
       if (!id) return Promise.resolve({ tier: t, ids: [] });
@@ -1925,12 +1987,23 @@ async function loadGmail() {
         "&maxResults=" + GM_PER_TIER[t.id])
         .then((r) => ({ tier: t, ids: (r.threads || []).map((x) => x.id) }))
         .catch(() => ({ tier: t, ids: [] }));
-    }));
+    }).concat([
+      // the inbox, as the other dashboard reads it: unread and in the inbox, newest first
+      gmailGet("threads?q=" + encodeURIComponent(mailUnreadOnly ? GM_INBOX_QUERY_UNREAD : GM_INBOX_QUERY_ALL) +
+        "&maxResults=" + GM_INBOX_MAX)
+        .then((r) => ({ tier: LIVE_TIERS[0], ids: (r.threads || []).map((x) => x.id) }))
+        .catch((e) => { mailError = (e && e.message) || ""; return { tier: LIVE_TIERS[0], ids: [] }; }),
+    ]));
 
-    // Then one read per thread, a few at a time. Settled per thread: one awkward thread
-    // costs its own row and nothing else.
+    // Then one read per thread, a few at a time — each thread ONCE, however many lists it
+    // is on. Settled per thread: one awkward thread costs its own row and nothing else.
+    const seen = new Set();
     const jobs = [];
-    for (const { tier, ids } of lists) for (const id of ids) jobs.push({ tier, id });
+    for (const { tier, ids } of lists) for (const id of ids) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      jobs.push({ tier, id });
+    }
     const rows = await inChunks(jobs, GM_CONCURRENCY, async (j) => {
       try {
         const th = await gmailGet("threads/" + encodeURIComponent(j.id) +
@@ -1938,7 +2011,10 @@ async function loadGmail() {
         return gmThreadToItem(th, j.tier.id);
       } catch { return null; }
     });
-    mailLive = rows.filter(Boolean);
+    // Triage tiers keep Gmail's order (newest first); the inbox is ranked, then newest first.
+    mailLive = rows.filter(Boolean).sort((a, b) =>
+      (b.score || 0) - (a.score || 0) || String(b.receivedAt).localeCompare(String(a.receivedAt)));
+    if (mailLive.length) mailError = "";
   } catch (e) {
     mailError = (e && e.message) || "Could not read Gmail.";
   } finally {

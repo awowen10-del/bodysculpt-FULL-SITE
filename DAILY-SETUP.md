@@ -49,9 +49,15 @@ Your triage runs on Anthropic's servers, so it works with the laptop shut. What 
 do is send anything to an outside web address — a routine can reach your mail and nothing
 else. So the dashboard reads the result instead of waiting to be told about it.
 
-That is the better half of the bargain anyway: there is nothing between the two to break,
-nothing to go stale, and a morning the job did not run shows fewer labels rather than an
-empty card.
+The card also reads your **inbox itself**, live, every refresh — so a morning the job did
+not run still shows what is there. A thread the triage has labelled sits under its tier
+(Urgent / Today / This week / FYI). Anything unread it has not labelled sits under
+**Inbox**, ranked by how much it looks like it needs you (words like session, membership,
+cancel, invoice, payment score it up; Gmail's Important flag too), with newsletters,
+notifications and anything Gmail files under Promotions / Social / Updates folded into
+**Everything else** as a count you can clear in one go. The page never writes a Triage
+label — the job still owns those, and the day it runs the same threads move up into their
+tiers.
 
 | Label your job applies | Tier on the dashboard |
 |---|---|
@@ -96,11 +102,11 @@ to third-party apps**.
 
 - **"Google is not connected yet"** — do the calendar setup in `CALENDAR-SETUP.md`; the
   same connection covers both.
-- **"Your inbox has no Triage labels on it yet"** — the job has not run since the labels
-  were set up, or it is using different label names. They must be exactly `Triage/Urgent`,
-  `Triage/Today`, `Triage/This week` and `Triage/FYI`.
-- **"Nothing is labelled for triage at the moment"** — the labels exist and nothing
-  currently carries one. A genuinely clear inbox looks like this.
+- **Only Inbox and Everything else, no tiers** — the job has not run yet today, or it is
+  using different label names. They must be exactly `Triage/Urgent`, `Triage/Today`,
+  `Triage/This week` and `Triage/FYI`. The inbox still shows either way.
+- **"Nothing unread in your inbox"** — a genuinely clear inbox looks like this. Untick
+  **Unread only** to look back over the last fortnight.
 
 ### The optional extra
 
