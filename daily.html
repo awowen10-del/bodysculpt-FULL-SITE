@@ -459,19 +459,32 @@
      Four tiers, hardest first. The tier is stated by a coloured rail down the left of its
      rows rather than by four differently-shaped boxes: it is one list, read top to bottom,
      and the colour tells you where the line is between "before breakfast" and "this week". */
-  .tier{margin-top:var(--sp-5);}
-  .tier:first-of-type{margin-top:var(--sp-2);}
-  .tier-h{display:flex;align-items:center;gap:9px;margin-bottom:var(--sp-2);}
+  .tier{margin-top:var(--sp-4);padding-top:var(--sp-3);border-top:1px solid var(--line);}
+  .tier:first-of-type{margin-top:0;padding-top:0;border-top:0;}
+  .tier-h{display:flex;align-items:center;gap:9px;margin-bottom:var(--sp-2);min-height:26px;}
   .tier-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;}
   .tier-name{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;
     color:var(--ink-dim);}
   .tier-n{font-size:11.5px;font-weight:700;color:var(--ink-faint);
     font-variant-numeric:tabular-nums;}
-  .tier-open{margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:11.5px;
+  /* v160: the link to the label in Gmail is a quiet word with a glyph, not a full sentence
+     repeated under every heading — and the two secondary controls sit together on the right */
+  .tier-r{margin-left:auto;display:inline-flex;align-items:center;gap:2px;flex:0 0 auto;}
+  .tier-open{display:inline-flex;align-items:center;gap:4px;font-size:11px;
     font-weight:600;color:var(--ink-faint);text-decoration:none;padding:3px 7px;
     border-radius:var(--r-sm);transition:color var(--tap),background var(--tap);}
   .tier-open:hover{color:var(--orange);background:rgba(var(--orange-rgb),.09);}
   .tier-open .ic{width:12px;height:12px;}
+  /* v160: a folded pile's heading IS the toggle — the "Show 18 for information" line under
+     it was a second control for the same thing */
+  .tier-fold{display:inline-flex;align-items:center;gap:9px;font-family:inherit;background:none;
+    border:0;padding:3px 8px 3px 4px;margin-left:-4px;border-radius:var(--r-sm);cursor:pointer;
+    color:inherit;transition:background var(--tap);}
+  .tier-fold:hover{background:var(--card-2);}
+  .tier-fold:focus-visible{outline:none;box-shadow:var(--focus);}
+  .tier-fold .chev{width:13px;height:13px;color:var(--ink-faint);transition:transform var(--tap);}
+  .tier-fold[aria-expanded="true"] .chev{transform:rotate(180deg);}
+  .tier-blurb{font-size:11.5px;color:var(--ink-faint);}
   .tier-urgent .tier-dot{background:var(--red);}     .tier-urgent .tier-name{color:var(--tint-red);}
   .tier-today  .tier-dot{background:var(--amber);}   .tier-today  .tier-name{color:var(--tint-amber);}
   /* the dots are the colours the Gmail labels themselves are already wearing, so the page
@@ -485,7 +498,7 @@
   /* one email */
   .mail{display:block;text-decoration:none;color:inherit;position:relative;
     border:1px solid var(--line);border-left-width:3px;border-radius:var(--r-md);
-    padding:11px 13px 11px 14px;margin-top:7px;background:var(--card);
+    padding:10px 12px 10px 13px;margin-top:6px;background:var(--card);
     transition:border-color var(--tap),background var(--tap),transform var(--tap);}
   .mail:hover{background:var(--card-2);transform:translateX(2px);}
   .mail:focus-visible{outline:none;box-shadow:var(--focus);}
@@ -502,7 +515,8 @@
     flex:0 0 auto;font-variant-numeric:tabular-nums;}
   .mail-subj{font-size:13.5px;font-weight:600;color:var(--ink-strong);line-height:1.35;
     margin-top:3px;}
-  .mail-why{font-size:12.5px;color:var(--ink-dim);line-height:1.5;margin-top:4px;}
+  .mail-why{font-size:12.5px;color:var(--ink-dim);line-height:1.5;margin-top:3px;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
   .mail-act{display:inline-block;font-size:10.5px;font-weight:700;text-transform:uppercase;
     letter-spacing:.07em;margin-top:8px;padding:3px 8px;border-radius:var(--r-pill);
     background:var(--navy-2);color:var(--ink-dim);border:1px solid var(--line);}
@@ -529,18 +543,23 @@
   .mail-dgo .ic{width:11px;height:11px;}
   .mail-dtext{font-size:12px;color:var(--ink-dim);line-height:1.5;margin-top:5px;
     display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
-  /* a row whose reply is written wants a different verb from one that does not */
-  .mail-act.ready{background:rgba(var(--green-rgb),.10);color:var(--tint-green);
-    border-color:rgba(var(--green-rgb),.26);}
 
   /* --- v147: getting rid of what does not need you ---
      The tools sit quietly until the row is under the cursor, because a list covered in
      buttons reads as a form rather than as a morning's post. On a touch screen there is no
      hover, so they are simply always there. */
-  .mail-foot{display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap;margin-top:8px;}
-  .mail-tools{margin-left:auto;display:flex;gap:2px;opacity:0;transition:opacity var(--tap);}
+  /* v160: the tools used to sit in a footer that reserved a whole empty line under every
+     row while invisible — the "empty bottom" of each email. Now they float over the top
+     right corner (over the timestamp) only while the row is under the cursor, and the row
+     is exactly as tall as its words. A touch screen has no hover, so there they are a
+     plain line under the row instead. */
+  .mail-tools{position:absolute;top:6px;right:7px;display:flex;gap:2px;opacity:0;padding:2px;
+    border-radius:var(--r-sm);background:var(--card-2);transition:opacity var(--tap);}
   .mail:hover .mail-tools,.mail-tools:focus-within{opacity:1;}
-  @media(hover:none){ .mail-tools{opacity:1;} }
+  @media(hover:none){
+    .mail-tools{position:static;opacity:1;margin-top:6px;padding:0;background:none;
+      flex-wrap:wrap;}
+  }
   .mail-tool{display:inline-flex;align-items:center;gap:5px;text-decoration:none;font-size:11px;font-weight:600;
     color:var(--ink-faint);padding:4px 8px;border-radius:var(--r-sm);cursor:pointer;
     white-space:nowrap;transition:color var(--tap),background var(--tap);}
@@ -560,7 +579,7 @@
      textarea, the same one the check-in uses — because a reply is prose, not a form. */
   .mail{cursor:pointer;}
   .mail.open{background:var(--card-2);transform:none;cursor:default;}
-  .mail.open>.mail-top,.mail.open>.mail-subj,.mail.open>.mail-foot{cursor:pointer;}
+  .mail.open>.mail-top,.mail.open>.mail-subj,.mail.open>.mail-act{cursor:pointer;}
   .mail.open .mail-tools{opacity:1;}
   .mail-open{margin-top:12px;padding-top:12px;border-top:1px solid var(--line);}
   .msg{padding:8px 0;border-bottom:1px dashed var(--line);}
@@ -623,14 +642,6 @@
   .mail.read{background:var(--card-2);}
   .mail.read .mail-subj{font-weight:500;color:var(--ink-dim);}
   .mail.read .mail-from{color:var(--ink-faint);}
-
-  /* the FYI pile stays shut — it is a count, not a queue */
-  .fyi-toggle{font-family:inherit;font-size:12.5px;color:var(--ink-faint);background:none;
-    border:0;padding:6px 0;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
-  .fyi-toggle:hover{color:var(--ink);}
-  .fyi-toggle:focus-visible{outline:none;box-shadow:var(--focus);border-radius:var(--r-sm);}
-  .fyi-toggle .ic{width:13px;height:13px;transition:transform var(--tap);}
-  .fyi-toggle[aria-expanded="true"] .ic{transform:rotate(180deg);}
 
   /* --- money that needs you --- */
   .mrow{display:block;text-decoration:none;color:inherit;border:1px solid var(--line);
@@ -1102,6 +1113,7 @@
 <symbol id="ic-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></symbol>
 <symbol id="ic-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 018 0v3"/></symbol>
 <symbol id="ic-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 3.5L16 11H5"/></symbol>
+<symbol id="ic-external" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v4a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2h4"/></symbol>
 <symbol id="ic-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 13.5a4 4 0 006 .4l2.5-2.5a4.2 4.2 0 00-6-6l-1.4 1.4"/><path d="M13.5 10.5a4 4 0 00-6-.4L5 12.6a4.2 4.2 0 006 6l1.4-1.4"/></symbol>
 <symbol id="ic-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.3l3.4 2"/></symbol>
 <symbol id="ic-headphones" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15v-3a8 8 0 0116 0v3"/><path d="M4 15a2 2 0 012-2h1a1 1 0 011 1v5a1 1 0 01-1 1H6a2 2 0 01-2-2v-3zM20 15a2 2 0 00-2-2h-1a1 1 0 00-1 1v5a1 1 0 001 1h1a2 2 0 002-2v-3z"/></symbol>
@@ -1120,7 +1132,7 @@
 <symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="M2.5 9.8h19M6 15.2h3.4"/></symbol>
 <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.05" fill="currentColor" stroke="none"/></symbol>
 </defs></svg>
-<!-- build v159 · the-week-card -->
+<!-- build v160 · the-mail-card -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -1508,18 +1520,20 @@ function mailItemHtml(it) {
     '<div class="mail-subj">' + esc(it.subject || "(no subject)") + "</div>" +
     // the opening line stands in for the email; once the email itself is on screen it goes
     (it.why && !open ? '<div class="mail-why">' + esc(it.why) + "</div>" : "") +
-    '<span class="mail-foot">' +
-      (it.action ? '<span class="mail-act' + (hasDraft ? " ready" : "") + '">' + esc(it.action) + "</span>" : "") +
-      '<span class="mail-tools">' +
-        '<a class="mail-tool" href="' + esc(href) + '" target="_blank" rel="noopener" title="Open this thread in Gmail">' +
-          '<svg class="ic"><use href="#ic-link"/></svg>Open in Gmail</a>' +
-        '<span class="mail-tool" role="button" tabindex="0" data-clear="' + esc(it.threadId) + '" ' +
-          'title="Mark it read and take it off this list">' +
-          '<svg class="ic"><use href="#ic-check"/></svg>Not for me</span>' +
-        '<span class="mail-tool bin" role="button" tabindex="0" data-bin="' + esc(it.threadId) + '" ' +
-          'title="Move it to Gmail\u2019s bin — recoverable for 30 days">' +
-          '<svg class="ic"><use href="#ic-close"/></svg>Bin it</span>' +
-      "</span></span>" +
+    // v160: the tools take no room of their own — see .mail-tools
+    '<span class="mail-tools">' +
+      '<a class="mail-tool" href="' + esc(href) + '" target="_blank" rel="noopener" title="Open this thread in Gmail">' +
+        '<svg class="ic"><use href="#ic-external"/></svg>Open in Gmail</a>' +
+      '<span class="mail-tool" role="button" tabindex="0" data-clear="' + esc(it.threadId) + '" ' +
+        'title="Mark it read and take it off this list">' +
+        '<svg class="ic"><use href="#ic-check"/></svg>Not for me</span>' +
+      '<span class="mail-tool bin" role="button" tabindex="0" data-bin="' + esc(it.threadId) + '" ' +
+        'title="Move it to Gmail\u2019s bin — recoverable for 30 days">' +
+        '<svg class="ic"><use href="#ic-close"/></svg>Bin it</span>' +
+    "</span>" +
+    // v160: with a draft on show the block beneath already says "Review and send" — the
+    // pill saying "Send the reply" above it was the same instruction twice
+    (it.action && !hasDraft ? '<span class="mail-act">' + esc(it.action) + "</span>" : "") +
     (hasDraft && !open
       ? '<span class="mail-draft">' +
           '<span class="mail-dhead"><svg class="ic"><use href="#ic-check"/></svg>Reply written' +
@@ -1597,8 +1611,10 @@ function mailReplyHtml(it, th) {
 }
 
 function tierHtml(tier, items) {
-  const open = '<a class="tier-open" href="' + esc(tier.label ? labelUrl(tier.label) : tier.href) + '" target="_blank" rel="noopener">' +
-    "Open in Gmail<svg class=\"ic\"><use href=\"#ic-arrow-right\"/></svg></a>";
+  // v160: "Gmail ↗" — the label's own list, one quiet word rather than a sentence per heading
+  const open = '<a class="tier-open" href="' + esc(tier.label ? labelUrl(tier.label) : tier.href) + '" target="_blank" rel="noopener" ' +
+    'title="Open ' + esc(tier.label || "the inbox") + ' in Gmail">' +
+    "Gmail<svg class=\"ic\"><use href=\"#ic-external\"/></svg></a>";
   // Gmail's own exact figure for this label, so "already read" is a fact, not an estimate.
   const st = mailStats[tier.id];
   const hidden = (mailUnreadOnly && st) ? Math.max(0, st.total - st.unread) : 0;
@@ -1606,27 +1622,34 @@ function tierHtml(tier, items) {
      and the card would say "nothing needs a reply" over five threads that did. Ash, looking
      at exactly that: "Any ideas why it's showing NO emails that need a reply?" A hidden thing
      has to say it is hidden, and how to see it. */
-  const head = '<div class="tier-h">' +
-    '<span class="tier-dot"></span>' +
+  const label = '<span class="tier-dot"></span>' +
     '<span class="tier-name">' + esc(tier.name) + "</span>" +
-    '<span class="tier-n">' + items.length + "</span>" +
+    '<span class="tier-n">' + items.length + "</span>";
+  const rest =
     (hidden ? '<span class="tier-read">' + hidden + " already read" +
       (items.length ? "" : " \u2014 untick Unread only to see " + (hidden === 1 ? "it" : "them")) + "</span>" : "") +
+    '<span class="tier-r">' +
     (items.length > 1
       ? '<button type="button" class="tier-clear" data-cleartier="' + esc(tier.id) + '">Clear all ' +
         items.length + "</button>" : "") +
-    open + "</div>";
+    open + "</span>";
+
+  const head = '<div class="tier-h">' + label + rest + "</div>";
 
   // FYI is deliberately a number you can ignore, and so is Everything else (v156). The
   // rest is a list you cannot.
+  // v160: the pile's heading is the thing you press to open it — one control, not two.
   if (tier.id === "fyi" || tier.fold) {
     const isFyi = tier.id === "fyi";
     if (!items.length) return '<div class="tier tier-' + esc(tier.id) + '">' + head + "</div>";
     const shown = isFyi ? fyiOpen : otherOpen;
-    const toggle = '<button type="button" class="fyi-toggle" id="' + (isFyi ? "fyiToggle" : "otherToggle") + '" aria-expanded="' + (shown ? "true" : "false") + '">' +
-      "<svg class=\"ic\"><use href=\"#ic-chevron\"/></svg>" +
-      (shown ? "Hide" : "Show") + " " + items.length + (isFyi ? " for information" : " you can probably ignore") + "</button>";
-    return '<div class="tier tier-' + esc(tier.id) + '">' + head + toggle +
+    const blurb = isFyi ? "for information" : "you can probably ignore";
+    const foldHead = '<div class="tier-h">' +
+      '<button type="button" class="tier-fold" id="' + (isFyi ? "fyiToggle" : "otherToggle") + '" aria-expanded="' + (shown ? "true" : "false") +
+        '" aria-label="' + (shown ? "Hide" : "Show") + " " + items.length + " " + blurb + '">' +
+        label + '<svg class="ic chev"><use href="#ic-chevron"/></svg></button>' +
+      '<span class="tier-blurb">' + blurb + "</span>" + rest + "</div>";
+    return '<div class="tier tier-' + esc(tier.id) + '">' + foldHead +
       (shown ? items.map(mailItemHtml).join("") : "") + "</div>";
   }
   return '<div class="tier tier-' + tier.id + '">' + head + items.map(mailItemHtml).join("") + "</div>";
@@ -1975,7 +1998,7 @@ function gmThreadToItem(thread, tier) {
       tier = score < 0 ? "other" : "inbox";
     }
   }
-  return {
+  const it = {
     tier,
     score,
     unread,
@@ -1990,6 +2013,22 @@ function gmThreadToItem(thread, tier) {
     draftId: draft ? draft.id : "",
     draftPreview: draft ? String(draft.snippet || "").replace(/\s+/g, " ").trim() : "",
   };
+  // v160: a snippet arrives from Gmail already HTML-encoded ("won&#39;t"), and the page
+  // encodes everything again on the way out — so the screen showed the code, not the word.
+  // Decode it ONCE here, into plain text; esc() at render time then does its job properly.
+  it.why = gmUnentity(it.why);
+  it.draftPreview = gmUnentity(it.draftPreview);
+  return it;
+}
+
+/* Gmail's `snippet` is HTML-escaped text, not HTML: the only things in it are entities.
+   Numeric ones and the five named ones cover everything Gmail emits. Plain string work,
+   no DOM — nothing here can run. */
+function gmUnentity(s) {
+  return String(s || "")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&(amp|lt|gt|quot|apos|nbsp);/g, (_, k) => ({ amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " }[k]));
 }
 
 async function loadGmail() {

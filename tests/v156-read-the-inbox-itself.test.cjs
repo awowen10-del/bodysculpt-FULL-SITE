@@ -75,7 +75,7 @@ const between = (a, b) => js.slice(js.indexOf(a), js.indexOf(b));
   /* ============ 3. the ranking and the tier decision, run for real ============ */
   const src = "const GMAIL = 'https://mail.google.com/mail/u/0/#';\nvar mailLabelIds = { urgent: 'Label_21', today: 'Label_22', week: 'Label_23', fyi: 'Label_24' };\n" +
     between("const TIERS = [", "const labelUrl = ") +
-    between("const gmHeader = (msg, name) => {", "// \"Karen Whitfield") + fn("gmSender") + fn("gmThreadToItem");
+    between("const gmHeader = (msg, name) => {", "// \"Karen Whitfield") + fn("gmSender") + fn("gmThreadToItem") + fn("gmUnentity");   // v160: the snippet decoder
   const ctx = vm.createContext({ console });
   vm.runInContext(src + "\nthis.out = { gmPriority, gmThreadToItem };", ctx);
   const { gmPriority, gmThreadToItem } = ctx.out;
