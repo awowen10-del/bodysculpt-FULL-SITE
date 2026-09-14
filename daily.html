@@ -913,7 +913,10 @@
   @media(max-width:980px){ .day-top{grid-template-columns:1fr;} }
   .day-top .card{margin:0;}
   .ck-card[hidden] + .today-card{grid-column:1 / -1;}
-  .today-card{padding:16px 20px 18px;}
+  /* v158: a column, so the focus block can anchor to the card's bottom edge rather than
+     leaving a void under the checklist whenever the questions beside it are open */
+  .today-card{padding:16px 20px 18px;display:flex;flex-direction:column;}
+  #todayBody{display:flex;flex-direction:column;flex:1;min-height:0;}
   /* the alert now lives inside the money card, so it wants the card's own margins */
   #moneyBody + .fin-alert,.card > .fin-alert{margin:0 0 var(--sp-3);}
 
@@ -954,35 +957,60 @@
   .ck-tag.yes{background:rgba(var(--green-rgb),.13);color:var(--tint-green);}
   .ck-tag.no{background:rgba(var(--amber-rgb),.13);color:var(--tint-amber);}
 
-  /* --- the non-negotiables, now ticked here --- */
-  .nn-count{float:right;font-weight:700;color:var(--ink-dim);letter-spacing:0;
-    text-transform:none;font-size:11px;}
-  .nn{display:flex;align-items:center;gap:9px;width:100%;text-align:left;font-family:inherit;
-    font-size:12.5px;color:var(--ink-dim);padding:7px 4px;border:0;border-top:1px solid var(--line);
-    background:none;cursor:pointer;line-height:1.4;transition:color var(--tap);}
-  .nn:first-of-type{border-top:0;}
-  .nn:hover{color:var(--ink);}
-  .nn:focus-visible{outline:none;box-shadow:var(--focus);border-radius:var(--r-sm);}
-  .nn-tick{flex:0 0 auto;width:17px;height:17px;border-radius:5px;border:1.5px solid var(--ink-faint);
-    display:inline-flex;align-items:center;justify-content:center;transition:background var(--tap),border-color var(--tap);}
-  .nn-tick .ic{width:11px;height:11px;color:var(--card);}
+  /* --- the non-negotiables, ticked here ---
+     v158: the row is the control. A comfortable row with the detail written under the name
+     (not hidden in a browser tooltip that lands on top of the heading), a tick that fills
+     green, and a done row that reads as done. The count is a count AND three little segments. */
+  .nn-head{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);margin-bottom:4px;}
+  .nn-head .one-k{margin:0;}
+  .nn-prog{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:700;
+    color:var(--ink-dim);letter-spacing:0;}
+  .nn-prog.all{color:var(--tint-green);}
+  .nn-segs{display:inline-flex;gap:3px;}
+  .nn-seg{width:14px;height:5px;border-radius:3px;background:var(--navy-2);transition:background var(--tap);}
+  .nn-seg.on{background:var(--green);}
+  .nn{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font-family:inherit;
+    padding:9px 8px;border:0;border-radius:var(--r-md);background:none;cursor:pointer;
+    transition:background var(--tap);}
+  .nn:hover{background:var(--card-2);}
+  .nn:focus-visible{outline:none;box-shadow:var(--focus);}
+  .nn-tick{flex:0 0 auto;width:20px;height:20px;border-radius:6px;border:1.5px solid var(--ink-faint);
+    background:var(--card);display:inline-flex;align-items:center;justify-content:center;
+    transition:background var(--tap),border-color var(--tap);}
+  .nn-tick .ic{width:12px;height:12px;color:var(--card);}
   .nn:hover .nn-tick{border-color:var(--green);}
-  .nn.on{color:var(--ink);}
+  .nn-txt{min-width:0;flex:1;display:flex;flex-direction:column;gap:1px;}
+  .nn-s{font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.3;letter-spacing:-.005em;
+    transition:color var(--tap);}
+  .nn-sub{font-size:11.5px;color:var(--ink-faint);line-height:1.3;}
   .nn.on .nn-tick{background:var(--green);border-color:var(--green);}
-  .ft-idle-box{margin-top:var(--sp-4);padding-top:var(--sp-3);border-top:1px solid var(--line);}
-  .ft-presets{display:flex;gap:var(--sp-2);flex-wrap:wrap;margin-top:2px;}
-  .ft-preset{flex:1;min-width:52px;font-family:inherit;font-size:14px;font-weight:800;
-    letter-spacing:-.02em;color:var(--ink);background:var(--card-2);border:1px solid var(--line);
-    border-radius:var(--r-md);padding:10px 4px;cursor:pointer;
-    transition:background var(--tap),border-color var(--tap),color var(--tap);}
-  .ft-preset:hover{background:rgba(var(--orange-rgb),.10);border-color:var(--orange);color:var(--orange);}
-  .ft-preset:focus-visible{outline:none;box-shadow:var(--focus);}
-  .ft-hint{font-size:11.5px;color:var(--ink-faint);margin-top:7px;line-height:1.45;}
-  .ft-dial{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;
-    font-weight:600;color:var(--teal-bright);text-decoration:none;padding:5px 10px;
-    border-radius:var(--r-pill);background:rgba(var(--teal-rgb),.10);}
+  .nn.on .nn-s{color:var(--ink-faint);text-decoration:line-through;
+    text-decoration-color:rgba(var(--green-rgb),.45);text-decoration-thickness:1.5px;}
+  .nn.on .nn-sub{opacity:.6;}
+  .nn-box{padding-bottom:var(--sp-4);}
+
+  /* the timer, idle: one heading row (the playlist link sits on its right, where it belongs)
+     and the four lengths as ONE segmented control rather than four loose tiles */
+  .ft-idle-box{margin-top:auto;padding-top:var(--sp-4);border-top:1px solid var(--line);}
+  .ft-head{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);margin-bottom:8px;}
+  .ft-head .one-k{margin:0;}
+  .ft-presets{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);
+    border-radius:var(--r-md);overflow:hidden;background:var(--card);}
+  .ft-preset{font-family:inherit;font-size:13.5px;font-weight:700;letter-spacing:-.01em;color:var(--ink);
+    background:none;border:0;border-left:1px solid var(--line);padding:10px 4px;cursor:pointer;
+    transition:background var(--tap),color var(--tap);}
+  .ft-preset:first-child{border-left:0;}
+  .ft-preset:hover{background:rgba(var(--orange-rgb),.08);color:var(--orange);}
+  .ft-preset:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--orange);position:relative;z-index:1;}
+  .ft-preset small{display:block;font-size:10px;font-weight:600;color:var(--ink-faint);letter-spacing:.02em;margin-top:1px;}
+  .ft-preset:hover small{color:inherit;opacity:.8;}
+  .ft-hint{font-size:12px;color:var(--ink-dim);line-height:1.5;padding:10px 12px;
+    background:var(--card-2);border-radius:var(--r-md);}
+  .ft-dial{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+    color:var(--teal-bright);text-decoration:none;padding:4px 10px 4px 8px;
+    border-radius:var(--r-pill);background:rgba(var(--teal-rgb),.10);transition:background var(--tap);}
   .ft-dial:hover{background:rgba(var(--teal-rgb),.2);}
-  .ft-dial .ic{width:11px;height:11px;}
+  .ft-dial .ic{width:13px;height:13px;}
 
   /* --- THE FOCUS BAR ---
      "it needs to be like 'wow, this is time sensitive, focus'." So when a block is running
@@ -1067,6 +1095,7 @@
 <symbol id="ic-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 3.5L16 11H5"/></symbol>
 <symbol id="ic-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 13.5a4 4 0 006 .4l2.5-2.5a4.2 4.2 0 00-6-6l-1.4 1.4"/><path d="M13.5 10.5a4 4 0 00-6-.4L5 12.6a4.2 4.2 0 006 6l1.4-1.4"/></symbol>
 <symbol id="ic-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.3l3.4 2"/></symbol>
+<symbol id="ic-headphones" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15v-3a8 8 0 0116 0v3"/><path d="M4 15a2 2 0 012-2h1a1 1 0 011 1v5a1 1 0 01-1 1H6a2 2 0 01-2-2v-3zM20 15a2 2 0 00-2-2h-1a1 1 0 00-1 1v5a1 1 0 001 1h1a2 2 0 002-2v-3z"/></symbol>
 <symbol id="ic-dot" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="12" r="5"/></symbol>
 <!-- the training set: wpDetectTrainingEmoji picks one of these from the task's title -->
 <symbol id="ic-lift" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6M6 6.5v11M18 6.5v11M21 9v6M6 12h12"/></symbol>
@@ -1082,7 +1111,7 @@
 <symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="M2.5 9.8h19M6 15.2h3.4"/></symbol>
 <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.05" fill="currentColor" stroke="none"/></symbol>
 </defs></svg>
-<!-- build v157 · my-dashboard -->
+<!-- build v158 · the-today-card -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -2650,9 +2679,10 @@ const CK_FIELDS = [
   { key: "oneThing",  label: "If you only complete one thing today, what is it?", ph: "The one thing…" },
 ];
 const CK_HABITS = [
-  { id: "read",     short: "Read 10 pages",              label: "Read a minimum 10 pages of a self-development book" },
-  { id: "mobility", short: "10 minutes of mobility",     label: "Mobility — minimum 10 minutes of Pliability" },
-  { id: "house",    short: "One thing around the house", label: "Do one thing around the house that will make a difference" },
+  // v158: `sub` is the quiet second line under the name — what actually counts
+  { id: "read",     short: "Read 10 pages",              sub: "A self-development book, ten pages minimum" },
+  { id: "mobility", short: "10 minutes of mobility",     sub: "Pliability, ten minutes minimum" },
+  { id: "house",    short: "One thing around the house", sub: "Something that will actually make a difference" },
 ];
 const CK_EVENING_HOUR = 14;      // from when the day asks whether the one thing got done
 
@@ -2988,29 +3018,35 @@ function renderToday() {
   // v152: the non-negotiables are TICKED here now, not read here and ticked somewhere else.
   const habits = ckEntry(ckToday()).habits;
   const ticked = CK_HABITS.filter((h) => habits[h.id] === true).length;
+  const all = ticked === CK_HABITS.length;
   html += '<div class="nn-box">';
-  html += '<div class="one-k">Daily non-negotiables<span class="nn-count">' + ticked + " of " + CK_HABITS.length + "</span></div>";
+  html += '<div class="nn-head"><div class="one-k">Daily non-negotiables</div>' +
+    '<div class="nn-prog' + (all ? " all" : "") + '"><span class="nn-segs">' +
+      CK_HABITS.map((_, i) => '<span class="nn-seg' + (i < ticked ? " on" : "") + '"></span>').join("") +
+    "</span>" + (all ? "All done" : ticked + " of " + CK_HABITS.length) + "</div></div>";
   for (const h of CK_HABITS) {
     const on = habits[h.id] === true;
     html += '<button type="button" class="nn' + (on ? " on" : "") + '" data-habit="' + esc(h.id) +
-      '" title="' + esc(h.label) + '" aria-pressed="' + (on ? "true" : "false") + '">' +
+      '" aria-pressed="' + (on ? "true" : "false") + '">' +
       '<span class="nn-tick">' + (on ? '<svg class="ic"><use href="#ic-check"/></svg>' : "") + "</span>" +
-      esc(h.short) + "</button>";
+      '<span class="nn-txt"><span class="nn-s">' + esc(h.short) + '</span>' +
+      (h.sub ? '<span class="nn-sub">' + esc(h.sub) + "</span>" : "") + "</span></button>";
   }
   html += "</div>";
 
   // The timer, idle. Running, it is a bar across the top of the page instead.
-  html += '<div class="nn-box ft-idle-box"><div class="one-k">Focus block</div>';
+  html += '<div class="ft-idle-box"><div class="ft-head"><div class="one-k">Focus block</div>' +
+    '<a class="ft-dial" href="' + esc(FT_PLAYLIST_URL) + '" target="_blank" rel="noopener noreferrer" ' +
+    'title="Open the focus playlist in Spotify" onclick="return ftDialIn(this)">' +
+    '<svg class="ic"><use href="#ic-headphones"/></svg>Dial in</a></div>';
   if (ftTimer) {
     html += '<div class="ft-hint">A ' + ftTimer.durationMin + "-minute block is " +
       (ftTimer.finished ? "finished" : ftTimer.pausedRemaining != null ? "paused" : "running") +
       " — see the bar at the top of the page.</div>";
   } else {
     html += '<div class="ft-presets">' + FT_PRESETS.map((m) =>
-      '<button type="button" class="ft-preset" id="ftGo' + m + '" data-min="' + m + '">' + m + "m</button>").join("") +
-      '</div><a class="ft-dial" href="' + esc(FT_PLAYLIST_URL) + '" target="_blank" rel="noopener noreferrer" ' +
-      'title="Open the focus playlist in Spotify" onclick="return ftDialIn(this)">' +
-      '<svg class="ic"><use href="#ic-dot"/></svg>Dial in</a>';
+      '<button type="button" class="ft-preset" id="ftGo' + m + '" data-min="' + m + '">' + m + "<small>min</small></button>").join("") +
+      "</div>";
   }
   html += "</div>";
 
