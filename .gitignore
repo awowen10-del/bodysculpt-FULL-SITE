@@ -1,0 +1,13 @@
+# Downloaded support code for the Netlify Functions (npm install recreates it).
+# Thousands of files, none of them ours — never belongs in the repo.
+node_modules/
+
+# Netlify CLI's local working directory: local blob sandbox, cached state, build output.
+.netlify/
+
+# Local environment variables (API keys). MUST never be committed.
+.env
+.env.*
+
+# macOS Finder clutter
+.DS_Store
