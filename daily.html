@@ -1514,11 +1514,16 @@ function tierHtml(tier, items) {
   // Gmail's own exact figure for this label, so "already read" is a fact, not an estimate.
   const st = mailStats[tier.id];
   const hidden = (mailUnreadOnly && st) ? Math.max(0, st.total - st.unread) : 0;
+  /* v155.1: a tier whose every thread has been read used to VANISH — no heading, no count —
+     and the card would say "nothing needs a reply" over five threads that did. Ash, looking
+     at exactly that: "Any ideas why it's showing NO emails that need a reply?" A hidden thing
+     has to say it is hidden, and how to see it. */
   const head = '<div class="tier-h">' +
     '<span class="tier-dot"></span>' +
     '<span class="tier-name">' + esc(tier.name) + "</span>" +
     '<span class="tier-n">' + items.length + "</span>" +
-    (hidden ? '<span class="tier-read">' + hidden + " already read</span>" : "") +
+    (hidden ? '<span class="tier-read">' + hidden + " already read" +
+      (items.length ? "" : " \u2014 untick Unread only to see " + (hidden === 1 ? "it" : "them")) + "</span>" : "") +
     (items.length > 1
       ? '<button type="button" class="tier-clear" data-cleartier="' + esc(tier.id) + '">Clear all ' +
         items.length + "</button>" : "") +
@@ -1526,6 +1531,7 @@ function tierHtml(tier, items) {
 
   // FYI is deliberately a number you can ignore. Everything else is a list you cannot.
   if (tier.id === "fyi") {
+    if (!items.length) return '<div class="tier tier-fyi">' + head + "</div>";
     const toggle = '<button type="button" class="fyi-toggle" id="fyiToggle" aria-expanded="' + (fyiOpen ? "true" : "false") + '">' +
       "<svg class=\"ic\"><use href=\"#ic-chevron\"/></svg>" +
       (fyiOpen ? "Hide" : "Show") + " " + items.length + " for information</button>";
@@ -1628,12 +1634,23 @@ function renderMail() {
   const brief = (briefState && briefState.brief) || null;
   const items = src.items;
   const needing = items.filter((i) => i.tier !== "fyi").length;
+  // v155.1: threads that need a reply but are hidden because they have been read — Gmail's
+  // own per-label counts, so this is exact. The first line must not say "nothing" over them.
+  const readHidden = (mailUnreadOnly && src.source !== "brief")
+    ? TIERS.filter((t) => t.id !== "fyi").reduce((n, t) => {
+        const st = mailStats[t.id];
+        return n + (st ? Math.max(0, st.total - st.unread) : 0);
+      }, 0)
+    : 0;
 
   // What this card is FOR changed once the job started writing the replies: it is not a
   // list of work, it is a list of decisions. Say that in the first line.
   const drafted = items.filter((i) => i.draftId || i.draftPreview).length;
   sub.textContent = !needing
-    ? "Nothing needs a reply. The rest is for information."
+    ? (readHidden
+        ? "Nothing unread needs a reply. " + readHidden + (readHidden === 1 ? " thread that does has" : " threads that do have") +
+          " been read \u2014 untick Unread only to see " + (readHidden === 1 ? "it." : "them.")
+        : "Nothing needs a reply. The rest is for information.")
     : drafted
       ? needing + (needing === 1 ? " thread needs you" : " threads need you") + " · " +
         drafted + (drafted === 1 ? " reply is written and waiting to be sent." : " replies are written and waiting to be sent.")
@@ -1663,7 +1680,11 @@ function renderMail() {
   let any = false;
   for (const tier of TIERS) {
     const mine = items.filter((i) => i.tier === tier.id);
-    if (!mine.length) continue;
+    // v155.1: a tier with nothing unread but something read still gets its heading, so the
+    // count and the way to see them are on screen rather than nowhere.
+    const st = mailStats[tier.id];
+    const readOnly = mailUnreadOnly && src.source !== "brief" && !!st && st.total - st.unread > 0;
+    if (!mine.length && !readOnly) continue;
     any = true;
     html += tierHtml(tier, mine);
   }

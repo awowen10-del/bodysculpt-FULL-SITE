@@ -218,7 +218,7 @@ async function loadStripe(env, responder) {
   // the counts are Gmail's own, not a guess
   assert.ok(/threadsTotal\) \|\| 0, unread: Number\(l\.threadsUnread\)/.test(js),
     "the exact totals come from labels.list, which was already being fetched");
-  assert.ok(/st\.total - st\.unread/.test(js) && /already read<\/span>/.test(js),
+  assert.ok(/st\.total - st\.unread/.test(js) && /" already read"/.test(js),   // v155.1: the span now carries a hint too
     "each tier says how many it is hiding");
   assert.ok(/unread: msgs\.some\(\(m\) => \(m\.labelIds \|\| \[\]\)\.includes\("UNREAD"\)\)/.test(js) ||
     /const unread = msgs\.some/.test(js),

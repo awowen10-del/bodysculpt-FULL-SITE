@@ -229,5 +229,23 @@ const between = (a, b) => js.slice(js.indexOf(a), js.indexOf(b));
   assert.ok(!/There is already a draft/.test(p), "no draft, no rewrite instruction");
   assert.ok(/There is already a draft/.test(mailAiPrompt(th, "old text", "")), "a draft asks for a rewrite");
 
+  /* ============ 7. v155.1: a hidden thing says it is hidden ============
+     Ash, over a card reading "Nothing needs a reply" with FYI 8 and nothing else: "Any ideas
+     why it's showing NO emails that need a reply?" Because Unread only was ticked and every
+     Urgent/Today thread had been read — and a tier with nothing unread simply did not render.
+     Gmail's own per-label counts were already on hand; they just were not being shown. */
+  const render = fn("renderMail");
+  assert.ok(/const readOnly = mailUnreadOnly && src\.source !== "brief" && !!st && st\.total - st\.unread > 0;\s*if \(!mine\.length && !readOnly\) continue;/.test(render),
+    "a tier with nothing unread but something read still renders its heading");
+  assert.ok(/Nothing unread needs a reply\. " \+ readHidden/.test(render) && /untick Unread only to see/.test(render),
+    "…and the first line counts the hidden ones instead of saying nothing");
+  assert.ok(/readHidden = \(mailUnreadOnly && src\.source !== "brief"\)/.test(render) && /t\.id !== "fyi"/.test(render),
+    "the hidden count is exact (labels.list) and excludes FYI, which never needed a reply");
+  const tierH = fn("tierHtml");
+  assert.ok(/\(items\.length \? "" : " \\u2014 untick Unread only to see " \+ \(hidden === 1 \? "it" : "them"\)\)/.test(tierH),
+    "an all-read tier's heading says how to see them");
+  assert.ok(/if \(!items\.length\) return '<div class="tier tier-fyi">' \+ head \+ "<\/div>";/.test(tierH),
+    "an all-read FYI tier is a heading with no toggle to show nothing");
+
   console.log("v155-send-it-from-here.test: all assertions passed");
 })().catch((e) => { console.error(e); process.exit(1); });
