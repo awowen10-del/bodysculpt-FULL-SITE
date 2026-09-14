@@ -133,9 +133,11 @@ async function runIg(env, url, responder, seed) {
      holding the KPI history and the quarterly reviews. */
   const methodSites = [...djs.matchAll(/fetch\(([^,]+),\s*\{[\s\S]{0,200}?method:/g)].map((m) => m[1].trim());
   assert.ok(methodSites.length > 0, "the page does write — otherwise this test proves nothing");
+  /* v155 added two more: GMAIL_BASE + spec.path(id) (the send funnel, whose paths are a
+     closed table) and MENTOR (the Anthropic proxy that writes a reply). Neither is the store. */
   for (const target of methodSites) {
-    assert.ok(/^GCAL_BASE \+ path$/.test(target) || /^GMAIL_BASE \+ "threads\/"/.test(target) || target === "API",
-      "every request carrying a method goes to a fixed Google base or to the store: " + target);
+    assert.ok(/^GCAL_BASE \+ path$/.test(target) || /^GMAIL_BASE \+ /.test(target) || target === "API" || target === "MENTOR",
+      "every request carrying a method goes to a fixed Google base, the AI proxy, or the store: " + target);
   }
   /* v150 added the store to that list, for ONE thing: ticking a task off. So the claim gets
      narrower rather than looser — it is no longer "the page cannot write to the store", it

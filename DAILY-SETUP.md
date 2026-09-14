@@ -60,8 +60,12 @@ empty card.
 | `Triage/This week` | This week |
 | `Triage/FYI` | FYI — folded away as a count |
 
-Wherever your job has saved a draft reply, the dashboard finds it in the thread, shows the
-first lines of it, and links straight to Gmail's composer.
+Wherever your job has saved a draft reply, the dashboard finds it in the thread and shows the
+first lines of it. Click the row (or **Review and send**) and it unfolds: the whole
+conversation, the draft in full in an editor, and **Send reply**. Change a word if you want,
+or tell Claude what to say in the one-line box and press **Write it with Claude** — it
+writes from the actual thread, in your voice, and only fills the box. Nothing goes anywhere
+until you press Send. **Save as draft** puts your edits back into Gmail's Drafts.
 
 ### Switching it on
 
@@ -79,9 +83,11 @@ covering both.
 
 ### What it can and cannot do
 
-The dashboard asks for **read-only** access to Gmail. It cannot send, reply, delete,
-archive, label, or change one word of an email or a draft. Every button on the card opens
-Gmail in a new tab to do anything at all.
+The dashboard asks for Gmail's **modify** permission. With it the card can: show your
+triaged threads, mark one read and take its Triage label off (**Not for me**), move one to
+Gmail's bin (**Bin it** — recoverable for 30 days), save a draft, and **send a reply when you
+press Send**. It cannot permanently delete anything: that needs a wider permission this page
+deliberately never asks for. **Open in Gmail** is always there on every row.
 
 You can see or withdraw it any time at **myaccount.google.com → Security → Your connections
 to third-party apps**.

@@ -117,12 +117,14 @@ async function loadStripe(env, responder) {
      stale, and a morning the job did not run shows fewer labels rather than an empty card. */
   /* v147 traded gmail.readonly for gmail.modify, because Ash asked to clear things off the
      card and a dashboard that hides an email while it sits there unread is just a second
-     inbox to keep tidy. What matters is the LINE THAT WAS NOT CROSSED: modify can mark
-     read, relabel and bin; it cannot send mail as him, and it cannot permanently delete.
-     Permanent deletion needs the full mail.google.com scope, which is asserted absent. */
-  assert.ok(/gmail\.modify/.test(js), "the page asks for Gmail modify — read, relabel, bin");
+     inbox to keep tidy. v155 then used what that scope already allowed — Google defines
+     modify as everything except permanent deletion, drafting and sending included — to send
+     the reply from the card. The LINE THAT IS STILL NOT CROSSED: the scope is no wider than
+     modify, and permanent deletion (the full mail.google.com scope) is asserted absent. What
+     the page may DO with the scope is two closed lists, checked in tests/v155. */
+  assert.ok(/gmail\.modify/.test(js), "the page asks for Gmail modify — read, relabel, bin, send");
   assert.ok(!/gmail\.send|gmail\.compose|auth\/mail\.google\.com/.test(js),
-    "…and nothing wider: it cannot send as him, and it cannot delete anything for good");
+    "…and nothing wider: no extra scope, and it cannot delete anything for good");
   assert.ok(/GMAIL_WRITES = \["modify", "trash", "untrash"\]/.test(js),
     "…with the three things it may do written down and checked");
   // the read path takes no options, exactly like the store's
@@ -143,7 +145,7 @@ async function loadStripe(env, responder) {
   assert.ok(/\(m\.labelIds \|\| \[\]\)\.includes\("DRAFT"\)/.test(js),
     "the saved reply is found as the DRAFT-labelled message in the thread");
   assert.ok(/draftPreview: draft \? String\(draft\.snippet/.test(js),
-    "…and previewed from its own snippet, so no message body is ever fetched");
+    "…and previewed from its own snippet on the list — a body is read only when a row is opened (v155)");
   // quota: a busy inbox must not take the card down
   assert.ok(/async function inChunks\(/.test(js) && /GM_CONCURRENCY/.test(js),
     "thread reads are chunked, so a busy inbox does not trip Gmail's per-second quota");
@@ -397,13 +399,14 @@ async function loadStripe(env, responder) {
   assert.ok(/mail-dtext/.test(js), "…and shows what it actually says");
   assert.ok(/draftUrl = \(id\) => GMAIL \+ "drafts\?compose="/.test(js),
     "…linking straight to Gmail's composer when there is an id to link to");
-  assert.ok(/GMAIL \+ "drafts"/.test(js), "…and to the drafts folder when there is not");
-  // an <a> inside an <a> is not valid markup and browsers pull it apart
+  // v155: with no draft there is nothing in the drafts folder to find, so the link is the thread
+  assert.ok(/draftUrl\(th\.draftId\) : threadUrl\(id\)/.test(js), "…and to the thread itself when there is not");
+  // v155: the row is a div that unfolds, so nothing is nested inside an anchor any more —
+  // "Review and send" opens the row, and the Gmail composer link is a real <a> inside it
   assert.ok(!/<a class="mail-dgo"/.test(js), "the draft link is not a nested anchor");
-  assert.ok(/data-draft="/.test(js) && /window\.open\(el\.dataset\.draft/.test(js),
-    "…it is a span that opens itself");
-  assert.ok(/role="link" tabindex="0"/.test(js), "…reachable by keyboard, and announced as a link");
-  assert.ok(/e\.stopPropagation\(\)/.test(js), "…and its click does not also open the thread underneath");
+  assert.ok(/class="mail-dgo" role="button" tabindex="0" data-open="/.test(js),
+    "…it is a button that unfolds the row, reachable by keyboard");
+  assert.ok(/e\.stopPropagation\(\)/.test(js), "…and its click does not also toggle the row underneath");
   assert.ok(/replies are written and waiting to be sent/.test(js),
     "the card's first line says how many replies are waiting, not just how many emails there are");
 

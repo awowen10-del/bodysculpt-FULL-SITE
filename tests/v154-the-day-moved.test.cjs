@@ -31,10 +31,11 @@ const dstyle = DAILY.slice(DAILY.indexOf("<style>") + 7, DAILY.indexOf("</style>
 (async () => {
   /* ================= 0. the stamp ================= */
   const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(read("monthly.html"));
-  assert.strictEqual(stamp[1], "154", "monthly.html is stamped v154");
-  assert.strictEqual(stamp[2], "the-day-moved", "…as the release that finished the move");
+  // relaxed once v155 shipped: the newest release's test pins the exact stamp.
+  assert.ok(Number(stamp[1]) >= 154, "monthly.html is stamped v154 or later");
+  const text = "build v" + stamp[1] + " · " + stamp[2];
   for (const f of ["index.html", "finances.html", "daily.html", "social.html"]) {
-    assert.ok(read(f).includes("build v154 · the-day-moved"), f + " carries the same stamp");
+    assert.ok(read(f).includes(text), f + " carries the same stamp");
   }
 
   /* ============ 1. THE MORNING OPENS THE PAGE, side by side ============ */

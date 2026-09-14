@@ -532,7 +532,7 @@
   .mail-tools{margin-left:auto;display:flex;gap:2px;opacity:0;transition:opacity var(--tap);}
   .mail:hover .mail-tools,.mail-tools:focus-within{opacity:1;}
   @media(hover:none){ .mail-tools{opacity:1;} }
-  .mail-tool{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;
+  .mail-tool{display:inline-flex;align-items:center;gap:5px;text-decoration:none;font-size:11px;font-weight:600;
     color:var(--ink-faint);padding:4px 8px;border-radius:var(--r-sm);cursor:pointer;
     white-space:nowrap;transition:color var(--tap),background var(--tap);}
   .mail-tool .ic{width:12px;height:12px;}
@@ -544,6 +544,54 @@
     white-space:nowrap;}
   .tier-clear:hover{color:var(--tint-green);background:rgba(var(--green-rgb),.12);}
   .tier-clear:focus-visible{outline:none;box-shadow:var(--focus);}
+
+  /* --- v155: THE ROW UNFOLDS ---
+     A row is a button now, not a link. Open, it stops sliding on hover and settles: the
+     conversation, then the reply, then the buttons. The editor is deliberately plain — a
+     textarea, the same one the check-in uses — because a reply is prose, not a form. */
+  .mail{cursor:pointer;}
+  .mail.open{background:var(--card-2);transform:none;cursor:default;}
+  .mail.open>.mail-top,.mail.open>.mail-subj,.mail.open>.mail-foot{cursor:pointer;}
+  .mail.open .mail-tools{opacity:1;}
+  .mail-open{margin-top:12px;padding-top:12px;border-top:1px solid var(--line);}
+  .msg{padding:8px 0;border-bottom:1px dashed var(--line);}
+  .msg.latest{border-bottom:0;}
+  .msg-h{display:flex;align-items:baseline;gap:8px;font-size:11.5px;color:var(--ink-faint);
+    flex-wrap:wrap;}
+  .msg-from{font-weight:700;color:var(--ink-dim);}
+  .msg-me{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--tint-blue);background:rgba(var(--blue-rgb),.10);padding:1px 6px;border-radius:var(--r-pill);}
+  .msg-when{margin-left:auto;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .msg-peek{flex:1 1 100%;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    font-weight:400;}
+  details.msg>summary{list-style:none;cursor:pointer;}
+  details.msg>summary::-webkit-details-marker{display:none;}
+  details.msg[open]>summary .msg-peek{display:none;}
+  .msg-body{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.55;
+    color:var(--ink);margin-top:5px;}
+  .msg-quoted{font-size:11px;color:var(--ink-faint);font-style:italic;margin-top:4px;}
+  .reply{margin-top:12px;padding:12px;border-radius:var(--r-md);background:var(--card);
+    border:1px solid rgba(var(--green-rgb),.28);border-left-width:2.5px;border-left-color:var(--green);}
+  .reply-h{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--ink-dim);
+    margin-bottom:8px;}
+  .reply-h b{color:var(--ink-strong);}
+  .reply-addr{color:var(--ink-faint);font-size:11.5px;}
+  .reply-src{margin-left:auto;font-size:10px;font-weight:800;text-transform:uppercase;
+    letter-spacing:.08em;color:var(--tint-green);}
+  .reply-text{width:100%;box-sizing:border-box;font-family:inherit;font-size:13.5px;line-height:1.55;
+    color:var(--ink);background:var(--navy-2);border:1px solid var(--line);border-radius:var(--r-sm);
+    padding:10px 12px;resize:vertical;min-height:150px;}
+  .reply-text:focus{outline:none;border-color:var(--orange);background:var(--card);}
+  .reply-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;}
+  .reply-ask{display:flex;gap:6px;margin-top:8px;}
+  .reply-ask input{flex:1 1 auto;min-width:0;font-family:inherit;font-size:12.5px;color:var(--ink);
+    background:var(--navy-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:7px 10px;}
+  .reply-ask input:focus{outline:none;border-color:var(--orange);background:var(--card);}
+  .reply-ask .abtn{white-space:nowrap;}
+  .reply-note{font-size:12px;color:var(--ink-faint);margin-top:7px;min-height:1em;}
+  .reply-note.ok{color:var(--tint-green);}
+  .reply-note.warn{color:var(--tint-red);}
+  @media(max-width:560px){ .reply-ask{flex-direction:column;} }
 
   /* undo is OFFERED, not mentioned — nothing here should feel like a one-way door */
   .undobar{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink-dim);
@@ -1023,7 +1071,7 @@
 <symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="M2.5 9.8h19M6 15.2h3.4"/></symbol>
 <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.05" fill="currentColor" stroke="none"/></symbol>
 </defs></svg>
-<!-- build v154 · the-day-moved -->
+<!-- build v155 · send-it-from-here -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -1212,6 +1260,8 @@
    ===================================================================== */
 const API = "/.netlify/functions/kpi-store";
 const STRIPE_FEED = "/.netlify/functions/stripe-feed";
+// v155: the one non-Google address this page POSTs to — the Anthropic proxy, for a reply.
+const MENTOR = "/.netlify/functions/mentor-ai";
 
 /* ---------- small helpers ---------- */
 const $ = (id) => document.getElementById(id);
@@ -1350,25 +1400,31 @@ const draftUrl = (id) => GMAIL + "drafts?compose=" + encodeURIComponent(id);
 let fyiOpen = false;     // the FYI pile is a count until you ask for it
 let briefState = null;   // { brief, date, isToday } or null
 
-// The whole row is one link to the thread, because that is where the draft sits waiting in
-// Gmail — open the thread and the reply is at the bottom of it, ready to send.
+/* v155: the row OPENS HERE. Until now it was one link to Gmail, because Gmail was where the
+   conversation and the draft lived and this page could only point at them. Now the page can
+   read the conversation and send the reply itself, so the row is a button that unfolds —
+   the whole thread, the draft in full, and a Send button — and "Open in Gmail" is one of the
+   tools rather than the only thing a click could do. A div, not an anchor: an editor cannot
+   live inside a link. */
 function mailItemHtml(it) {
   const href = it.threadId ? threadUrl(it.threadId) : labelUrl("Triage/" + (it.tier === "week" ? "This week" : it.tier === "fyi" ? "FYI" : it.tier === "today" ? "Today" : "Urgent"));
   const hasDraft = !!(it.draftId || it.draftPreview);
-  // The composer link is precise when the job sent an id, and Gmail's drafts folder
-  // otherwise — either way it is one click, and the row itself already opens the thread.
-  const draftHref = it.draftId ? draftUrl(it.draftId) : GMAIL + "drafts";
+  const open = !!it.threadId && mailOpenId === it.threadId;
 
-  return '<a class="mail' + (it.unread === false ? " read" : "") + '" href="' + esc(href) + '" target="_blank" rel="noopener">' +
+  return '<div class="mail' + (it.unread === false ? " read" : "") + (open ? " open" : "") + '" role="button" tabindex="0" ' +
+      'aria-expanded="' + (open ? "true" : "false") + '" data-open="' + esc(it.threadId) + '">' +
     '<div class="mail-top">' +
       '<span class="mail-from">' + esc(it.from || "Unknown sender") + "</span>" +
       (it.receivedAt ? '<span class="mail-when">' + esc(ago(it.receivedAt)) + "</span>" : "") +
     "</div>" +
     '<div class="mail-subj">' + esc(it.subject || "(no subject)") + "</div>" +
-    (it.why ? '<div class="mail-why">' + esc(it.why) + "</div>" : "") +
+    // the opening line stands in for the email; once the email itself is on screen it goes
+    (it.why && !open ? '<div class="mail-why">' + esc(it.why) + "</div>" : "") +
     '<span class="mail-foot">' +
       (it.action ? '<span class="mail-act' + (hasDraft ? " ready" : "") + '">' + esc(it.action) + "</span>" : "") +
       '<span class="mail-tools">' +
+        '<a class="mail-tool" href="' + esc(href) + '" target="_blank" rel="noopener" title="Open this thread in Gmail">' +
+          '<svg class="ic"><use href="#ic-link"/></svg>Open in Gmail</a>' +
         '<span class="mail-tool" role="button" tabindex="0" data-clear="' + esc(it.threadId) + '" ' +
           'title="Mark it read and take it off this list">' +
           '<svg class="ic"><use href="#ic-check"/></svg>Not for me</span>' +
@@ -1376,16 +1432,80 @@ function mailItemHtml(it) {
           'title="Move it to Gmail\u2019s bin — recoverable for 30 days">' +
           '<svg class="ic"><use href="#ic-close"/></svg>Bin it</span>' +
       "</span></span>" +
-    (hasDraft
+    (hasDraft && !open
       ? '<span class="mail-draft">' +
           '<span class="mail-dhead"><svg class="ic"><use href="#ic-check"/></svg>Reply written' +
-            '<span class="mail-dgo" role="link" tabindex="0" data-draft="' + esc(draftHref) + '">Open the draft' +
+            '<span class="mail-dgo" role="button" tabindex="0" data-open="' + esc(it.threadId) + '">Review and send' +
             '<svg class="ic"><use href="#ic-arrow-right"/></svg></span>' +
           "</span>" +
           (it.draftPreview ? '<span class="mail-dtext">' + esc(it.draftPreview) + "</span>" : "") +
         "</span>"
       : "") +
-  "</a>";
+    (open ? mailOpenHtml(it) : "") +
+  "</div>";
+}
+
+/* ---------- the row, unfolded (v155) ----------
+   The conversation as Gmail holds it, then the reply. The editor is only rendered once the
+   thread has been read, because the draft's full text comes back with it — and because a
+   textarea that appears, takes focus, and is then replaced by a re-render is how typing goes
+   missing. */
+function mailOpenHtml(it) {
+  const th = mailThreads.get(it.threadId);
+  let inner = "";
+  if (!th || th.loading) {
+    inner = '<div class="loading">Reading the conversation…</div>';
+  } else if (th.error) {
+    inner = '<div class="setup"><b>Could not read this one.</b><br>' + esc(th.error) + "</div>";
+  } else {
+    const msgs = th.messages;
+    inner = msgs.map((m, i) => mailMsgHtml(m, i === msgs.length - 1)).join("") + mailReplyHtml(it, th);
+  }
+  return '<div class="mail-open">' + inner + "</div>";
+}
+
+// One message. The newest is open; the ones before it fold to a line, because the point of
+// reading a thread here is the latest thing they said, with the rest one click away.
+function mailMsgHtml(m, latest) {
+  const v = gmVisible(m.body);
+  const when = m.date ? new Date(m.date) : null;
+  const stamp = when && isFinite(when.getTime())
+    ? when.getDate() + " " + MONTHS[when.getMonth()].slice(0, 3) + ", " + pad(when.getHours()) + ":" + pad(when.getMinutes())
+    : "";
+  const head = '<span class="msg-from">' + esc(m.fromName || m.from || "Unknown") + "</span>" +
+    (m.mine ? '<span class="msg-me">you</span>' : "") +
+    (stamp ? '<span class="msg-when">' + esc(stamp) + "</span>" : "");
+  const body = '<div class="msg-body">' + esc(v.text || "(no text in this message)") + "</div>" +
+    (v.hidden ? '<div class="msg-quoted">Quoted earlier messages hidden</div>' : "");
+  if (latest) return '<div class="msg latest"><div class="msg-h">' + head + "</div>" + body + "</div>";
+  return '<details class="msg"><summary class="msg-h">' + head +
+    '<span class="msg-peek">' + esc(v.text.replace(/\s+/g, " ").slice(0, 90)) + "</span></summary>" + body + "</details>";
+}
+
+function mailReplyHtml(it, th) {
+  const id = it.threadId;
+  const text = mailReplyText.has(id) ? mailReplyText.get(id) : (th.draftBody || "");
+  const to = th.replyTo || {};
+  const hasText = !!text.trim();
+  return '<div class="reply">' +
+    '<div class="reply-h">Reply to <b>' + esc(to.name || to.email || "them") + "</b>" +
+      (to.email && to.name ? '<span class="reply-addr">' + esc(to.email) + "</span>" : "") +
+      (th.draftId && !mailReplyText.has(id) ? '<span class="reply-src">the reply the morning triage wrote</span>' : "") +
+    "</div>" +
+    '<textarea class="reply-text" id="rt_' + esc(id) + '" rows="7" ' +
+      'placeholder="Write the reply here, or tell Claude what to say below.">' + esc(text) + "</textarea>" +
+    '<div class="reply-bar">' +
+      '<button type="button" class="abtn primary" data-send="' + esc(id) + '">Send reply</button>' +
+      '<button type="button" class="abtn" data-savedraft="' + esc(id) + '">Save as draft</button>' +
+      '<a class="abtn ghost" href="' + esc(th.draftId ? draftUrl(th.draftId) : threadUrl(id)) + '" target="_blank" rel="noopener">Open in Gmail</a>' +
+    "</div>" +
+    '<div class="reply-ask">' +
+      '<input type="text" id="ri_' + esc(id) + '" placeholder="' +
+        (hasText ? "What should change? e.g. shorter, warmer, say no" : "What do you want to say? e.g. yes, Tuesday at 6 works") + '">' +
+      '<button type="button" class="abtn" data-ai="' + esc(id) + '">' + (hasText ? "Rewrite with Claude" : "Write it with Claude") + "</button>" +
+    "</div>" +
+    '<div class="reply-note" id="rn_' + esc(id) + '" aria-live="polite"></div>' +
+  "</div>";
 }
 
 function tierHtml(tier, items) {
@@ -1430,7 +1550,7 @@ function mailSetupHtml(reason) {
   }
   if (reason === "connect") {
     return '<div class="setup"><b>One tap and your triaged inbox appears here.</b><br>' +
-      "Google will ask whether this dashboard may <b>read</b> your mail. Read is all it can do — it cannot send, delete, archive or change a single email or draft, and you can withdraw it at any time in your Google account." +
+      "Google will ask whether this dashboard may read and act on your mail. What it does with that: shows the triaged threads, marks one read or bins it when you say so, and sends a reply <b>only when you press Send</b>. It cannot permanently delete anything, and you can withdraw the permission at any time in your Google account." +
       '<div class="setup-links"><button type="button" class="abtn primary" id="mailConnect">Connect Gmail</button></div></div>';
   }
   if (reason === "Google is not connected yet.") {
@@ -1523,10 +1643,13 @@ function renderMail() {
   if (mailUndo) {
     const n = mailUndo.items.length;
     html += '<div class="undobar"><svg class="ic"><use href="#ic-check"/></svg><span>' +
-      (mailUndo.kind === "bin"
+      (mailUndo.kind === "sent"
+        ? "Reply sent to " + esc(mailUndo.to || "them") + ". Taken off this list."
+        : mailUndo.kind === "bin"
         ? n + (n === 1 ? " email moved to the bin." : " emails moved to the bin.") + " Gmail keeps it for 30 days."
         : n + (n === 1 ? " email cleared." : " emails cleared.") + " Marked read and taken off this list.") +
-      '</span><button type="button" class="undobtn" id="mailUndoBtn">Undo</button></div>';
+      // a sent email cannot be unsent, so this one offers no button rather than a false one
+      "</span>" + (mailUndo.kind === "sent" ? "" : '<button type="button" class="undobtn" id="mailUndoBtn">Undo</button>') + "</div>";
   }
   // The stale-brief warning only makes sense when the brief is the ONLY thing on show.
   // Read live from Gmail, the card is current by definition.
@@ -1551,6 +1674,9 @@ function renderMail() {
   body.innerHTML = html;
 
   wireMailCard(body);
+  // v155: an open row whose thread has not been read yet (just opened, or the list was just
+  // re-read) starts reading now. mailLoadThread marks it straight away, so this cannot fire twice.
+  if (mailOpenId && !mailThreads.has(mailOpenId) && items.some((i) => i.threadId === mailOpenId)) mailLoadThread(mailOpenId);
 }
 
 /* Everything on the mail card that has to be clickable, wired in ONE place.
@@ -1603,20 +1729,44 @@ function wireMailCard(body) {
     }
   });
 
-  // "Open the draft" lives INSIDE the row's own link — an <a> inside an <a> is not valid
-  // markup and browsers pull it apart — so it is a span that opens itself, and stops the
-  // click reaching the row underneath.
-  body.querySelectorAll("[data-draft]").forEach((el) => {
+  /* v155: the row unfolds. A click anywhere on the row opens or closes it — EXCEPT inside
+     the unfolded part (that is where the typing happens) and on a real link (which has its
+     own job). Keyboard: Enter or Space on the row itself, never on something inside it. */
+  body.querySelectorAll("[data-open]").forEach((el) => {
+    const isRow = el.classList.contains("mail");
     el.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      window.open(el.dataset.draft, "_blank", "noopener");
+      if (isRow && e.target.closest && (e.target.closest(".mail-open") || e.target.closest("a") ||
+          e.target.closest("[data-clear],[data-bin]"))) return;
+      e.preventDefault(); e.stopPropagation();
+      mailToggleOpen(el.dataset.open);
     });
     el.addEventListener("keydown", (e) => {
       if (e.key !== "Enter" && e.key !== " ") return;
-      e.preventDefault();
+      if (e.target !== el) return;
+      e.preventDefault(); e.stopPropagation();
+      mailToggleOpen(el.dataset.open);
+    });
+  });
+
+  // The reply: what is typed is kept per thread the moment it is typed, so no re-render —
+  // clearing a different row, say — can ever take it away.
+  body.querySelectorAll(".reply-text").forEach((ta) => {
+    const id = ta.id.slice(3);
+    ta.addEventListener("input", () => mailReplyText.set(id, ta.value));
+    ta.addEventListener("keydown", (e) => { if (e.key === " " || e.key === "Enter") e.stopPropagation(); });
+  });
+  body.querySelectorAll(".reply-ask input").forEach((inp) => {
+    inp.addEventListener("keydown", (e) => {
       e.stopPropagation();
-      window.open(el.dataset.draft, "_blank", "noopener");
+      if (e.key === "Enter") { e.preventDefault(); mailAskClaude(inp.id.slice(3)); }
+    });
+  });
+  body.querySelectorAll("[data-send],[data-savedraft],[data-ai]").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (el.dataset.send) mailSend(el.dataset.send);
+      else if (el.dataset.savedraft) mailSaveDraft(el.dataset.savedraft);
+      else if (el.dataset.ai) mailAskClaude(el.dataset.ai);
     });
   });
 }
@@ -1634,8 +1784,9 @@ function wireMailCard(body) {
    nothing to go stale, and a morning the job did not run shows fewer labels rather than an
    empty card.
 
-   READ ONLY. `gmail.readonly` cannot send, delete, archive, or alter one word of an email
-   or a draft. Everything on this card opens Gmail in a new tab to do anything at all.
+   v155: the card can now READ a thread in full and SEND the reply — see "SENDING" below.
+   The list itself is still read exactly as before: headers only, one call per thread. The
+   body of an email is fetched only when its row is opened, and only for that thread.
 
    How the labels become the page:
      labels.list          -> the four Triage label ids
@@ -1654,6 +1805,11 @@ let mailLoading = false;
 let mailStats = {};       // tier id -> { total, unread }, straight from labels.list
 let mailLabelIds = {};    // tier id -> Gmail label id, needed to take a label back off
 let mailUndo = null;      // the last thing cleared, and how to put it back
+/* v155: the row that is unfolded, what has been read for it, and what has been typed. */
+let mailOpenId = null;             // thread id of the one open row, or null
+const mailThreads = new Map();     // thread id -> { loading, error, messages, draftId, draftBody, replyTo }
+const mailReplyText = new Map();   // thread id -> the reply as typed; survives every re-render
+const mailBusy = new Set();        // thread ids with a send or a draft save in flight
 /* v146: an email you have already read is not a job. Default to unread only — the card is
    meant to be the short list of what is left, and a fortnight of read threads buries it.
    The choice is remembered per browser; it changes nothing but what is fetched. */
@@ -1718,6 +1874,7 @@ function gmThreadToItem(thread, tier) {
 async function loadGmail() {
   mailLoading = true;
   mailError = "";
+  mailThreads.clear();       // a fresh read of the list is a fresh read of whatever is open, too
   try {
     const labels = await gmailGet("labels");
     const byName = new Map((labels.labels || []).map((l) => [String(l.name), l.id]));
@@ -1870,6 +2027,7 @@ function agendaNeedsRepublish() {
    days, and this page cannot delete permanently even if asked. */
 function mailRemoveLocal(threadId) {
   if (mailLive) mailLive = mailLive.filter((i) => i.threadId !== threadId);
+  if (mailOpenId === threadId) mailOpenId = null;
 }
 
 async function mailClear(threadId) {
@@ -1942,6 +2100,321 @@ async function mailUndoLast() {
     } catch (e) { mailError = (e && e.message) || "Could not put that back."; }
   }
   renderMail(); renderHead();
+}
+
+/* =====================================================================
+   SENDING  (v155)
+
+   The morning triage writes the reply and leaves it as a draft. Until now the last step —
+   read it, send it — meant opening Gmail, finding the thread, scrolling to the draft. The
+   dashboard that lists the decisions now lets you make them: open the row, read what they
+   said, read what was written back, change a word if you want, press Send.
+
+   What "send" does, exactly:
+     a thread WITH a draft   -> PUT drafts/{id} with the final text, then POST drafts/send.
+                                The triage's draft is the thing that goes; Gmail takes it
+                                out of Drafts itself. If the PUT works and the send does
+                                not, the edited text is sitting safely in Drafts.
+     a thread WITHOUT one    -> POST messages/send with the thread id.
+   Either way the message carries In-Reply-To and References from the message it answers,
+   so Gmail — and whatever they read their mail in — shows it in the conversation rather
+   than as a new one. The row then leaves the list the way "Not for me" takes it: marked
+   read, tier label removed. That part is best-effort; the reply has already gone.
+
+   What Claude does: writes or rewrites the reply from the whole conversation, with an
+   optional one-line brief from Ash, through the same Anthropic proxy the weekly review
+   uses. It only ever fills the box. Nothing goes anywhere until Send is pressed.
+   ===================================================================== */
+
+/* ---------- reading one thread in full ---------- */
+function mailToggleOpen(threadId) {
+  if (!threadId) return;
+  mailOpenId = mailOpenId === threadId ? null : threadId;
+  renderMail();              // which starts reading the thread if it has not been read
+}
+
+async function mailLoadThread(threadId) {
+  mailThreads.set(threadId, { loading: true });
+  try {
+    const th = await gmailGet("threads/" + encodeURIComponent(threadId) + "?format=full");
+    mailThreads.set(threadId, gmThreadDetail(th));
+  } catch (e) {
+    mailThreads.set(threadId, { error: (e && e.message) || "Gmail would not hand that one over." });
+  }
+  if (mailOpenId === threadId) renderMail();
+}
+
+/* Gmail's full thread -> what the open row needs. Drafts are kept aside, not shown as
+   conversation. "Mine" is Gmail's own word for it: the SENT label. The reply goes to the
+   last message that is NOT mine — replying to yourself is the one thing nobody means. */
+function gmThreadDetail(thread) {
+  const msgs = (thread.messages || []).filter(Boolean);
+  const isDraft = (m) => (m.labelIds || []).includes("DRAFT");
+  const real = msgs.filter((m) => !isDraft(m)).map((m) => {
+    const from = gmHeader(m, "from");
+    return {
+      id: m.id,
+      from,
+      fromName: gmSender(from),
+      fromEmail: gmAddress(from),
+      replyToRaw: gmHeader(m, "reply-to"),
+      subject: gmHeader(m, "subject"),
+      messageId: gmHeader(m, "message-id"),
+      references: gmHeader(m, "references"),
+      mine: (m.labelIds || []).includes("SENT"),
+      date: isFinite(Number(m.internalDate)) ? new Date(Number(m.internalDate)).toISOString() : "",
+      body: gmBody(m.payload),
+    };
+  });
+  const draft = msgs.filter(isDraft).pop() || null;
+  const target = real.slice().reverse().find((m) => !m.mine) || real[real.length - 1] || null;
+  const toRaw = target ? (target.replyToRaw || target.from) : "";
+  return {
+    messages: real,
+    draftId: draft ? draft.id : "",
+    draftBody: draft ? gmBody(draft.payload) : "",
+    replyTo: target ? { raw: toRaw, name: gmSender(toRaw), email: gmAddress(toRaw),
+      subject: target.subject, messageId: target.messageId, references: target.references } : null,
+  };
+}
+
+// "Karen Whitfield <karen@co.uk>" -> "karen@co.uk"; a bare address is itself.
+function gmAddress(raw) {
+  const m = /<([^>]+)>/.exec(raw || "");
+  if (m) return m[1].trim();
+  const bare = /[^\s"<>,;]+@[^\s"<>,;]+/.exec(raw || "");
+  return bare ? bare[0] : String(raw || "").trim();
+}
+
+/* ---------- the body of a message ----------
+   Gmail hands back a MIME tree with base64url leaves. The text/plain part is what we want;
+   failing that, the HTML with its tags taken off. Both are looked for anywhere in the tree,
+   because a forwarded email nests them a level down. */
+function gmDecodeBody(data) {
+  try {
+    const bin = atob(String(data || "").replace(/-/g, "+").replace(/_/g, "/"));
+    const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+    return new TextDecoder("utf-8").decode(bytes);
+  } catch { return ""; }
+}
+function gmPartText(payload) {
+  const out = { text: "", html: "" };
+  const walk = (p) => {
+    if (!p) return;
+    const mt = String(p.mimeType || "").toLowerCase();
+    if (p.body && p.body.data) {
+      if (mt === "text/plain" && !out.text) out.text = gmDecodeBody(p.body.data);
+      else if (mt === "text/html" && !out.html) out.html = gmDecodeBody(p.body.data);
+    }
+    (p.parts || []).forEach(walk);
+  };
+  walk(payload);
+  return out;
+}
+function gmHtmlToText(html) {
+  let t = String(html || "");
+  t = t.replace(/<(style|script|head)[\s\S]*?<\/\1>/gi, "");
+  t = t.replace(/<br\s*\/?>/gi, "\n");
+  t = t.replace(/<\/(p|div|tr|h[1-6]|blockquote)>/gi, "\n");
+  t = t.replace(/<li[^>]*>/gi, "- ").replace(/<\/li>/gi, "\n");
+  t = t.replace(/<[^>]+>/g, "");
+  t = t.replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">")
+       .replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'")
+       .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+       .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)));
+  return t.split("\n").map((l) => l.replace(/[ \t]+/g, " ").trim()).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+function gmBody(payload) {
+  const p = gmPartText(payload);
+  return (p.text || gmHtmlToText(p.html) || "").replace(/\r\n/g, "\n").trim();
+}
+
+/* What they wrote, without what they were quoting. Lines that begin ">" go, and everything
+   from an "On … wrote:" line down goes — allowing for the two-line version Gmail wraps it
+   into. `hidden` says whether anything was cut, so the screen can say so. */
+function gmVisible(text) {
+  const lines = String(text || "").split("\n");
+  const keep = [];
+  let hidden = false;
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    const wroteAhead = /^\s*On\b/.test(l) && [1, 2, 3].some((k) => /wrote:\s*$/.test(lines.slice(i, i + k).join(" ").trimEnd()));
+    if (wroteAhead ||
+        /^\s*-{2,}\s*(Original|Forwarded) Message\s*-{2,}/i.test(l) ||
+        (/^\s*From: /.test(l) && /^\s*(Sent|Date): /.test(lines[i + 1] || ""))) {
+      hidden = true; break;
+    }
+    if (/^\s*>/.test(l)) { hidden = true; continue; }
+    keep.push(l);
+  }
+  return { text: keep.join("\n").replace(/\n{3,}/g, "\n\n").trim(), hidden };
+}
+
+/* ---------- the message that goes ----------
+   Plain text, UTF-8, base64url as the API wants it. A subject that is not plain ASCII is
+   wrapped the way the mail standard asks (RFC 2047); "Re:" is added once, never twice. */
+function gmB64(s) {
+  const bytes = new TextEncoder().encode(String(s));
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+const gmB64Url = (s) => gmB64(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const gmHeaderWord = (s) => (/^[\x20-\x7e]*$/.test(s) ? s : "=?UTF-8?B?" + gmB64(s) + "?=");
+function gmBuildReply(r) {
+  const subject = /^\s*re:/i.test(r.subject || "") ? String(r.subject).trim() : "Re: " + String(r.subject || "").trim();
+  // a display name that is not plain ASCII would need its own encoding; the address alone is always right
+  const to = r.toName && /^[\x20-\x7e]*$/.test(r.toName) && !/[<>",]/.test(r.toName)
+    ? r.toName + " <" + r.toEmail + ">" : r.toEmail;
+  const lines = [
+    "To: " + to,
+    "Subject: " + gmHeaderWord(subject),
+    "MIME-Version: 1.0",
+    "Content-Type: text/plain; charset=utf-8",
+  ];
+  if (r.inReplyTo) {
+    lines.push("In-Reply-To: " + r.inReplyTo);
+    lines.push("References: " + ((r.references ? r.references + " " : "") + r.inReplyTo).trim());
+  }
+  return gmB64Url(lines.join("\r\n") + "\r\n\r\n" + String(r.text || "").replace(/\r?\n/g, "\r\n"));
+}
+
+/* ---------- send, save, ask ---------- */
+function mailNote(threadId, text, tone) {
+  const el = $("rn_" + threadId);
+  if (!el) return;
+  el.textContent = text || "";
+  el.className = "reply-note" + (tone ? " " + tone : "");
+}
+function mailReplyRaw(threadId, text) {
+  const th = mailThreads.get(threadId);
+  if (!th || !th.replyTo || !th.replyTo.email) throw new Error("There is nobody to reply to on this thread.");
+  return gmBuildReply({
+    toName: th.replyTo.name !== th.replyTo.email ? th.replyTo.name : "",
+    toEmail: th.replyTo.email,
+    subject: th.replyTo.subject,
+    inReplyTo: th.replyTo.messageId,
+    references: th.replyTo.references,
+    text,
+  });
+}
+
+async function mailSend(threadId) {
+  const th = mailThreads.get(threadId);
+  const ta = $("rt_" + threadId);
+  const text = String((ta ? ta.value : mailReplyText.get(threadId)) || "").trim();
+  if (!th || th.loading || th.error) return;
+  if (!text) { mailNote(threadId, "There is nothing in the reply to send.", "warn"); return; }
+  if (mailBusy.has(threadId)) return;
+  mailBusy.add(threadId);
+  mailNote(threadId, "Sending…");
+  const btn = $("mailBody") && $("mailBody").querySelector('[data-send="' + threadId + '"]');
+  if (btn) btn.disabled = true;
+  try {
+    const raw = mailReplyRaw(threadId, text);
+    if (th.draftId) {
+      await gmailSend("updateDraft", th.draftId, { message: { raw, threadId } });
+      await gmailSend("sendDraft", "", { id: th.draftId });
+    } else {
+      await gmailSend("sendMessage", "", { raw, threadId });
+    }
+  } catch (e) {
+    mailBusy.delete(threadId);
+    if (btn) btn.disabled = false;
+    mailNote(threadId, "Not sent. " + ((e && e.message) || "Gmail would not send it.") + " Your text is still here.", "warn");
+    return;
+  }
+  mailBusy.delete(threadId);
+  // Sent. The row is done with: off the list, and read + unlabelled in Gmail, quietly.
+  const it = (mailLive || []).find((i) => i.threadId === threadId);
+  const labelId = it ? mailLabelIds[it.tier] : "";
+  mailReplyText.delete(threadId);
+  mailThreads.delete(threadId);
+  mailRemoveLocal(threadId);
+  mailUndo = { kind: "sent", items: [{ threadId }], to: th.replyTo.name || th.replyTo.email };
+  renderMail(); renderHead();
+  try { await gmailWrite(threadId, "modify", { removeLabelIds: ["UNREAD"].concat(labelId ? [labelId] : []) }); }
+  catch { /* the reply has gone; a label that lingers is a small thing the next refresh shows */ }
+}
+
+async function mailSaveDraft(threadId) {
+  const th = mailThreads.get(threadId);
+  const ta = $("rt_" + threadId);
+  const text = String((ta ? ta.value : mailReplyText.get(threadId)) || "");
+  if (!th || th.loading || th.error) return;
+  if (!text.trim()) { mailNote(threadId, "There is nothing to save yet.", "warn"); return; }
+  if (mailBusy.has(threadId)) return;
+  mailBusy.add(threadId);
+  mailNote(threadId, "Saving…");
+  try {
+    const raw = mailReplyRaw(threadId, text);
+    if (th.draftId) {
+      await gmailSend("updateDraft", th.draftId, { message: { raw, threadId } });
+    } else {
+      const made = await gmailSend("createDraft", "", { message: { raw, threadId } });
+      th.draftId = (made && made.id) || "";
+      const it = (mailLive || []).find((i) => i.threadId === threadId);
+      if (it && th.draftId) { it.draftId = th.draftId; it.action = it.action || "Send the reply"; }
+    }
+    th.draftBody = text;
+    mailNote(threadId, "Saved to Gmail's drafts. It will be here, and there, until it is sent.", "ok");
+  } catch (e) {
+    mailNote(threadId, "Not saved. " + ((e && e.message) || "Gmail would not keep it."), "warn");
+  }
+  mailBusy.delete(threadId);
+}
+
+/* Claude writes the reply — from the conversation, the current text if there is one, and
+   whatever Ash typed in the one-line box. The result goes into the editor and nowhere else. */
+const MAIL_AI_THREAD_CHARS = 9000;
+function mailAiPrompt(th, current, brief) {
+  const convo = th.messages.map((m) => {
+    const v = gmVisible(m.body);
+    return "--- " + (m.mine ? "Ash (me)" : (m.fromName || m.fromEmail || "them")) + (m.date ? ", " + m.date.slice(0, 10) : "") + " ---\n" + v.text;
+  }).join("\n\n").slice(-MAIL_AI_THREAD_CHARS);
+  return "You are writing an email reply on behalf of Ash, who owns Bodysculpt, a gym in Warrington, UK.\n" +
+    "Write ONLY the body of the reply: no subject line, no preamble, no explanation, no placeholders in square brackets.\n" +
+    "Plain text. British English. Warm, direct and brief; short paragraphs; sign off as Ash.\n" +
+    "Do not invent facts, prices, dates or availability — if something is unknown, say Ash will confirm it.\n" +
+    (brief ? "\nWhat Ash wants this reply to say: " + brief + "\n" : "") +
+    (current ? "\nThere is already a draft. Rewrite it in line with the instruction above, keeping anything that is still right:\n\"\"\"\n" + current + "\n\"\"\"\n" : "") +
+    "\nThe conversation so far, oldest first:\n\n" + convo + "\n\nReply to the latest message from them.";
+}
+
+async function mailAskClaude(threadId) {
+  const th = mailThreads.get(threadId);
+  const ta = $("rt_" + threadId);
+  const inp = $("ri_" + threadId);
+  if (!th || th.loading || th.error || !ta) return;
+  if (mailBusy.has(threadId)) return;
+  const current = String(ta.value || "").trim();
+  const brief = String(inp ? inp.value : "").trim();
+  mailBusy.add(threadId);
+  mailNote(threadId, current ? "Rewriting…" : "Writing…");
+  const btn = $("mailBody") && $("mailBody").querySelector('[data-ai="' + threadId + '"]');
+  if (btn) btn.disabled = true;
+  try {
+    const r = await fetch(MENTOR, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: mailAiPrompt(th, current, brief), model: "opus", maxTokens: 900, effort: "low" }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || data.error) throw new Error(data.error || ("HTTP " + r.status));
+    const text = String(data.text || "").trim().replace(/^```[a-z]*\s*/i, "").replace(/```\s*$/, "").trim();
+    if (!text) throw new Error("Claude sent nothing back.");
+    ta.value = text;
+    mailReplyText.set(threadId, text);
+    if (inp) inp.value = "";
+    if (btn) btn.textContent = "Rewrite with Claude";
+    if (inp) inp.placeholder = "What should change? e.g. shorter, warmer, say no";
+    mailNote(threadId, "Written. Read it, change what you like, then Send.", "ok");
+    ta.focus();
+  } catch (e) {
+    mailNote(threadId, "Claude could not write it: " + ((e && e.message) || "no reply") + ". Your text is unchanged.", "warn");
+  }
+  if (btn) btn.disabled = false;
+  mailBusy.delete(threadId);
 }
 
 /* ---------- money ---------- */
@@ -2508,11 +2981,13 @@ const GCAL_BASE = "https://www.googleapis.com/calendar/v3/";
 /* v147: `gmail.modify` replaces `gmail.readonly`, because clearing something off the card
    has to mean something in Gmail too — a dashboard that hides an email while it sits there
    unread is just a second inbox to keep tidy.
-   What modify CAN do: mark read, add and remove labels, move to the bin.
-   What it CANNOT do: send mail as you, and permanently delete anything. Permanent deletion
-   needs the full `https://mail.google.com/` scope, which this page deliberately does not
-   ask for — so the worst it can do is put something in the bin, where Gmail keeps it for
-   thirty days and one click brings it back. */
+   What modify CAN do: mark read, add and remove labels, move to the bin — and, as Google
+   defines it, draft and send. v155 uses that last part: the scope did not change, the page
+   simply gained a second, equally short list of things it may do with it (GMAIL_SEND_OPS).
+   What it CANNOT do: permanently delete anything. Permanent deletion needs the full
+   `https://mail.google.com/` scope, which this page deliberately does not ask for — so the
+   worst it can do to an email is put it in the bin, where Gmail keeps it for thirty days and
+   one click brings it back. */
 const GCAL_SCOPE = "https://www.googleapis.com/auth/calendar.events" +
   " https://www.googleapis.com/auth/gmail.modify";
 const GCAL_STORE_KEY = "bodysculpt:gcal";   // { token, expires, scope } — this browser only
@@ -2673,6 +3148,33 @@ async function gmailWrite(threadId, op, body) {
   if (!gcalReady()) await gcalAuth(true);
   const res = await fetch(GMAIL_BASE + "threads/" + encodeURIComponent(threadId) + "/" + op, {
     method: "POST",
+    headers: { Authorization: "Bearer " + gcalToken.token, "Content-Type": "application/json" },
+    body: JSON.stringify(body || {}),
+  });
+  if (!res.ok) throw new Error(await gcalMessage(res));
+  return await res.json();
+}
+
+/* v155: THE ONLY WAY THIS PAGE SENDS MAIL. Four operations, and what each one is for:
+     createDraft  — "Save as draft" on a thread the triage did not write for
+     updateDraft  — the edited text goes back into the triage's own draft before it is sent
+     sendDraft    — send that draft (Gmail removes it from Drafts itself)
+     sendMessage  — a reply on a thread with no draft
+   Each is a fixed path off GMAIL_BASE; nothing else can be asked of this function. A raw
+   message is built by gmBuildReply and nowhere else, so every send carries the thread id
+   and the In-Reply-To that keeps it in the conversation. */
+const GMAIL_SEND_OPS = {
+  createDraft: { method: "POST", path: () => "drafts" },
+  updateDraft: { method: "PUT",  path: (id) => "drafts/" + encodeURIComponent(id) },
+  sendDraft:   { method: "POST", path: () => "drafts/send" },
+  sendMessage: { method: "POST", path: () => "messages/send" },
+};
+async function gmailSend(op, id, body) {
+  const spec = GMAIL_SEND_OPS[op];
+  if (!spec) throw new Error("Not something this page may do.");
+  if (!gcalReady()) await gcalAuth(true);
+  const res = await fetch(GMAIL_BASE + spec.path(id), {
+    method: spec.method,
     headers: { Authorization: "Bearer " + gcalToken.token, "Content-Type": "application/json" },
     body: JSON.stringify(body || {}),
   });
