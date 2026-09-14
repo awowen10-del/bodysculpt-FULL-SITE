@@ -394,6 +394,7 @@
     letter-spacing:-.022em;line-height:1.2;color:var(--ink-strong);}
   .chead .mo{color:var(--ink-faint);font-weight:600;}
   .csub{font-size:12.5px;color:var(--ink-faint);margin-top:5px;line-height:1.45;max-width:56ch;}
+  .csub:empty,.cal-key:empty{display:none;}
   .cardhead-r{display:flex;align-items:center;gap:var(--sp-2);flex:0 0 auto;}
   .cardhead .weeknav{margin-bottom:0;}
   .cardhead .weeknav .rng{flex:0 0 auto;min-width:0;}
@@ -450,6 +451,9 @@
   @media(max-width:1020px){ .day-grid{grid-template-columns:1fr;} }
   .day-rail{display:flex;flex-direction:column;gap:var(--sp-4);min-width:0;}
   .day-grid .card{padding:18px 20px 20px;}
+  /* v157: the grid's gap is the spacing; a section margin on top of it made the gap under
+     the calendar half as big again as every other gap on the page */
+  .day-grid section,.day-rail .card + .card{margin-top:0;}
 
   /* --- the email hierarchy ---
      Four tiers, hardest first. The tier is stated by a coloured rail down the left of its
@@ -705,7 +709,7 @@
      column, so "how full is Thursday" is answered by looking at Thursday rather than by
      scrolling a list. It sits above everything else because what you are doing today
      frames what you do about the email and the money underneath it. */
-  .cal-card{margin-bottom:var(--sp-4);padding:18px 20px 20px;}
+  .cal-card{margin:0 0 var(--sp-4);padding:18px 20px 20px;}
   .cal-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:var(--sp-2);}
   @media(max-width:900px){
     .cal-week{grid-template-columns:repeat(3,minmax(0,1fr));}
@@ -902,8 +906,10 @@
      Starting the day and running the day are two halves of the same five minutes. The
      questions are the wider half while they are still questions; once the day has started
      the card shrinks to one line and the two even out on their own. */
+  /* v157: stretch, so the two cards share a bottom edge; and no section margin on top of
+     the grid gap, so the gap above the calendar is the same gap as everywhere else */
   .day-top{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,1fr);
-    gap:var(--sp-4);align-items:start;margin-bottom:var(--sp-4);}
+    gap:var(--sp-4);align-items:stretch;margin-bottom:var(--sp-4);}
   @media(max-width:980px){ .day-top{grid-template-columns:1fr;} }
   .day-top .card{margin:0;}
   .ck-card[hidden] + .today-card{grid-column:1 / -1;}
@@ -1076,7 +1082,7 @@
 <symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="M2.5 9.8h19M6 15.2h3.4"/></symbol>
 <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.05" fill="currentColor" stroke="none"/></symbol>
 </defs></svg>
-<!-- build v156 · read-the-inbox-itself -->
+<!-- build v157 · my-dashboard -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -1138,7 +1144,6 @@
     <div class="cardhead">
       <div>
         <div class="chead"><svg class="ic"><use href="#ic-target"/></svg> Today</div>
-        <div class="csub">The three that are not optional, and a block of time to put your head down in.</div>
       </div>
     </div>
     <div id="todayBody"><div class="loading">Loading…</div></div>
@@ -1153,10 +1158,8 @@
     <div>
       <div class="chead"><svg class="ic"><use href="#ic-calendar"/></svg> This week</div>
       <div class="csub cal-next" id="calNext">Loading your calendar…</div>
-      <div class="cal-key">
-        <span class="cal-key-i"><svg class="ic"><use href="#ic-calendar"/></svg>Booked in Google Calendar</span>
-        <span class="cal-key-i"><span class="cal-key-box"></span>Planned on your weekly dashboard — tick it off in either place</span>
-      </div>
+      <!-- v157: the legend went; this only holds the "no tick boxes yet" warning when it applies -->
+      <div class="cal-key"></div>
     </div>
     <div class="cardhead-r" id="calTools"></div>
   </div>
@@ -1169,7 +1172,7 @@
       <div class="cardhead">
         <div>
           <div class="chead"><svg class="ic"><use href="#ic-mail"/></svg> Needs a reply</div>
-          <div class="csub" id="mailSub">Your inbox, sorted this morning — hardest first.</div>
+          <div class="csub" id="mailSub"></div>
         </div>
         <div class="cardhead-r" id="mailHeadRight"></div>
       </div>
@@ -1182,7 +1185,6 @@
       <div class="cardhead">
         <div>
           <div class="chead"><svg class="ic"><use href="#ic-card"/></svg> Money needing attention</div>
-          <div class="csub">Disputes, memberships that have stopped paying, and payments that failed and still have not been paid. Anything that bounced and then went through is left off.</div>
         </div>
       </div>
       <!-- v154: the headline sits WITH the thing it is a headline for. It used to be a
@@ -1662,14 +1664,14 @@ function renderMail() {
     "> Unread only</label>" + tipBtn("triage");
 
   if (mailLoading && !mailLive) {
-    sub.textContent = "Your inbox, sorted this morning — hardest first.";
+    sub.textContent = "";
     body.innerHTML = '<div class="loading">Reading your inbox…</div>';
     return;
   }
 
   const src = mailItems();
   if (!src.items.length) {
-    sub.textContent = "Your inbox, sorted this morning — hardest first.";
+    sub.textContent = "";
     body.innerHTML = mailSetupHtml(
       !gcalClientId ? "Google is not connected yet."
       : !gcalReady() ? "connect"
@@ -1694,25 +1696,21 @@ function renderMail() {
   // What this card is FOR changed once the job started writing the replies: it is not a
   // list of work, it is a list of decisions. Say that in the first line.
   const drafted = items.filter((i) => i.draftId || i.draftPreview).length;
+  // v157: a count, not a commentary
   sub.textContent = !needing
-    ? (readHidden
-        ? "Nothing unread needs a reply. " + readHidden + (readHidden === 1 ? " thread that does has" : " threads that do have") +
-          " been read \u2014 untick Unread only to see " + (readHidden === 1 ? "it." : "them.")
-        : "Nothing needs a reply. The rest is for information.")
-    : drafted
-      ? needing + (needing === 1 ? " thread needs you" : " threads need you") + " · " +
-        drafted + (drafted === 1 ? " reply is written and waiting to be sent." : " replies are written and waiting to be sent.")
-      : needing + (needing === 1 ? " thread needs you." : " threads need you.") + " FYI is folded away.";
+    ? (readHidden ? readHidden + " already read \u2014 untick Unread only to see " + (readHidden === 1 ? "it" : "them") : "")
+    : needing + (needing === 1 ? " needs you" : " need you") +
+      (drafted ? " \u00b7 " + drafted + (drafted === 1 ? " reply written" : " replies written") : "");
 
   let html = "";
   if (mailUndo) {
     const n = mailUndo.items.length;
     html += '<div class="undobar"><svg class="ic"><use href="#ic-check"/></svg><span>' +
       (mailUndo.kind === "sent"
-        ? "Reply sent to " + esc(mailUndo.to || "them") + ". Taken off this list."
+        ? "Reply sent to " + esc(mailUndo.to || "them") + "."
         : mailUndo.kind === "bin"
-        ? n + (n === 1 ? " email moved to the bin." : " emails moved to the bin.") + " Gmail keeps it for 30 days."
-        : n + (n === 1 ? " email cleared." : " emails cleared.") + " Marked read and taken off this list.") +
+        ? n + (n === 1 ? " email binned." : " emails binned.")
+        : n + (n === 1 ? " email cleared." : " emails cleared.")) +
       // a sent email cannot be unsent, so this one offers no button rather than a false one
       "</span>" + (mailUndo.kind === "sent" ? "" : '<button type="button" class="undobtn" id="mailUndoBtn">Undo</button>') + "</div>";
   }
@@ -1737,8 +1735,7 @@ function renderMail() {
     html += tierHtml(tier, mine);
   }
   if (!any) {
-    html += '<div class="allclear"><svg class="ic"><use href="#ic-check"/></svg>' +
-      "<div>Inbox triaged and nothing needs you. That is the whole point of doing it at 7am.</div></div>";
+    html += '<div class="allclear"><svg class="ic"><use href="#ic-check"/></svg><div>Nothing needs a reply.</div></div>';
   }
   body.innerHTML = html;
 
@@ -2928,7 +2925,6 @@ function renderCheckin() {
     card.innerHTML =
       '<div class="cardhead"><div>' +
         '<div class="chead"><svg class="ic"><use href="#ic-sun"/></svg> Start the day</div>' +
-        '<div class="csub">Three questions. Two minutes. Then the day has a point to it.</div>' +
       "</div></div>" +
       '<div class="ck-fields">' + CK_FIELDS.map((f) => ckFieldHtml(f, entry[f.key])).join("") + "</div>" +
       (evening ? ckEveningHtml(entry) : "") +
@@ -2980,12 +2976,13 @@ function renderToday() {
   } else {
     // v154: this used to send people to the weekly app for the questions. The questions are
     // in the card immediately to the left of this one now, so saying that would be daft.
+    // v157: while the questions are still open beside this, say nothing — the box arrives
+    // when the answer does. Skipped, one button and no sermon.
     const asking = !ckEntry(ckToday()).dismissed;
-    html += '<div class="setup">' + (asking
-      ? '<b>Nothing set yet.</b><br>Answer the three questions beside this and your one thing lands here.'
-      : '<b>No one thing set for today.</b><br>You started the day without one. That is allowed, but a day with one goes better.' +
-        '<div class="setup-links"><button type="button" class="abtn" id="oneThingAdd">Set one now</button></div>') +
-      "</div>";
+    if (!asking) {
+      html += '<div class="setup"><b>No one thing set for today.</b>' +
+        '<div class="setup-links"><button type="button" class="abtn" id="oneThingAdd">Set one now</button></div></div>';
+    }
   }
 
   // v152: the non-negotiables are TICKED here now, not read here and ticked somewhere else.
@@ -3013,8 +3010,7 @@ function renderToday() {
       '<button type="button" class="ft-preset" id="ftGo' + m + '" data-min="' + m + '">' + m + "m</button>").join("") +
       '</div><a class="ft-dial" href="' + esc(FT_PLAYLIST_URL) + '" target="_blank" rel="noopener noreferrer" ' +
       'title="Open the focus playlist in Spotify" onclick="return ftDialIn(this)">' +
-      '<svg class="ic"><use href="#ic-dot"/></svg>Dial in</a>' +
-      '<div class="ft-hint">Pick a length and everything else can wait.</div>';
+      '<svg class="ic"><use href="#ic-dot"/></svg>Dial in</a>';
   }
   html += "</div>";
 
@@ -3379,7 +3375,7 @@ function calDayHtml(day, events, todayKey) {
 function calNextLine(events) {
   const now = Date.now(), todayKey = ymd(new Date());
   const today = events.filter((e) => ymd(e.startAt) === todayKey);
-  if (!today.length) return "Nothing in the calendar today.";
+  if (!today.length) return "";
   const ahead = today.filter((e) => e.endAt.getTime() > now && !e.allDay);
   if (!ahead.length) {
     // v149: the panel beneath counts tasks as well, and two adjacent lines disagreeing
@@ -3414,7 +3410,6 @@ function calTodayHtml(events) {
 
   if (!mine.length && !todayTasks.length) {
     return '<div class="cal-today">' + head +
-      '<div class="ct-none">Nothing in the calendar today. A clear day is a decision, so make sure it was yours.</div>' +
       '<div class="ct-foot"><button type="button" class="abtn primary" id="calNewToday">' +
       '<svg class="ic"><use href="#ic-plus"/></svg> New event</button></div></div>';
   }
@@ -3536,6 +3531,7 @@ function renderCalendar() {
       : calEvents.length + (calEvents.length === 1 ? " event" : " events") + " that week.") +
       (wpAgenda ? "" :
         ' · <span class="cal-noplan">no tasks yet — <a href="/index.html">open the weekly plan</a></span>');
+    next.hidden = !next.innerHTML.replace(/^\s*·\s*/, "").trim();
 
     const key = body.parentNode ? body.parentNode.querySelector(".cal-key") : null;
     if (key) {

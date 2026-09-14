@@ -261,8 +261,7 @@ const POST = (h, body) => h(new Request("https://x/.netlify/functions/kpi-store"
   assert.ok(/class="ct-src ct-src-goog"/.test(djs) && /Google<\/span>/.test(djs),
     "an appointment says where it came from");
   assert.ok(/class="ct-src ct-src-plan">Weekly plan/.test(djs), "…and so does a task");
-  assert.ok(/class="cal-key"/.test(DAILY) && /Booked in Google Calendar/.test(DAILY) &&
-    /Planned on your weekly dashboard/.test(DAILY), "…and the card carries a key for both");
+  assert.ok(/class="cal-key"/.test(DAILY), "…and the card keeps a strip for the no-tick-boxes warning (the legend itself went in v157)");
   // the strongest signal is the one you do not have to read
   assert.ok(/class="ct-box" role="checkbox"/.test(djs), "a task has a box you can tick");
   assert.ok(/class="cal-tbox" role="checkbox"/.test(djs), "…in the week strip as well as today");

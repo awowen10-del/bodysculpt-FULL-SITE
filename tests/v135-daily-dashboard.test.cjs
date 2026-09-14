@@ -254,7 +254,7 @@ async function loadStripe(env, responder) {
     "…or back onto the list, unread again ONLY if it was unread before");
   assert.ok(/class="undobar"/.test(js) && /id="mailUndoBtn"/.test(js),
     "and the undo is a button on screen, not a thing you have to know about");
-  assert.ok(/Gmail keeps it for 30 days/.test(js), "…which says what binning actually means");
+  assert.ok(/recoverable for 30 days/.test(js), "…which says what binning actually means, on the button's own title");
 
   // a row that vanishes from the screen but not from Gmail would be a lie
   assert.ok(/mailLive = \(mailLive \|\| \[\]\)\.concat\(\[it\]\);/.test(js),
@@ -407,7 +407,7 @@ async function loadStripe(env, responder) {
   assert.ok(/class="mail-dgo" role="button" tabindex="0" data-open="/.test(js),
     "…it is a button that unfolds the row, reachable by keyboard");
   assert.ok(/e\.stopPropagation\(\)/.test(js), "…and its click does not also toggle the row underneath");
-  assert.ok(/replies are written and waiting to be sent/.test(js),
+  assert.ok(/" replies written"/.test(js),
     "the card's first line says how many replies are waiting, not just how many emails there are");
 
   // a date is required — a brief with no date has nowhere to live
@@ -497,8 +497,10 @@ async function loadStripe(env, responder) {
   // v154: this used to read "No check-in yet today" and send people to the weekly app for
   // the questions. The questions are in the card beside it now, so the empty state says so
   // — and says something different again once the day has been started without one.
-  assert.ok(/Answer the three questions beside this/.test(js),
-    "an unanswered check-in points at the card next to it, not at another page");
+  // v157: while the questions are open beside it the box says nothing at all — the answer
+  // arrives when it is given. What is still pinned: nothing sends anyone to another page.
+  assert.ok(/if \(!asking\) \{/.test(js) && !/No check-in yet today/.test(js),
+    "an unanswered check-in shows nothing, and never points at another page");
   assert.ok(/No one thing set for today/.test(js),
     "…while a day started WITHOUT one says that instead, and offers to set one");
   // with nothing switched on at all, the four Gmail labels are still one click away

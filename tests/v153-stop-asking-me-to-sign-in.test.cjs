@@ -107,7 +107,7 @@ const style = DAILY.slice(DAILY.indexOf("<style>") + 7, DAILY.indexOf("</style>"
   assert.ok(/card\.classList\.add\("open"\)/.test(js) && /card\.classList\.remove\("open"\)/.test(js),
     "the questions card opens and closes");
   assert.ok(/class="ck-sum"/.test(js), "once started it is one line");
-  assert.ok(/Three questions\. Two minutes\./.test(js), "…and says what it is asking for before you start");
+  // v157 removed the strapline — "it's my dashboard, I know what everything is"
   // and every control on it is wired where it is rendered — the v144 rule
   const wired = js.slice(js.indexOf("function renderCheckin"));
   for (const id of ["ckStart", "ckSkip", "ckEdit", "ckYes", "ckNo"]) {

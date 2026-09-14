@@ -26,10 +26,11 @@ const between = (a, b) => js.slice(js.indexOf(a), js.indexOf(b));
 (async () => {
   /* ================= 0. the stamp ================= */
   const stamp = /<!-- build v(\d+) · ([a-z0-9-]+) -->/.exec(read("monthly.html"));
-  assert.strictEqual(stamp[1], "156", "monthly.html is stamped v156");
-  assert.strictEqual(stamp[2], "read-the-inbox-itself", "…as the release that stopped waiting for the triage");
+  // relaxed once v157 shipped: the newest release's test pins the exact stamp.
+  assert.ok(Number(stamp[1]) >= 156, "monthly.html is stamped v156 or later");
+  const text = "build v" + stamp[1] + " · " + stamp[2];
   for (const f of ["index.html", "finances.html", "daily.html", "social.html"]) {
-    assert.ok(read(f).includes("build v156 · read-the-inbox-itself"), f + " carries the same stamp");
+    assert.ok(read(f).includes(text), f + " carries the same stamp");
   }
 
   /* ============ 1. the inbox is read, and no labels is not an error ============ */

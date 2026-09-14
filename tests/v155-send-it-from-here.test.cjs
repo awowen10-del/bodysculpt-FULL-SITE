@@ -238,7 +238,7 @@ const between = (a, b) => js.slice(js.indexOf(a), js.indexOf(b));
   const render = fn("renderMail");
   assert.ok(/const readOnly = mailUnreadOnly && src\.source !== "brief" && !!st && st\.total - st\.unread > 0;\s*if \(!mine\.length && !readOnly\) continue;/.test(render),
     "a tier with nothing unread but something read still renders its heading");
-  assert.ok(/Nothing unread needs a reply\. " \+ readHidden/.test(render) && /untick Unread only to see/.test(render),
+  assert.ok(/readHidden \? readHidden \+ " already read/.test(render) && /untick Unread only to see/.test(render),
     "…and the first line counts the hidden ones instead of saying nothing");
   assert.ok(/readHidden = \(mailUnreadOnly && src\.source !== "brief"\)/.test(render) && /t\.id !== "fyi"/.test(render),
     "the hidden count is exact (labels.list) and excludes FYI, which never needed a reply");
