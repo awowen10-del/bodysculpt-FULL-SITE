@@ -45,6 +45,8 @@ const PAGES = [
   ["social.html", read("social.html"), "/social.html"],
   // v167: Facebook Ads is the seventh.
   ["ads.html", read("ads.html"), "/ads.html"],
+  // v170: Scheduling is the eighth.
+  ["schedule.html", read("schedule.html"), "/schedule.html"],
 ];
 
 (async () => {
@@ -79,16 +81,16 @@ const PAGES = [
 
     // v162: a link leads with its icon; v163 wrapped the label so the fold can hide it
     const links = [...nav[1].matchAll(/<a href="([^"]+)"([^>]*)><svg class="ic"><use href="#ic-[a-z-]+"\/><\/svg><span class="sn-lbl">([\s\S]*?)<\/span><\/a>/g)];
-    assert.strictEqual(links.length, 9, label + " menu has today, the three periods, the two KPI doors, the two social pages and finances");
+    assert.strictEqual(links.length, 10, label + " menu has today, the three periods, the two KPI doors, the three social pages and finances");
 
     assert.deepStrictEqual(
       links.map((m) => m[1]),
-      ["/daily.html", "/index.html", "/monthly.html", "/quarterly.html", "/index.html#kpi", "/monthly.html#kpi", "/social.html", "/ads.html", "/finances.html"],
+      ["/daily.html", "/index.html", "/monthly.html", "/quarterly.html", "/index.html#kpi", "/monthly.html#kpi", "/social.html", "/ads.html", "/schedule.html", "/finances.html"],
       label + " links to today, the three periods in order, the two KPI tabs, then social (Instagram, Facebook Ads — v167), then finances"
     );
     assert.deepStrictEqual(
       links.map((m) => m[3].trim()),
-      ["Daily Dashboard", "Weekly", "Monthly", "Quarterly", "Weekly KPIs", "Monthly KPIs", "Content", "Facebook Ads", "Income &amp; Expenses"],
+      ["Daily Dashboard", "Weekly", "Monthly", "Quarterly", "Weekly KPIs", "Monthly KPIs", "Content", "Facebook Ads", "Scheduling", "Income &amp; Expenses"],
       label + " labels the periods by period alone"
     );
 

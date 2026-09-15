@@ -19,7 +19,7 @@ const fs = require("fs");
 const path = require("path");
 
 const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
-const FILES = ["index.html", "monthly.html", "quarterly.html", "finances.html", "daily.html", "social.html", "ads.html"];
+const FILES = ["index.html", "monthly.html", "quarterly.html", "finances.html", "daily.html", "social.html", "ads.html", "schedule.html"];
 const styleOf = (src) => src.slice(src.indexOf("<style>") + 7, src.indexOf("</style>"));
 
 (async () => {

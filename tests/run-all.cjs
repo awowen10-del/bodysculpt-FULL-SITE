@@ -20,6 +20,8 @@ const SOURCES = [
   ["social.html", path.join(__dirname, "..", "social.html")],
   // v167: Facebook Ads is the seventh
   ["ads.html", path.join(__dirname, "..", "ads.html")],
+  // v170: Scheduling is the eighth
+  ["schedule.html", path.join(__dirname, "..", "schedule.html")],
 ];
 for (const [label, file] of SOURCES) {
   const tmp = path.join(os.tmpdir(), "bodysculpt-extracted-" + process.pid + "-" + label + ".js");
@@ -33,7 +35,8 @@ for (const [label, file] of SOURCES) {
   console.log("syntax check " + label + ": OK");
 }
 // v161: google-auth.js keeps the long-lived Google credential and gets the same check
-for (const fn of ["kpi-store.js", "stripe-feed.js", "instagram-feed.js", "google-auth.js", "ig-snapshot.js"]) {
+for (const fn of ["kpi-store.js", "stripe-feed.js", "instagram-feed.js", "google-auth.js", "ig-snapshot.js",
+                  "schedule-queue.js", "schedule-caption-background.js", "schedule-publish-background.js", "../lib/schedule.js"]) {
   const chk = spawnSync(process.execPath, ["--check", path.join(__dirname, "..", "netlify", "functions", fn)], { stdio: "inherit" });
   if (chk.status !== 0) {
     console.error("SYNTAX CHECK FAILED (" + fn + ") — aborting test run");

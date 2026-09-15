@@ -23,12 +23,12 @@ const weekly = require("./lib/env.cjs");
 const monthly = require("./lib/monthly-env.cjs");
 
 const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
-const FILES = ["index.html", "monthly.html", "quarterly.html", "finances.html", "daily.html", "social.html", "ads.html"];
+const FILES = ["index.html", "monthly.html", "quarterly.html", "finances.html", "daily.html", "social.html", "ads.html", "schedule.html"];
 const scriptOf = (src) => src.slice(src.lastIndexOf("<script>") + 8, src.lastIndexOf("</script>"));
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v169 · content";
+  const text = "build v170 · scheduling";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }

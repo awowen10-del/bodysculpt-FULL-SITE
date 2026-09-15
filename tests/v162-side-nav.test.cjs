@@ -24,7 +24,7 @@ const fs = require("fs");
 const path = require("path");
 
 const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
-const FILES = ["index.html", "monthly.html", "quarterly.html", "finances.html", "daily.html", "social.html", "ads.html"];   // v167: seven
+const FILES = ["index.html", "monthly.html", "quarterly.html", "finances.html", "daily.html", "social.html", "ads.html", "schedule.html"];   // v170: eight
 const SRC = {};
 FILES.forEach((f) => { SRC[f] = read(f); });
 const styleOf = (src) => src.slice(src.indexOf("<style>") + 7, src.indexOf("</style>"));
@@ -36,7 +36,7 @@ const ruleOf = (style, sel) => {
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v169 · content";
+  const text = "build v170 · scheduling";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }
@@ -77,13 +77,13 @@ const ruleOf = (style, sel) => {
     assert.deepStrictEqual(linksOf(groups[1][3]).map((l) => l.href), ["/index.html", "/monthly.html", "/quarterly.html"],
       label + "the three periods stay together under Planning");
     assert.deepStrictEqual(linksOf(groups[2][3]).map((l) => l.href), ["/index.html#kpi", "/monthly.html#kpi"], label + "Numbers is the two KPI doors");
-    assert.deepStrictEqual(linksOf(groups[3][3]).map((l) => l.href), ["/social.html", "/ads.html"], label + "Social is Instagram and Facebook Ads (v167)");
+    assert.deepStrictEqual(linksOf(groups[3][3]).map((l) => l.href), ["/social.html", "/ads.html", "/schedule.html"], label + "Social is Content, Facebook Ads and Scheduling (v170)");
     assert.deepStrictEqual(linksOf(groups[4][3]).map((l) => l.href), ["/finances.html"], label + "Finances is alone — not a fourth period");
     const all = linksOf(inner);
     assert.deepStrictEqual(all.map((l) => l.label),
-      ["Daily Dashboard", "Weekly", "Monthly", "Quarterly", "Weekly KPIs", "Monthly KPIs", "Content", "Facebook Ads", "Income &amp; Expenses"], label + "the same nine labels (v169: Instagram reads Content)");
+      ["Daily Dashboard", "Weekly", "Monthly", "Quarterly", "Weekly KPIs", "Monthly KPIs", "Content", "Facebook Ads", "Scheduling", "Income &amp; Expenses"], label + "the same ten labels (v170: Scheduling)");
     assert.deepStrictEqual(all.map((l) => l.icon),
-      ["ic-sun", "ic-calendar", "ic-grid", "ic-target", "ic-trend-up", "ic-trend-up", "ic-camera", "ic-megaphone", "ic-wallet"], label + "each row leads with its icon");
+      ["ic-sun", "ic-calendar", "ic-grid", "ic-target", "ic-trend-up", "ic-trend-up", "ic-camera", "ic-megaphone", "ic-clock", "ic-wallet"], label + "each row leads with its icon");
     assert.deepStrictEqual(all.filter((l) => l.active).map((l) => l.href), ["/" + f], label + "marks its own link active, once");
     // every icon the rail asks for resolves in this page's sprite
     const sprite = /<svg width="0" height="0"[\s\S]*?<\/defs><\/svg>/.exec(SRC[f]);
