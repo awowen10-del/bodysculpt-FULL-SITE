@@ -36,7 +36,7 @@ const ruleOf = (style, sel) => {
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v173 · the-page-may-not-call-the-schedule";
+  const text = "build v174 · the-sprite-cannot-be-inflated";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }
@@ -49,6 +49,9 @@ const ruleOf = (style, sel) => {
     assert.ok(rail, label + "has the rail, followed by its scrim");
     // it comes BEFORE the page's header, so it is first in the tab order, as it is on screen
     assert.ok(src.indexOf('<aside class="sidenav"') < src.indexOf("<header>"), label + "the rail precedes the header");
+    // v174: the sprite cannot be inflated over the page by an extension's `svg{width:100%}`
+    assert.ok(/<svg width="0" height="0" style="position:absolute;width:0;height:0;overflow:hidden;pointer-events:none" aria-hidden="true" focusable="false">/.test(src),
+      label + "the icon sprite is pinned to 0×0 inline, with clicks passing through it");
     // …and the old bar is gone
     assert.ok(!/class="appbar"|class="topnav"/.test(src), label + "no app bar, no top nav");
     // the brand at the top is a link home, with the mark and both lines

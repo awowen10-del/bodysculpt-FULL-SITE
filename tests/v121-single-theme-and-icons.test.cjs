@@ -213,6 +213,13 @@ function stripComments(src) {
     const src = SRC[f], label = f + ": ";
     const sprite = /<svg width="0" height="0"[\s\S]*?<\/defs><\/svg>/.exec(src);
     assert.ok(sprite, label + "carries the icon sprite");
+    // v174: Ash's Safari has an extension that styles every svg `display:block;width:100%;
+    // height:auto`. That turned the 0×0 sprite into a full-width box over the tab bar and
+    // took the clicks (the Competitors tab "not clickable" — in Safari only). Inline style
+    // outranks an extension's stylesheet, so the size and the click-through are stated
+    // inline, where nothing short of !important can undo them.
+    assert.ok(/^<svg width="0" height="0" style="position:absolute;width:0;height:0;overflow:hidden;pointer-events:none" aria-hidden="true" focusable="false">/.test(sprite[0]),
+      label + "the sprite's size and click-through are inline, so a browser extension cannot inflate it over the page");
 
     const defined = new Set([...sprite[0].matchAll(/<symbol id="(ic-[a-z-]+)"/g)].map((m) => m[1]));
     assert.ok(defined.size >= 18, label + "the sprite defines a real set (" + defined.size + " symbols)");
