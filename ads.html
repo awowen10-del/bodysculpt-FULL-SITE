@@ -610,77 +610,93 @@
   .dc-sec-t{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-faint);font-weight:700;margin-bottom:6px;}
   .dc-list{padding-left:18px;font-size:13px;line-height:1.55;color:var(--ink);}
   .dc-list li+li{margin-top:4px;}
-  /* --- the filters --- */
-  .ads-controls{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;margin-bottom:14px;}
-  .ctl{display:flex;flex-direction:column;gap:4px;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;
-    color:var(--ink-faint);font-weight:700;}
+  /* --- the filters: one quiet row, labels in plain case, the search sized to its job --- */
+  .ads-controls{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;margin:2px 0 14px;}
+  .ctl{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-faint);font-weight:500;}
   .ctl select,.ctl input{font-family:inherit;font-size:13px;font-weight:500;color:var(--ink);background:var(--card);
-    border:1px solid var(--line);border-radius:var(--r-md);padding:8px 10px;letter-spacing:0;text-transform:none;}
-  .ctl.grow{flex:1 1 220px;}
-  .ctl.grow input{width:100%;}
-  /* --- a campaign, folded, with its ad sets and cards inside --- */
-  .cg{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--card);margin-top:12px;overflow:hidden;}
-  .cg>summary{list-style:none;cursor:pointer;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:12px 14px;}
+    border:1px solid var(--line);border-radius:var(--r-md);padding:7px 10px;}
+  .ctl.search{margin-left:auto;position:relative;}
+  .ctl.search .ic{position:absolute;left:10px;color:var(--ink-faint);pointer-events:none;}
+  .ctl.search input{width:min(260px,60vw);padding-left:30px;}
+  .ads-count{font-size:12.5px;color:var(--ink-faint);}
+  /* --- a campaign: one line that names it, one quiet line that sizes it up --- */
+  .cg{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--card);margin-top:10px;overflow:hidden;}
+  .cg>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:auto minmax(0,1fr);
+    column-gap:10px;row-gap:3px;align-items:center;padding:12px 14px;}
   .cg>summary::-webkit-details-marker{display:none;}
   .cg>summary:hover{background:var(--navy-2);}
-  .cg-chev .ic{transition:transform var(--tap);transform:rotate(-90deg);color:var(--ink-faint);}
+  .cg-chev .ic{transition:transform var(--tap);transform:rotate(-90deg);color:var(--ink-faint);width:1.1em;height:1.1em;}
   .cg[open]>summary .cg-chev .ic{transform:rotate(0deg);}
-  .cg-name{font-size:14.5px;font-weight:700;color:var(--ink-strong);flex:1 1 240px;min-width:0;}
-  .pill{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;
-    border-radius:var(--r-pill);border:1px solid var(--line);color:var(--ink-dim);background:var(--navy-2);white-space:nowrap;}
-  .pill.active{color:var(--green-2);background:rgba(var(--green-rgb),.12);border-color:transparent;}
-  .pill.completed{color:var(--blue-soft);background:rgba(var(--blue-rgb),.12);border-color:transparent;}
-  .pill.paused{color:var(--amber-2);background:rgba(var(--amber-rgb),.14);border-color:transparent;}
-  .pill.historical{color:var(--ink-faint);}
-  .pill.on{color:var(--green-2);border-color:var(--green);background:transparent;}
-  .pill.off{color:var(--ink-faint);}
-  .pill.done{color:var(--blue-soft);}
-  .cg-facts{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12.5px;color:var(--ink-dim);width:100%;}
-  .cg-fact b{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-faint);font-weight:700;}
-  .cg-fact span{font-weight:600;color:var(--ink);}
-  .cg-body{border-top:1px solid var(--line);padding:4px 14px 14px;background:var(--navy-2);}
-  .adset-t{font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin:12px 0 8px;}
-  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;margin-top:10px;}
-  /* --- one ad --- */
+  .cg-line{display:flex;align-items:center;gap:10px;min-width:0;flex-wrap:wrap;}
+  .cg-name{font-size:14.5px;font-weight:700;color:var(--ink-strong);letter-spacing:-.01em;min-width:0;overflow-wrap:anywhere;}
+  .cg-meta{grid-column:2;font-size:12.5px;color:var(--ink-dim);}
+  .cg-meta b{font-weight:600;color:var(--ink);}
+  .pill{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:3px 8px;
+    border-radius:var(--r-pill);border:1px solid transparent;color:var(--ink-dim);background:var(--navy-2);white-space:nowrap;}
+  .pill.active{color:var(--green-2);background:rgba(var(--green-rgb),.12);}
+  .pill.completed{color:var(--blue-soft);background:rgba(var(--blue-rgb),.12);}
+  .pill.paused{color:var(--amber-2);background:rgba(var(--amber-rgb),.14);}
+  .pill.historical{color:var(--ink-faint);border-color:var(--line);background:transparent;}
+  .cg-body{border-top:1px solid var(--line);padding:2px 14px 14px;background:var(--navy-2);}
+  .adset-t{display:flex;align-items:baseline;gap:8px;font-size:12.5px;font-weight:600;color:var(--ink-dim);margin:12px 2px 8px;}
+  .adset-t span{font-weight:500;color:var(--ink-faint);}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;}
+  /* --- one ad. Hierarchy: preview → name + verdict → the one number the verdict rests on →
+     three supporting numbers → the reason → what to do → where it stands → actions --- */
   .cc{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;display:flex;
-    flex-direction:column;border-left:4px solid var(--line);box-shadow:var(--shadow);}
-  .cc.winner{border-left-color:var(--green);}
-  .cc.needs-time{border-left-color:var(--amber);}
-  .cc.turn-off{border-left-color:var(--red);}
-  .cc.no-data,.cc.not-evaluated{border-left-color:var(--line);}
-  .cc.paused{opacity:.62;}
+    flex-direction:column;box-shadow:var(--shadow);position:relative;}
+  .cc::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--line);}
+  .cc.winner::before{background:var(--green);}
+  .cc.needs-time::before{background:var(--amber);}
+  .cc.turn-off::before{background:var(--red);}
   .cc-prev{position:relative;aspect-ratio:1.91/1;background:var(--navy-2);border-bottom:1px solid var(--line);
     display:flex;align-items:center;justify-content:center;color:var(--ink-faint);font-size:12px;overflow:hidden;}
   .cc-prev img{width:100%;height:100%;object-fit:cover;display:block;}
   .cc-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;}
-  .cc-play .ic{width:44px;height:44px;color:var(--on-accent);
+  .cc-play .ic{width:40px;height:40px;color:var(--on-accent);opacity:.92;
     filter:drop-shadow(0 1px 4px rgba(var(--ink-dim-rgb),.7));}
   .cc-prevnote{position:absolute;bottom:6px;right:6px;font-size:10px;padding:2px 7px;border-radius:var(--r-pill);
     background:var(--card);border:1px solid var(--line);color:var(--ink-faint);}
-  .cc-body{padding:12px 14px 12px;display:flex;flex-direction:column;gap:9px;flex:1;}
-  .cc-name{font-size:14px;font-weight:700;color:var(--ink-strong);line-height:1.3;overflow-wrap:anywhere;}
-  .cc-adset{font-size:11.5px;color:var(--ink-faint);margin-top:2px;}
-  .cc-adset i{font-style:normal;margin-left:6px;color:var(--amber-2);}
-  .badges{display:flex;flex-wrap:wrap;gap:6px;}
+  /* paused: the picture fades, the words stay legible */
+  .cc.paused .cc-prev{filter:grayscale(1);opacity:.6;}
+  .cc.paused .cc-name,.cc.paused .cc-hero-n{color:var(--ink-dim);}
+  .cc-body{padding:12px 14px 12px 16px;display:flex;flex-direction:column;gap:10px;flex:1;}
+  .cc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+  .cc-name{font-size:14px;font-weight:700;color:var(--ink-strong);line-height:1.3;overflow-wrap:anywhere;letter-spacing:-.01em;}
+  .badges{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;flex:0 0 auto;}
   .badge{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:3px 8px;
     border-radius:var(--r-pill);border:1px solid transparent;white-space:nowrap;cursor:default;}
   .badge.winner,.badge.ctr-excellent,.badge.ctr-good{background:rgba(var(--green-rgb),.12);color:var(--green-2);}
   .badge.needs-time,.badge.ctr-weak{background:rgba(var(--amber-rgb),.14);color:var(--amber-2);}
   .badge.turn-off,.badge.ctr-poor{background:rgba(var(--red-rgb),.11);color:var(--red-2);}
   .badge.neutral,.badge.ctr-none{background:var(--navy-2);color:var(--ink-dim);border-color:var(--line);}
-  .cc-reason{font-size:12.5px;line-height:1.5;color:var(--ink);}
+  .cc-hero{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
+  .cc-hero-n{font-size:26px;font-weight:800;letter-spacing:-.03em;line-height:1;color:var(--ink-strong);}
+  .cc-hero-l{font-size:12px;color:var(--ink-faint);}
+  .cc-hero-l b{font-weight:600;color:var(--ink-dim);}
+  .cc-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:8px 0;
+    border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+  .cc-strip>div{min-width:0;}
+  .cc-strip b{display:block;font-size:13.5px;font-weight:700;color:var(--ink);letter-spacing:-.01em;}
+  .cc-strip span{font-size:11px;color:var(--ink-faint);}
+  .cc-strip span i{font-style:normal;font-weight:600;}
+  .cc-strip span i.good,.cc-strip span i.excellent{color:var(--green-2);}
+  .cc-strip span i.weak{color:var(--amber-2);}
+  .cc-strip span i.poor{color:var(--red-2);}
+  .cc-reason{font-size:12.5px;line-height:1.5;color:var(--ink-dim);display:-webkit-box;-webkit-line-clamp:3;
+    -webkit-box-orient:vertical;overflow:hidden;}
   .cc-reason.muted{color:var(--ink-faint);}
-  .facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 12px;font-size:12.5px;}
-  .facts>div{min-width:0;}
-  .facts dt{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-faint);font-weight:700;}
-  .facts dd{font-weight:600;color:var(--ink);overflow-wrap:anywhere;}
-  .facts .wide{grid-column:1/-1;}
-  .cc-next{font-size:12.5px;line-height:1.5;color:var(--ink);border-top:1px solid var(--line);padding-top:8px;}
+  .cc-next{font-size:12.5px;line-height:1.5;color:var(--ink);}
   .cc-next b{color:var(--orange);font-weight:700;}
-  .cc-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;padding-top:4px;}
+  .cc-meta{font-size:11.5px;color:var(--ink-faint);margin-top:auto;}
+  .cc-meta b{font-weight:600;color:var(--ink-dim);}
+  .cc-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:8px;border-top:1px solid var(--line);}
   .cmp{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-dim);cursor:pointer;}
   .cmp input{accent-color:var(--orange);width:15px;height:15px;}
   .cmp.off{opacity:.5;cursor:not-allowed;}
+  .cc-more{font-family:inherit;font-size:12.5px;font-weight:600;color:var(--orange);background:transparent;border:0;
+    cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:2px 0;}
+  .cc-more:hover{color:var(--orange-soft);}
   .metric-na{color:var(--ink-faint);cursor:help;}
   /* --- compare --- */
   .cmp-hint{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12.5px;color:var(--ink-dim);
@@ -723,6 +739,8 @@
     .dt-head{grid-template-columns:1fr;}
     .cards{grid-template-columns:1fr;}
     .kv.cols{grid-template-columns:auto minmax(0,1fr);}
+    .ctl.search{margin-left:0;flex:1 1 100%;}
+    .ctl.search input{width:100%;}
   }
 </style>
 </head>
@@ -781,8 +799,9 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 <symbol id="ic-chevrons" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 6l-6 6 6 6M18 6l-6 6 6 6"/></symbol>
 <symbol id="ic-play" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 4.8v14.4c0 .8.9 1.3 1.6.9l11.2-7.2c.6-.4.6-1.4 0-1.8L8.6 3.9C7.9 3.5 7 4 7 4.8z"/></symbol>
 <symbol id="ic-megaphone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10.5v3a1.5 1.5 0 0 0 1.5 1.5h2l4.6 3.4c.7.5 1.6 0 1.6-.8V6.4c0-.8-.9-1.3-1.6-.8L7 9H5a1.5 1.5 0 0 0-1.5 1.5z"/><path d="M16.5 9.2a3.6 3.6 0 0 1 0 5.6M18.8 6.6a7 7 0 0 1 0 10.8"/></symbol>
+<symbol id="ic-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></symbol>
 </defs></svg>
-<!-- build v167 · facebook-ads -->
+<!-- build v168 · ads-tidied -->
 <aside class="sidenav" id="sideNav" aria-label="Pages">
   <div class="sn-top">
     <a class="sn-brand" href="/daily.html">
@@ -852,8 +871,8 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 <section class="card" id="listCard">
   <div class="cardhead">
     <div>
-      <div class="chead"><svg class="ic"><use href="#ic-megaphone"/></svg> Every ad, with a verdict</div>
-      <div class="csub">Campaign → ad set → ad. Each ad carries a label, a plain-English reason and what to do next. Tick two or three to compare them side by side.</div>
+      <div class="chead"><svg class="ic"><use href="#ic-megaphone"/></svg> Campaigns</div>
+      <div class="csub" id="adsCount"></div>
     </div>
   </div>
   <div class="ads-controls">
@@ -877,8 +896,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
         <option value="traffic">Traffic</option>
         <option value="video">Video</option>
       </select></label>
-    <label class="ctl grow">Search
-      <input type="search" id="ctlSearch" placeholder="Campaign or ad name…"></label>
+    <label class="ctl search"><svg class="ic"><use href="#ic-search"/></svg><input type="search" id="ctlSearch" placeholder="Campaign or ad name…" aria-label="Search"></label>
   </div>
   <div id="compareBox"></div>
   <div id="campaigns"><div class="loading">Loading your campaigns…</div></div>
@@ -1001,6 +1019,23 @@ function creativeTitle(row) {
   const id = row.creative.id || "";
   return row.context.adName || row.creative.headline || ("Ad …" + (id.length > 6 ? id.slice(-6) : id));
 }
+/* dates as dates, statuses as words. Meta says CAMPAIGN_PAUSED; a person says "paused (campaign)". */
+const MONTHS_S = ["Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"];
+function fmtDate(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ""));
+  if (!m) return iso || "—";
+  return Number(m[3]) + " " + MONTHS_S[Number(m[2]) - 1] + " " + m[1];
+}
+function humanStatus(st) {
+  const u = String(st || "").toUpperCase();
+  if (!u) return "—";
+  if (u === "ACTIVE") return "Active";
+  if (u === "PAUSED") return "Paused";
+  if (u === "CAMPAIGN_PAUSED") return "Paused (campaign)";
+  if (u === "ADSET_PAUSED") return "Paused (ad set)";
+  const w = u.toLowerCase().replace(/_/g, " ");
+  return w.charAt(0).toUpperCase() + w.slice(1);
+}
 function metric(m) {
   if (!m) return '<span class="metric-na">—</span>';
   if (!m.available) return '<span class="metric-na" title="' + esc(m.explanation || "Not available") + '">—</span>';
@@ -1016,20 +1051,18 @@ const CTR_HELP = {
   Weak: "Weak link click-through — fewer people click than you would like.",
   Poor: "Poor link click-through — very few people click through.",
 };
-function decisionBadges(d) {
-  const tone = TONE[d.decision] || "neutral";
-  let html = '<span class="badge ' + tone + '" title="' + esc(d.narrative.explanation) + '">' + esc(d.decisionLabel) + "</span>";
-  if (d.linkCtrRating) {
-    html += '<span class="badge ctr-' + d.linkCtrRating.toLowerCase() + '" title="' + esc(CTR_HELP[d.linkCtrRating] || "") + '">Link CTR ' + esc(d.linkCtrRating) + "</span>";
-  } else {
-    html += '<span class="badge ctr-none" title="Link CTR isn’t available yet (no impressions).">Link CTR —</span>';
-  }
-  return html;
+function verdictBadge(d) {
+  return '<span class="badge ' + (TONE[d.decision] || "neutral") + '" title="' + esc(d.narrative.explanation) + '">' + esc(d.decisionLabel) + "</span>";
 }
-function evalBadges(row) {
+function ctrBadge(d) {
+  if (d.linkCtrRating) return '<span class="badge ctr-' + d.linkCtrRating.toLowerCase() + '" title="' + esc(CTR_HELP[d.linkCtrRating] || "") + '">Link CTR ' + esc(d.linkCtrRating) + "</span>";
+  return '<span class="badge ctr-none" title="Link CTR isn’t available yet (no impressions).">Link CTR —</span>';
+}
+function decisionBadges(d) { return verdictBadge(d) + ctrBadge(d); }
+function evalBadge(row) {
   const ev = row.evaluation;
-  if (!rowDelivered(row)) return '<span class="badge neutral" title="No performance data was imported for this ad in the chosen period.">No performance data</span>';
-  if (ev.eligibility === "eligible") return decisionBadges(ev.decision);
+  if (!rowDelivered(row)) return '<span class="badge neutral" title="No performance data was imported for this ad in the chosen period.">No data</span>';
+  if (ev.eligibility === "eligible") return verdictBadge(ev.decision);
   return '<span class="badge neutral" title="' + esc(ev.status.explanation) + '">' + esc(ev.status.label) + "</span>";
 }
 
@@ -1196,12 +1229,14 @@ function lifecycle(c) {
   if (s.includes("PAUSED")) return ["Paused", "paused"];
   return ["Historical", "historical"];
 }
-function deliveryPill(g, delivered) {
-  const c = g.campaign;
-  if (c && campaignHasEnded(c)) {
-    return delivered && c.latestDeliveryDate ? ["Delivered until " + c.latestDeliveryDate, "done"] : ["Ended — no delivery", "done"];
-  }
-  return delivered ? ["Delivering", "on"] : ["No delivery in selected window", "off"];
+/* the delivery clause of a campaign's meta line. A finished or paused campaign is never
+   "delivering" — its delivery is reported in the past tense, so nothing paused can read as
+   live (the fault in the first cut: "Paused" and "Delivering" on the same row). */
+function deliveryNote(g, delivered) {
+  const c = g.campaign, last = c && c.latestDeliveryDate;
+  if (c && campaignHasEnded(c)) return delivered && last ? "delivered until " + fmtDate(last) : "ended — never delivered";
+  if (campaignIsLive(c)) return delivered ? "delivering" : "no delivery in this window";
+  return delivered && last ? "last delivered " + fmtDate(last) : "never delivered";
 }
 function rowMatches(row, term) {
   return [row.context.campaignName, row.context.adName, row.context.adSetName, row.creative.headline]
@@ -1213,56 +1248,61 @@ function cardHtml(row, selected, atLimit) {
   const hasData = rowDelivered(row);
   const tone = !hasData ? "no-data" : ev.eligibility === "eligible" ? TONE[ev.decision.decision] : "not-evaluated";
   const paused = adIsPaused(ctx);
-  const identity = '<div><dt>Status</dt><dd>' + esc(ctx.adStatus || "—") + "</dd></div><div><dt>Last delivery</dt><dd>" + esc(row.latestDeliveryDate || "Never") + "</dd></div>";
+  const strip = (cells) => '<div class="cc-strip">' + cells.map(([v, l]) => "<div><b>" + v + "</b><span>" + l + "</span></div>").join("") + "</div>";
   let middle;
   if (!hasData) {
-    middle = '<p class="cc-reason muted">No performance data available for this period.</p><dl class="facts"><div><dt>Optimisation</dt><dd>' + esc(ev.objective.label) + "</dd></div>" + identity + "</dl>";
+    middle = '<div class="cc-hero"><span class="cc-hero-n">' + metric(row.metrics.spend) + '</span><span class="cc-hero-l">spent in this period</span></div>' +
+      strip([[metric(row.metrics.impressions), "impressions"], [esc(ev.objective.label), "optimises for"], ["—", "leads"]]) +
+      '<p class="cc-reason muted">No performance data for this period.</p>';
   } else if (ev.eligibility === "eligible") {
-    const d = ev.decision;
-    middle = '<p class="cc-reason">' + esc(d.narrative.explanation) + '</p><dl class="facts">' +
-      "<div><dt>Spend</dt><dd>" + metric(d.spend) + "</dd></div><div><dt>Leads</dt><dd>" + metric(d.leads) + "</dd></div>" +
-      "<div><dt>Cost per lead</dt><dd>" + metric(d.cpl) + "</dd></div><div><dt>Link CTR</dt><dd>" + metric(d.linkCtr) + "</dd></div>" + identity + "</dl>" +
-      '<p class="cc-next"><b>Next:</b> ' + esc(d.narrative.nextAction) + "</p>";
+    const d = ev.decision, rating = d.linkCtrRating;
+    middle = '<div class="cc-hero"><span class="cc-hero-n">' + metric(d.cpl) + '</span><span class="cc-hero-l">cost per lead · target <b>' + esc(d.settings.targetCpl) + "</b></span></div>" +
+      strip([[metric(d.spend), "spent"], [metric(d.leads), "leads"], [metric(d.linkCtr), "link CTR" + (rating ? ' · <i class="' + rating.toLowerCase() + '" title="' + esc(CTR_HELP[rating] || "") + '">' + esc(rating) + "</i>" : "")]]) +
+      '<p class="cc-reason" title="' + esc(d.narrative.explanation) + '">' + esc(d.narrative.explanation) + "</p>" +
+      '<p class="cc-next"><b>Next</b> ' + esc(d.narrative.nextAction) + "</p>";
   } else {
-    middle = '<p class="cc-reason">' + esc(ev.status.explanation) + '</p><dl class="facts"><div><dt>Optimisation</dt><dd>' + esc(ev.objective.label) + "</dd></div>" +
-      "<div><dt>Spend</dt><dd>" + metric(row.metrics.spend) + "</dd></div><div><dt>Impressions</dt><dd>" + metric(row.metrics.impressions) + "</dd></div>" + identity + "</dl>";
+    middle = '<div class="cc-hero"><span class="cc-hero-n">' + metric(row.metrics.spend) + '</span><span class="cc-hero-l">spent</span></div>' +
+      strip([[metric(row.metrics.impressions), "impressions"], [esc(ev.objective.label), "optimises for"], ["—", "leads"]]) +
+      '<p class="cc-reason" title="' + esc(ev.status.explanation) + '">' + esc(ev.status.explanation) + "</p>";
   }
   const cmpOff = atLimit && !selected;
   return '<article class="cc ' + tone + (paused ? " paused" : "") + '" data-row="' + esc(row.rowId) + '">' +
     previewHtml(row, "cc-prev") +
-    '<div class="cc-body"><div><div class="cc-name">' + esc(creativeTitle(row)) + "</div>" +
-    (ctx.adSetName ? '<div class="cc-adset">' + esc(ctx.adSetName) + (ctx.adSetStatus && ctx.adSetStatus.toUpperCase() !== "ACTIVE" ? "<i>" + esc(ctx.adSetStatus) + "</i>" : "") + "</div>" : "") + "</div>" +
-    '<div class="badges">' + (paused ? '<span class="badge neutral" title="This ad is switched off in Meta — it is not running.">Paused · not running</span>' : "") + evalBadges(row) + "</div>" +
+    '<div class="cc-body">' +
+    '<div class="cc-top"><div class="cc-name">' + esc(creativeTitle(row)) + '</div><div class="badges">' + evalBadge(row) + "</div></div>" +
     middle +
+    '<div class="cc-meta"><b>' + esc(humanStatus(ctx.adStatus)) + "</b> · " + (row.latestDeliveryDate ? "last delivered " + esc(fmtDate(row.latestDeliveryDate)) : "never delivered") + "</div>" +
     '<div class="cc-actions"><label class="cmp' + (cmpOff ? " off" : "") + '"' + (cmpOff ? ' title="You can compare up to 3 ads at once."' : "") + '><input type="checkbox" data-cmp="' + esc(row.rowId) + '"' + (selected ? " checked" : "") + (cmpOff ? " disabled" : "") + "> Compare</label>" +
-    '<button type="button" class="abtn" data-detail="' + esc(row.rowId) + '">View details</button></div></div></article>';
+    '<button type="button" class="cc-more" data-detail="' + esc(row.rowId) + '">Details <svg class="ic"><use href="#ic-arrow-right"/></svg></button></div></div></article>';
 }
 
 function renderList() {
-  const box = $("campaigns");
-  if (listError) { box.innerHTML = '<div class="setup"><b>We couldn’t load your campaigns.</b><br>' + esc(listError) + "</div>"; return; }
-  if (!rows || !campaigns) { box.innerHTML = '<div class="loading">Loading your campaigns…</div>'; return; }
+  const box = $("campaigns"), count = $("adsCount");
+  if (listError) { count.textContent = ""; box.innerHTML = '<div class="setup"><b>We couldn’t load your campaigns.</b><br>' + esc(listError) + "</div>"; return; }
+  if (!rows || !campaigns) { count.textContent = ""; box.innerHTML = '<div class="loading">Loading your campaigns…</div>'; return; }
   const p = params();
   const term = (p.get("q") || "").trim().toLowerCase();
   const shown = rows.filter((r) => !term || rowMatches(r, term));
-  if (!shown.length) { box.innerHTML = '<div class="setup"><b>No ads to show here.</b><br>Try a different objective or search.</div>'; return; }
   const status = p.get("cstatus") || "active-recent", sort = p.get("csort") || "active";
   const groups = orderGroups(filterGroups(groupByCampaign(shown, campaigns), status), sort);
+  const adsShown = groups.reduce((n, g) => n + g.rows.length, 0);
+  count.textContent = groups.length + (groups.length === 1 ? " campaign" : " campaigns") + " · " + adsShown + (adsShown === 1 ? " ad" : " ads") +
+    (rows.length !== adsShown ? " shown of " + rows.length : "");
+  if (!shown.length) { box.innerHTML = '<div class="setup"><b>No ads to show here.</b><br>Try a different objective or search.</div>'; return; }
   if (!groups.length) { box.innerHTML = '<div class="setup"><b>No campaigns to show here.</b><br>Try “All campaigns” to include paused or historical campaigns.</div>'; return; }
   const first = groups.find((g) => tierOf(g) <= 2) || groups[0];
   const selected = new Set(compareIds()), atLimit = selected.size >= MAX_COMPARE;
   box.innerHTML = groups.map((g) => {
-    const c = g.campaign, delivered = deliveredInWindow(g), [lcLabel, lcTone] = lifecycle(c), [dLabel, dTone] = deliveryPill(g, delivered);
+    const c = g.campaign, delivered = deliveredInWindow(g), [lcLabel, lcTone] = lifecycle(c);
     const delivering = g.rows.filter(rowDelivered).length;
     const adSets = groupByAdSet(g.rows), headings = adSets.length > 1;
+    const meta = (c ? "<b>" + metric(c.metrics.spend) + "</b> since launch · " : "") +
+      "<b>" + delivering + " of " + g.rows.length + "</b> ads delivered · " + esc(deliveryNote(g, delivered));
     return '<details class="cg"' + (g === first ? " open" : "") + '><summary>' +
       '<span class="cg-chev"><svg class="ic"><use href="#ic-chevron"/></svg></span>' +
-      '<span class="cg-name">' + esc(g.name) + '</span><span class="pill ' + lcTone + '">' + esc(lcLabel) + "</span>" +
-      '<span class="cg-facts"><span class="cg-fact"><b>Spend since launch</b><span>' + (c ? metric(c.metrics.spend) : "—") + "</span></span>" +
-      '<span class="cg-fact"><b>Last delivery</b><span>' + esc((c && c.latestDeliveryDate) || "—") + "</span></span>" +
-      '<span class="cg-fact"><b>Delivering</b><span>' + delivering + " of " + g.rows.length + " creatives</span></span>" +
-      '<span class="pill ' + dTone + '">' + esc(dLabel) + "</span></span></summary>" +
-      '<div class="cg-body">' + adSets.map((a) => (headings ? '<div class="adset-t">' + esc(a.name) + "</div>" : "") +
+      '<span class="cg-line"><span class="cg-name">' + esc(g.name) + '</span><span class="pill ' + lcTone + '">' + esc(lcLabel) + "</span></span>" +
+      '<span class="cg-meta">' + meta + "</span></summary>" +
+      '<div class="cg-body">' + adSets.map((a) => (headings ? '<div class="adset-t">' + esc(a.name) + "<span>· " + a.rows.length + (a.rows.length === 1 ? " ad" : " ads") + "</span></div>" : '<div style="height:12px"></div>') +
         '<div class="cards">' + a.rows.map((r) => cardHtml(r, selected.has(r.rowId), atLimit)).join("") + "</div>").join("") + "</div></details>";
   }).join("");
 }
@@ -1347,7 +1387,7 @@ async function renderDetail(rowId) {
     '<div class="dt-name">' + esc(creativeTitle(row)) + "</div>" +
     (ctx.adSetName ? '<div class="dt-line">' + esc(ctx.adSetName) + "</div>" : "") +
     '<div class="dt-line">' + esc(ctx.campaignName || "—") + " · " + esc(ctx.objective || "—") + "</div>" +
-    '<div class="dt-line">Ad: ' + esc(ctx.adStatus || "—") + " · Ad set: " + esc(ctx.adSetStatus || "—") + " · Last delivery: " + esc(row.latestDeliveryDate || "—") + "</div>" +
+    '<div class="dt-line">Ad: ' + esc(humanStatus(ctx.adStatus)) + " · Ad set: " + esc(humanStatus(ctx.adSetStatus)) + " · Last delivery: " + esc(row.latestDeliveryDate ? fmtDate(row.latestDeliveryDate) : "—") + "</div>" +
     '<div class="badges" style="margin-top:10px">' + (d ? decisionBadges(d) : ev.eligibility !== "eligible" ? '<span class="badge neutral" title="' + esc(ev.status.explanation) + '">' + esc(ev.status.label) + "</span>" : "") + "</div>" +
     '<p class="dt-reason">' + esc(d ? d.narrative.explanation : ev.eligibility !== "eligible" ? ev.status.explanation : "") + "</p>" +
     (d ? '<p class="cc-next" style="margin-top:8px"><b>Next:</b> ' + esc(d.narrative.nextAction) + "</p>" : "") +
@@ -1370,7 +1410,7 @@ async function renderDetail(rowId) {
   html += '<section class="panel full"><h3>Daily performance</h3>';
   if (!daily || !daily.length) html += '<p class="muted">No delivery in this window.</p>';
   else html += '<div class="tbl-scroll"><table class="daily-tbl"><thead><tr><th>Date</th>' + DAILY_COLS.map(([, l]) => "<th>" + esc(l) + "</th>").join("") + "</tr></thead><tbody>" +
-    daily.map((r) => "<tr><td>" + esc(r.date) + "</td>" + DAILY_COLS.map(([k]) => "<td>" + metric(r.metrics[k]) + "</td>").join("") + "</tr>").join("") + "</tbody></table></div>";
+    daily.map((r) => "<tr><td>" + esc(fmtDate(r.date)) + "</td>" + DAILY_COLS.map(([k]) => "<td>" + metric(r.metrics[k]) + "</td>").join("") + "</tr>").join("") + "</tbody></table></div>";
   html += "</section>";
   if (d) html += '<section class="panel full"><h3>AI analysis<span class="soon">coming later</span></h3><dl class="kv">' + AI_SLOTS.map(([k, l]) => kv(l, d.ai[k] || "AI analysis coming later.")).join("") + "</dl></section>";
   html += '<details class="panel full prov"><summary>Technical details</summary><dl class="kv">' + kv("Creative ID", c.id) + kv("Ad ID", ctx.adId) + kv("Ad set ID", ctx.adSetId) + kv("Campaign ID", ctx.campaignId) +

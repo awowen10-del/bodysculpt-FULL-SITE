@@ -32,7 +32,7 @@ const RETIRED_GLYPHS = ["✕", "▸", "▾", "▲", "▼", "◐", "▶", "×", "
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v167 · facebook-ads";
+  const text = "build v168 · ads-tidied";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html", "ads.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }
@@ -76,7 +76,7 @@ const RETIRED_GLYPHS = ["✕", "▸", "▾", "▲", "▼", "◐", "▶", "×", "
     // no arithmetic on metric values: the page never turns a display string into a number
     // except to ORDER campaigns by spend, which is the old view's own rule
     const numberCalls = [...js.matchAll(/Number\(([^)]*)\)/g)].map((m) => m[1]);
-    assert.deepStrictEqual(numberCalls, ["s.value"], label + "the only Number() is the spend sort");
+    assert.deepStrictEqual(numberCalls, ["m[3]", "m[2]", "s.value"], label + "the only Number() calls are a date's day and month, and the spend sort");
     assert.ok(!/toFixed|Math\.round|\* 100|\/ 100/.test(js), label + "no rounding, no percentages, no maths of its own");
     // identity, delivery, liveness, pausing: the server's predicates, in the same words
     assert.ok(/return \/\[1-9\]\/\.test\(String\(m\.value\)\);/.test(js), label + "isPositive scans for a non-zero digit, as the server does");
@@ -98,7 +98,7 @@ const RETIRED_GLYPHS = ["✕", "▸", "▾", "▲", "▼", "◐", "▶", "×", "
       fetch: () => new Promise(() => {}), setTimeout, clearTimeout, URLSearchParams, console,
     };
     vm.createContext(ctx);
-    vm.runInContext(js + "\n;globalThis.__f = { groupByCampaign, groupByAdSet, filterGroups, orderGroups, tierOf, lifecycle, deliveryPill, isPositive, creativeTitle, adIsPaused, rowMatches };", ctx);
+    vm.runInContext(js + "\n;globalThis.__f = { groupByCampaign, groupByAdSet, filterGroups, orderGroups, tierOf, lifecycle, deliveryNote, isPositive, creativeTitle, adIsPaused, rowMatches, humanStatus, fmtDate };", ctx);
     const F = ctx.__f;
     const m = (v) => ({ available: v !== null, display: String(v), value: v === null ? null : String(v) });
     const row = (rowId, campaignId, adSetId, adSetName, spend, adName, adStatus) => ({
@@ -122,14 +122,41 @@ const RETIRED_GLYPHS = ["✕", "▸", "▾", "▲", "▼", "◐", "▶", "×", "
     assert.deepStrictEqual([...groups.map(F.tierOf)], [0, 1, 2], "tiers: live+delivering 0 · live, quiet 1 · ended but delivered 2");
     assert.deepStrictEqual([...groups.map((g) => F.lifecycle(g.campaign)[0])], ["Active", "Active", "Completed"], "a campaign past its schedule end reads Completed, never Active");
     assert.deepStrictEqual([...F.lifecycle(camps[3])], ["Paused", "paused"], "PAUSED reads Paused");
-    assert.deepStrictEqual([...F.deliveryPill(groups[2], true)], ["Delivered until 2026-04-30", "done"], "a finished campaign's delivery is past tense");
-    assert.deepStrictEqual([...F.deliveryPill(groups[1], false)], ["No delivery in selected window", "off"], "…and a quiet live one says so");
+    // v168: the delivery clause is a sentence, and a paused campaign is never "delivering"
+    assert.strictEqual(F.deliveryNote(groups[2], true), "delivered until 30 Apr 2026", "a finished campaign's delivery is past tense");
+    assert.strictEqual(F.deliveryNote(groups[1], false), "no delivery in this window", "…a quiet live one says so");
+    assert.strictEqual(F.deliveryNote(groups[0], true), "delivering", "…and only a live, delivering one says delivering");
+    assert.strictEqual(F.deliveryNote({ campaign: camps[3], rows: [] }, true), "never delivered", "a paused campaign with no delivery date says never");
+    assert.strictEqual(F.deliveryNote({ campaign: { ...camps[3], latestDeliveryDate: "2026-09-05" }, rows: [] }, true), "last delivered 5 Sept 2026", "…and one that did says when — never 'delivering'");
+    // statuses in words, dates as dates
+    assert.deepStrictEqual(["CAMPAIGN_PAUSED", "ADSET_PAUSED", "PAUSED", "ACTIVE", "IN_PROCESS", null].map(F.humanStatus),
+      ["Paused (campaign)", "Paused (ad set)", "Paused", "Active", "In process", "—"], "Meta's enums read as words");
+    assert.strictEqual(F.fmtDate("2026-09-05"), "5 Sept 2026", "an ISO date reads as a date");
+    assert.strictEqual(F.fmtDate(null), "—", "…and no date is a dash");
     assert.deepStrictEqual([...F.filterGroups(groups, "active").map((g) => g.key)], ["c1", "c2"], "Active only drops the completed one");
     assert.deepStrictEqual([...F.filterGroups(groups, "active-recent").map((g) => g.key)], ["c1", "c2", "c3"], "Active + recent keeps anything that delivered in the window");
     assert.deepStrictEqual([...F.orderGroups(groups.slice().reverse(), "active").map((g) => g.key)], ["c1", "c2", "c3"], "the default order is live-first");
     assert.deepStrictEqual([...F.orderGroups(groups, "spend").map((g) => g.key)], ["c3", "c1", "c2"], "highest spend first");
     assert.deepStrictEqual([...F.orderGroups(groups, "name").map((g) => g.name)], ["Done", "Live", "Quiet"], "by name");
     assert.ok(F.rowMatches(rows[0], "women") && !F.rowMatches(rows[0], "zzz"), "search reads campaign, ad, ad set and headline");
+  }
+
+  /* ================= 3b. v168: the card's hierarchy ================= */
+  {
+    const js = scriptOf(ADS), label = "ads.html: ";
+    const card = js.slice(js.indexOf("function cardHtml("), js.indexOf("function renderList("));
+    assert.strictEqual((card.match(/evalBadge\(row\)/g) || []).length, 1, label + "a card carries ONE verdict pill");
+    assert.ok(!/ctrBadge\(/.test(card), label + "…the Link CTR rating rides with its number, not as a second pill");
+    assert.ok(/class="cc-hero-n">' \+ metric\(d\.cpl\)/.test(card), label + "cost per lead is the hero number");
+    assert.ok(/target <b>' \+ esc\(d\.settings\.targetCpl\)/.test(card), label + "…set against the target it is judged by");
+    assert.ok(!/adSetName/.test(card), label + "the ad set is not repeated on every card under its own heading");
+    assert.ok(/humanStatus\(ctx\.adStatus\)/.test(card) && !/esc\(ctx\.adStatus/.test(card), label + "the status is words, never the raw enum");
+    assert.ok(/fmtDate\(row\.latestDeliveryDate\)/.test(card), label + "the last-delivery date is a date");
+    assert.ok(!/adStatus \|\| "—"/.test(card), label + "no raw status fact");
+    const style = styleOf(ADS);
+    assert.ok(/\.cc\.paused \.cc-prev\{filter:grayscale\(1\)/.test(style), label + "paused fades the picture, not the words");
+    assert.ok(!/\.cc\.paused\{opacity/.test(style), label + "…the whole card is no longer greyed out");
+    assert.ok(/\.cc-reason\{[^}]*-webkit-line-clamp:3/.test(style), label + "the reason is clamped to three lines (the full text is a hover and a click away)");
   }
 
   /* ================= 4. the server move ================= */
