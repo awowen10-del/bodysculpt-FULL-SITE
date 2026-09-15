@@ -576,6 +576,9 @@
   .viewtoggle{display:flex;gap:2px;background:var(--card);border:1px solid var(--line);
     border-radius:var(--r-lg);padding:0 var(--sp-4);
     margin:0 0 var(--sp-4);overflow-x:auto;}
+  /* v166: the plan side has no tab row — the row hides itself, and `hidden` must beat the
+     display:flex above or the attribute would be ignored. */
+  .viewtoggle[hidden]{display:none;}
   .viewtoggle .vt{flex:0 0 auto;font-family:inherit;font-size:13.5px;font-weight:500;
     color:var(--ink-dim);background:transparent;border:0;border-bottom:2px solid transparent;
     border-radius:0;padding:12px 15px 10px;cursor:pointer;white-space:nowrap;
@@ -1577,9 +1580,11 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
     <button type="button" class="mbar-menu" id="mbarMenu" aria-controls="sideNav" aria-expanded="false"><svg class="ic"><use href="#ic-menu"/></svg>Menu</button>
     <span class="mbar-name">Bodysculpt</span>
   </div>
-    <div class="viewtoggle" id="tabBar">
-      <button class="vt active" id="vtPlan">Weekly Plan</button>
-      <button class="vt" id="vtKpi">KPIs</button>
+    <!-- v166: the numbers side's tabs. The Weekly Plan is the page itself and has no tab —
+         the rail's "Weekly" is the way to it — so this row is hidden while the plan shows.
+         Hidden at rest because the plan is the landing side; show() decides from then on. -->
+    <div class="viewtoggle" id="tabBar" hidden>
+      <button class="vt active" id="vtKpi">KPIs</button>
       <button class="vt" id="vtFb">Facebook Ads</button>
       <button class="vt" id="vtTable">Table</button>
     </div>
@@ -1841,7 +1846,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 
   <footer>
     <span class="stage" id="srcPill"><svg class="ic"><use href="#ic-dot"/></svg> Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v165 · numbers-in-the-rail</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v166 · the-plan-is-the-page</span>
   </footer>
 </div>
 
@@ -6474,9 +6479,12 @@ function wpHabitCardHtml(){
 })();
 
 /* ===== VIEW TOGGLE + TABLE VIEW ===== */
-// v165: which tab an address asks for. Only one hash means anything: #kpi.
+// v165/v166: which tab an address asks for. The numbers side's three tabs each have a
+// hash (#kpi, #fb, #table — the rail's "Weekly KPIs" is #kpi); anything else is the plan.
+const WP_TAB_HASH = { kpi:'#kpi', fb:'#fb', table:'#table' };
 function wpTabFromHash(){
-  return (window.location && window.location.hash==='#kpi') ? 'kpi' : 'plan';
+  const h = (window.location && window.location.hash) || '';
+  return Object.keys(WP_TAB_HASH).find(k=>WP_TAB_HASH[k]===h) || 'plan';
 }
 function wireViewToggle(){
   const views={
@@ -6492,22 +6500,25 @@ function wireViewToggle(){
     plan:  document.getElementById('vtPlan')
   };
   const wa=document.getElementById('weekActions');
-  if(!tabs.plan) return;
+  const bar=document.getElementById('tabBar');
+  if(!tabs.kpi) return;
   function show(which){
     Object.keys(views).forEach(k=>{ if(views[k]) views[k].hidden = (k!==which); });
     Object.keys(tabs).forEach(k=>{ if(tabs[k]) tabs[k].classList.toggle('active', k===which); });
+    // v166: the tab row belongs to the numbers side. The plan is the page on its own.
+    if(bar) bar.hidden = (which==='plan');
     // entry/edit action buttons are relevant on the KPIs tab (week data); hidden on FB/Table/Plan
     if(wa) wa.style.display = (which==='kpi') ? 'flex' : 'none';
     if(which!=='fb') mwcAbandon();   // v107: leaving the FB tab throws away any mid-week override
     if(which==='table') buildQuarterSelector();
     if(which==='plan') loadWeeklyPlan();
     window.scrollTo({top:0,behavior:'smooth'});
-    // v165: the address and the rail say which tab this is. #kpi = the KPIs tab, nothing
-    // else — so "Weekly" and "Weekly KPIs" in the rail each mean exactly one thing, and a
-    // refresh lands where you were. replaceState fires no hashchange, so this cannot loop.
-    if(window.snMarkActive) window.snMarkActive(which==='kpi');
+    // v165: the address and the rail say which tab this is — so "Weekly" and "Weekly KPIs"
+    // in the rail each mean exactly one thing, and a refresh lands where you were.
+    // replaceState fires no hashchange, so this cannot loop.
+    if(window.snMarkActive) window.snMarkActive(which!=='plan');
     if(window.history && window.history.replaceState && window.location){
-      try{ window.history.replaceState(null,'', which==='kpi' ? '#kpi' : window.location.pathname + window.location.search); }catch(e){}
+      try{ window.history.replaceState(null,'', WP_TAB_HASH[which] || (window.location.pathname + window.location.search)); }catch(e){}
     }
   }
   // the rail's link, clicked while already on this page, only changes the hash
@@ -6515,7 +6526,6 @@ function wireViewToggle(){
   tabs.kpi.addEventListener('click',()=>show('kpi'));
   tabs.fb.addEventListener('click',()=>show('fb'));
   tabs.table.addEventListener('click',()=>show('table'));
-  tabs.plan.addEventListener('click',()=>show('plan'));
   window.showTab = show; // let panel openers ensure the right tab is visible
 }
 function quarterOf(iso){ // returns e.g. "2026-Q2"

@@ -105,15 +105,18 @@ const PAGES = [
     assert.ok(!/id="themeToggle"/.test(src), label + " has no theme toggle left anywhere");
   }
 
-  /* ================= 3. the section bar is untouched ================= */
-  // The two bars do different jobs: .topnav names the PERIOD, #tabBar names the SECTION
-  // within that period. Trimming the first must not have touched the second.
+  /* ================= 3. the section bar ================= */
+  // The two bars do different jobs: the rail names the PAGE, #tabBar names the SECTION
+  // within it. v166: the plan tab left the row — the plan is the page itself, reached from
+  // the rail — so the row holds the numbers side's sections only and hides while the plan
+  // shows (tests/v166 owns that). What this still checks: the sections that remain are
+  // the ones that were always there, in the same order.
   const SECTIONS = [
-    ["index.html", WEEKLY, ["Weekly Plan", "KPIs", "Facebook Ads", "Table"]],
-    ["monthly.html", MONTHLY, ["Monthly Plan", "KPIs", "Expenses", "Growth"]],
+    ["index.html", WEEKLY, ["KPIs", "Facebook Ads", "Table"]],
+    ["monthly.html", MONTHLY, ["KPIs", "Expenses", "Growth"]],
   ];
   for (const [label, src, expected] of SECTIONS) {
-    const bar = /<div class="viewtoggle" id="tabBar">([\s\S]*?)<\/div>/.exec(src);
+    const bar = /<div class="viewtoggle" id="tabBar" hidden>([\s\S]*?)<\/div>/.exec(src);
     assert.ok(bar, label + " still has its section bar");
     const tabs = [...bar[1].matchAll(/<button[^>]*>([\s\S]*?)<\/button>/g)].map((m) => m[1].trim());
     assert.deepStrictEqual(tabs, expected, label + " section tabs are unchanged");

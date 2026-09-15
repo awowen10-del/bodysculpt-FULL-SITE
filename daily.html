@@ -240,6 +240,9 @@
   .viewtoggle{display:flex;gap:2px;background:var(--card);border:1px solid var(--line);
     border-radius:var(--r-lg);padding:0 var(--sp-4);
     margin:0 0 var(--sp-4);overflow-x:auto;}
+  /* v166: the plan side has no tab row — the row hides itself, and `hidden` must beat the
+     display:flex above or the attribute would be ignored. */
+  .viewtoggle[hidden]{display:none;}
   .viewtoggle .vt{flex:0 0 auto;font-family:inherit;font-size:13.5px;font-weight:500;
     color:var(--ink-dim);background:transparent;border:0;border-bottom:2px solid transparent;
     border-radius:0;padding:12px 15px 10px;cursor:pointer;white-space:nowrap;
@@ -1185,7 +1188,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 <symbol id="ic-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/></symbol>
 <symbol id="ic-chevrons" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 6l-6 6 6 6M18 6l-6 6 6 6"/></symbol>
 </defs></svg>
-<!-- build v165 · numbers-in-the-rail -->
+<!-- build v166 · the-plan-is-the-page -->
 <aside class="sidenav" id="sideNav" aria-label="Pages">
   <div class="sn-top">
     <a class="sn-brand" href="/daily.html">

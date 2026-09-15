@@ -235,6 +235,9 @@
   .viewtoggle{display:flex;gap:2px;background:var(--card);border:1px solid var(--line);
     border-radius:var(--r-lg);padding:0 var(--sp-4);
     margin:0 0 var(--sp-4);overflow-x:auto;}
+  /* v166: the plan side has no tab row — the row hides itself, and `hidden` must beat the
+     display:flex above or the attribute would be ignored. */
+  .viewtoggle[hidden]{display:none;}
   .viewtoggle .vt{flex:0 0 auto;font-family:inherit;font-size:13.5px;font-weight:500;
     color:var(--ink-dim);background:transparent;border:0;border-bottom:2px solid transparent;
     border-radius:0;padding:12px 15px 10px;cursor:pointer;white-space:nowrap;
@@ -673,7 +676,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 <symbol id="ic-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/></symbol>
 <symbol id="ic-chevrons" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 6l-6 6 6 6M18 6l-6 6 6 6"/></symbol>
 </defs></svg>
-<!-- build v165 · numbers-in-the-rail -->
+<!-- build v166 · the-plan-is-the-page -->
 <aside class="sidenav" id="sideNav" aria-label="Pages">
   <div class="sn-top">
     <a class="sn-brand" href="/daily.html">
@@ -714,9 +717,11 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
     <button type="button" class="mbar-menu" id="mbarMenu" aria-controls="sideNav" aria-expanded="false"><svg class="ic"><use href="#ic-menu"/></svg>Menu</button>
     <span class="mbar-name">Bodysculpt</span>
   </div>
-  <div class="viewtoggle" id="tabBar">
-    <button class="vt active" data-view="plan">Monthly Plan</button>
-    <button class="vt" data-view="home">KPIs</button>
+  <!-- v166: the numbers side's tabs. The Monthly Plan is the page itself and has no tab —
+       the rail's "Monthly" is the way to it — so this row is hidden while the plan shows.
+       The month picker rides with it; the plan changes month with the bar below. -->
+  <div class="viewtoggle" id="tabBar" hidden>
+    <button class="vt active" data-view="home">KPIs</button>
     <button class="vt" data-view="money">Expenses</button>
     <button class="vt" data-view="growth">Growth</button>
     <div class="vt-right"><div class="monthpick"><span>Month</span><select id="monthSel"></select></div></div>
@@ -943,7 +948,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
      after a monthly-only release. Same pill as the Weekly Dashboard's footer, and the two
      pages carry the SAME suite build string — a test fails if they ever drift apart. -->
 <footer class="mp-footer">
-  <span class="mp-stage">build v165 · numbers-in-the-rail</span>
+  <span class="mp-stage">build v166 · the-plan-is-the-page</span>
 </footer>
 
 <!-- v93: focus-item notes editor — the v70 rich editor in a Today-modal-style dialog.
@@ -1620,20 +1625,25 @@ function renderCurrent(){
   else if(curView==="growth") renderGrowth();
   else if(curView==="plan") renderMonthlyPlan();
 }
-// v165: which view an address asks for. Only one hash means anything: #kpi (the KPIs
-// view, whose id has always been "home"). Anything else is the default.
+// v165/v166: which view an address asks for. The numbers side's three views each have a
+// hash (#kpi is the KPIs view, whose id has always been "home"); anything else is the
+// default, the plan.
+const MP_VIEW_HASH = { home:"#kpi", money:"#expenses", growth:"#growth" };
 function mpViewFromHash(){
-  return (window.location && window.location.hash==="#kpi") ? "home" : DEFAULT_VIEW;
+  const h = (window.location && window.location.hash) || "";
+  return Object.keys(MP_VIEW_HASH).find(k=>MP_VIEW_HASH[k]===h) || DEFAULT_VIEW;
 }
 function showView(v){
   curView=v;
   document.querySelectorAll(".view").forEach(el=>el.hidden = (el.id !== "view-"+v));
   document.querySelectorAll(".vt").forEach(b=>b.classList.toggle("active", b.dataset.view===v));
   renderCurrent();
+  // v166: the tab row belongs to the numbers side. The plan is the page on its own.
+  const bar=document.getElementById("tabBar"); if(bar) bar.hidden = (v==="plan");
   // v165: the address and the rail say which view this is — see index.html's show().
-  if(window.snMarkActive) window.snMarkActive(v==="home");
+  if(window.snMarkActive) window.snMarkActive(v!=="plan");
   if(window.history && window.history.replaceState && window.location){
-    try{ window.history.replaceState(null,"", v==="home" ? "#kpi" : window.location.pathname + window.location.search); }catch(e){}
+    try{ window.history.replaceState(null,"", MP_VIEW_HASH[v] || (window.location.pathname + window.location.search)); }catch(e){}
   }
 }
 function rebuildMonthSel(){

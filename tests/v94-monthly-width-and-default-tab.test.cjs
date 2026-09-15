@@ -36,9 +36,11 @@ const WEEKLY = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8")
     const env = await boot({ plans: {} });   // boot() only — no test-side navigation
     assert.strictEqual(env.ctx.__mpState.defaultView, "plan", "the default view is the Monthly Plan");
     assert.strictEqual(env.ctx.__mpState.view, "plan", "the Monthly Report opens on the Monthly Plan tab");
-    // the static markup agrees, so there is no flash of the wrong tab before boot runs
-    assert.ok(/<button class="vt active" data-view="plan">Monthly Plan<\/button>/.test(MONTHLY),
-      "the Monthly Plan tab is marked active in the markup");
+    // v166: the plan has no tab any more — it is the page itself, and the tab row (the
+    // numbers side's) starts hidden, so there is still no flash of the wrong thing before
+    // boot runs. tests/v166 pins the row; what v94 owns is that the plan is where you land.
+    assert.ok(/<div class="viewtoggle" id="tabBar" hidden>/.test(MONTHLY), "the numbers row starts hidden, so the plan shows alone");
+    assert.ok(!/data-view="plan"/.test(MONTHLY), "…and there is no plan tab to flash");
     assert.strictEqual((MONTHLY.match(/class="vt active"/g) || []).length, 1, "exactly one tab starts active");
 
     /* ---------- 3. every tab still switches ---------- */
@@ -47,7 +49,8 @@ const WEEKLY = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8")
       await env.settle();
       assert.strictEqual(env.ctx.__mpState.view, view, "the " + view + " tab still switches");
     }
-    ["plan", "home", "money", "growth"].forEach((v) =>
+    // v166: the plan is reached from the rail, not a tab; the numbers side's three remain
+    ["home", "money", "growth"].forEach((v) =>
       assert.ok(MONTHLY.includes(`data-view="${v}"`), "the " + v + " tab is still in the bar"));
   }
 

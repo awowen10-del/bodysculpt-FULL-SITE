@@ -28,7 +28,7 @@ const scriptOf = (src) => src.slice(src.lastIndexOf("<script>") + 8, src.lastInd
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v165 · numbers-in-the-rail";
+  const text = "build v166 · the-plan-is-the-page";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }
@@ -52,13 +52,14 @@ const scriptOf = (src) => src.slice(src.lastIndexOf("<script>") + 8, src.lastInd
   /* ============ 2. the weekly page, booted: no hash = as before; #kpi = KPIs ============ */
   {
     const src = read("index.html"), js = scriptOf(src);
-    assert.ok(/function wpTabFromHash\(\)\{\s*return \(window\.location && window\.location\.hash==='#kpi'\) \? 'kpi' : 'plan';/.test(js),
-      "weekly: only #kpi means anything; everything else is the plan tab");
+    // v166: the numbers side grew to three tabs, each with a hash; the plan is still the default
+    assert.ok(/const WP_TAB_HASH = \{ kpi:'#kpi', fb:'#fb', table:'#table' \};/.test(js) && /\|\| 'plan';/.test(js),
+      "weekly: #kpi, #fb and #table name the numbers tabs; everything else is the plan");
     assert.ok(/if\(window\.showTab\) window\.showTab\(wpTabFromHash\(\)\);/.test(js), "weekly: the landing tab is read from the hash");
     assert.ok(/window\.addEventListener\('hashchange',\(\)=>show\(wpTabFromHash\(\)\)\);/.test(js),
       "weekly: the rail's link, clicked while already here, still switches the tab");
-    assert.ok(/if\(window\.snMarkActive\) window\.snMarkActive\(which==='kpi'\);/.test(js), "weekly: the tab switch moves the rail's mark");
-    assert.ok(/window\.history\.replaceState\(null,'', which==='kpi' \? '#kpi' : window\.location\.pathname \+ window\.location\.search\)/.test(js),
+    assert.ok(/if\(window\.snMarkActive\) window\.snMarkActive\(which!=='plan'\);/.test(js), "weekly: the tab switch moves the rail's mark");
+    assert.ok(/window\.history\.replaceState\(null,'', WP_TAB_HASH\[which\] \|\| \(window\.location\.pathname \+ window\.location\.search\)\)/.test(js),
       "weekly: …and writes the hash back without a hashchange, so a refresh lands where you were");
 
     const plain = await weekly.boot({});
@@ -79,12 +80,12 @@ const scriptOf = (src) => src.slice(src.lastIndexOf("<script>") + 8, src.lastInd
   /* ============ 3. the monthly page, booted: the same ============ */
   {
     const src = read("monthly.html"), js = scriptOf(src);
-    assert.ok(/function mpViewFromHash\(\)\{\s*return \(window\.location && window\.location\.hash==="#kpi"\) \? "home" : DEFAULT_VIEW;/.test(js),
-      "monthly: only #kpi means anything — the KPIs view, whose id has always been 'home'");
+    assert.ok(/const MP_VIEW_HASH = \{ home:"#kpi", money:"#expenses", growth:"#growth" \};/.test(js) && /\|\| DEFAULT_VIEW;/.test(js),
+      "monthly: #kpi (the KPIs view, id 'home' since forever), #expenses and #growth; everything else is the default");
     assert.ok(/const DEFAULT_VIEW = "plan";/.test(js), "monthly: the default is still the plan (v94)");
     assert.ok(/showView\(mpViewFromHash\(\)\);\s*\n\s*window\.addEventListener\("hashchange", \(\)=>showView\(mpViewFromHash\(\)\)\);/.test(js),
       "monthly: the landing view is read from the hash, and the rail's link works while already here");
-    assert.ok(/if\(window\.snMarkActive\) window\.snMarkActive\(v==="home"\);/.test(js), "monthly: the view switch moves the rail's mark");
+    assert.ok(/if\(window\.snMarkActive\) window\.snMarkActive\(v!=="plan"\);/.test(js), "monthly: the view switch moves the rail's mark");
 
     const plain = await monthly.boot({});
     assert.strictEqual(plain.ctx.__mpState.view, "plan", "monthly, no hash: lands on the Monthly Plan (v94's rule, untouched)");
