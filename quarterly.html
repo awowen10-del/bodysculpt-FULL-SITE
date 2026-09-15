@@ -141,6 +141,26 @@
      the rail slides in over the page with a scrim behind it. The rail is one block of
      markup and one block of CSS, byte-identical on all six pages. */
   @media(min-width:901px){ html{padding-left:236px;} }
+  /* v163: FOLDED. Ash: "add an option, maybe two little arrows, to collapse the nav bar and
+     have just icons instead of the full text, just in case I wanted more space on my main
+     screen." A double chevron at the foot of the rail folds it to 72px: the mark stays,
+     the words go, each icon keeps its name as a tooltip, and the root's padding shrinks
+     with it so the page takes the space. The choice is kept per browser
+     (localStorage bodysculpt:nav) and applied before first paint by the boot script in
+     <head>. Folding is a wide-screen idea only — under 900px the rail is a drawer, always
+     full width, and the button is hidden. */
+  @media(min-width:901px){
+    html.nav-collapsed{padding-left:72px;}
+    html.nav-collapsed .sidenav{width:72px;padding-left:var(--sp-3);padding-right:var(--sp-3);}
+    html.nav-collapsed .sn-brand{padding:0;justify-content:center;}
+    html.nav-collapsed .sn-brand>div:not(.mark){display:none;}
+    html.nav-collapsed .sn-cap{font-size:0;height:1px;background:var(--line);margin:2px 10px 10px;padding:0;}
+    html.nav-collapsed .sn-money .sn-cap{background:rgba(var(--orange-rgb),.45);}
+    html.nav-collapsed .sn-link{justify-content:center;padding:9px 0;gap:0;}
+    html.nav-collapsed .sn-lbl{display:none;}
+    html.nav-collapsed .sn-fold{align-self:center;}
+    html.nav-collapsed .sn-fold .ic{transform:rotate(180deg);}
+  }
   .sidenav{position:fixed;left:0;top:0;bottom:0;width:236px;z-index:90;display:flex;
     flex-direction:column;gap:var(--sp-5);padding:var(--sp-5) var(--sp-4);overflow-y:auto;
     background:var(--card);border-right:1px solid var(--line);}
@@ -177,6 +197,14 @@
   .sn-money .sn-link:hover{color:var(--orange-soft);background:rgba(var(--orange-rgb),.09);}
   .sn-money .sn-link.active{background:rgba(var(--orange-rgb),.12);color:var(--orange-soft);}
   .sn-money .sn-link.active .ic{color:var(--orange-soft);}
+  /* the fold button: at the foot of the rail, quiet until hovered, gone in drawer mode */
+  .sn-fold{margin-top:auto;align-self:flex-end;font-family:inherit;background:transparent;
+    border:1px solid transparent;border-radius:var(--r-md);color:var(--ink-faint);cursor:pointer;
+    width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;
+    transition:color var(--tap),border-color var(--tap),background var(--tap);}
+  .sn-fold .ic{width:18px;height:18px;transition:transform var(--tap);}
+  .sn-fold:hover{color:var(--ink);border-color:var(--line);background:var(--navy-2);}
+  .sn-fold:focus-visible{outline:none;box-shadow:var(--focus);}
   /* the narrow-screen bar and the scrim: both absent on a wide screen */
   .mobilebar{display:none;}
   .sn-scrim{display:none;}
@@ -196,6 +224,7 @@
   .viewtoggle .vt:focus-visible{outline:none;box-shadow:var(--focus);border-radius:var(--r-sm);}
   @media(max-width:900px){
     .sidenav{transform:translateX(-100%);transition:transform .22s ease;box-shadow:none;}
+    .sn-fold{display:none;}
     body.nav-open .sidenav{transform:none;box-shadow:var(--shadow-lift);}
     body.nav-open .sn-scrim{display:block;position:fixed;inset:0;z-index:85;
       background:rgba(var(--ink-dim-rgb),.45);}
@@ -783,6 +812,13 @@
 </style>
 </head>
 <body>
+<script>
+/* v163: the rail remembers whether you folded it — read as the FIRST thing in <body>, before
+   anything is on screen, so a folded rail does not flash open on every load. One class on
+   <html>; the stylesheet does the rest. (Not in <head>: nothing reads storage before the
+   stylesheet — the v121 rule that keeps a theme boot from ever coming back.) */
+try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.documentElement.classList.add("nav-collapsed"); } catch (e) {}
+</script>
 <!-- ===================== v121: THE ICON SET =====================
      One sprite, injected on every page, replacing the emoji and typographic glyphs the
      suite used to use as icons (✕ ▸ ▾ ▲ ▼ 📅 📍 🗒 🔥 ⚠ ↻ and the training set).
@@ -826,6 +862,7 @@
 <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.05" fill="currentColor" stroke="none"/></symbol>
 <symbol id="ic-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
 <symbol id="ic-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/></symbol>
+<symbol id="ic-chevrons" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 6l-6 6 6 6M18 6l-6 6 6 6"/></symbol>
 </defs></svg>
 <aside class="sidenav" id="sideNav" aria-label="Pages">
   <a class="sn-brand" href="/daily.html">
@@ -835,23 +872,24 @@
   <nav class="sn-nav">
     <div class="sn-group">
       <span class="sn-cap">Today</span>
-        <a href="/daily.html" class="sn-link"><svg class="ic"><use href="#ic-sun"/></svg>Daily Dashboard</a>
+        <a href="/daily.html" class="sn-link" title="Daily Dashboard"><svg class="ic"><use href="#ic-sun"/></svg><span class="sn-lbl">Daily Dashboard</span></a>
     </div>
     <div class="sn-group">
       <span class="sn-cap">Planning</span>
-        <a href="/index.html" class="sn-link"><svg class="ic"><use href="#ic-calendar"/></svg>Weekly</a>
-        <a href="/monthly.html" class="sn-link"><svg class="ic"><use href="#ic-grid"/></svg>Monthly</a>
-        <a href="/quarterly.html" class="sn-link active"><svg class="ic"><use href="#ic-target"/></svg>Quarterly</a>
+        <a href="/index.html" class="sn-link" title="Weekly"><svg class="ic"><use href="#ic-calendar"/></svg><span class="sn-lbl">Weekly</span></a>
+        <a href="/monthly.html" class="sn-link" title="Monthly"><svg class="ic"><use href="#ic-grid"/></svg><span class="sn-lbl">Monthly</span></a>
+        <a href="/quarterly.html" class="sn-link active" title="Quarterly"><svg class="ic"><use href="#ic-target"/></svg><span class="sn-lbl">Quarterly</span></a>
     </div>
     <div class="sn-group">
       <span class="sn-cap">Social</span>
-        <a href="/social.html" class="sn-link"><svg class="ic"><use href="#ic-camera"/></svg>Instagram</a>
+        <a href="/social.html" class="sn-link" title="Instagram"><svg class="ic"><use href="#ic-camera"/></svg><span class="sn-lbl">Instagram</span></a>
     </div>
     <div class="sn-group sn-money">
       <span class="sn-cap">Finances</span>
-        <a href="/finances.html" class="sn-link"><svg class="ic"><use href="#ic-wallet"/></svg>Income &amp; Expenses</a>
+        <a href="/finances.html" class="sn-link" title="Income &amp; Expenses"><svg class="ic"><use href="#ic-wallet"/></svg><span class="sn-lbl">Income &amp; Expenses</span></a>
     </div>
   </nav>
+  <button type="button" class="sn-fold" id="snFold" aria-label="Fold the menu to icons" title="Fold the menu"><svg class="ic"><use href="#ic-chevrons"/></svg></button>
 </aside>
 <div class="sn-scrim" id="snScrim"></div>
 <header>
@@ -934,6 +972,21 @@
   if (btn) btn.addEventListener("click", function () { setOpen(!document.body.classList.contains("nav-open")); });
   if (scrim) scrim.addEventListener("click", function () { setOpen(false); });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") setOpen(false); });
+  // v163: the fold. One class on <html>, remembered per browser; the boot script in <head>
+  // re-applies it before paint next time.
+  var fold = document.getElementById("snFold");
+  function setFolded(on) {
+    document.documentElement.classList.toggle("nav-collapsed", on);
+    if (fold) {
+      fold.setAttribute("aria-label", on ? "Unfold the menu" : "Fold the menu to icons");
+      fold.setAttribute("title", on ? "Unfold the menu" : "Fold the menu");
+    }
+    try { localStorage.setItem("bodysculpt:nav", on ? "collapsed" : "open"); } catch (e) {}
+  }
+  if (fold) {
+    if (document.documentElement.classList.contains("nav-collapsed")) setFolded(true);
+    fold.addEventListener("click", function () { setFolded(!document.documentElement.classList.contains("nav-collapsed")); });
+  }
 })();
 
 "use strict";

@@ -36,7 +36,7 @@ const ruleOf = (style, sel) => {
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v162 · side-nav";
+  const text = "build v163 · fold-the-rail";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }
@@ -68,8 +68,10 @@ const ruleOf = (style, sel) => {
     assert.deepStrictEqual(groups.map((m) => [m[2], !!m[1]]),
       [["Today", false], ["Planning", false], ["Social", false], ["Finances", true]],
       label + "four captions in order, and only Finances carries the money class");
-    const linksOf = (block) => [...block.matchAll(/<a href="([^"]+)" class="sn-link( active)?"><svg class="ic"><use href="#(ic-[a-z-]+)"\/><\/svg>([^<]+)<\/a>/g)]
-      .map((m) => ({ href: m[1], active: !!m[2], icon: m[3], label: m[4] }));
+    // v163 wrapped the label in a span (so the fold can hide it) and gave every link a
+    // tooltip that repeats its label (so a folded icon still has a name)
+    const linksOf = (block) => [...block.matchAll(/<a href="([^"]+)" class="sn-link( active)?" title="([^"]+)"><svg class="ic"><use href="#(ic-[a-z-]+)"\/><\/svg><span class="sn-lbl">([^<]+)<\/span><\/a>/g)]
+      .map((m) => ({ href: m[1], active: !!m[2], title: m[3], icon: m[4], label: m[5] }));
     assert.deepStrictEqual(linksOf(groups[0][3]).map((l) => l.href), ["/daily.html"], label + "Today holds the daily dashboard alone");
     assert.deepStrictEqual(linksOf(groups[1][3]).map((l) => l.href), ["/index.html", "/monthly.html", "/quarterly.html"],
       label + "the three periods stay together under Planning");

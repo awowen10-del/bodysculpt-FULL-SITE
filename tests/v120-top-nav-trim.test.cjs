@@ -74,8 +74,8 @@ const PAGES = [
     assert.strictEqual((nav[1].match(/<div class="sn-group/g) || []).length, 4,
       label + " keeps the four groups apart");
 
-    // v162: a link leads with its icon; the label is what follows it
-    const links = [...nav[1].matchAll(/<a href="([^"]+)"([^>]*)><svg class="ic"><use href="#ic-[a-z-]+"\/><\/svg>([\s\S]*?)<\/a>/g)];
+    // v162: a link leads with its icon; v163 wrapped the label so the fold can hide it
+    const links = [...nav[1].matchAll(/<a href="([^"]+)"([^>]*)><svg class="ic"><use href="#ic-[a-z-]+"\/><\/svg><span class="sn-lbl">([\s\S]*?)<\/span><\/a>/g)];
     assert.strictEqual(links.length, 6, label + " top menu has today, the three periods, social and finances");
 
     assert.deepStrictEqual(
@@ -96,6 +96,7 @@ const PAGES = [
 
     // the page's own link is the active one, and it is the only active one
     const active = links.filter((m) => /class="sn-link active"/.test(m[2]));
+    for (const m of links) assert.ok(/^ class="sn-link(?: active)?" title="[^"]+"$/.test(m[2]), label + " a link carries only its class and a tooltip");
     assert.strictEqual(active.length, 1, label + " marks exactly one link active");
     assert.strictEqual(active[0][1], self, label + " marks its own link active");
 

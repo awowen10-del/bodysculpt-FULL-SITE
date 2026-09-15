@@ -26,7 +26,7 @@ const fn = (name) => {
 };
 
 /* ================= 0. the stamp ================= */
-const text = "build v162 · side-nav";
+const text = "build v163 · fold-the-rail";
 for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html"]) {
   assert.ok(read(f).includes(text), f + " carries the stamp");
 }
