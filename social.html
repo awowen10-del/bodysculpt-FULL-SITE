@@ -680,7 +680,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 <symbol id="ic-chevrons" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 6l-6 6 6 6M18 6l-6 6 6 6"/></symbol>
 <symbol id="ic-megaphone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10.5v3a1.5 1.5 0 0 0 1.5 1.5h2l4.6 3.4c.7.5 1.6 0 1.6-.8V6.4c0-.8-.9-1.3-1.6-.8L7 9H5a1.5 1.5 0 0 0-1.5 1.5z"/><path d="M16.5 9.2a3.6 3.6 0 0 1 0 5.6M18.8 6.6a7 7 0 0 1 0 10.8"/></symbol>
 </defs></svg>
-<!-- build v171 · the-reel-that-ate-the-page -->
+<!-- build v172 · competitor-views -->
 <aside class="sidenav" id="sideNav" aria-label="Pages">
   <div class="sn-top">
     <a class="sn-brand" href="/daily.html">
@@ -769,11 +769,13 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
   <div class="rivals" id="rivalChips"></div>
   <div class="basis" id="rivalBasis" hidden>
     <svg class="ic"><use href="#ic-help"/></svg>
-    <div><b>These are not the same number as yours.</b> Reach, views, saves and shares are private —
-    Instagram gives them for accounts you own and for nobody else, at any price. For other accounts
-    the honest measure is likes and comments against their follower count, which is what is shown
-    here. What <i>does</i> compare cleanly is how a post did against its own account's normal:
-    that is what the flame means, on both sides of this toggle.</div>
+    <div><b>These are not the same number as yours.</b> Reach, saves and shares are private —
+    Instagram gives them for accounts you own and for nobody else. For other accounts the API gives
+    likes and comments against their follower count, which is the engagement shown here. <b>Views</b>
+    on their reels are read off their public page once a night (and when you press Refresh), because
+    Instagram prints a reel's play count for anyone to see. What compares cleanly is how a post did
+    against its own account's normal: that is what the flame means, on both sides of this toggle —
+    on views where there are views, on engagement otherwise.</div>
   </div>
   <div class="sp-head"><div class="acct" id="rivalAcct"></div></div>
   <div class="fin-stats" id="rivalStats"></div>
@@ -846,6 +848,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 const API = "/.netlify/functions/kpi-store";
 const IG_FEED = "/.netlify/functions/instagram-feed";
 const IG_SNAP = "/.netlify/functions/ig-snapshot";   // v169: the follower count, day by day
+const IG_SCRAPE = "/.netlify/functions/ig-scrape-background";   // v172: a competitor's views, from their public page
 const RIVAL_CAP = 10;
 
 /* ---------- small helpers ---------- */
@@ -877,6 +880,7 @@ const TYPE_LABEL = { VIDEO: "Reel", CAROUSEL_ALBUM: "Carousel", IMAGE: "Photo" }
 
 /* ---------- the explainer marks (the same box the finance page uses) ---------- */
 const TIPS = {
+  rivalViews: ["Average views", "Instagram prints a reel's play count on the reel itself, for anyone to see. A nightly read of this account's public page collects it — the API alone would not hand it over. Photos have no play count, so they are left out of the average."],
   er: ["Engagement rate", "Of the people who actually saw the post, how many did something about it — liked, commented, saved or shared. This is the number worth watching, because it does not go up just because you have more followers."],
   erRival: ["Their engagement rate", "Likes plus comments, against how many followers they have. It is not the same as yours: reach is private, so nobody outside an account can see how many people a post actually reached. Use it to compare their posts with each other, not with yours."],
   reach: ["Reach", "How many separate accounts saw the post. Not views — one person scrolling past it three times is still one reach."],
@@ -1106,10 +1110,16 @@ function statsHtml(data) {
   const acct = data.account || {};
   const outs = posts.filter((p) => p.outlier).length;
   if (acct.erBasis === "followers") {
+    // v172: views when the scrape has read them off the public page; the old "best post" otherwise
+    const withViews = posts.filter((p) => typeof p.views === "number");
+    const third = withViews.length
+      ? statTile("", "Average views", nfmt(Math.round(avg(withViews, (p) => p.views) || 0)), "per reel, read from their page" + (acct.scrapedAt ? " " + esc(ago(acct.scrapedAt)) : ""), "rivalViews")
+      : statTile("", "Best post", pct(Math.max(0, ...posts.map((p) => p.er || 0))), "of these " + posts.length);
+    const byViews = data.outlierBasis === "views";
     return statTile("lead", "Followers", nfmt(acct.followers), esc(acct.mediaCount ? nfmt(acct.mediaCount) + " posts all told" : "")) +
       statTile("", "Average engagement", pct(avg(posts, (p) => p.er)), "likes + comments ÷ followers", "erRival") +
-      statTile("", "Best post", pct(Math.max(0, ...posts.map((p) => p.er || 0))), "of these " + posts.length) +
-      statTile(outs ? "good" : "", "Took off", String(outs), outs ? "2× their normal or better" : "nothing unusual", "flame");
+      third +
+      statTile(outs ? "good" : "", "Took off", String(outs), outs ? "2× their normal " + (byViews ? "views" : "engagement") : "nothing unusual", "flame");
   }
   const bestReach = Math.max(0, ...posts.map((p) => p.reach || 0));
   return statTile("lead", "Average reach", nfmt(Math.round(avg(posts, (p) => p.reach) || 0)), "per post, last " + posts.length, "reach") +
@@ -1265,6 +1275,17 @@ async function loadRival(username, force) {
   catch { rivalData[username] = { ok: false, configured: true, error: "Could not reach the Instagram feed. The site may still be deploying." }; }
   rivalBusy = "";
   renderRivals();
+  // v172: a forced refresh also asks for a fresh read of their public page (views). That
+  // takes about half a minute and answers at once, so the account is read again after it.
+  if (force) {
+    try { await fetch(IG_SCRAPE, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username }) }); } catch { return; }
+    const note = $("rivalAcct"); if (note && rivalSel === username) note.insertAdjacentHTML("beforeend", '<div class="acct-s" id="scrapeNote">Reading their page for views — about half a minute…</div>');
+    setTimeout(async () => {
+      if (rivalSel !== username) return;
+      try { rivalData[username] = await jget(IG_FEED + "?mode=competitor&username=" + encodeURIComponent(username)); } catch {}
+      renderRivals();
+    }, 35000);
+  }
 }
 
 /* ---------- the toggle ---------- */

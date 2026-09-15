@@ -9,25 +9,30 @@ into a chat, an email, or anywhere else.
 
 ---
 
-## First, the one thing this cannot do
+## First, what can and cannot be known about a competitor
 
 The dashboard shows **your** reach, views, saves and shares because you own the account.
 
-For **competitors it cannot show reach, views, saves or shares** — and neither can any other
-tool, at any price. Those numbers are private to whoever owns the account. Instagram gives
-outsiders likes, comments and follower count, and that is the whole list.
+For **competitors**, Instagram's API gives outsiders likes, comments and follower count —
+that is the whole list. Reach, saves and shares are private to whoever owns the account,
+and no tool can get them.
 
-So the two sides of the toggle measure different things, and the page says so:
+**Views are the exception.** Instagram prints a reel's play count on the reel itself, for
+anyone to see, so a service that reads the public page the way a browser does can collect
+it. Part 5 below connects one (Apify). With it, competitors' reels show views, and the flame
+is judged on views. Without it, everything below still works on likes and comments.
 
 | | Your posts | A competitor's posts |
 |---|---|---|
 | Engagement rate | interactions ÷ **reach** — of the people who saw it, how many did something | (likes + comments) ÷ **followers** — the public stand-in |
-| Reach, views, saves, shares | shown | a dash, always |
+| Views | shown | shown on reels, once Part 5 is done; a dash before that |
+| Reach, saves, shares | shown | a dash, always |
 
 **What does compare properly** is a post against *its own account's* normal. That is what the
-🔥 flame means: this post did at least twice what that account usually does. It means the
-same thing on both sides of the toggle, which is why it is the number to trust when you are
-sizing yourself up against someone.
+🔥 flame means: this post did at least twice what that account usually does — on views where
+there are views, on engagement otherwise. It means the same thing on both sides of the
+toggle, which is why it is the number to trust when you are sizing yourself up against
+someone.
 
 ---
 
@@ -100,6 +105,27 @@ The version below never expires. It is worth the extra five minutes.
 
 Your last 25 posts appear with their numbers.
 
+## Part 5 — competitors' views (5 minutes, optional, small cost)
+
+This is the content-dashboard template's setup: a nightly read of each watched account's
+public page through **Apify**, a scraping service.
+
+20. **apify.com** → sign up (a free plan with $5 of monthly credit is enough to start).
+21. **Settings → Integrations** (or *API & Integrations*) → copy your **Personal API token**.
+22. Netlify → Environment variables → add `APIFY_API_TOKEN`. `SYNC_TRIGGER_SECRET` must also
+    be set (it is, if the Facebook Ads move is done) — it is what lets the nightly run start.
+23. Redeploy. On **Content → Competitors**, pick an account and press **Refresh**: the page
+    says "Reading their page for views — about half a minute" and then the reels show views.
+    From then on every watched account is read once a night at 5am.
+
+**What it costs.** Apify's Instagram scraper is priced per post read — roughly $2.30 per
+1,000. Ten competitors × 15 posts × every night is about 4,500 posts a month, around £8, or
+free inside the monthly credit if you watch fewer accounts. An account is never read twice
+inside an hour, however often Refresh is pressed.
+
+**What it can and cannot do.** It reads what a logged-out visitor sees: the play count on
+reels, likes, comments. Photos have no play count. Reach, saves and shares stay private.
+
 ---
 
 ## Adding competitors
@@ -139,6 +165,7 @@ plus one account whose content you admire that is nothing to do with gyms.
 | A grey tile instead of a picture | Instagram's image links go stale after a while. Press Refresh. |
 | Numbers look a few minutes old | They are cached for half an hour to stay inside Instagram's rate limit. Refresh forces a fresh read. |
 | "reach —" on your own post | Very old posts, and some carousels, do not report every metric. The others are still right. |
+| A competitor's reels show "views —" | Part 5 is not done, or their page has not been read yet — press Refresh and give it half a minute. |
 
 ---
 
@@ -148,5 +175,6 @@ plus one account whose content you admire that is nothing to do with gyms.
 |---|---|
 | The page | `social.html` |
 | The Instagram read | `netlify/functions/instagram-feed.js` |
+| The competitor views scrape | `netlify/functions/ig-scrape-background.js` (+ `ig-scrape-scheduled.js`, nightly) |
 | The competitor list | `netlify/functions/kpi-store.js` (`ig-competitors`) |
 | The tests | `tests/v136-calendar-and-social.test.cjs` |

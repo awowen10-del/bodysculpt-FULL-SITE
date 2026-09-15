@@ -5,12 +5,17 @@
 //                                    (reach, views, saves, shares, interactions)
 //   ?mode=competitor&username=X   -> a public account's recent posts via business_discovery
 //
-// WHAT CANNOT BE DONE, so nobody wastes an afternoon trying: reach, views, saves and
-// shares are private insights. Instagram returns them for accounts you own and for nobody
-// else. There is no paid tier, no partner endpoint and no scraping trick that changes
-// that. For other accounts the API gives likes, comments, follower count and the media —
-// which is why the two sides of the toggle compute engagement differently and the page
-// says so out loud.
+// WHAT THE API CANNOT DO: reach, saves and shares are private insights. Instagram returns
+// them for accounts you own and for nobody else. For other accounts the API gives likes,
+// comments, follower count and the media — which is why the two sides of the toggle
+// compute engagement differently and the page says so out loud.
+//
+// v172 — what a SCRAPE can: the play count on a public reel is printed on the reel, for
+// anyone. ig-scrape-background reads it (Apify) and keeps it under `ig-scrape-<username>`;
+// loadCompetitor below merges those views into the official posts by short code, and when
+// enough posts have views the flame is judged on views against that account's median
+// rather than on likes. (v136's "no tool at any price" was wrong about views. It was right
+// about reach, saves and shares.)
 //
 // The access token is a secret and lives in the Netlify environment. It never reaches the
 // browser — that is the whole reason this function exists.
@@ -213,11 +218,14 @@ async function loadCompetitor(token, igUserId, username) {
   const bd = r.business_discovery;
   if (!bd) throw new Error("Instagram returned nothing for @" + username + ".");
 
-  const posts = ((bd.media && bd.media.data) || [])
+  let posts = ((bd.media && bd.media.data) || [])
     .slice(0, POST_LIMIT)
     .map(shapeMedia)
     .map((p) => withEngagement(p, bd.followers_count));
-  const marked = markOutliers(posts);
+  // v172: the scraped views, if there are any, matched to the official posts by short code
+  const scraped = await scrapedFor(username);
+  if (scraped) posts = posts.map((p) => mergeScraped(p, scraped.byCode));
+  const marked = scraped && posts.filter((p) => p.views != null).length >= 4 ? markOutliersByViews(posts) : markOutliers(posts);
 
   return {
     ok: true, configured: true, mode: "competitor",
@@ -228,10 +236,43 @@ async function loadCompetitor(token, igUserId, username) {
       followers: num(bd.followers_count) || 0,
       mediaCount: num(bd.media_count) || 0,
       erBasis: "followers",
+      viewsBasis: scraped ? "scraped" : "",
+      scrapedAt: scraped ? scraped.fetchedAt : null,
     },
     posts: marked.posts,
     median: marked.median,
+    outlierBasis: marked.basis || "er",
     fetchedAt: new Date().toISOString(),
+  };
+}
+
+/* ---------- v172: the scraped views ---------- */
+const shortCodeOf = (permalink) => { const m = /instagram\.com\/(?:p|reel|reels|tv)\/([A-Za-z0-9_-]+)/.exec(String(permalink || "")); return m ? m[1] : ""; };
+async function scrapedFor(username) {
+  try {
+    const rec = await cacheStore().get("ig-scrape-" + username, { type: "json" });
+    if (!rec || !Array.isArray(rec.posts) || !rec.posts.length) return null;
+    const byCode = new Map(rec.posts.map((p) => [p.shortCode, p]));
+    return { fetchedAt: rec.fetchedAt || null, byCode };
+  } catch { return null; }
+}
+function mergeScraped(post, byCode) {
+  const s = byCode.get(shortCodeOf(post.permalink));
+  if (!s) return post;
+  return { ...post, views: s.views != null ? s.views : post.views, shares: s.shares != null ? s.shares : post.shares };
+}
+// the same rule as markOutliers, on views: a reel against ITS account's median play count
+function markOutliersByViews(posts) {
+  const vals = posts.map((p) => p.views).filter((v) => typeof v === "number" && v > 0).sort((a, b) => a - b);
+  if (vals.length < 4) return { ...markOutliers(posts), basis: "er" };
+  const mid = Math.floor(vals.length / 2);
+  const median = vals.length % 2 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2;
+  return {
+    median, basis: "views",
+    posts: posts.map((p) => {
+      const vs = (median && typeof p.views === "number" && p.views > 0) ? p.views / median : null;
+      return { ...p, vsMedian: vs, outlier: vs != null && vs >= 2 };
+    }),
   };
 }
 

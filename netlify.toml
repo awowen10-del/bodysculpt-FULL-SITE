@@ -61,3 +61,8 @@
 # 04:30 UTC, after the ads sync. The page also asks it to record on every visit.
 [functions."ig-snapshot"]
   schedule = "30 4 * * *"
+
+# v172: competitors' views. A nightly scrape of each watched account's public page (Apify),
+# triggered the same way as the ads sync: the scheduled function asks the background one.
+[functions."ig-scrape-scheduled"]
+  schedule = "0 5 * * *"
