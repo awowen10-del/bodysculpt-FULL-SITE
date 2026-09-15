@@ -242,29 +242,23 @@ function stripComments(src) {
     assert.ok(body.includes("·"), label + "the · separator is still prose, not an icon");
   }
 
-  /* ================= 7. the app bar ================= */
+  /* ================= 7. the chrome ================= */
+  // v162 moved the navigation from a sticky app bar to a side rail. What v121 cared about
+  // survives and is checked in the rail's terms: the page nav is a control of its own,
+  // distinct from the underline section tabs, and the thing that marks where you are is a
+  // rounded chip on the link itself, sized to its content.
   for (const f of FILES) {
     const src = SRC[f], label = f + ": ";
-    assert.ok(/<div class="appbar">/.test(src), label + "the header is an app bar");
-    // the period nav lives INSIDE it, as a compact segmented control
-    const bar = /<div class="appbar">([\s\S]*?)\n  {0,4}<\/div>\n/.exec(src);
-    assert.ok(/<nav class="topnav">/.test(src), label + "the period nav is present");
-    assert.ok(src.indexOf('class="appbar"') < src.indexOf('<nav class="topnav">'),
-      label + "…and sits inside the app bar, not below it");
+    assert.ok(/<aside class="sidenav" id="sideNav"/.test(src), label + "the chrome is a side rail");
+    assert.ok(/<nav class="sn-nav">/.test(src), label + "the page nav is present");
+    assert.ok(src.indexOf('class="sidenav"') < src.indexOf('<nav class="sn-nav">'),
+      label + "…and sits inside the rail");
     const style = styleOf(src);
-    assert.ok(/\.appbar\{[^}]*position:sticky/.test(style), label + "the app bar is sticky");
-    // v126 moved the pill down a level onto .navlinks; v127 dropped the TRACK altogether,
-    // because a container plus an active state were two devices for one job. What v121
-    // actually cared about survives and is checked instead: the period nav is a compact
-    // control of its own, distinct from the underline tabs below it, and the thing that
-    // marks where you are is a rounded chip on the link itself.
-    assert.ok(/\.topnav a\{[^}]*border-radius:var\(--r-md\)/.test(style), label + "a nav link is a rounded chip");
-    assert.ok(/\.topnav a\.active\{[^}]*background:var\(--navy-2\)/.test(style), label + "…and only the active one is filled");
-    // the base rule sizes to content; the narrow-screen media query below it deliberately
-    // does set flex:1, so only the FIRST .topnav a rule is checked here.
-    const navLink = /\.topnav a\{[^}]*\}/.exec(style);
-    assert.ok(navLink && !/flex:1/.test(navLink[0]),
-      label + "…sized to its content, not stretched across the page");
+    assert.ok(/\.sidenav\{[^}]*position:fixed/.test(style), label + "the rail is fixed to the edge");
+    assert.ok(/\.sn-link\{[^}]*border-radius:var\(--r-md\)/.test(style), label + "a nav link is a rounded chip");
+    assert.ok(/\.sn-link\.active\{[^}]*background:var\(--navy-2\)/.test(style), label + "…and only the active one is filled");
+    const navLink = /\.sn-link\{[^}]*\}/.exec(style);
+    assert.ok(navLink && !/flex:1/.test(navLink[0]), label + "…sized to its content, not stretched");
   }
   // the section tabs are an underline, not a second filled pill competing with the nav
   for (const f of ["index.html", "monthly.html"]) {

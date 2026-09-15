@@ -40,7 +40,7 @@ const fn = (src, name) => {
 };
 
 /* ================= 0. the stamp ================= */
-const text = "build v161 · connect-once";
+const text = "build v162 · side-nav";
 for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html"]) {
   assert.ok(read(f).includes(text), f + " carries the stamp");
 }

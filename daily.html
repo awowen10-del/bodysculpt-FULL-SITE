@@ -147,64 +147,67 @@
   .pb-jump:hover{border-color:var(--orange);color:var(--ink);}
   .monthpick select{font-family:inherit;background:var(--card);color:var(--ink);border:1px solid var(--line);
     border-radius:10px;padding:8px 10px;font-size:13px;font-weight:600;}
-  /* ===================== v121: THE APP BAR =====================
-     Until v120 the header was TWO identical full-width pill bars stacked on top of each
-     other — same shape, same weight, same filled active state — so nothing said which was
-     the product and which was the page. Now there are two clearly different treatments:
-       .appbar  — sticky chrome: the brand, then a compact segmented control for the three
-                  PERIODS (Weekly / Monthly / Quarterly), sized to its content;
-       .viewtoggle — quiet underline tabs for the SECTIONS inside the page.
-     .topnav and #tabBar keep their names and their handlers; only the dress changed. */
-  .appbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:var(--sp-6);
-    background:var(--card);border:1px solid var(--line);
-    border-radius:var(--r-lg) var(--r-lg) 0 0;padding:var(--sp-3) var(--sp-4);min-height:64px;flex-wrap:wrap;}
-  .appbar .brand{flex:0 0 auto;}
-  /* v127: the hairline under the app bar makes the header TWO REGISTERS of one block —
-     places above, sections below — instead of one tall empty slab. */
+  /* ===================== v162: THE SIDE NAV =====================
+     Ash: "I no longer want the navigation accessible from the top. I now want a side
+     navigation" — with a reference: a quiet left rail, the brand at the top, small grey
+     captions over groups of icon + label rows, and nothing competing with the page.
+     The app bar (v121–v127) is gone. What it carried has moved, not changed: the same four
+     groups in the same order, the same six links, one active per page, Finances still in
+     the brand colour and still not a fourth period. The section tabs (.viewtoggle/#tabBar)
+     stay in the page, because they steer the page's CONTENT, not which page you are on.
+
+     How the page makes room: on a wide screen the rail is fixed to the left edge and the
+     ROOT is padded by its width, so every page's centred 1500px shell centres itself in
+     what is left — no page had to learn about the rail. Under 900px the rail becomes a
+     drawer: a slim bar with the wordmark and a Menu button sits where the app bar was, and
+     the rail slides in over the page with a scrim behind it. The rail is one block of
+     markup and one block of CSS, byte-identical on all six pages. */
+  @media(min-width:901px){ html{padding-left:236px;} }
+  .sidenav{position:fixed;left:0;top:0;bottom:0;width:236px;z-index:90;display:flex;
+    flex-direction:column;gap:var(--sp-5);padding:var(--sp-5) var(--sp-4);overflow-y:auto;
+    background:var(--card);border-right:1px solid var(--line);}
+  .sn-brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;
+    padding:0 var(--sp-2);border-radius:var(--r-md);}
+  .sn-brand:focus-visible{outline:none;box-shadow:var(--focus);}
+  .sn-brand .mark{width:36px;height:36px;border-radius:var(--r-md);overflow:hidden;flex:0 0 auto;
+    border:1px solid var(--line);background:var(--mark-bg);}
+  .sn-brand h1{font-size:14.5px;font-weight:600;letter-spacing:-.012em;line-height:1.15;color:var(--ink-strong);}
+  .sn-brand .sub{font-size:10.5px;color:var(--ink-faint);font-weight:500;letter-spacing:.05em;
+    text-transform:uppercase;margin-top:1px;}
+  .sn-nav{display:flex;flex-direction:column;gap:var(--sp-5);}
+  .sn-group{display:flex;flex-direction:column;gap:2px;}
+  /* the caption: small, grey, spaced — a heading for the rows under it, never a link */
+  .sn-cap{font-size:10px;text-transform:uppercase;letter-spacing:.14em;font-weight:700;
+    color:var(--ink-faint);padding:0 12px;margin-bottom:6px;white-space:nowrap;}
+  /* a row: an icon and a word. Plain text at rest; only the one you are on takes a soft
+     chip — the v127 rule, kept: the accent is for actions, and where you are is stated
+     quietly. */
+  .sn-link{display:flex;align-items:center;gap:12px;text-decoration:none;font-size:13.5px;
+    font-weight:500;color:var(--ink-dim);padding:9px 12px;border-radius:var(--r-md);
+    letter-spacing:-.005em;white-space:nowrap;transition:color var(--tap),background var(--tap);}
+  .sn-link .ic{width:19px;height:19px;flex:0 0 auto;color:var(--ink-faint);transition:color var(--tap);}
+  .sn-link:hover{color:var(--ink);background:var(--navy-2);}
+  .sn-link:hover .ic{color:var(--ink);}
+  .sn-link.active{background:var(--navy-2);color:var(--ink-strong);font-weight:600;}
+  .sn-link.active .ic{color:var(--ink-strong);}
+  .sn-link:focus-visible{outline:none;box-shadow:var(--focus);}
+  /* Finances carries the brand as COLOUR — caption, label, icon, and a tinted chip when you
+     are on it — never as a saturated fill. */
+  .sn-money .sn-cap{color:var(--orange);}
+  .sn-money .sn-link{color:var(--orange);font-weight:600;}
+  .sn-money .sn-link .ic{color:var(--orange);}
+  .sn-money .sn-link:hover{color:var(--orange-soft);background:rgba(var(--orange-rgb),.09);}
+  .sn-money .sn-link.active{background:rgba(var(--orange-rgb),.12);color:var(--orange-soft);}
+  .sn-money .sn-link.active .ic{color:var(--orange-soft);}
+  /* the narrow-screen bar and the scrim: both absent on a wide screen */
+  .mobilebar{display:none;}
+  .sn-scrim{display:none;}
   .vt-right{flex:0 0 auto;margin-left:auto;display:flex;align-items:center;gap:var(--sp-2);
     padding-left:var(--sp-4);}
-  /* ===== v127: THE NAV STOPPED BEING FURNITURE =====
-     v126 got the STRUCTURE right — Planning above its three periods, Finances fenced off —
-     and the dress wrong. Three shapes competed inside one bar (a grey capsule TRACK, a
-     solid brand capsule, underline tabs under both), and the nav floated centred while the
-     brand sat left and a month picker sat right, so nothing lined up with anything: three
-     loose objects, not one row.
-     The rules the bar now follows:
-       · NO capsule track. The links are plain text and only the one you are on takes a
-         soft chip — the container was doing a job the active state already does.
-       · The nav sits directly after the brand, left-aligned on the same line; the Finances
-         group is pushed to the far edge behind a rule, so its separation is SPATIAL.
-       · Finances carries the brand as COLOUR — caption, label, and a tinted chip when you
-         are on it — never as a saturated fill. A place you go is not a call to action, and
-         nothing in the chrome may outshout the page.
-       · A caption's left edge lines up with its first link's TEXT, not its padding box.
-     Structure, names and handlers are v126's; only the dress changed. */
-  .topnav{display:flex;align-items:center;gap:var(--sp-2);flex:1 1 auto;margin:0;}
-  .navgrp{display:flex;flex-direction:column;gap:4px;min-width:0;}
-  .navgroup{display:flex;align-items:center;gap:5px;font-size:9.5px;text-transform:uppercase;
-    letter-spacing:.14em;font-weight:700;color:var(--ink-faint);padding-left:12px;white-space:nowrap;}
-  .navgroup .ic{width:1.3em;height:1.3em;flex:0 0 auto;}
-  .navgrp-money .navgroup{color:var(--orange);}
-  /* The LAST rule takes the slack, so it and Finances travel together to the far edge.
-     v136: there are THREE rules now (Today | Planning | Social | Finances) and only the
-     one before
-     Finances may absorb the space — if both did, Planning would be shoved right as well
-     and the bar would read as three things adrift instead of one row. */
-  .navsep{width:1px;height:34px;align-self:center;background:var(--line);flex:0 0 auto;}
-  .topnav>.navsep:last-of-type{margin-left:auto;}
-  .navsep + .navgrp{margin-left:var(--sp-4);}
-  .navlinks{display:flex;gap:2px;}
-  .topnav a{text-decoration:none;font-size:13.5px;font-weight:500;color:var(--ink-dim);
-    padding:7px 12px;border-radius:var(--r-md);letter-spacing:-.005em;white-space:nowrap;
-    transition:color var(--tap),background var(--tap);}
-  .topnav a:hover{color:var(--ink);background:var(--navy-2);}
-  .topnav a.active{background:var(--navy-2);color:var(--ink-strong);font-weight:600;}
-  .navgrp-money a{color:var(--orange);font-weight:600;}
-  .navgrp-money a:hover{color:var(--orange-soft);background:rgba(var(--orange-rgb),.09);}
-  .navgrp-money a.active{background:rgba(var(--orange-rgb),.12);color:var(--orange-soft);}
-  .topnav a:focus-visible{outline:none;box-shadow:var(--focus);}
+  /* the section tabs: an underline row. It used to hang off the bottom of the app bar and
+     borrowed its top edge; it is its own block now. */
   .viewtoggle{display:flex;gap:2px;background:var(--card);border:1px solid var(--line);
-    border-top:0;border-radius:0 0 var(--r-lg) var(--r-lg);padding:0 var(--sp-4);
+    border-radius:var(--r-lg);padding:0 var(--sp-4);
     margin:0 0 var(--sp-4);overflow-x:auto;}
   .viewtoggle .vt{flex:0 0 auto;font-family:inherit;font-size:13.5px;font-weight:500;
     color:var(--ink-dim);background:transparent;border:0;border-bottom:2px solid transparent;
@@ -213,16 +216,24 @@
   .viewtoggle .vt:hover{color:var(--ink);}
   .viewtoggle .vt.active{color:var(--ink);font-weight:600;border-bottom-color:var(--orange);}
   .viewtoggle .vt:focus-visible{outline:none;box-shadow:var(--focus);border-radius:var(--r-sm);}
-  @media(max-width:720px){
-    .appbar{min-height:0;padding:var(--sp-3);gap:var(--sp-3);}
-    .topnav{flex-wrap:wrap;gap:var(--sp-3);margin:var(--sp-1) 0 0;width:100%;}
-    .navgrp{flex:1 1 100%;}
-    .navsep{display:none;}
-    .navsep + .navgrp{margin-left:0;}
-    .topnav a{flex:1;text-align:center;padding:7px 8px;}
+  @media(max-width:900px){
+    .ftbar{top:58px;}   /* under the pinned narrow-screen bar */
+    .sidenav{transform:translateX(-100%);transition:transform .22s ease;box-shadow:none;}
+    body.nav-open .sidenav{transform:none;box-shadow:var(--shadow-lift);}
+    body.nav-open .sn-scrim{display:block;position:fixed;inset:0;z-index:85;
+      background:rgba(var(--ink-dim-rgb),.45);}
+    body.nav-open{overflow:hidden;}
+    .mobilebar{display:flex;align-items:center;gap:var(--sp-3);position:sticky;top:0;z-index:60;
+      min-height:56px;background:var(--card);border:1px solid var(--line);
+      border-radius:var(--r-lg);padding:0 var(--sp-3);}
+    .mbar-menu{font-family:inherit;font-size:13px;font-weight:600;color:var(--ink);
+      background:transparent;border:1px solid var(--line);border-radius:var(--r-md);
+      padding:7px 11px 7px 9px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;}
+    .mbar-menu .ic{width:18px;height:18px;}
+    .mbar-menu:focus-visible{outline:none;box-shadow:var(--focus);}
+    .mbar-name{font-size:14.5px;font-weight:600;letter-spacing:-.012em;color:var(--ink-strong);}
     .vt-right{padding-left:0;}
   }
-  /* v106: theme toggle — a quiet chip at the end of the top nav, same family as the links */
   .actionbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px;}
   .abtn{font-family:inherit;font-size:13px;font-weight:500;color:var(--ink);background:var(--card);
     border:1px solid var(--line);border-radius:var(--r-md);padding:9px 14px;cursor:pointer;
@@ -1038,7 +1049,7 @@
      with the clock at 46px and the block visibly draining underneath it. Under five minutes
      it goes amber and the clock breathes; under one, red. The countdown is written into the
      browser tab as well, so it is legible from a different tab entirely. */
-  .ftbar{position:sticky;top:var(--sp-7);z-index:55;display:flex;align-items:center;
+  .ftbar{position:sticky;top:0;z-index:55;display:flex;align-items:center;
     gap:var(--sp-4);padding:14px 20px;margin:var(--sp-3) 0 0;border-radius:var(--r-lg);
     overflow:hidden;box-shadow:var(--shadow-lift);
     background:var(--ink-strong);color:var(--card);}
@@ -1131,45 +1142,41 @@
 <symbol id="ic-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.2"/><path d="M3.6 6.7l7.3 5.2a2 2 0 0 0 2.2 0l7.3-5.2"/></symbol>
 <symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="M2.5 9.8h19M6 15.2h3.4"/></symbol>
 <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.05" fill="currentColor" stroke="none"/></symbol>
+<symbol id="ic-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+<symbol id="ic-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/></symbol>
 </defs></svg>
-<!-- build v161 · connect-once -->
-<header>
-  <div class="appbar">
-    <div class="brand">
-      <div class="mark"><img src="data:image/png;base64,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" alt="Bodysculpt" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;"></div>
-      <div><h1>Bodysculpt</h1><div class="sub">Warrington</div></div>
+<!-- build v162 · side-nav -->
+<aside class="sidenav" id="sideNav" aria-label="Pages">
+  <a class="sn-brand" href="/daily.html">
+    <div class="mark"><img src="data:image/png;base64,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" alt="Bodysculpt" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;"></div>
+    <div><h1>Bodysculpt</h1><div class="sub">Warrington</div></div>
+  </a>
+  <nav class="sn-nav">
+    <div class="sn-group">
+      <span class="sn-cap">Today</span>
+        <a href="/daily.html" class="sn-link active"><svg class="ic"><use href="#ic-sun"/></svg>Daily Dashboard</a>
     </div>
-<nav class="topnav">
-      <div class="navgrp">
-        <span class="navgroup"><svg class="ic"><use href="#ic-sun"/></svg>Today</span>
-        <div class="navlinks">
-          <a href="/daily.html" class="active">Daily Dashboard</a>
-        </div>
-      </div>
-      <span class="navsep"></span>
-      <div class="navgrp">
-        <span class="navgroup"><svg class="ic"><use href="#ic-calendar"/></svg>Planning</span>
-        <div class="navlinks">
-          <a href="/index.html">Weekly</a>
-          <a href="/monthly.html">Monthly</a>
-          <a href="/quarterly.html">Quarterly</a>
-        </div>
-      </div>
-      <span class="navsep"></span>
-      <div class="navgrp">
-        <span class="navgroup"><svg class="ic"><use href="#ic-camera"/></svg>Social</span>
-        <div class="navlinks">
-          <a href="/social.html">Instagram</a>
-        </div>
-      </div>
-      <span class="navsep"></span>
-      <div class="navgrp navgrp-money">
-        <span class="navgroup"><svg class="ic"><use href="#ic-wallet"/></svg>Finances</span>
-        <div class="navlinks">
-          <a href="/finances.html">Income &amp; Expenses</a>
-        </div>
-      </div>
-    </nav>
+    <div class="sn-group">
+      <span class="sn-cap">Planning</span>
+        <a href="/index.html" class="sn-link"><svg class="ic"><use href="#ic-calendar"/></svg>Weekly</a>
+        <a href="/monthly.html" class="sn-link"><svg class="ic"><use href="#ic-grid"/></svg>Monthly</a>
+        <a href="/quarterly.html" class="sn-link"><svg class="ic"><use href="#ic-target"/></svg>Quarterly</a>
+    </div>
+    <div class="sn-group">
+      <span class="sn-cap">Social</span>
+        <a href="/social.html" class="sn-link"><svg class="ic"><use href="#ic-camera"/></svg>Instagram</a>
+    </div>
+    <div class="sn-group sn-money">
+      <span class="sn-cap">Finances</span>
+        <a href="/finances.html" class="sn-link"><svg class="ic"><use href="#ic-wallet"/></svg>Income &amp; Expenses</a>
+    </div>
+  </nav>
+</aside>
+<div class="sn-scrim" id="snScrim"></div>
+<header>
+  <div class="mobilebar">
+    <button type="button" class="mbar-menu" id="mbarMenu" aria-controls="sideNav" aria-expanded="false"><svg class="ic"><use href="#ic-menu"/></svg>Menu</button>
+    <span class="mbar-name">Bodysculpt</span>
   </div>
 </header>
 
@@ -1294,6 +1301,19 @@
   </div>
 </div>
 <script>
+/* v162: the side nav's drawer, on a narrow screen. Menu opens it, the scrim or Escape
+   closes it; on a wide screen the rail is simply there and none of this runs. */
+(function () {
+  var btn = document.getElementById("mbarMenu"), scrim = document.getElementById("snScrim");
+  function setOpen(open) {
+    document.body.classList.toggle("nav-open", open);
+    if (btn) btn.setAttribute("aria-expanded", String(open));
+  }
+  if (btn) btn.addEventListener("click", function () { setOpen(!document.body.classList.contains("nav-open")); });
+  if (scrim) scrim.addEventListener("click", function () { setOpen(false); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") setOpen(false); });
+})();
+
 /* =====================================================================
    DAILY DASHBOARD — v135
    The first page of the morning. It answers two questions and asks none:

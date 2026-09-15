@@ -236,21 +236,18 @@ async function runIg(env, url, responder, seed) {
     "ticking the box is what actually emails the guests");
   assert.ok(/attendees = guests\.map|body\.attendees = guests\.map/.test(djs), "guests are attached as attendees");
 
-  /* ============ 3. the four-group nav, on all six pages ============ */
+  /* ============ 3. the four-group nav, on all six pages ============
+     v162 moved it from the app bar to the side rail; the claim is the same — four groups,
+     Social third, on every page — and is read from the rail. The rail's dress belongs to
+     tests/v162-side-nav.test.cjs. */
   for (const f of PAGES) {
     const src = read(f), label = f + ": ";
-    const nav = /<nav class="topnav">([\s\S]*?)<\/nav>/.exec(src);
+    const nav = /<nav class="sn-nav">([\s\S]*?)<\/nav>/.exec(src);
     assert.ok(nav, label + "has a nav");
-    const caps = [...nav[1].matchAll(/<use href="#(ic-[a-z-]+)"\/><\/svg>([^<]+)<\/span>/g)].map((m) => [m[1], m[2].trim()]);
-    assert.deepStrictEqual(caps,
-      [["ic-sun", "Today"], ["ic-calendar", "Planning"], ["ic-camera", "Social"], ["ic-wallet", "Finances"]],
-      label + "four groups, in order");
-    assert.strictEqual((nav[1].match(/<span class="navsep"><\/span>/g) || []).length, 3, label + "three rules");
-    // only ONE of them takes the slack, or Planning gets shoved right along with Finances
-    const style = styleOf(src);
-    assert.ok(/\.topnav>\.navsep:last-of-type\{margin-left:auto;\}/.test(style),
-      label + "only the rule before Finances takes the slack");
-    assert.ok(!/\.navsep\{[^}]*margin-left:auto/.test(style), label + "…and no rule grabs it just for existing");
+    const caps = [...nav[1].matchAll(/<span class="sn-cap">([^<]+)<\/span>/g)].map((m) => m[1].trim());
+    assert.deepStrictEqual(caps, ["Today", "Planning", "Social", "Finances"], label + "four groups, in order");
+    assert.ok(/<a href="\/social.html" class="sn-link(?: active)?"><svg class="ic"><use href="#ic-camera"\/>/.test(nav[1]),
+      label + "Instagram carries the camera");
     assert.ok(src.includes('<symbol id="ic-camera"'), label + "carries #ic-camera");
   }
 

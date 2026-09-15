@@ -1,4 +1,10 @@
-// v120 — the top menu is trimmed, and (v122) grouped, and (v126) stacked.
+// v120 — the top menu is trimmed, and (v122) grouped, and (v126) stacked, and (v162) a rail.
+//
+// v162 UPDATE: the menu is no longer at the top at all — it is a side rail (.sidenav), one
+// block of markup on every page. Every claim below still holds and is read from the rail:
+// no HQ launcher, six links in one order labelled by period, exactly one active per page,
+// and the section bar (#tabBar) untouched. Each link now leads with a sprite icon, which
+// is stripped before the label is compared.
 //
 // v126 UPDATE: the two groups are no longer side by side on one line. Each is a STACK —
 // an icon + caption above its own pill of links — so the group caption now contains an
@@ -59,18 +65,17 @@ const PAGES = [
      owns is the claim it was written for — the planning links are labelled by period
      alone, and every page marks its own link, once. */
   for (const [label, src, self] of PAGES) {
-    const nav = /<nav class="topnav">([\s\S]*?)<\/nav>/.exec(src);
-    assert.ok(nav, label + " still has a .topnav block");
+    const nav = /<nav class="sn-nav">([\s\S]*?)<\/nav>/.exec(src);
+    assert.ok(nav, label + " still has a nav block (the rail's)");
 
     // the group headings, in order
-    // v126: the caption leads with a sprite icon, so the text is what follows it
-    const groups = [...nav[1].matchAll(/<span class="navgroup">(?:<svg class="ic"><use href="#(ic-[a-z-]+)"\/><\/svg>)?([^<]+)<\/span>/g)]
-      .map((m) => m[2].trim());
+    const groups = [...nav[1].matchAll(/<span class="sn-cap">([^<]+)<\/span>/g)].map((m) => m[1].trim());
     assert.deepStrictEqual(groups, ["Today", "Planning", "Social", "Finances"], label + " names the four groups");
-    assert.strictEqual((nav[1].match(/<span class="navsep"><\/span>/g) || []).length, 3,
-      label + " rules the four groups apart");
+    assert.strictEqual((nav[1].match(/<div class="sn-group/g) || []).length, 4,
+      label + " keeps the four groups apart");
 
-    const links = [...nav[1].matchAll(/<a href="([^"]+)"([^>]*)>([\s\S]*?)<\/a>/g)];
+    // v162: a link leads with its icon; the label is what follows it
+    const links = [...nav[1].matchAll(/<a href="([^"]+)"([^>]*)><svg class="ic"><use href="#ic-[a-z-]+"\/><\/svg>([\s\S]*?)<\/a>/g)];
     assert.strictEqual(links.length, 6, label + " top menu has today, the three periods, social and finances");
 
     assert.deepStrictEqual(
@@ -90,7 +95,7 @@ const PAGES = [
     }
 
     // the page's own link is the active one, and it is the only active one
-    const active = links.filter((m) => /class="active"/.test(m[2]));
+    const active = links.filter((m) => /class="sn-link active"/.test(m[2]));
     assert.strictEqual(active.length, 1, label + " marks exactly one link active");
     assert.strictEqual(active[0][1], self, label + " marks its own link active");
 
