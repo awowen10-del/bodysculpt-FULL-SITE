@@ -187,7 +187,8 @@ async function boot(opts = {}) {
       _handlers: {},
       addEventListener(t, f) { (this._handlers[t] = this._handlers[t] || []).push(f); },
       removeEventListener(t, f) { const l = this._handlers[t]; if (l) { const i = l.indexOf(f); if (i >= 0) l.splice(i, 1); } },
-      location: { href: "" },
+      // v165: opts.hash lets a test arrive the way the rail's "Weekly KPIs" link does (#kpi)
+      location: { href: "", hash: opts.hash || "", pathname: "/index.html", search: "" },
     },
     // v106: a real (per-boot, in-memory) store so a remembered choice can be asserted.
     // Empty at boot, exactly as the old always-null stub was, so nothing else changes.

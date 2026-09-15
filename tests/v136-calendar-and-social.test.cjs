@@ -245,7 +245,7 @@ async function runIg(env, url, responder, seed) {
     const nav = /<nav class="sn-nav">([\s\S]*?)<\/nav>/.exec(src);
     assert.ok(nav, label + "has a nav");
     const caps = [...nav[1].matchAll(/<span class="sn-cap">([^<]+)<\/span>/g)].map((m) => m[1].trim());
-    assert.deepStrictEqual(caps, ["Today", "Planning", "Social", "Finances"], label + "four groups, in order");
+    assert.deepStrictEqual(caps, ["Today", "Planning", "Numbers", "Social", "Finances"], label + "five groups (v165 added Numbers), in order");
     assert.ok(/<a href="\/social.html" class="sn-link(?: active)?" title="Instagram"><svg class="ic"><use href="#ic-camera"\/>/.test(nav[1]),
       label + "Instagram carries the camera");
     assert.ok(src.includes('<symbol id="ic-camera"'), label + "carries #ic-camera");

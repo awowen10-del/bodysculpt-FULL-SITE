@@ -289,7 +289,8 @@ async function boot(opts = {}) {
     window: {
       scrollTo() {}, innerWidth: 1200, innerHeight: 800,
       addEventListener() {}, removeEventListener() {},
-      location: { search: "", href: "" },
+      // v165: opts.hash lets a test arrive the way the rail's "Monthly KPIs" link does (#kpi)
+      location: { search: "", href: "", hash: opts.hash || "", pathname: "/monthly.html" },
       alert: (m) => { alerts.push(String(m)); },
       prompt: () => null,
       confirm: () => true,

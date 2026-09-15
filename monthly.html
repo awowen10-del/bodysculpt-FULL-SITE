@@ -673,7 +673,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 <symbol id="ic-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/></symbol>
 <symbol id="ic-chevrons" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 6l-6 6 6 6M18 6l-6 6 6 6"/></symbol>
 </defs></svg>
-<!-- build v164 · arrows-at-the-top -->
+<!-- build v165 · numbers-in-the-rail -->
 <aside class="sidenav" id="sideNav" aria-label="Pages">
   <div class="sn-top">
     <a class="sn-brand" href="/daily.html">
@@ -692,6 +692,11 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
         <a href="/index.html" class="sn-link" title="Weekly"><svg class="ic"><use href="#ic-calendar"/></svg><span class="sn-lbl">Weekly</span></a>
         <a href="/monthly.html" class="sn-link active" title="Monthly"><svg class="ic"><use href="#ic-grid"/></svg><span class="sn-lbl">Monthly</span></a>
         <a href="/quarterly.html" class="sn-link" title="Quarterly"><svg class="ic"><use href="#ic-target"/></svg><span class="sn-lbl">Quarterly</span></a>
+    </div>
+    <div class="sn-group">
+      <span class="sn-cap">Numbers</span>
+        <a href="/index.html#kpi" class="sn-link" title="Weekly KPIs"><svg class="ic"><use href="#ic-trend-up"/></svg><span class="sn-lbl">Weekly KPIs</span></a>
+        <a href="/monthly.html#kpi" class="sn-link" title="Monthly KPIs"><svg class="ic"><use href="#ic-trend-up"/></svg><span class="sn-lbl">Monthly KPIs</span></a>
     </div>
     <div class="sn-group">
       <span class="sn-cap">Social</span>
@@ -938,7 +943,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
      after a monthly-only release. Same pill as the Weekly Dashboard's footer, and the two
      pages carry the SAME suite build string — a test fails if they ever drift apart. -->
 <footer class="mp-footer">
-  <span class="mp-stage">build v164 · arrows-at-the-top</span>
+  <span class="mp-stage">build v165 · numbers-in-the-rail</span>
 </footer>
 
 <!-- v93: focus-item notes editor — the v70 rich editor in a Today-modal-style dialog.
@@ -983,6 +988,17 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
     if (document.documentElement.classList.contains("nav-collapsed")) setFolded(true);
     fold.addEventListener("click", function () { setFolded(!document.documentElement.classList.contains("nav-collapsed")); });
   }
+  // v165: the rail's mark follows the page's tab. "Weekly" and "Weekly KPIs" are the same
+  // page on different tabs, so whichever tab is showing is the link that reads as current.
+  // The page calls this from its own tab switch; pages with no KPI link ignore it.
+  var q = function (sel) { return document.querySelector ? document.querySelector(sel) : null; };
+  var own = q(".sn-link.active");
+  var kpi = own ? q('.sn-link[href="' + own.getAttribute("href") + '#kpi"]') : null;
+  window.snMarkActive = function (onKpi) {
+    if (!own || !kpi) return;
+    own.classList.toggle("active", !onKpi);
+    kpi.classList.toggle("active", !!onKpi);
+  };
 })();
 
 "use strict";
@@ -1604,11 +1620,21 @@ function renderCurrent(){
   else if(curView==="growth") renderGrowth();
   else if(curView==="plan") renderMonthlyPlan();
 }
+// v165: which view an address asks for. Only one hash means anything: #kpi (the KPIs
+// view, whose id has always been "home"). Anything else is the default.
+function mpViewFromHash(){
+  return (window.location && window.location.hash==="#kpi") ? "home" : DEFAULT_VIEW;
+}
 function showView(v){
   curView=v;
   document.querySelectorAll(".view").forEach(el=>el.hidden = (el.id !== "view-"+v));
   document.querySelectorAll(".vt").forEach(b=>b.classList.toggle("active", b.dataset.view===v));
   renderCurrent();
+  // v165: the address and the rail say which view this is — see index.html's show().
+  if(window.snMarkActive) window.snMarkActive(v==="home");
+  if(window.history && window.history.replaceState && window.location){
+    try{ window.history.replaceState(null,"", v==="home" ? "#kpi" : window.location.pathname + window.location.search); }catch(e){}
+  }
 }
 function rebuildMonthSel(){
   const sel = document.getElementById("monthSel");
@@ -1930,7 +1956,9 @@ async function boot(){
     await loadAll();
     rebuildMonthSel();
   }
-  showView(DEFAULT_VIEW);
+  // the landing view — unless the rail's "Monthly KPIs" link brought you here (v165)
+  showView(mpViewFromHash());
+  window.addEventListener("hashchange", ()=>showView(mpViewFromHash()));
 }
 /* ===================== MONTHLY PLAN (cascade middle layer) ===================== */
 let mpPlan = null;

@@ -887,6 +887,11 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
         <a href="/quarterly.html" class="sn-link active" title="Quarterly"><svg class="ic"><use href="#ic-target"/></svg><span class="sn-lbl">Quarterly</span></a>
     </div>
     <div class="sn-group">
+      <span class="sn-cap">Numbers</span>
+        <a href="/index.html#kpi" class="sn-link" title="Weekly KPIs"><svg class="ic"><use href="#ic-trend-up"/></svg><span class="sn-lbl">Weekly KPIs</span></a>
+        <a href="/monthly.html#kpi" class="sn-link" title="Monthly KPIs"><svg class="ic"><use href="#ic-trend-up"/></svg><span class="sn-lbl">Monthly KPIs</span></a>
+    </div>
+    <div class="sn-group">
       <span class="sn-cap">Social</span>
         <a href="/social.html" class="sn-link" title="Instagram"><svg class="ic"><use href="#ic-camera"/></svg><span class="sn-lbl">Instagram</span></a>
     </div>
@@ -992,6 +997,17 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
     if (document.documentElement.classList.contains("nav-collapsed")) setFolded(true);
     fold.addEventListener("click", function () { setFolded(!document.documentElement.classList.contains("nav-collapsed")); });
   }
+  // v165: the rail's mark follows the page's tab. "Weekly" and "Weekly KPIs" are the same
+  // page on different tabs, so whichever tab is showing is the link that reads as current.
+  // The page calls this from its own tab switch; pages with no KPI link ignore it.
+  var q = function (sel) { return document.querySelector ? document.querySelector(sel) : null; };
+  var own = q(".sn-link.active");
+  var kpi = own ? q('.sn-link[href="' + own.getAttribute("href") + '#kpi"]') : null;
+  window.snMarkActive = function (onKpi) {
+    if (!own || !kpi) return;
+    own.classList.toggle("active", !onKpi);
+    kpi.classList.toggle("active", !!onKpi);
+  };
 })();
 
 "use strict";

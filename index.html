@@ -1557,6 +1557,11 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
         <a href="/quarterly.html" class="sn-link" title="Quarterly"><svg class="ic"><use href="#ic-target"/></svg><span class="sn-lbl">Quarterly</span></a>
     </div>
     <div class="sn-group">
+      <span class="sn-cap">Numbers</span>
+        <a href="/index.html#kpi" class="sn-link" title="Weekly KPIs"><svg class="ic"><use href="#ic-trend-up"/></svg><span class="sn-lbl">Weekly KPIs</span></a>
+        <a href="/monthly.html#kpi" class="sn-link" title="Monthly KPIs"><svg class="ic"><use href="#ic-trend-up"/></svg><span class="sn-lbl">Monthly KPIs</span></a>
+    </div>
+    <div class="sn-group">
       <span class="sn-cap">Social</span>
         <a href="/social.html" class="sn-link" title="Instagram"><svg class="ic"><use href="#ic-camera"/></svg><span class="sn-lbl">Instagram</span></a>
     </div>
@@ -1836,7 +1841,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 
   <footer>
     <span class="stage" id="srcPill"><svg class="ic"><use href="#ic-dot"/></svg> Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v164 · arrows-at-the-top</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v165 · numbers-in-the-rail</span>
   </footer>
 </div>
 
@@ -1930,6 +1935,17 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
     if (document.documentElement.classList.contains("nav-collapsed")) setFolded(true);
     fold.addEventListener("click", function () { setFolded(!document.documentElement.classList.contains("nav-collapsed")); });
   }
+  // v165: the rail's mark follows the page's tab. "Weekly" and "Weekly KPIs" are the same
+  // page on different tabs, so whichever tab is showing is the link that reads as current.
+  // The page calls this from its own tab switch; pages with no KPI link ignore it.
+  var q = function (sel) { return document.querySelector ? document.querySelector(sel) : null; };
+  var own = q(".sn-link.active");
+  var kpi = own ? q('.sn-link[href="' + own.getAttribute("href") + '#kpi"]') : null;
+  window.snMarkActive = function (onKpi) {
+    if (!own || !kpi) return;
+    own.classList.toggle("active", !onKpi);
+    kpi.classList.toggle("active", !!onKpi);
+  };
 })();
 
 /* ===== CONFIG (defaults — editable in-app, persisted to storage) ===== */
@@ -6452,10 +6468,16 @@ function wpHabitCardHtml(){
   wireViewToggle();
   wireMentorAi();
   wireAcqEngine();
-  if(window.showTab) window.showTab('plan'); // Weekly Plan is the landing tab
+  // Weekly Plan is the landing tab — unless the rail's "Weekly KPIs" link brought you here
+  // (v165: /index.html#kpi). Nothing else reads the hash, and no data path is involved.
+  if(window.showTab) window.showTab(wpTabFromHash());
 })();
 
 /* ===== VIEW TOGGLE + TABLE VIEW ===== */
+// v165: which tab an address asks for. Only one hash means anything: #kpi.
+function wpTabFromHash(){
+  return (window.location && window.location.hash==='#kpi') ? 'kpi' : 'plan';
+}
 function wireViewToggle(){
   const views={
     kpi:   document.getElementById('kpiView'),
@@ -6480,7 +6502,16 @@ function wireViewToggle(){
     if(which==='table') buildQuarterSelector();
     if(which==='plan') loadWeeklyPlan();
     window.scrollTo({top:0,behavior:'smooth'});
+    // v165: the address and the rail say which tab this is. #kpi = the KPIs tab, nothing
+    // else — so "Weekly" and "Weekly KPIs" in the rail each mean exactly one thing, and a
+    // refresh lands where you were. replaceState fires no hashchange, so this cannot loop.
+    if(window.snMarkActive) window.snMarkActive(which==='kpi');
+    if(window.history && window.history.replaceState && window.location){
+      try{ window.history.replaceState(null,'', which==='kpi' ? '#kpi' : window.location.pathname + window.location.search); }catch(e){}
+    }
   }
+  // the rail's link, clicked while already on this page, only changes the hash
+  window.addEventListener('hashchange',()=>show(wpTabFromHash()));
   tabs.kpi.addEventListener('click',()=>show('kpi'));
   tabs.fb.addEventListener('click',()=>show('fb'));
   tabs.table.addEventListener('click',()=>show('table'));

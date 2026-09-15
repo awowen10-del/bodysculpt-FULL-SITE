@@ -70,22 +70,23 @@ const PAGES = [
 
     // the group headings, in order
     const groups = [...nav[1].matchAll(/<span class="sn-cap">([^<]+)<\/span>/g)].map((m) => m[1].trim());
-    assert.deepStrictEqual(groups, ["Today", "Planning", "Social", "Finances"], label + " names the four groups");
-    assert.strictEqual((nav[1].match(/<div class="sn-group/g) || []).length, 4,
-      label + " keeps the four groups apart");
+    // v165: a fifth group, Numbers, between Planning and Social — the KPI tabs' own front door
+    assert.deepStrictEqual(groups, ["Today", "Planning", "Numbers", "Social", "Finances"], label + " names the five groups");
+    assert.strictEqual((nav[1].match(/<div class="sn-group/g) || []).length, 5,
+      label + " keeps the five groups apart");
 
     // v162: a link leads with its icon; v163 wrapped the label so the fold can hide it
     const links = [...nav[1].matchAll(/<a href="([^"]+)"([^>]*)><svg class="ic"><use href="#ic-[a-z-]+"\/><\/svg><span class="sn-lbl">([\s\S]*?)<\/span><\/a>/g)];
-    assert.strictEqual(links.length, 6, label + " top menu has today, the three periods, social and finances");
+    assert.strictEqual(links.length, 8, label + " menu has today, the three periods, the two KPI doors, social and finances");
 
     assert.deepStrictEqual(
       links.map((m) => m[1]),
-      ["/daily.html", "/index.html", "/monthly.html", "/quarterly.html", "/social.html", "/finances.html"],
-      label + " links to today, then the three periods in order, then social, then finances"
+      ["/daily.html", "/index.html", "/monthly.html", "/quarterly.html", "/index.html#kpi", "/monthly.html#kpi", "/social.html", "/finances.html"],
+      label + " links to today, the three periods in order, the two KPI tabs, then social, then finances"
     );
     assert.deepStrictEqual(
       links.map((m) => m[3].trim()),
-      ["Daily Dashboard", "Weekly", "Monthly", "Quarterly", "Instagram", "Income &amp; Expenses"],
+      ["Daily Dashboard", "Weekly", "Monthly", "Quarterly", "Weekly KPIs", "Monthly KPIs", "Instagram", "Income &amp; Expenses"],
       label + " labels the periods by period alone"
     );
 

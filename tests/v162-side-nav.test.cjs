@@ -36,7 +36,7 @@ const ruleOf = (style, sel) => {
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v164 · arrows-at-the-top";
+  const text = "build v165 · numbers-in-the-rail";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }
@@ -65,9 +65,10 @@ const ruleOf = (style, sel) => {
   for (const f of FILES) {
     const inner = blocks[f], label = f + ": ";
     const groups = [...inner.matchAll(/<div class="sn-group( sn-money)?">\s*<span class="sn-cap">([^<]+)<\/span>([\s\S]*?)<\/div>/g)];
+    // v165: Numbers joined between Planning and Social
     assert.deepStrictEqual(groups.map((m) => [m[2], !!m[1]]),
-      [["Today", false], ["Planning", false], ["Social", false], ["Finances", true]],
-      label + "four captions in order, and only Finances carries the money class");
+      [["Today", false], ["Planning", false], ["Numbers", false], ["Social", false], ["Finances", true]],
+      label + "five captions in order, and only Finances carries the money class");
     // v163 wrapped the label in a span (so the fold can hide it) and gave every link a
     // tooltip that repeats its label (so a folded icon still has a name)
     const linksOf = (block) => [...block.matchAll(/<a href="([^"]+)" class="sn-link( active)?" title="([^"]+)"><svg class="ic"><use href="#(ic-[a-z-]+)"\/><\/svg><span class="sn-lbl">([^<]+)<\/span><\/a>/g)]
@@ -75,13 +76,14 @@ const ruleOf = (style, sel) => {
     assert.deepStrictEqual(linksOf(groups[0][3]).map((l) => l.href), ["/daily.html"], label + "Today holds the daily dashboard alone");
     assert.deepStrictEqual(linksOf(groups[1][3]).map((l) => l.href), ["/index.html", "/monthly.html", "/quarterly.html"],
       label + "the three periods stay together under Planning");
-    assert.deepStrictEqual(linksOf(groups[2][3]).map((l) => l.href), ["/social.html"], label + "Social is Instagram alone");
-    assert.deepStrictEqual(linksOf(groups[3][3]).map((l) => l.href), ["/finances.html"], label + "Finances is alone — not a fourth period");
+    assert.deepStrictEqual(linksOf(groups[2][3]).map((l) => l.href), ["/index.html#kpi", "/monthly.html#kpi"], label + "Numbers is the two KPI doors");
+    assert.deepStrictEqual(linksOf(groups[3][3]).map((l) => l.href), ["/social.html"], label + "Social is Instagram alone");
+    assert.deepStrictEqual(linksOf(groups[4][3]).map((l) => l.href), ["/finances.html"], label + "Finances is alone — not a fourth period");
     const all = linksOf(inner);
     assert.deepStrictEqual(all.map((l) => l.label),
-      ["Daily Dashboard", "Weekly", "Monthly", "Quarterly", "Instagram", "Income &amp; Expenses"], label + "the same six labels");
+      ["Daily Dashboard", "Weekly", "Monthly", "Quarterly", "Weekly KPIs", "Monthly KPIs", "Instagram", "Income &amp; Expenses"], label + "the same eight labels");
     assert.deepStrictEqual(all.map((l) => l.icon),
-      ["ic-sun", "ic-calendar", "ic-grid", "ic-target", "ic-camera", "ic-wallet"], label + "each row leads with its icon");
+      ["ic-sun", "ic-calendar", "ic-grid", "ic-target", "ic-trend-up", "ic-trend-up", "ic-camera", "ic-wallet"], label + "each row leads with its icon");
     assert.deepStrictEqual(all.filter((l) => l.active).map((l) => l.href), ["/" + f], label + "marks its own link active, once");
     // every icon the rail asks for resolves in this page's sprite
     const sprite = /<svg width="0" height="0"[\s\S]*?<\/defs><\/svg>/.exec(SRC[f]);
