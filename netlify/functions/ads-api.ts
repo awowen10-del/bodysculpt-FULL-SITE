@@ -11,7 +11,7 @@
 import { createRuntimeReadRepository } from '../ads/src/server/runtime.ts'
 import { handleApiEvent } from '../ads/src/server/handleEvent.ts'
 import { safeErrorFields, type LogEvent } from '../ads/src/server/diagnostics.ts'
-import type { NetlifyEvent, NetlifyResult } from '../ads/src/server/adapter.ts'
+import { toEvent, toResponse } from '../ads/src/server/v2.ts'
 
 /** Structured, redacted log line — safe fields only (never secrets/cookies/body). */
 function log(event: LogEvent): void {
@@ -26,16 +26,18 @@ function log(event: LogEvent): void {
  * (A hard timeout or OOM is a platform kill this cannot catch — those are
  * diagnosed by the absence of a `rows_assembled` / `response_serialized` log.)
  */
-export const handler = async (event: NetlifyEvent): Promise<NetlifyResult> => {
+// v176: the modern function API (no 4KB env limit) — see ads/src/server/v2.ts
+export default async (req: Request): Promise<Response> => {
+  const event = await toEvent(req)
   try {
-    return await handleApiEvent({
+    return toResponse(await handleApiEvent({
       event,
       openConnection: (logger) => createRuntimeReadRepository(logger),
       logger: log,
-    })
+    }))
   } catch (err) {
     log({ stage: 'error', ...safeErrorFields(err) })
-    return {
+    return toResponse({
       statusCode: 500,
       headers: {
         'content-type': 'application/json',
@@ -44,6 +46,6 @@ export const handler = async (event: NetlifyEvent): Promise<NetlifyResult> => {
       body: JSON.stringify({
         error: { code: 'INTERNAL', message: 'Something went wrong.' },
       }),
-    }
+    })
   }
 }

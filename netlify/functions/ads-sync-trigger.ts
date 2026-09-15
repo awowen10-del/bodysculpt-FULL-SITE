@@ -18,7 +18,7 @@ import {
   type TriggerResult,
 } from '../ads/src/server/sync/index.ts'
 import { safeErrorFields, type LogEvent } from '../ads/src/server/diagnostics.ts'
-import type { NetlifyEvent, NetlifyResult } from '../ads/src/server/adapter.ts'
+import { toEvent, toResponse } from '../ads/src/server/v2.ts'
 
 function log(event: LogEvent): void {
   console.log(`[ads-sync-trigger] ${JSON.stringify(event)}`)
@@ -46,16 +46,18 @@ async function forwardToBackground(): Promise<TriggerResult> {
   return { ok: res.ok, status: res.status }
 }
 
-export const handler = async (event: NetlifyEvent): Promise<NetlifyResult> => {
+// v176: the modern function API (no 4KB env limit) — see ads/src/server/v2.ts
+export default async (req: Request): Promise<Response> => {
+  const event = await toEvent(req)
   try {
-    return await handleSyncTrigger({
+    return toResponse(await handleSyncTrigger({
       event,
       trigger: forwardToBackground,
       logger: log,
-    })
+    }))
   } catch (err) {
     log({ stage: 'error', ...safeErrorFields(err) })
-    return {
+    return toResponse({
       statusCode: 500,
       headers: {
         'content-type': 'application/json',
@@ -64,6 +66,6 @@ export const handler = async (event: NetlifyEvent): Promise<NetlifyResult> => {
       body: JSON.stringify({
         error: { code: 'INTERNAL', message: 'Something went wrong.' },
       }),
-    }
+    })
   }
 }

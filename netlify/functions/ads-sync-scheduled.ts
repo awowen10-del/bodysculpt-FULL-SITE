@@ -16,19 +16,15 @@
  * carries the shared `SYNC_TRIGGER_SECRET`; this trigger presents it in the
  * `x-sync-trigger` header. Required env: URL (Netlify-provided), SYNC_TRIGGER_SECRET.
  */
-import type { NetlifyResult } from '../ads/src/server/adapter.ts'
 
 function log(event: { stage: string; [key: string]: unknown }): void {
   console.log(`[ads-sync-scheduled] ${JSON.stringify(event)}`)
 }
 
-const OK: NetlifyResult = {
-  statusCode: 200,
-  headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
-  body: JSON.stringify({ ok: true }),
-}
+const OK = () => Response.json({ ok: true }, { headers: { 'cache-control': 'no-store' } })
 
-export const handler = async (): Promise<NetlifyResult> => {
+// v176: the modern function API (no 4KB env limit)
+export default async (): Promise<Response> => {
   const base =
     process.env.URL ?? process.env.DEPLOY_PRIME_URL ?? process.env.DEPLOY_URL
   const secret = process.env.SYNC_TRIGGER_SECRET
@@ -38,7 +34,7 @@ export const handler = async (): Promise<NetlifyResult> => {
       hasBase: base !== undefined,
       hasSecret: secret !== undefined && secret !== '',
     })
-    return OK
+    return OK()
   }
 
   try {
@@ -55,5 +51,5 @@ export const handler = async (): Promise<NetlifyResult> => {
       message: err instanceof Error ? err.message : String(err),
     })
   }
-  return OK
+  return OK()
 }

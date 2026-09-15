@@ -32,7 +32,7 @@ const RETIRED_GLYPHS = ["✕", "▸", "▾", "▲", "▼", "◐", "▶", "×", "
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v175 · gemini-is-busy-not-broken";
+  const text = "build v176 · out-of-lambda-compatibility-mode";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html", "ads.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }
@@ -165,7 +165,12 @@ const RETIRED_GLYPHS = ["✕", "▸", "▾", "▲", "▼", "◐", "▶", "×", "
     for (const f of ["ads-api", "ads-daily-check", "ads-daily-check-background", "ads-sync-background", "ads-sync-scheduled", "ads-sync-status", "ads-sync-trigger"]) {
       assert.ok(fs.existsSync(path.join(__dirname, "..", "netlify", "functions", f + ".ts")), f + ".ts exists");
       assert.ok(!/SESSION_SECRET|DASHBOARD_PASSWORD/.test(fn(f + ".ts").replace(/\/\*[\s\S]*?\*\//g, "")), f + " reads no login secret");
-      assert.ok(/from '\.\.\/ads\/src\//.test(fn(f + ".ts")), f + " imports the moved server code");
+      // (the scheduled trigger is self-contained since v176 — it only fetches the background function)
+      if (f !== "ads-sync-scheduled") assert.ok(/from '\.\.\/ads\/src\//.test(fn(f + ".ts")), f + " imports the moved server code");
+      // v176: the deploy failed with "Your environment variables exceed the 4KB limit imposed
+      // by AWS Lambda" — the classic `export const handler` style bundles every variable into
+      // the function. The modern API has no such limit; every entry is on it now.
+      assert.ok(/^export default async \(/m.test(fn(f + ".ts")) && !/export const handler/.test(fn(f + ".ts")), f + " is on the modern function API, not Lambda compatibility mode");
     }
     assert.ok(!fs.existsSync(path.join(__dirname, "..", "netlify", "ads", "src", "server", "session.ts")), "the cookie session is gone");
     const open = read("netlify/ads/src/server/openAuth.ts");

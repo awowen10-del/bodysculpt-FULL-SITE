@@ -47,7 +47,7 @@ const POST = (h, body) => h(new Request("https://x/.netlify/functions/schedule-q
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v175 · gemini-is-busy-not-broken";
+  const text = "build v176 · out-of-lambda-compatibility-mode";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html", "ads.html", "schedule.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }

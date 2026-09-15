@@ -18,13 +18,16 @@ import { createDailyCheckRuntime } from '../ads/src/server/dailyCheck/runtime.ts
 import { runDailyCheckGenerate } from '../ads/src/server/dailyCheck/handleDailyCheck.ts'
 import { createAnthropicCompletor } from '../ads/src/server/dailyCheck/anthropic.ts'
 import { safeErrorFields, type LogEvent } from '../ads/src/server/diagnostics.ts'
+import { toEvent } from '../ads/src/server/v2.ts'
 import type { NetlifyEvent } from '../ads/src/server/adapter.ts'
 
 function log(event: LogEvent): void {
   console.log(`[ads-daily-check-bg] ${JSON.stringify(event)}`)
 }
 
-export const handler = async (event: NetlifyEvent): Promise<void> => {
+// v176: the modern function API (no 4KB env limit) — see ads/src/server/v2.ts
+export default async (req: Request): Promise<void> => {
+  const event: NetlifyEvent = await toEvent(req)
   try {
     await runDailyCheckGenerate({
       event,

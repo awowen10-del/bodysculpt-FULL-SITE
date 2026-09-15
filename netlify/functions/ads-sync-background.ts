@@ -24,6 +24,7 @@
 import { createSyncConnection } from '../ads/src/db/client.ts'
 import { getRuntimeMetaConfig } from '../ads/src/meta/runtimeConfig.ts'
 import { runScheduledSync, type SyncLog } from '../ads/src/server/sync/index.ts'
+import { toEvent } from '../ads/src/server/v2.ts'
 import type { NetlifyEvent } from '../ads/src/server/adapter.ts'
 
 const log: SyncLog = (event) =>
@@ -36,7 +37,9 @@ function authorised(event: NetlifyEvent): boolean {
   return event.headers['x-sync-trigger'] === expected
 }
 
-export const handler = async (event: NetlifyEvent): Promise<void> => {
+// v176: the modern function API (no 4KB env limit) — see ads/src/server/v2.ts
+export default async (req: Request): Promise<void> => {
+  const event: NetlifyEvent = await toEvent(req)
   if (!authorised(event)) {
     log({ stage: 'unauthorized' })
     return
