@@ -36,7 +36,7 @@ const ruleOf = (style, sel) => {
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v163 · fold-the-rail";
+  const text = "build v164 · arrows-at-the-top";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }

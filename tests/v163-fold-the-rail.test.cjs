@@ -25,7 +25,7 @@ const scriptOf = (src) => src.slice(src.lastIndexOf("<script>") + 8, src.lastInd
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v163 · fold-the-rail";
+  const text = "build v164 · arrows-at-the-top";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }
@@ -33,12 +33,14 @@ const scriptOf = (src) => src.slice(src.lastIndexOf("<script>") + 8, src.lastInd
   for (const f of FILES) {
     const src = SRC[f], style = styleOf(src), js = scriptOf(src), label = f + ": ";
 
-    /* ============ 1. the button: two little arrows, at the foot of the rail ============ */
-    const btn = /<button type="button" class="sn-fold" id="snFold" aria-label="Fold the menu to icons" title="Fold the menu"><svg class="ic"><use href="#ic-chevrons"\/><\/svg><\/button>\n<\/aside>/.exec(src);
-    assert.ok(btn, label + "the fold button is the last thing in the rail, and says what it does");
+    /* ============ 1. the button: two little arrows, at the top beside the brand ============
+       (v163.1 — it began at the foot of the rail; Ash: "Move it to the top, please.") */
+    const btn = /<div class="sn-top">\s*<a class="sn-brand"[\s\S]*?<\/a>\s*<button type="button" class="sn-fold" id="snFold" aria-label="Fold the menu to icons" title="Fold the menu"><svg class="ic"><use href="#ic-chevrons"\/><\/svg><\/button>\s*<\/div>\s*<nav class="sn-nav">/.exec(src);
+    assert.ok(btn, label + "the fold button shares the top row with the brand, ahead of the nav, and says what it does");
     const sym = /<symbol id="ic-chevrons"[^>]*>([\s\S]*?)<\/symbol>/.exec(src);
     assert.ok(sym && (sym[1].match(/l-6 6 6 6/g) || []).length === 2, label + "#ic-chevrons is two chevrons, on the sprite");
-    assert.ok(/\.sn-fold\{margin-top:auto/.test(style), label + "it sits at the foot of the rail");
+    assert.ok(/\.sn-top\{display:flex;align-items:center;justify-content:space-between/.test(style), label + "brand left, arrows right, on one row");
+    assert.ok(/html\.nav-collapsed \.sn-top\{flex-direction:column/.test(style), label + "…stacked when folded, since 72px fits one of them across");
     assert.ok(/\.sn-fold\{[^}]*background:transparent/.test(style) && /\.sn-fold\{[^}]*color:var\(--ink-faint\)/.test(style),
       label + "…quiet until hovered");
 
