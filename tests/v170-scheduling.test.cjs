@@ -47,7 +47,7 @@ const POST = (h, body) => h(new Request("https://x/.netlify/functions/schedule-q
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v174 · the-sprite-cannot-be-inflated";
+  const text = "build v175 · gemini-is-busy-not-broken";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html", "ads.html", "schedule.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }
@@ -166,6 +166,18 @@ const POST = (h, body) => h(new Request("https://x/.netlify/functions/schedule-q
     assert.ok(/response\.stop_reason === "refusal"/.test(lib), "…and a refusal is handled");
     assert.ok(/ig-cache-mine/.test(lib), "the voice comes from his own recent captions");
     assert.ok(/X-Goog-Upload-Protocol": "resumable"/.test(lib) && /gemini-2\.5-flash/.test(lib), "the transcript comes from Gemini's file upload, newest model first");
+    // v175: Ash's first real run — "This model is currently experiencing high demand" — three
+    // models tried back to back in one busy minute, all three refused. Now: five models, each
+    // retried with a growing pause when the answer is temporary; a permanent refusal moves on
+    // at once; and a transcription that still fails writes the caption from the file name and
+    // says so, rather than leaving the card stuck.
+    assert.ok(/const GEMINI_RETRY_WAITS_MS = \[4000, 12000, 30000\];/.test(lib), "three attempts per model, pauses growing");
+    assert.ok(/isTransient = \(status, msg\) => status === 429 \|\| status === 503 \|\| \/high demand\|overloaded/.test(lib), "…only when the refusal is temporary");
+    assert.ok(/if \(!isTransient\(res\.status, lastErr\)\) break;/.test(lib), "…a real refusal moves to the next model at once");
+    assert.strictEqual((lib.match(/"gemini-[a-z0-9.-]+"/g) || []).length, 5, "five model names to fall through");
+    const cap = read("netlify/functions/schedule-caption-background.js");
+    assert.ok(/try \{ transcript = await transcribe\(file\.buffer, file\.mime, it\.name\); \}\s*catch \(e\) \{ note = "The video could not be transcribed just now/.test(cap), "a failed transcription still gets a caption, with a note");
+    assert.ok(/await patchItem\(id, \{ status: "ready", transcript, caption, ytTitle, error: note \}\);/.test(cap), "…and the card is ready, carrying the note");
     assert.ok(/method: "DELETE" \}\)\.catch/.test(lib), "…and the uploaded file is deleted from Gemini afterwards");
     assert.ok(/const ZERNIO = "https:\/\/zernio\.com\/api\/v1";/.test(lib) && /ZERNIO \+ "\/media\/presign"/.test(lib) && /ZERNIO \+ "\/posts"/.test(lib), "Zernio: presign + upload, then the post");
     const doc = read("SCHEDULE-SETUP.md");

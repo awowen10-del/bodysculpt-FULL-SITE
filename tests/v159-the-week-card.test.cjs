@@ -25,7 +25,7 @@ const fn = (name) => {
 const count = (re, s) => (s.match(re) || []).length;
 
 /* ================= 0. the stamp ================= */
-const text = "build v174 · the-sprite-cannot-be-inflated";
+const text = "build v175 · gemini-is-busy-not-broken";
 for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html"]) {
   assert.ok(read(f).includes(text), f + " carries the stamp");
 }

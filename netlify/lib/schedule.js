@@ -28,7 +28,13 @@ export const KEY = "sched-queue";
 export const PLATFORMS = ["instagram", "facebook", "tiktok", "youtube"];
 const DRIVE = "https://www.googleapis.com/drive/v3";
 const GEMINI = "https://generativelanguage.googleapis.com";
-const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest"];
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-flash-latest"];
+// v175: Google's "high demand" / 429 / 503 answers are temporary. Each model is tried up to
+// three times with a growing pause before the next model is tried — a busy minute at
+// Google must not cost Ash the caption.
+const GEMINI_RETRY_WAITS_MS = [4000, 12000, 30000];
+const isTransient = (status, msg) => status === 429 || status === 503 || /high demand|overloaded|try again later|resource exhausted|unavailable/i.test(msg || "");
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const ZERNIO = "https://zernio.com/api/v1";
 const MAX_ITEMS = 300;
 
@@ -156,17 +162,21 @@ export async function transcribe(buffer, mime, name) {
   let lastErr = "";
   try {
     for (const model of GEMINI_MODELS) {
-      const res = await fetch(GEMINI + "/v1beta/models/" + model + ":generateContent?key=" + key, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ parts: [{ file_data: { mime_type: mime, file_uri: file.uri } }, { text: prompt }] }] }),
-      });
-      const b = await res.json().catch(() => ({}));
-      if (res.ok) {
-        const text = (((b.candidates || [])[0] || {}).content || {}).parts;
-        const out = Array.isArray(text) ? text.map((p) => p.text || "").join("").trim() : "";
-        if (out) return clip(out, 6000);
+      for (let attempt = 0; attempt < GEMINI_RETRY_WAITS_MS.length; attempt++) {
+        const res = await fetch(GEMINI + "/v1beta/models/" + model + ":generateContent?key=" + key, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents: [{ parts: [{ file_data: { mime_type: mime, file_uri: file.uri } }, { text: prompt }] }] }),
+        });
+        const b = await res.json().catch(() => ({}));
+        if (res.ok) {
+          const text = (((b.candidates || [])[0] || {}).content || {}).parts;
+          const out = Array.isArray(text) ? text.map((p) => p.text || "").join("").trim() : "";
+          if (out) return clip(out, 6000);
+        }
+        lastErr = clip((b.error && b.error.message) || ("Gemini returned " + res.status), 200);
+        if (!isTransient(res.status, lastErr)) break;          // a real refusal: next model, now
+        await sleep(GEMINI_RETRY_WAITS_MS[attempt]);           // busy: wait, then the same model again
       }
-      lastErr = clip((b.error && b.error.message) || ("Gemini returned " + res.status), 200);
     }
   } finally {
     fetch(GEMINI + "/v1beta/" + file.name + "?key=" + key, { method: "DELETE" }).catch(() => {});
