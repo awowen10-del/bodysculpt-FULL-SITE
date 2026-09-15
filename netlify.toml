@@ -12,3 +12,47 @@
 # card, not a timed-out one.
 [functions."stripe-feed"]
   timeout = 26
+
+# ===================== v167: Facebook Ads (the ad-intelligence tool, moved in) =====================
+# The ads tool's seven functions came across from bodysculpt-ad-intelligence, prefixed
+# `ads-` so nothing collides. The page talks to them at /api/ads/…; these rewrites (200,
+# so the function sees the original path) send each address to its function. The two
+# specific ones must come BEFORE the catch-all — first matching rule wins.
+[[redirects]]
+  from = "/api/ads/daily-check/generate"
+  to = "/.netlify/functions/ads-daily-check-background"
+  status = 200
+
+[[redirects]]
+  from = "/api/ads/daily-check"
+  to = "/.netlify/functions/ads-daily-check"
+  status = 200
+
+[[redirects]]
+  from = "/api/ads/sync-status"
+  to = "/.netlify/functions/ads-sync-status"
+  status = 200
+
+[[redirects]]
+  from = "/api/ads/sync-trigger"
+  to = "/.netlify/functions/ads-sync-trigger"
+  status = 200
+
+[[redirects]]
+  from = "/api/ads/*"
+  to = "/.netlify/functions/ads-api/:splat"
+  status = 200
+
+# The nightly Meta sync: a tiny cron trigger that invokes ads-sync-background (15-min
+# wall, locked to SYNC_TRIGGER_SECRET). 04:00 UTC = 05:00 UK summer / 04:00 winter.
+[functions."ads-sync-scheduled"]
+  schedule = "0 4 * * *"
+
+# The read API opens a database connection per request; give it the paid-plan maximum
+# rather than the 10s default, the same as mentor-ai and stripe-feed above.
+[functions."ads-api"]
+  timeout = 26
+[functions."ads-daily-check"]
+  timeout = 26
+[functions."ads-sync-status"]
+  timeout = 26

@@ -1,0 +1,129 @@
+{
+  "data": [
+    {
+      "id": "ADS_SEED_LEADS_1",
+      "campaign_id": "CMP_SEED_LEADS",
+      "account_id": "act_SEED_0001",
+      "name": "Leads · Warm — Instant Form (SEED)",
+      "status": "ACTIVE",
+      "effective_status": "ACTIVE",
+      "daily_budget": "4000",
+      "optimization_goal": "LEAD_GENERATION",
+      "billing_event": "IMPRESSIONS",
+      "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+      "targeting": {
+        "age_min": 25,
+        "age_max": 55,
+        "geo_locations": { "countries": ["GB"] }
+      },
+      "attribution_spec": [{ "event_type": "CLICK_THROUGH", "window_days": 7 }],
+      "start_time": "2026-05-05T00:00:00+0000",
+      "updated_time": "2026-07-13T06:00:00+0000"
+    },
+    {
+      "id": "ADS_SEED_LEADS_2",
+      "campaign_id": "CMP_SEED_LEADS",
+      "account_id": "act_SEED_0001",
+      "name": "Leads · Cold — Website Pixel (SEED)",
+      "status": "ACTIVE",
+      "effective_status": "ACTIVE",
+      "daily_budget": "3500",
+      "optimization_goal": "OFFSITE_CONVERSIONS",
+      "billing_event": "IMPRESSIONS",
+      "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+      "destination_type": "WEBSITE",
+      "promoted_object": {
+        "pixel_id": "1122334455667788",
+        "custom_event_type": "LEAD"
+      },
+      "targeting": {
+        "age_min": 30,
+        "age_max": 60,
+        "geo_locations": { "countries": ["GB"] }
+      },
+      "attribution_spec": [{ "event_type": "CLICK_THROUGH", "window_days": 7 }],
+      "start_time": "2026-05-05T00:00:00+0000",
+      "updated_time": "2026-07-13T06:00:00+0000"
+    },
+    {
+      "id": "ADS_SEED_TRAFFIC_1",
+      "campaign_id": "CMP_SEED_TRAFFIC",
+      "account_id": "act_SEED_0001",
+      "name": "Traffic · Broad — Link Clicks (SEED)",
+      "status": "ACTIVE",
+      "effective_status": "ACTIVE",
+      "daily_budget": "3000",
+      "optimization_goal": "LINK_CLICKS",
+      "billing_event": "IMPRESSIONS",
+      "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+      "targeting": {
+        "age_min": 18,
+        "age_max": 65,
+        "geo_locations": { "countries": ["GB"] }
+      },
+      "attribution_spec": [{ "event_type": "CLICK_THROUGH", "window_days": 1 }],
+      "start_time": "2026-05-06T00:00:00+0000",
+      "updated_time": "2026-07-13T06:00:00+0000"
+    },
+    {
+      "id": "ADS_SEED_TRAFFIC_2",
+      "campaign_id": "CMP_SEED_TRAFFIC",
+      "account_id": "act_SEED_0001",
+      "name": "Traffic · Retarget — Landing Page Views (SEED)",
+      "status": "ACTIVE",
+      "effective_status": "ACTIVE",
+      "daily_budget": "2000",
+      "optimization_goal": "LANDING_PAGE_VIEWS",
+      "billing_event": "IMPRESSIONS",
+      "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+      "targeting": {
+        "age_min": 25,
+        "age_max": 55,
+        "geo_locations": { "countries": ["GB"] }
+      },
+      "attribution_spec": [{ "event_type": "CLICK_THROUGH", "window_days": 1 }],
+      "start_time": "2026-05-06T00:00:00+0000",
+      "updated_time": "2026-07-13T06:00:00+0000"
+    },
+    {
+      "id": "ADS_SEED_AWARE_1",
+      "campaign_id": "CMP_SEED_AWARE",
+      "account_id": "act_SEED_0001",
+      "name": "Awareness · Video — Thruplay (SEED)",
+      "status": "ACTIVE",
+      "effective_status": "ACTIVE",
+      "daily_budget": "2500",
+      "optimization_goal": "THRUPLAY",
+      "billing_event": "IMPRESSIONS",
+      "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+      "targeting": {
+        "age_min": 18,
+        "age_max": 55,
+        "geo_locations": { "countries": ["GB"] }
+      },
+      "attribution_spec": [{ "event_type": "CLICK_THROUGH", "window_days": 1 }],
+      "start_time": "2026-05-07T00:00:00+0000",
+      "updated_time": "2026-07-13T06:00:00+0000"
+    },
+    {
+      "id": "ADS_SEED_AWARE_2",
+      "campaign_id": "CMP_SEED_AWARE",
+      "account_id": "act_SEED_0001",
+      "name": "Awareness · Reach — Broad (SEED)",
+      "status": "ACTIVE",
+      "effective_status": "ACTIVE",
+      "daily_budget": "2500",
+      "optimization_goal": "REACH",
+      "billing_event": "IMPRESSIONS",
+      "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+      "targeting": {
+        "age_min": 18,
+        "age_max": 65,
+        "geo_locations": { "countries": ["GB"] }
+      },
+      "attribution_spec": [{ "event_type": "CLICK_THROUGH", "window_days": 1 }],
+      "start_time": "2026-05-07T00:00:00+0000",
+      "updated_time": "2026-07-13T06:00:00+0000"
+    }
+  ]
+}

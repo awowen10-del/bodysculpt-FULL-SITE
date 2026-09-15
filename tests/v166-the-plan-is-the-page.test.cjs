@@ -23,7 +23,7 @@ const scriptOf = (src) => src.slice(src.lastIndexOf("<script>") + 8, src.lastInd
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v166 · the-plan-is-the-page";
+  const text = "build v167 · facebook-ads";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }
@@ -43,7 +43,7 @@ const scriptOf = (src) => src.slice(src.lastIndexOf("<script>") + 8, src.lastInd
     assert.ok(mbar[0].includes('id="monthSel"'), "monthly: the month picker is in the numbers row");
     assert.ok(/id="pbPrev"/.test(M) && /id="pbNext"/.test(M) && /id="pbCurrent"/.test(M), "monthly: …and the period bar is outside it, for the plan");
     // hidden has to beat the row's display:flex, on every page that carries the row's CSS
-    for (const f of ["index.html", "monthly.html", "finances.html", "daily.html", "social.html", "quarterly.html"]) {
+    for (const f of ["index.html", "monthly.html", "finances.html", "daily.html", "social.html", "quarterly.html", "ads.html"]) {
       assert.ok(/\n  \.viewtoggle\[hidden\]\{display:none;\}/.test(read(f)), f + ": a hidden row is hidden");
     }
     // quarterly: kept as is — no row, no sides, nothing of this applies

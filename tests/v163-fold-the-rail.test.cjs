@@ -17,7 +17,7 @@ const path = require("path");
 const vm = require("vm");
 
 const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
-const FILES = ["index.html", "monthly.html", "quarterly.html", "finances.html", "daily.html", "social.html"];
+const FILES = ["index.html", "monthly.html", "quarterly.html", "finances.html", "daily.html", "social.html", "ads.html"];   // v167: seven
 const SRC = {};
 FILES.forEach((f) => { SRC[f] = read(f); });
 const styleOf = (src) => src.slice(src.indexOf("<style>") + 7, src.indexOf("</style>"));
@@ -25,7 +25,7 @@ const scriptOf = (src) => src.slice(src.lastIndexOf("<script>") + 8, src.lastInd
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v166 · the-plan-is-the-page";
+  const text = "build v167 · facebook-ads";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }
@@ -56,7 +56,7 @@ const scriptOf = (src) => src.slice(src.lastIndexOf("<script>") + 8, src.lastInd
     assert.ok(/html\.nav-collapsed \.sn-fold \.ic\{transform:rotate\(180deg\);\}/.test(wide), label + "the arrows turn round to say 'unfold'");
     // every link carries its name as a tooltip, so a folded icon is never nameless
     const links = [...src.matchAll(/<a href="[^"]+" class="sn-link(?: active)?" title="([^"]+)"><svg[^]*?<span class="sn-lbl">([^<]+)<\/span><\/a>/g)];
-    assert.strictEqual(links.length, 8, label + "eight links (v165: six, plus the two KPI doors)");
+    assert.strictEqual(links.length, 9, label + "nine links (v165: the two KPI doors; v167: Facebook Ads)");
     for (const m of links) assert.strictEqual(m[1], m[2], label + "the tooltip is the label: " + m[1]);
     // the drawer never folds
     const mq = style.slice(style.indexOf("  @media(max-width:900px){"));

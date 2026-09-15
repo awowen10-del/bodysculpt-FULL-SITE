@@ -1,0 +1,1 @@
+ALTER TABLE "ads" ADD COLUMN "historical_placeholder" boolean DEFAULT false NOT NULL;

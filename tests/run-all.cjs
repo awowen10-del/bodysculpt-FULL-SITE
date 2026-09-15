@@ -18,6 +18,8 @@ const SOURCES = [
   ["daily.html", path.join(__dirname, "..", "daily.html")],
   // v136: the Social page is the sixth
   ["social.html", path.join(__dirname, "..", "social.html")],
+  // v167: Facebook Ads is the seventh
+  ["ads.html", path.join(__dirname, "..", "ads.html")],
 ];
 for (const [label, file] of SOURCES) {
   const tmp = path.join(os.tmpdir(), "bodysculpt-extracted-" + process.pid + "-" + label + ".js");
@@ -38,6 +40,18 @@ for (const fn of ["kpi-store.js", "stripe-feed.js", "instagram-feed.js", "google
     process.exit(1);
   }
   console.log("syntax check " + fn + ": OK");
+}
+
+// 1b) v167: the Facebook Ads server code is TypeScript — `tsc` is its syntax check, and
+// its type check. netlify/ads/tsconfig.json covers netlify/ads/src and the ads-* functions.
+{
+  const tsc = path.join(__dirname, "..", "node_modules", "typescript", "bin", "tsc");
+  const chk = spawnSync(process.execPath, [tsc, "-p", path.join(__dirname, "..", "netlify", "ads", "tsconfig.json")], { stdio: "inherit" });
+  if (chk.status !== 0) {
+    console.error("TYPE CHECK FAILED (netlify/ads) — aborting test run");
+    process.exit(1);
+  }
+  console.log("type check netlify/ads: OK");
 }
 
 // 2) run every test file
