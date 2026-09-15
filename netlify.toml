@@ -56,3 +56,8 @@
   timeout = 26
 [functions."ads-sync-status"]
   timeout = 26
+
+# v169: the follower count, written down once a day so the Content page can draw growth.
+# 04:30 UTC, after the ads sync. The page also asks it to record on every visit.
+[functions."ig-snapshot"]
+  schedule = "30 4 * * *"

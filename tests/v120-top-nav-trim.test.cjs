@@ -88,7 +88,7 @@ const PAGES = [
     );
     assert.deepStrictEqual(
       links.map((m) => m[3].trim()),
-      ["Daily Dashboard", "Weekly", "Monthly", "Quarterly", "Weekly KPIs", "Monthly KPIs", "Instagram", "Facebook Ads", "Income &amp; Expenses"],
+      ["Daily Dashboard", "Weekly", "Monthly", "Quarterly", "Weekly KPIs", "Monthly KPIs", "Content", "Facebook Ads", "Income &amp; Expenses"],
       label + " labels the periods by period alone"
     );
 

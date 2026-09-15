@@ -36,7 +36,7 @@ const ruleOf = (style, sel) => {
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v168 · ads-tidied";
+  const text = "build v169 · content";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }
@@ -81,7 +81,7 @@ const ruleOf = (style, sel) => {
     assert.deepStrictEqual(linksOf(groups[4][3]).map((l) => l.href), ["/finances.html"], label + "Finances is alone — not a fourth period");
     const all = linksOf(inner);
     assert.deepStrictEqual(all.map((l) => l.label),
-      ["Daily Dashboard", "Weekly", "Monthly", "Quarterly", "Weekly KPIs", "Monthly KPIs", "Instagram", "Facebook Ads", "Income &amp; Expenses"], label + "the same nine labels");
+      ["Daily Dashboard", "Weekly", "Monthly", "Quarterly", "Weekly KPIs", "Monthly KPIs", "Content", "Facebook Ads", "Income &amp; Expenses"], label + "the same nine labels (v169: Instagram reads Content)");
     assert.deepStrictEqual(all.map((l) => l.icon),
       ["ic-sun", "ic-calendar", "ic-grid", "ic-target", "ic-trend-up", "ic-trend-up", "ic-camera", "ic-megaphone", "ic-wallet"], label + "each row leads with its icon");
     assert.deepStrictEqual(all.filter((l) => l.active).map((l) => l.href), ["/" + f], label + "marks its own link active, once");

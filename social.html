@@ -5,7 +5,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
-<title>Bodysculpt Social</title>
+<title>Bodysculpt Content</title>
 <!-- v119: Inter, the one typeface for the whole suite. The system stack stays behind it
      as the fallback, so an offline/blocked load renders exactly as it did before. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -472,6 +472,37 @@
      so `<a class="fin-alert" hidden>` would show the money alarm on every load with
      nothing in it. One rule, last in the sheet, so nothing added later can undo it. */
   [hidden]{display:none!important;}
+  /* ===================== v169: CONTENT — the standouts and the growth =====================
+     Ash: "change our own Instagram section to 'Content' where it shows us all of our best
+     performing content". The grid stayed; two cards went above it. */
+  .ct-pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--sp-4);margin-top:var(--sp-4);}
+  .ct-pair .card{margin-top:0;}
+  @media(max-width:1020px){ .ct-pair{grid-template-columns:1fr;} }
+  .best-list{display:flex;flex-direction:column;gap:8px;}
+  .best{display:grid;grid-template-columns:28px 56px minmax(0,1fr) auto;gap:10px;align-items:center;text-decoration:none;color:inherit;
+    padding:6px;border-radius:var(--r-md);transition:background var(--tap);}
+  .best:hover{background:var(--navy-2);}
+  .best-rank{font-size:13px;font-weight:800;color:var(--ink-faint);text-align:center;}
+  .best-img{width:56px;height:56px;border-radius:var(--r-sm);object-fit:cover;background:var(--navy-2);border:1px solid var(--line);}
+  .best-cap{font-size:12.5px;color:var(--ink);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .best-when{font-size:11px;color:var(--ink-faint);margin-top:2px;}
+  .best-n{text-align:right;white-space:nowrap;}
+  .best-n b{display:block;font-size:15px;font-weight:800;letter-spacing:-.02em;color:var(--ink-strong);}
+  .best-n span{font-size:10.5px;color:var(--ink-faint);}
+  .best-n .flame{display:inline-flex;align-items:center;gap:3px;color:var(--orange);font-weight:700;font-size:11px;}
+  .gr-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px;}
+  .gr-tile b{display:block;font-size:20px;font-weight:800;letter-spacing:-.025em;color:var(--ink-strong);line-height:1.1;}
+  .gr-tile span{font-size:11px;color:var(--ink-faint);}
+  .gr-tile .up{color:var(--green-2);} .gr-tile .down{color:var(--red-2);}
+  .gr-chart{width:100%;height:120px;display:block;}
+  .gr-bar{fill:var(--orange);opacity:.85;}
+  .gr-bar.last{opacity:1;}
+  .gr-axis{fill:var(--ink-faint);font-size:10px;}
+  .gr-line{stroke:var(--line);stroke-width:1;}
+  .muted{font-size:13px;color:var(--ink-faint);line-height:1.5;}
+  .ct-gridhead{display:flex;align-items:baseline;gap:10px;margin:var(--sp-5) 0 var(--sp-3);}
+  .ct-gridtitle{font-size:16px;font-weight:700;letter-spacing:-.022em;color:var(--ink-strong);}
+  .ct-gridsub{font-size:12.5px;color:var(--ink-faint);}
   /* ===================== v136: SOCIAL =====================
      Two lists of the same shape — mine and somebody else's — behind one toggle. The cards
      lead with the picture, because that is how the post was seen and how it is remembered;
@@ -649,7 +680,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 <symbol id="ic-chevrons" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 6l-6 6 6 6M18 6l-6 6 6 6"/></symbol>
 <symbol id="ic-megaphone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10.5v3a1.5 1.5 0 0 0 1.5 1.5h2l4.6 3.4c.7.5 1.6 0 1.6-.8V6.4c0-.8-.9-1.3-1.6-.8L7 9H5a1.5 1.5 0 0 0-1.5 1.5z"/><path d="M16.5 9.2a3.6 3.6 0 0 1 0 5.6M18.8 6.6a7 7 0 0 1 0 10.8"/></symbol>
 </defs></svg>
-<!-- build v168 · ads-tidied -->
+<!-- build v169 · content -->
 <aside class="sidenav" id="sideNav" aria-label="Pages">
   <div class="sn-top">
     <a class="sn-brand" href="/daily.html">
@@ -676,7 +707,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
     </div>
     <div class="sn-group">
       <span class="sn-cap">Social</span>
-        <a href="/social.html" class="sn-link active" title="Instagram"><svg class="ic"><use href="#ic-camera"/></svg><span class="sn-lbl">Instagram</span></a>
+        <a href="/social.html" class="sn-link active" title="Content"><svg class="ic"><use href="#ic-camera"/></svg><span class="sn-lbl">Content</span></a>
         <a href="/ads.html" class="sn-link" title="Facebook Ads"><svg class="ic"><use href="#ic-megaphone"/></svg><span class="sn-lbl">Facebook Ads</span></a>
     </div>
     <div class="sn-group sn-money">
@@ -701,6 +732,10 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
           <option value="new">Newest first</option>
           <option value="er">Best engagement</option>
           <option value="reach">Most reach</option>
+          <option value="views">Most views</option>
+          <option value="likes">Most likes</option>
+          <option value="saves">Most saves</option>
+          <option value="shares">Most shares</option>
         </select>
       </div>
       <button type="button" class="abtn" id="btnRefresh"><svg class="ic"><use href="#ic-refresh"/></svg> Refresh</button>
@@ -712,7 +747,19 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 <div class="view" id="v-mine">
   <div class="sp-head"><div class="acct" id="mineAcct"></div></div>
   <div class="fin-stats" id="mineStats"></div>
-  <div style="height:var(--sp-4)"></div>
+  <!-- v169: the two things the content-dashboard template had that this page did not —
+       the standouts pulled to the top, and follower growth day by day -->
+  <div class="ct-pair">
+    <section class="card ct-best" id="bestCard" hidden>
+      <div class="cardhead"><div><div class="chead"><svg class="ic"><use href="#ic-flame"/></svg> Best performers</div><div class="csub" id="bestSub"></div></div></div>
+      <div id="bestBody"></div>
+    </section>
+    <section class="card ct-growth" id="growthCard" hidden>
+      <div class="cardhead"><div><div class="chead"><svg class="ic"><use href="#ic-trend-up"/></svg> Follower growth</div><div class="csub" id="growthSub"></div></div></div>
+      <div id="growthBody"></div>
+    </section>
+  </div>
+  <div class="ct-gridhead" id="gridHead" hidden><span class="ct-gridtitle">All posts</span><span class="ct-gridsub" id="gridSub"></span></div>
   <div id="mineBody"><div class="loading">Reading your last 25 posts…</div></div>
 </div>
 
@@ -797,6 +844,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
    ===================================================================== */
 const API = "/.netlify/functions/kpi-store";
 const IG_FEED = "/.netlify/functions/instagram-feed";
+const IG_SNAP = "/.netlify/functions/ig-snapshot";   // v169: the follower count, day by day
 const RIVAL_CAP = 10;
 
 /* ---------- small helpers ---------- */
@@ -949,12 +997,82 @@ function wireImageFallbacks(el) {
   }, true);
 }
 
+// v169: four more orders. A private number (views, saves, shares) is null on a competitor's
+// post, so those orders fall back to likes there rather than sorting nothing.
+const SORT_KEYS = { views: "views", likes: "likes", saves: "saves", shares: "shares" };
 function sortPosts(posts) {
   const list = posts.slice();
   if (sortBy === "er") list.sort((a, b) => (b.er || 0) - (a.er || 0));
   else if (sortBy === "reach") list.sort((a, b) => (b.reach || b.likes || 0) - (a.reach || a.likes || 0));
+  else if (SORT_KEYS[sortBy]) { const k = SORT_KEYS[sortBy]; list.sort((a, b) => ((b[k] != null ? b[k] : b.likes) || 0) - ((a[k] != null ? a[k] : a.likes) || 0)); }
   else list.sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
   return outliersOnly ? list.filter((p) => p.outlier) : list;
+}
+
+/* ---------- v169: the best performers ----------
+   The three posts that reached the most people (views for a reel, reach otherwise), pulled
+   out of the grid so the standouts are the first thing seen — the content-dashboard
+   template's "outliers" panel, done with the numbers this account actually has. */
+const reachOf = (p) => (p.views != null ? p.views : p.reach != null ? p.reach : p.likes) || 0;
+function bestHtml(data) {
+  const posts = (data.posts || []).slice().sort((a, b) => reachOf(b) - reachOf(a)).slice(0, 3);
+  if (!posts.length) return "";
+  return '<div class="best-list">' + posts.map((p, i) => {
+    const label = p.views != null ? "views" : p.reach != null ? "reached" : "likes";
+    return '<a class="best" href="' + esc(p.permalink) + '" target="_blank" rel="noopener">' +
+      '<span class="best-rank">' + (i + 1) + "</span>" +
+      (p.image ? '<img class="best-img post-im" src="' + esc(p.image) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '<span class="best-img"></span>') +
+      '<span><span class="best-cap">' + esc(p.caption || TYPE_LABEL[p.type] || "Post") + '</span><span class="best-when">' + esc(when(p.timestamp)) + " · " + esc(TYPE_LABEL[p.type] || "Post") + "</span></span>" +
+      '<span class="best-n"><b>' + nfmt(reachOf(p)) + "</b><span>" + label + "</span>" +
+      (p.outlier ? '<br><span class="flame"><svg class="ic"><use href="#ic-flame"/></svg>' + (p.vsMedian ? p.vsMedian.toFixed(1) + "× normal" : "took off") + "</span>" : "") + "</span></a>";
+  }).join("") + "</div>";
+}
+
+/* ---------- v169: follower growth ----------
+   Drawn from the daily record ig-snapshot keeps. Bars are the last 30 recorded days; the
+   tiles are now, the change over 7 days and over 30. Until there are two days on record
+   there is nothing to draw, and the card says so instead of drawing a flat line. */
+let growthData = null;
+function growthHtml(g) {
+  if (!g || !g.ok || !g.days || !g.days.length) return '<p class="muted">Recording starts the first time this page is opened. Check back tomorrow.</p>';
+  const days = g.days.slice(-30);
+  const delta = (n) => n == null ? '<b>—</b><span>not enough days yet</span>'
+    : '<b class="' + (n > 0 ? "up" : n < 0 ? "down" : "") + '">' + (n > 0 ? "+" : "") + nfmt(n) + "</b>";
+  let html = '<div class="gr-tiles"><div class="gr-tile"><b>' + nfmt(g.current) + "</b><span>followers now</span></div>" +
+    '<div class="gr-tile">' + delta(g.weeklyGrowth) + (g.weeklyGrowth != null ? "<span>last 7 days</span>" : "") + "</div>" +
+    '<div class="gr-tile">' + delta(g.monthlyGrowth) + (g.monthlyGrowth != null ? "<span>last 30 days</span>" : "") + "</div></div>";
+  if (days.length < 2) return html + '<p class="muted">One day on record so far — the chart appears once there is a second.</p>';
+  // the bars show the daily CHANGE, which is what growth looks like; the count itself is in the tile
+  const W = 600, H = 120, pad = 14, top = 12;
+  const changes = days.slice(1).map((d, i) => ({ date: d.date, v: d.followers - days[i].followers }));
+  const max = Math.max(1, ...changes.map((c) => Math.abs(c.v)));
+  const bw = (W - pad * 2) / changes.length;
+  const zero = top + (H - top - 18) / 2;
+  const scale = (H - top - 18) / 2 / max;
+  let svg = '<svg class="gr-chart" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" aria-label="Daily follower change, last ' + changes.length + ' days">';
+  svg += '<line class="gr-line" x1="' + pad + '" x2="' + (W - pad) + '" y1="' + zero + '" y2="' + zero + '"/>';
+  changes.forEach((c, i) => {
+    const h = Math.abs(c.v) * scale, x = pad + i * bw + 1, w = Math.max(1, bw - 2);
+    const y = c.v >= 0 ? zero - h : zero;
+    svg += '<rect class="gr-bar' + (i === changes.length - 1 ? " last" : "") + '" x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + Math.max(h, c.v === 0 ? 0 : 1).toFixed(1) + '"><title>' + esc(c.date) + ": " + (c.v > 0 ? "+" : "") + c.v + "</title></rect>";
+  });
+  svg += '<text class="gr-axis" x="' + pad + '" y="' + (H - 4) + '">' + esc(when(changes[0].date)) + '</text><text class="gr-axis" x="' + (W - pad) + '" y="' + (H - 4) + '" text-anchor="end">' + esc(when(changes[changes.length - 1].date)) + "</text></svg>";
+  return html + svg;
+}
+function renderGrowth() {
+  const card = $("growthCard"), body = $("growthBody"), sub = $("growthSub");
+  if (!card) return;
+  card.hidden = !(mineData && mineData.ok && mineData.account);
+  sub.textContent = growthData && growthData.since ? "Recorded daily since " + when(growthData.since) : "Recorded once a day from today";
+  body.innerHTML = growthHtml(growthData);
+}
+async function loadGrowth() {
+  // record today (a POST that is idempotent within a day), then read the history back
+  try {
+    const r = await fetch(IG_SNAP, { method: "POST" });
+    growthData = await r.json();
+  } catch { try { growthData = await jget(IG_SNAP); } catch { growthData = null; } }
+  renderGrowth();
 }
 
 function gridHtml(data) {
@@ -1027,11 +1145,21 @@ function renderMine() {
   if (!mineData) { body.innerHTML = '<div class="loading">Reading your last 25 posts…</div>'; return; }
   if (!mineData.ok || mineData.configured === false || !mineData.account) {
     acct.innerHTML = ""; stats.innerHTML = "";
+    $("bestCard").hidden = true; $("growthCard").hidden = true; $("gridHead").hidden = true;
     body.innerHTML = igSetupHtml(mineData);
     return;
   }
   acct.innerHTML = acctHtml(mineData);
   stats.innerHTML = statsHtml(mineData);
+  // v169: the standouts, above the grid
+  const best = $("bestCard");
+  best.hidden = false;
+  $("bestSub").textContent = "The three that reached the most people, of your last " + (mineData.posts || []).length;
+  $("bestBody").innerHTML = bestHtml(mineData);
+  wireImageFallbacks($("bestBody"));
+  renderGrowth();
+  const gh = $("gridHead"); gh.hidden = false;
+  $("gridSub").textContent = (mineData.posts || []).length + " posts · " + ({ new: "newest first", er: "best engagement first", reach: "most reach first", views: "most views first", likes: "most likes first", saves: "most saves first", shares: "most shares first" }[sortBy] || "");
   body.innerHTML = gridHtml(mineData);
   wireImageFallbacks(body);
 }
@@ -1174,6 +1302,7 @@ async function loadAll(force) {
 
   renderMine();
   renderRivals();
+  loadGrowth();
   if (view === "rivals" && rivalSel) loadRival(rivalSel, force);
   if (btn) btn.disabled = false;
 }
