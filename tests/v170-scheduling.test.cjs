@@ -47,7 +47,7 @@ const POST = (h, body) => h(new Request("https://x/.netlify/functions/schedule-q
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v172 · competitor-views";
+  const text = "build v173 · the-page-may-not-call-the-schedule";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html", "ads.html", "schedule.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }

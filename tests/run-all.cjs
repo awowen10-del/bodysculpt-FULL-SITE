@@ -37,7 +37,7 @@ for (const [label, file] of SOURCES) {
 // v161: google-auth.js keeps the long-lived Google credential and gets the same check
 for (const fn of ["kpi-store.js", "stripe-feed.js", "instagram-feed.js", "google-auth.js", "ig-snapshot.js",
                   "schedule-queue.js", "schedule-caption-background.js", "schedule-publish-background.js", "../lib/schedule.js",
-                  "ig-scrape-background.js", "ig-scrape-scheduled.js"]) {
+                  "ig-scrape-background.js", "ig-scrape-scheduled.js", "ig-followers.js", "../lib/followers.js"]) {
   const chk = spawnSync(process.execPath, ["--check", path.join(__dirname, "..", "netlify", "functions", fn)], { stdio: "inherit" });
   if (chk.status !== 0) {
     console.error("SYNTAX CHECK FAILED (" + fn + ") — aborting test run");

@@ -680,7 +680,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 <symbol id="ic-chevrons" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 6l-6 6 6 6M18 6l-6 6 6 6"/></symbol>
 <symbol id="ic-megaphone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10.5v3a1.5 1.5 0 0 0 1.5 1.5h2l4.6 3.4c.7.5 1.6 0 1.6-.8V6.4c0-.8-.9-1.3-1.6-.8L7 9H5a1.5 1.5 0 0 0-1.5 1.5z"/><path d="M16.5 9.2a3.6 3.6 0 0 1 0 5.6M18.8 6.6a7 7 0 0 1 0 10.8"/></symbol>
 </defs></svg>
-<!-- build v172 · competitor-views -->
+<!-- build v173 · the-page-may-not-call-the-schedule -->
 <aside class="sidenav" id="sideNav" aria-label="Pages">
   <div class="sn-top">
     <a class="sn-brand" href="/daily.html">
@@ -847,7 +847,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
    ===================================================================== */
 const API = "/.netlify/functions/kpi-store";
 const IG_FEED = "/.netlify/functions/instagram-feed";
-const IG_SNAP = "/.netlify/functions/ig-snapshot";   // v169: the follower count, day by day
+const IG_SNAP = "/.netlify/functions/ig-followers";   // v169: the follower count, day by day (v173: not the scheduled function — Netlify 403s those)
 const IG_SCRAPE = "/.netlify/functions/ig-scrape-background";   // v172: a competitor's views, from their public page
 const RIVAL_CAP = 10;
 

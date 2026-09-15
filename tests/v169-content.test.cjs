@@ -27,17 +27,18 @@ function fakeStore(seed) {
   return { _m: m, async get(k, o) { const v = m.get(k); if (v === undefined) return null; return (o && o.type === "json") ? JSON.parse(v) : v; }, async set(k, v) { m.set(k, v); } };
 }
 async function loadSnapshot() {
-  const src = read("netlify/functions/ig-snapshot.js").replace(/^import \{ getStore \} from "@netlify\/blobs";$/m, "const getStore = () => globalThis.__fakeStore;");
-  const tmp = path.join(os.tmpdir(), "ig-snapshot-v169-" + process.pid + ".mjs");
-  fs.writeFileSync(tmp, src);
-  const mod = await import("file://" + tmp);
-  fs.unlinkSync(tmp);
+  // v173: the recording moved to netlify/lib/followers.js; ig-followers.js is what the page calls
+  const tmpDir = path.join(os.tmpdir(), "ig-followers-v169-" + process.pid);
+  fs.mkdirSync(path.join(tmpDir, "lib"), { recursive: true }); fs.mkdirSync(path.join(tmpDir, "functions"), { recursive: true });
+  fs.writeFileSync(path.join(tmpDir, "lib", "followers.js"), read("netlify/lib/followers.js").replace(/^import \{ getStore \} from "@netlify\/blobs";$/m, "const getStore = () => globalThis.__fakeStore;"));
+  fs.writeFileSync(path.join(tmpDir, "functions", "ig-followers.js"), read("netlify/functions/ig-followers.js"));
+  const mod = await import("file://" + path.join(tmpDir, "functions", "ig-followers.js"));
   return mod.default;
 }
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v172 · competitor-views";
+  const text = "build v173 · the-page-may-not-call-the-schedule";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html", "ads.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }
@@ -71,7 +72,8 @@ async function loadSnapshot() {
       "the two cards start hidden and appear with the account");
     assert.ok(/\$\("bestCard"\)\.hidden = true; \$\("growthCard"\)\.hidden = true;/.test(js), "…and hide again on a setup/error state");
     // growth: recorded on every visit, then read; drawn as daily change
-    assert.ok(/const IG_SNAP = "\/\.netlify\/functions\/ig-snapshot";/.test(js), "the snapshot function's address is fixed");
+    assert.ok(/const IG_SNAP = "\/\.netlify\/functions\/ig-followers";/.test(js), "the page calls ig-followers — NOT the scheduled function, which Netlify 403s (v173)");
+    assert.ok(/import \{ recordToday \} from "\.\.\/lib\/followers\.js";/.test(read("netlify/functions/ig-snapshot.js")), "the schedule records through the same lib");
     assert.ok(/fetch\(IG_SNAP, \{ method: "POST" \}\)/.test(js), "opening the page records today's count");
     assert.ok(/const changes = days\.slice\(1\)\.map\(\(d, i\) => \(\{ date: d\.date, v: d\.followers - days\[i\]\.followers \}\)\);/.test(js),
       "the bars are the daily CHANGE");
