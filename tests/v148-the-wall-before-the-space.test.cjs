@@ -51,12 +51,16 @@ const js = WEEKLY.slice(WEEKLY.indexOf("<script>", WEEKLY.indexOf("</style>")) +
     "…against a fixed Google address");
   const googleWrites = [...js.matchAll(/fetch\(\s*WPCAL_BASE[^)]*,\s*\{[\s\S]{0,200}?method:/g)];
   assert.strictEqual(googleWrites.length, 0, "nothing on this page writes to Google");
-  assert.ok(!/wpCal[A-Za-z]*\s*\([^)]*\)\s*\{[\s\S]{0,400}?method:\s*"POST"/.test(js),
-    "…no calendar helper hides a POST inside it");
-  // and it never asks for consent here — connecting is the daily page's job, once
-  assert.ok(/requestAccessToken\(\{ prompt: "" \}\)/.test(js),
-    "the weekly page only renews a sign-in quietly; it never opens a consent screen of its own");
-  assert.ok(!/prompt: "consent"/.test(js), "…so nobody is asked to connect twice");
+  // v161: ONE calendar helper carries a POST now — wpCalAuthSilent, to the site's own
+  // sign-in keeper (WPCAL_AUTH), asking for the hour's token with a device key. That is not
+  // Google and not the store; the test names it so nothing else can hide behind it.
+  const helperPosts = [...js.matchAll(/wpCal[A-Za-z]*\s*\([^)]*\)\s*\{[\s\S]{0,400}?fetch\(([A-Za-z_]+),\s*\{\s*\n?\s*method:\s*"POST"/g)].map((m) => m[1]);
+  assert.deepStrictEqual(helperPosts, ["WPCAL_AUTH"], "the only POST inside a calendar helper is the token request");
+  assert.ok(/const WPCAL_AUTH = "\/\.netlify\/functions\/google-auth";/.test(js), "…to a fixed address on this site");
+  // and it never asks for consent here — connecting is the daily page's job, once.
+  // v161: it no longer even loads Google's sign-in script; there is nothing to prompt with.
+  assert.ok(!/requestAccessToken|initTokenClient|initCodeClient|prompt: "consent"/.test(js),
+    "the weekly page has no way to open a Google window at all — so nobody is asked to connect twice");
   assert.ok(/connect it on Today/.test(js), "…it points at the page that does the connecting");
 
   /* ============ 2. IT CANNOT CHANGE THE PLAN ============ */

@@ -131,21 +131,22 @@ const style = DAILY.slice(DAILY.indexOf("<style>") + 7, DAILY.indexOf("</style>"
      Because Google's access tokens last about an hour, and on load the page read the stored
      one, found it expired, and went straight to showing a Connect button. The CONSENT behind
      it lasts until it is withdrawn — only the token expires — so the right move is to swap it
-     for a fresh one without telling anybody. That is what prompt:"" is for, and it was
-     written but never called. */
+     for a fresh one without telling anybody.
+
+     v161 superseded the MECHANISM, not the claim. v153 renewed through Google's sign-in
+     script with prompt:"", which can only ever open a pop-up — and a browser blocks a
+     pop-up that no click asked for, so on page load it never worked. The renewal now goes
+     to the site's own google-auth function with a device key. What this section still
+     pins is the claim: the page tries to renew BEFORE anything decides nobody is signed in,
+     and never through a window. tests/v161 pins the new mechanism. */
   assert.ok(/async function gcalTryRenew\(\)/.test(js), "there is a quiet renewal");
   assert.ok(/if \(gcalClientId && !gcalReady\(\)\) await gcalTryRenew\(\);/.test(js),
     "…and the page load tries it BEFORE anything decides nobody is signed in");
-  assert.ok(/requestAccessToken\(\{ prompt: silent \? "" : "consent" \}\)/.test(js),
-    "…using the silent prompt, which shows no window at all");
-  // the sign-in script is async, and a renewal that gives up because it is late looks
-  // exactly like being signed out
-  assert.ok(/function gcalWaitForGoogle\(ms\)/.test(js), "it waits for the sign-in script to arrive");
-  assert.ok(/if \(!\(await gcalWaitForGoogle\(\)\)\) return false;/.test(js), "…before deciding it cannot renew");
+  assert.ok(!/requestAccessToken|initTokenClient/.test(js),
+    "…and not through Google's token client, whose renewal is a pop-up the browser blocks");
   const WEEKLY2 = read("index.html");
-  assert.ok(/function wpCalWaitForGoogle\(ms\)/.test(WEEKLY2), "the weekly page had the same hole, and the same fix");
-  assert.ok(/if \(!\(await wpCalWaitForGoogle\(\)\)\) throw new Error\("no client"\);/.test(WEEKLY2),
-    "…waiting before its own silent renewal gives up");
+  assert.ok(/async function wpCalAuthSilent\(\)/.test(WEEKLY2), "the weekly page renews the same way");
+  assert.ok(!/requestAccessToken|initTokenClient/.test(WEEKLY2), "…and not through a pop-up either");
 
   console.log("v153-stop-asking-me-to-sign-in.test: all assertions passed");
 })();

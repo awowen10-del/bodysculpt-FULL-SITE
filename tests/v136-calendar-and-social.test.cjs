@@ -134,10 +134,12 @@ async function runIg(env, url, responder, seed) {
   const methodSites = [...djs.matchAll(/fetch\(([^,]+),\s*\{[\s\S]{0,200}?method:/g)].map((m) => m[1].trim());
   assert.ok(methodSites.length > 0, "the page does write — otherwise this test proves nothing");
   /* v155 added two more: GMAIL_BASE + spec.path(id) (the send funnel, whose paths are a
-     closed table) and MENTOR (the Anthropic proxy that writes a reply). Neither is the store. */
+     closed table) and MENTOR (the Anthropic proxy that writes a reply). Neither is the store.
+     v161 added GAUTH: the sign-in keeper, which takes a one-time Google code or a device key
+     and answers with an access token. It is not the store, and it cannot reach the store. */
   for (const target of methodSites) {
-    assert.ok(/^GCAL_BASE \+ path$/.test(target) || /^GMAIL_BASE \+ /.test(target) || target === "API" || target === "MENTOR",
-      "every request carrying a method goes to a fixed Google base, the AI proxy, or the store: " + target);
+    assert.ok(/^GCAL_BASE \+ path$/.test(target) || /^GMAIL_BASE \+ /.test(target) || target === "API" || target === "MENTOR" || target === "GAUTH",
+      "every request carrying a method goes to a fixed Google base, the AI proxy, the sign-in keeper, or the store: " + target);
   }
   /* v150 added the store to that list, for ONE thing: ticking a task off. So the claim gets
      narrower rather than looser — it is no longer "the page cannot write to the store", it
@@ -181,7 +183,13 @@ async function runIg(env, url, responder, seed) {
   // (c) the scope asked for is the smallest that does the job
   assert.ok(/GCAL_SCOPE = "https:\/\/www\.googleapis\.com\/auth\/calendar\.events"/.test(djs),
     "the page asks for calendar.events and nothing wider — not the whole account");
-  assert.ok(!/client_secret|GOOGLE_CLIENT_SECRET/.test(DAILY), "no client secret anywhere near the page");
+  // v161: the page may NAME the secret — in a <code> tag, telling Ash which Netlify box it
+  // goes in — but it never reads one: no client_secret parameter, no value, no fetch of it.
+  assert.ok(!/client_secret/.test(DAILY), "no client secret anywhere near the page");
+  for (const m of DAILY.matchAll(/GOOGLE_CLIENT_SECRET/g)) {
+    const before = DAILY.slice(m.index - 6, m.index), after = DAILY.slice(m.index + 20, m.index + 44);
+    assert.ok(before === "<code>" || after === " is not set in Netlify y", "the secret's name appears only as display copy");
+  }
 
   /* ============ 2. the week strip is a week, and it is horizontal ============ */
   assert.ok(/<section class="card cal-card" id="calCard">/.test(DAILY), "the calendar card exists");
@@ -308,12 +316,19 @@ async function runIg(env, url, responder, seed) {
   process.env.GOOGLE_CLIENT_ID = "123-abc.apps.googleusercontent.com";
   process.env.STRIPE_SECRET_KEY = "rk_live_MUST_NOT_APPEAR";
   process.env.IG_ACCESS_TOKEN = "IGQV_MUST_NOT_APPEAR";
+  process.env.GOOGLE_CLIENT_SECRET = "GOCSPX_MUST_NOT_APPEAR";   // v161
   r = await GET(h, "webconfig=1");
   const cfg = await r.json();
   assert.strictEqual(cfg.googleClientId, "123-abc.apps.googleusercontent.com", "the public client id is served");
   const cfgText = JSON.stringify(cfg);
   assert.ok(!cfgText.includes("MUST_NOT_APPEAR"), "and NOTHING secret rides along with it");
-  assert.deepStrictEqual(Object.keys(cfg).sort(), ["googleClientId", "timeZone"], "…the route returns those two keys and no more");
+  // v161 added one key: WHETHER the client secret is set — a boolean, so the card can say
+  // "not set up yet" before anyone clicks. The line above is what proves the secret's VALUE
+  // is not in the answer.
+  assert.deepStrictEqual(Object.keys(cfg).sort(), ["googleClientId", "googleConnectReady", "timeZone"], "…the route returns those three keys and no more");
+  assert.strictEqual(cfg.googleConnectReady, true, "…and the readiness flag is a bare true");
+  delete process.env.GOOGLE_CLIENT_SECRET;
+  assert.strictEqual((await (await GET(h, "webconfig=1")).json()).googleConnectReady, false, "…or a bare false");
   Object.assign(process.env, savedEnv);
   for (const k of ["GOOGLE_CLIENT_ID", "STRIPE_SECRET_KEY", "IG_ACCESS_TOKEN"]) if (!(k in savedEnv)) delete process.env[k];
 

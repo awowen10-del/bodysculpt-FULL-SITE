@@ -626,6 +626,9 @@ export default async (req) => {
   if (req.method === "GET" && url.searchParams.get("webconfig") === "1") {
     return Response.json({
       googleClientId: process.env.GOOGLE_CLIENT_ID || "",
+      // v161: WHETHER the google-auth function has its secret — a yes/no, so the card can
+      // say "not set up yet" before anyone clicks. The secret itself stays out of here.
+      googleConnectReady: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
       timeZone: process.env.TIMEZONE || "Europe/London",
     });
   }

@@ -1132,7 +1132,7 @@
 <symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><path d="M2.5 9.8h19M6 15.2h3.4"/></symbol>
 <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="18.8" height="18.8" rx="5.4"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.05" fill="currentColor" stroke="none"/></symbol>
 </defs></svg>
-<!-- build v160 · the-mail-card -->
+<!-- build v161 · connect-once -->
 <header>
   <div class="appbar">
     <div class="brand">
@@ -1667,8 +1667,10 @@ function mailSetupHtml(reason) {
       links + "</div>";
   }
   if (reason === "connect") {
-    return '<div class="setup"><b>One tap and your triaged inbox appears here.</b><br>' +
+    return '<div class="setup"><b>One tap, once on this device, and your triaged inbox appears here.</b><br>' +
       "Google will ask whether this dashboard may read and act on your mail. What it does with that: shows the triaged threads, marks one read or bins it when you say so, and sends a reply <b>only when you press Send</b>. It cannot permanently delete anything, and you can withdraw the permission at any time in your Google account." +
+      (gcalServerReady ? "" : "<br><br><b>Not ready yet:</b> <code>GOOGLE_CLIENT_SECRET</code> is not set in Netlify, so the connection could not be kept between visits. CALENDAR-SETUP.md, Part 6.") +
+      (mailError ? "<br><br><b>" + esc(mailError) + "</b>" : "") +
       '<div class="setup-links"><button type="button" class="abtn primary" id="mailConnect">Connect Gmail</button></div></div>';
   }
   if (reason === "Google is not connected yet.") {
@@ -1849,6 +1851,7 @@ function wireMailCard(body) {
     mc.disabled = true;
     mc.textContent = "Waiting for Google…";
     try {
+      if (!(await gcalWaitForGoogle())) throw new Error("Google's sign-in script has not loaded. Check the connection and refresh.");
       await gcalAuth(false);
       await loadGmail();
       renderMail(); renderHead(); calRefresh();
@@ -3144,10 +3147,14 @@ function renderHead() {
    address any host but googleapis.com. That is the guarantee, and the test states it in
    exactly those terms.
 
-   How the sign-in works, in plain terms: Google hands the browser a token that is good for
-   about an hour and says only "this person's calendar events". There is no secret to keep —
-   the client id is public, the consent screen and the authorised-origins list are what
-   actually guard it. The token is kept in this browser and renewed quietly when it lapses.
+   How the sign-in works, in plain terms (v161): Google hands the browser a token that is
+   good for about an hour. Once per device you go through Google's consent screen; the
+   one-time code that produces goes to /.netlify/functions/google-auth, which swaps it for a
+   long-lived credential it keeps and this browser never sees, and gives this browser a
+   DEVICE KEY. From then on, whenever the hour is up, the page shows the function its device
+   key and gets a fresh token back. No pop-up, no consent screen, no Google script needed —
+   which is what "connect once" has to mean, because a browser blocks any pop-up that was not
+   the result of a click, and that was why the old quiet renewal never worked.
    ===================================================================== */
 const GCAL_BASE = "https://www.googleapis.com/calendar/v3/";
 /* v143: ONE Google sign-in, two things read.
@@ -3168,13 +3175,17 @@ const GCAL_BASE = "https://www.googleapis.com/calendar/v3/";
 const GCAL_SCOPE = "https://www.googleapis.com/auth/calendar.events" +
   " https://www.googleapis.com/auth/gmail.modify";
 const GCAL_STORE_KEY = "bodysculpt:gcal";   // { token, expires, scope } — this browser only
+const GCAL_DEVICE_KEY = "bodysculpt:gdevice"; // the device key, this browser only
+const GAUTH = "/.netlify/functions/google-auth";
 const GMAIL_BASE = "https://gmail.googleapis.com/gmail/v1/users/me/";
 const CAL_MAX_CHIPS = 4;                    // per day, before "+2 more"
 
 let gcalClientId = "";
+let gcalServerReady = false; // the function has its secret — connecting can actually work
 let gcalTimeZone = "Europe/London";
 let gcalToken = null;        // { token, expires }
-let gcalClient = null;       // the GIS token client, made once
+let gcalDevice = "";         // this browser's device key, or ""
+let gcalCodeClient = null;   // the GIS code client, made once, used only on a click
 let calWeekOffset = 0;       // 0 = this week, -1 = last, +1 = next
 let calEvents = null;        // the loaded week, or null
 let calError = "";
@@ -3200,15 +3211,29 @@ function gcalSaveToken(token, expiresIn, scope) {
     scope: scope || GCAL_SCOPE };
   try { localStorage.setItem(GCAL_STORE_KEY, JSON.stringify(gcalToken)); } catch {}
 }
+function gcalLoadDevice() {
+  try { return String(localStorage.getItem(GCAL_DEVICE_KEY) || ""); } catch { return ""; }
+}
+function gcalSaveDevice(key) {
+  gcalDevice = String(key || "");
+  try { localStorage.setItem(GCAL_DEVICE_KEY, gcalDevice); } catch {}
+}
+// the hour's token is gone; the device is still connected
 function gcalForget() {
   gcalToken = null;
   try { localStorage.removeItem(GCAL_STORE_KEY); } catch {}
 }
+// this browser is no longer connected at all — the next step is the consent screen
+function gcalDisconnect() {
+  gcalForget();
+  gcalDevice = "";
+  try { localStorage.removeItem(GCAL_DEVICE_KEY); } catch {}
+}
 const gcalReady = () => !!(gcalToken && gcalToken.expires - 60000 > Date.now());
 
-/* The sign-in script is loaded `async`, so on a cold page it may not be there yet. Waiting
-   a moment for it is the difference between renewing quietly and showing somebody a Connect
-   button they have already pressed. */
+/* The sign-in script is loaded `async`, so on a cold page it may not be there yet. It is
+   only needed for the Connect click now, but a click that lands before the script does
+   should wait for it rather than fail. */
 function gcalWaitForGoogle(ms) {
   const end = Date.now() + (ms || 4000);
   return new Promise((resolve) => {
@@ -3222,47 +3247,75 @@ function gcalWaitForGoogle(ms) {
   });
 }
 
-/* v153: RENEW BEFORE ASKING.
-   Google's access tokens last about an hour. The stored one expiring is the normal state of
-   affairs, not a sign-out — the CONSENT behind it lasts until it is withdrawn — so an
-   expired token should be swapped for a fresh one without anybody being told. This is what
-   `prompt: ""` is for, and not calling it is why the page asked Ash to sign in every time he
-   came back to it. Only when the quiet renewal genuinely fails is there anything to say. */
+/* v161: THE QUIET RENEWAL, DONE WHERE IT CAN ACTUALLY WORK.
+   v153 tried to renew an expired token through Google's sign-in library with prompt:"" —
+   which is right in principle and could never work in practice, because that library
+   renews by opening a pop-up, and a browser blocks any pop-up that a click did not ask
+   for. Page load is not a click. So every visit after an hour looked like a sign-out.
+   The renewal now goes to google-auth with this browser's device key and comes back with a
+   token, no window involved. Only a browser with no device key has anything to click. */
 async function gcalTryRenew() {
-  if (!gcalClientId || gcalReady()) return gcalReady();
-  if (!(await gcalWaitForGoogle())) return false;
-  try { await gcalAuth(true); } catch (e) { /* a real sign-in is needed; the card will say so */ }
+  if (gcalReady()) return true;
+  if (!gcalDevice) return false;
+  try { await gcalAuth(true); } catch (e) { /* the card will say so */ }
   return gcalReady();
 }
 
-// Ask Google for a token. `silent` reuses an existing consent and shows nothing; the first
-// time round it has to be a real click, because browsers block unrequested popups.
+// The one POST to google-auth. Two operations, named here: connect (a code, once per
+// device) and token (a device key, every hour). Its reply is a token or a sentence.
+async function gauthPost(payload) {
+  const res = await fetch(GAUTH, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    // the function has said this browser must go through the consent screen again
+    if (body && (body.error === "unknown-device" || body.error === "reconnect")) gcalDisconnect();
+    throw new Error((body && body.message) || ("The sign-in service returned " + res.status));
+  }
+  return body;
+}
+
+// Get a token. `silent` = this browser is already connected: ask google-auth, show nothing.
+// Otherwise it has to be a real click, because that is the only way a browser lets Google's
+// consent window open — and it is the LAST time this browser asks.
 function gcalAuth(silent) {
+  if (silent) {
+    if (!gcalDevice) return Promise.reject(new Error("This browser is not connected yet."));
+    return gauthPost({ op: "token", deviceKey: gcalDevice }).then((r) => {
+      gcalSaveToken(r.accessToken, r.expiresIn, r.scope);
+      return gcalToken;
+    });
+  }
   return new Promise((resolve, reject) => {
     const g = window.google;
     if (!g || !g.accounts || !g.accounts.oauth2) return reject(new Error("Google's sign-in script has not loaded. Check the connection and refresh."));
     if (!gcalClientId) return reject(new Error("No Google client ID is set."));
-    if (!gcalClient) {
-      gcalClient = g.accounts.oauth2.initTokenClient({
+    if (!gcalServerReady) return reject(new Error("GOOGLE_CLIENT_SECRET is not set in Netlify yet, so the connection cannot be kept. CALENDAR-SETUP.md has the steps."));
+    if (!gcalCodeClient) {
+      gcalCodeClient = g.accounts.oauth2.initCodeClient({
         client_id: gcalClientId,
         scope: GCAL_SCOPE,
+        ux_mode: "popup",
         callback: () => {},        // replaced per request, below
         error_callback: () => {},  // ditto — without one, a blocked popup is silent
       });
     }
-    gcalClient.callback = (resp) => {
-      if (resp && resp.access_token) {
-        gcalSaveToken(resp.access_token, resp.expires_in, resp.scope);
+    gcalCodeClient.callback = (resp) => {
+      if (!(resp && resp.code)) return reject(new Error((resp && resp.error_description) || "Google did not grant access."));
+      gauthPost({ op: "connect", code: resp.code }).then((r) => {
+        gcalSaveDevice(r.deviceKey);
+        gcalSaveToken(r.accessToken, r.expiresIn, r.scope);
         resolve(gcalToken);
-      } else {
-        reject(new Error((resp && resp.error_description) || "Google did not grant access."));
-      }
+      }).catch(reject);
     };
     // The popup never opening is the other way this can quietly do nothing. Browsers block
     // it when the click is not the thing that asked, and Google closes it if you dismiss
     // the window — neither reaches the callback above, so both are caught here and turned
     // into a sentence on the card.
-    gcalClient.error_callback = (err) => {
+    gcalCodeClient.error_callback = (err) => {
       const t = err && err.type;
       reject(new Error(
         t === "popup_failed_to_open"
@@ -3271,7 +3324,7 @@ function gcalAuth(silent) {
           ? "The Google window was closed before you finished. Try again."
         : (err && err.message) || "Google's sign-in did not open."));
     };
-    try { gcalClient.requestAccessToken({ prompt: silent ? "" : "consent" }); }
+    try { gcalCodeClient.requestCode(); }
     catch (e) { reject(e); }
   });
 }
@@ -3572,23 +3625,27 @@ function renderCalendar() {
       "<ol>" +
       "<li>In the Google Cloud console, make a project and switch on the <b>Google Calendar API</b>.</li>" +
       "<li>Make an <b>OAuth client ID</b> of type <i>Web application</i>, and add this site's address to its authorised JavaScript origins.</li>" +
-      "<li>In Netlify: Site configuration → Environment variables → add <code>GOOGLE_CLIENT_ID</code>.</li>" +
+      "<li>In Netlify: Site configuration → Environment variables → add <code>GOOGLE_CLIENT_ID</code> and <code>GOOGLE_CLIENT_SECRET</code>.</li>" +
       "<li>Redeploy, then press Connect here.</li>" +
-      "</ol>CALENDAR-SETUP.md walks through it click by click. There is no secret in any of this — the client ID is public by design.</div>";
+      "</ol>CALENDAR-SETUP.md walks through it click by click. The client ID is public by design; the secret stays in Netlify and never reaches a browser.</div>";
     return;
   }
 
   // set up, but not signed in on this device
   if (!gcalReady()) {
     tools.innerHTML = '<button type="button" class="abtn primary" id="calConnect">Connect Google Calendar</button>';
-    next.textContent = "One tap and your week appears here.";
-    body.innerHTML = '<div class="setup">Google will ask once whether this dashboard may see and add events. ' +
-      "It can do nothing else with your account — not your email, not your files — and you can withdraw it at any time in your Google account." +
+    next.textContent = "One tap, once on this device, and your week appears here.";
+    body.innerHTML = '<div class="setup">Google will ask once whether this dashboard may see and add events, and read and act on your mail. ' +
+      "It can do nothing else with your account — not your files, not your password — and you can withdraw it at any time in your Google account. After this it stays connected on this device." +
+      (gcalServerReady ? "" : "<br><br><b>Not ready yet:</b> <code>GOOGLE_CLIENT_SECRET</code> is not set in Netlify, so the connection could not be kept between visits. CALENDAR-SETUP.md, Part 6.") +
       (calError ? "<br><br><b>" + esc(calError) + "</b>" : "") + "</div>";
     const c = $("calConnect");
     if (c) c.addEventListener("click", async () => {
       calError = "";
-      try { await gcalAuth(false); await calRefresh(); }
+      try {
+        if (!(await gcalWaitForGoogle())) throw new Error("Google's sign-in script has not loaded. Check the connection and refresh.");
+        await gcalAuth(false); await calRefresh();
+      }
       catch (e) { calError = (e && e.message) || "Google would not sign you in."; renderCalendar(); }
     });
     return;
@@ -3810,9 +3867,11 @@ async function loadAll() {
   // explains itself when it is missing.
   if (config.status === "fulfilled" && config.value) {
     gcalClientId = String(config.value.googleClientId || "");
+    gcalServerReady = !!config.value.googleConnectReady;
     gcalTimeZone = String(config.value.timeZone || gcalTimeZone);
   }
   gcalToken = gcalLoadToken();
+  gcalDevice = gcalLoadDevice();
   // An hour-old token is not a sign-out. Try to swap it for a fresh one before anything on
   // the page decides there is nobody signed in.
   if (gcalClientId && !gcalReady()) await gcalTryRenew();
@@ -3871,7 +3930,7 @@ window.__dayState = {
   get checkin() { return checkinState; },
   get tiers() { return TIERS.map((t) => t.id); },
   get mail() { return { live: mailLive, error: mailError, source: mailItems().source }; },
-  get calendar() { return { clientId: gcalClientId, connected: gcalReady(), offset: calWeekOffset, events: calEvents, error: calError }; },
+  get calendar() { return { clientId: gcalClientId, serverReady: gcalServerReady, device: !!gcalDevice, connected: gcalReady(), offset: calWeekOffset, events: calEvents, error: calError }; },
 };
 </script>
 
