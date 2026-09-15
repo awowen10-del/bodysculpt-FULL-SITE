@@ -37,7 +37,7 @@ async function loadSnapshot() {
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v170 · scheduling";
+  const text = "build v171 · the-reel-that-ate-the-page";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html", "ads.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }
@@ -62,6 +62,11 @@ async function loadSnapshot() {
     assert.ok(/const reachOf = \(p\) => \(p\.views != null \? p\.views : p\.reach != null \? p\.reach : p\.likes\) \|\| 0;/.test(js),
       "reach is views for a reel, reach otherwise, likes as a last resort");
     assert.ok(/sort\(\(a, b\) => reachOf\(b\) - reachOf\(a\)\)\.slice\(0, 3\)/.test(js), "the best three, by that");
+    // v171: Ash, with a screenshot of one reel filling the page: "why is this reel so big?"
+    // .post-im is position:absolute inside a tile; a Best performers thumbnail that borrowed
+    // the class had no positioned parent and filled the page. It has its own class only.
+    assert.ok(/<img class="best-img" src=/.test(js) && !/class="best-img post-im"/.test(js), "a best-performer thumbnail never carries .post-im");
+    assert.ok(/img\.classList\.contains\("best-img"\)/.test(js), "…and still hides itself when the picture link has gone stale");
     assert.ok(/<section class="card ct-best" id="bestCard" hidden>/.test(SOCIAL) && /<section class="card ct-growth" id="growthCard" hidden>/.test(SOCIAL),
       "the two cards start hidden and appear with the account");
     assert.ok(/\$\("bestCard"\)\.hidden = true; \$\("growthCard"\)\.hidden = true;/.test(js), "…and hide again on a setup/error state");

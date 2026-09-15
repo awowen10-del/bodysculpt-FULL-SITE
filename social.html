@@ -680,7 +680,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 <symbol id="ic-chevrons" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 6l-6 6 6 6M18 6l-6 6 6 6"/></symbol>
 <symbol id="ic-megaphone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10.5v3a1.5 1.5 0 0 0 1.5 1.5h2l4.6 3.4c.7.5 1.6 0 1.6-.8V6.4c0-.8-.9-1.3-1.6-.8L7 9H5a1.5 1.5 0 0 0-1.5 1.5z"/><path d="M16.5 9.2a3.6 3.6 0 0 1 0 5.6M18.8 6.6a7 7 0 0 1 0 10.8"/></symbol>
 </defs></svg>
-<!-- build v170 · scheduling -->
+<!-- build v171 · the-reel-that-ate-the-page -->
 <aside class="sidenav" id="sideNav" aria-label="Pages">
   <div class="sn-top">
     <a class="sn-brand" href="/daily.html">
@@ -994,7 +994,9 @@ function wireImageFallbacks(el) {
   if (!el) return;
   el.addEventListener("error", (e) => {
     const img = e.target;
-    if (img && img.classList && img.classList.contains("post-im")) img.style.display = "none";
+    // v169.1: the Best performers thumbnails too — they must NOT share .post-im, whose
+    // absolute positioning is what filled the whole page with one reel
+    if (img && img.classList && (img.classList.contains("post-im") || img.classList.contains("best-img"))) img.style.display = "none";
   }, true);
 }
 
@@ -1022,7 +1024,7 @@ function bestHtml(data) {
     const label = p.views != null ? "views" : p.reach != null ? "reached" : "likes";
     return '<a class="best" href="' + esc(p.permalink) + '" target="_blank" rel="noopener">' +
       '<span class="best-rank">' + (i + 1) + "</span>" +
-      (p.image ? '<img class="best-img post-im" src="' + esc(p.image) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '<span class="best-img"></span>') +
+      (p.image ? '<img class="best-img" src="' + esc(p.image) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '<span class="best-img"></span>') +
       '<span><span class="best-cap">' + esc(p.caption || TYPE_LABEL[p.type] || "Post") + '</span><span class="best-when">' + esc(when(p.timestamp)) + " · " + esc(TYPE_LABEL[p.type] || "Post") + "</span></span>" +
       '<span class="best-n"><b>' + nfmt(reachOf(p)) + "</b><span>" + label + "</span>" +
       (p.outlier ? '<br><span class="flame"><svg class="ic"><use href="#ic-flame"/></svg>' + (p.vsMedian ? p.vsMedian.toFixed(1) + "× normal" : "took off") + "</span>" : "") + "</span></a>";
