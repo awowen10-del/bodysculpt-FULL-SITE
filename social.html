@@ -729,6 +729,21 @@
     padding:10px 12px;min-height:110px;resize:vertical;}
   .hk-about-r{display:flex;align-items:center;gap:var(--sp-2);}
 
+  /* --- v198: accounts the Friday scout thinks are worth watching ---
+     Presented as a decision, not a list: the name and the reason, then the one button that
+     acts on it and the one that ends it. */
+  .sg{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);
+    padding:var(--sp-4);margin-bottom:var(--sp-4);display:flex;flex-direction:column;gap:var(--sp-3);}
+  .sg-h{display:flex;align-items:baseline;gap:var(--sp-2);flex-wrap:wrap;}
+  .sg-t{font-size:14px;font-weight:700;color:var(--ink-strong);}
+  .sg-s{font-size:12px;color:var(--ink-faint);}
+  .sg-list{display:flex;flex-direction:column;gap:var(--sp-2);}
+  .sg-row{display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap;
+    background:var(--card-2);border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;}
+  .sg-n{font-size:13.5px;font-weight:700;color:var(--ink-strong);flex:0 0 auto;}
+  .sg-w{flex:1 1 220px;min-width:0;font-size:12.5px;color:var(--ink-dim);line-height:1.5;}
+  .sg-r{display:flex;align-items:center;gap:6px;flex:0 0 auto;}
+
   /* --- v194: what was tightened, and what it went on to do --- */
   .hk-checked{font-size:11.5px;line-height:1.5;color:var(--tint-green);
     background:rgba(var(--green-rgb),.08);border:1px solid rgba(var(--green-rgb),.2);
@@ -939,6 +954,9 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 <!-- ============================ COMPETITORS ============================ -->
 <div class="view" id="v-rivals" hidden>
   <div class="rivals" id="rivalChips"></div>
+  <!-- v198: gyms the Friday trend scout found while scrolling. Suggested, never added — the
+       watch list is capped at ten and which ten is Ash's call. -->
+  <div id="rivalSuggest"></div>
   <div class="basis" id="rivalBasis" hidden>
     <svg class="ic"><use href="#ic-help"/></svg>
     <div><b>These are not the same number as yours.</b> Reach, saves and shares are private —
@@ -1121,7 +1139,7 @@ const TIPS = {
   // place the rest of the suite already keeps this kind of thing
   writer: ["Write your own idea", "Use this when you already know what the reel is about. Type it in plain words — \"a client asked if she would get bulky\" — and you get eight ways to open it, each one borrowed from a reel that genuinely worked for another gym. Pick the one you like and it writes the rest: the lines that go on screen, the caption, and what to point the camera at."],
   voice: ["How Bodysculpt sounds", "Every gym's posts sound slightly different, and most AI writing sounds like none of them. So this reads Ash's own best reels — what he says, what goes on screen, how he writes a caption — and writes down the habits: no hashtags, sentence case, contractions, soft calls to action. Everything written on this page and every caption on the Scheduling page is checked against it, so nothing goes out sounding like an agency wrote it."],
-  ideas: ["Film one of these", "Five reels you could film this week. They are not generic content ideas — each one comes from something real: a reel that took off for a gym you watch, one of your own posts worth another angle, a question you already answer in your captions, or what time of year it is. The small grey line on each says which. Press Write this one and it takes the idea straight into the writer."],
+  ideas: ["Film one of these", "Five reels you could film this week. They are not generic content ideas — each one comes from something real: a reel that took off for a gym you watch, one of your own posts worth another angle, a question you already answer in your captions, what the Friday trend scout found happening more widely, or what time of year it is. The small grey line on each says which. Press Write this one and it takes the idea straight into the writer."],
   library: ["What's working for other gyms", "An opening is the first line or the first card of a reel — the bit that decides whether somebody keeps watching. Every night this looks at the gyms on your Competitors tab, finds any reel that did at least double what THAT account normally does, and writes down how it opened. It then strips out the specifics, so \"Everyone thinks cardio burns the most fat\" becomes \"Everyone thinks [THING] does [OUTCOME]\" — a shape you can say about your own subject. The writer builds every opening it offers you on one of these."],
 };
 let tipEl = null, tipFor = null;
@@ -1441,8 +1459,44 @@ function renderRivalChips() {
   if (input) input.addEventListener("keydown", (e) => { if (e.key === "Enter") addRival(input.value); });
 }
 
+function renderSuggested() {
+  const el = $("rivalSuggest");
+  if (!el) return;
+  const t = (hkLib && hkLib.trends) || null;
+  const list = (t && t.suggested) || [];
+  if (!list.length || rivals.length >= RIVAL_CAP) { el.innerHTML = ""; return; }
+  el.innerHTML = '<div class="sg"><div class="sg-h"><span class="sg-t">Worth watching</span>' +
+    '<span class="sg-s">found by the Friday scout' + (t.week ? " · " + esc(t.week) : "") +
+    " · you can watch " + (RIVAL_CAP - rivals.length) + " more</span></div>" +
+    '<div class="sg-list">' + list.slice(0, 8).map((a) =>
+      '<div class="sg-row"><span class="sg-n">@' + esc(a.username) + "</span>" +
+      '<span class="sg-w">' + esc(a.why || "") + "</span>" +
+      '<span class="sg-r"><button type="button" class="abtn" data-watch="' + esc(a.username) + '">Watch</button>' +
+      '<button type="button" class="hk-x" data-drop="' + esc(a.username) + '" aria-label="Not interested">' +
+      '<svg class="ic"><use href="#ic-close"/></svg></button></span></div>').join("") + "</div></div>";
+
+  el.querySelectorAll("[data-watch]").forEach((b) => b.addEventListener("click", async () => {
+    b.disabled = true;
+    // the existing path: saves the list, selects the account and reads it, so it is useful at once
+    await addRival(b.dataset.watch);
+    await dropSuggestion(b.dataset.watch, true);
+  }));
+  el.querySelectorAll("[data-drop]").forEach((b) => b.addEventListener("click", () => dropSuggestion(b.dataset.drop, false)));
+}
+
+async function dropSuggestion(username, watched) {
+  try {
+    const r = await fetch(HOOKS, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: watched ? "dropAccount" : "dropAccount", username }) });
+    const b = await r.json().catch(() => ({}));
+    if (b.ok && hkLib && hkLib.trends) hkLib.trends.suggested = b.suggested || [];
+  } catch { /* the chip stays; nothing was lost */ }
+  renderSuggested();
+}
+
 function renderRivals() {
   renderRivalChips();
+  renderSuggested();
   const body = $("rivalBody"), stats = $("rivalStats"), acct = $("rivalAcct"), basis = $("rivalBasis");
   basis.hidden = !rivals.length;
 
@@ -1932,8 +1986,13 @@ function renderIdeas() {
       "</div>").join("") + "</div>";
   }
 
+  const tr = hkLib.trends || {};
   h += '<div class="hk-ideas-foot">' +
     (hkLib.ideasAt ? "<span>" + esc(when(hkLib.ideasAt)) + "</span>" : "") +
+    // v198: Friday's scroll of the wider feed is one of the sources now. Saying so beats
+    // having it work invisibly — he should know when an idea came from outside his own feed.
+    ((tr.notes || []).length ? "<span>· using " + tr.notes.length + " trend notes from " +
+      esc(tr.week || "the scout") + "</span>" : "") +
     '<button type="button" id="hkAboutBtn">' + (hkAboutOpen ? "Hide" : (hkLib.about ? "Edit what the gym does" : "Tell it about the gym")) + "</button>" +
     (!hkLib.about && !hkAboutOpen ? "<span>— these get a lot sharper once it knows</span>" : "") +
     "</div>";
@@ -2104,6 +2163,8 @@ function setView(v) {
   $("vtRight").hidden = v === "hooks";
   $("outWrap").hidden = false;
   if (v === "rivals" && rivalSel && !rivalData[rivalSel]) loadRival(rivalSel);
+  // v198: the suggestions live in the hooks payload, so the Competitors tab needs it too
+  if (v === "rivals" && !hkLib) loadHooks().then(renderSuggested);
   if (v === "hooks" && !hkLib) loadHooks();
   else if (v === "hooks" && hkLib && hkLib.ok !== false && hkLib.configured && !(hkLib.ideas || []).length && !hkBusy) loadIdeas(false);
 }

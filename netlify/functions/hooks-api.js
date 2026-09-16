@@ -13,6 +13,8 @@
 //   POST { action: "about", about }     his own note about the business, which sharpens them
 //   POST { action: "check", draft }     mark a draft against the rules his own voice profile set
 //   POST { action: "ban" / "unban" }    phrases he never wants to see again
+//   POST { action: "trends", week, notes, accounts }   the Friday trend scout posting its findings
+//   POST { action: "dropAccount", username }           a suggested account he does not want
 //
 // v178: the GET also reports the spoken-voice profile — when it was built, from how many
 // reels, and what it says. Building it is voice-build-background's job, not this one's.
@@ -25,6 +27,7 @@ import { readLib, writeLib, candidates, hookOptions, writeScript, config, clip, 
 import { readVoice } from "../lib/schedule.js";
 import { readIdeas, generate as generateIdeas, gather, isFresh, setAbout } from "../lib/ideas.js";
 import { matchPerformance, checkPrompt, parseCheck } from "../lib/learn.js";
+import { readTrends, addTrends, dismissAccount, pending } from "../lib/trends.js";
 import { getStore } from "@netlify/blobs";
 import Anthropic from "@anthropic-ai/sdk";
 
@@ -39,6 +42,12 @@ export default async (req) => {
     try { waiting = (await candidates(lib)).length; } catch { /* the count is a nicety, not the page */ }
     const v = await readVoice();
     const ideas = await readIdeas();
+    const trends = await readTrends();
+    let suggested = [];
+    try {
+      const watched = (await getStore({ name: "bodysculpt-kpi", consistency: "strong" }).get("ig-competitors", { type: "json" })) || [];
+      suggested = pending(trends, watched);
+    } catch { /* the suggestions are a nicety, not the page */ }
     // v194: tie posted scripts back to the reels they became, so the page and the writer both
     // see what actually happened rather than only what was written
     let scripts = lib.scripts;
@@ -57,6 +66,9 @@ export default async (req) => {
       // v192: what to film. The page leads with these; the topic box is the fallback for when
       // he already knows, not the front door.
       ideas: ideas.ideas, ideasAt: ideas.generatedAt, ideasFresh: isFresh(ideas), about: ideas.about,
+      // v198: what the Friday scout found out in the wider feed, and the gyms it thinks are
+      // worth watching. The notes feed the ideas engine; the accounts are his call.
+      trends: { week: trends.week, postedAt: trends.postedAt, notes: trends.notes, suggested },
       lastMineAt: lib.lastMineAt,
       lastMineNote: lib.lastMineNote,
       // the profile itself, not just a flag: the page shows it, because a voice profile Ash
@@ -163,6 +175,24 @@ export default async (req) => {
     /* v194: the rules his voice profile set, finally marked against. A profile that ends in
        six checkable rules and never checks anything looks thorough and changes nothing. Kept
        as its own request so neither call goes near the 26-second wall. */
+    /* v198: the Friday scout, posting on its way out. It drives Ash's own logged-in Chrome,
+       which is why it cannot live in here — a Netlify function has no browser and no Instagram
+       session. So it stays where it is and hands its findings over instead. */
+    if (action === "trends") {
+      const t = await addTrends({ week: clip(body.week, 40), notes: body.notes, accounts: body.accounts });
+      return json({ ok: true, notes: t.notes.length, accounts: t.accounts.length });
+    }
+
+    if (action === "dropAccount") {
+      const t = await dismissAccount(clip(body.username, 40));
+      let suggested = [];
+      try {
+        const watched = (await getStore({ name: "bodysculpt-kpi", consistency: "strong" }).get("ig-competitors", { type: "json" })) || [];
+        suggested = pending(t, watched);
+      } catch { /* same */ }
+      return json({ ok: true, suggested });
+    }
+
     if (action === "check") {
       const draft = clip(body.draft, 4000);
       if (!draft) return json({ ok: false, error: "Nothing to check." }, 400);

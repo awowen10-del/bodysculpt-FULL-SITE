@@ -43,7 +43,7 @@ for (const fn of ["kpi-store.js", "stripe-feed.js", "instagram-feed.js", "google
                   // v178: the spoken voice, and the AI proxy whose model table it shares a generation with
                   "voice-build-background.js", "../lib/voice.js", "mentor-ai.js",
                   // v192: what to film
-                  "../lib/ideas.js", "../lib/learn.js",
+                  "../lib/ideas.js", "../lib/learn.js", "../lib/trends.js",
                   // v180: one door for getting a video file off Instagram
                   "../lib/ig-media.js"]) {
   const chk = spawnSync(process.execPath, ["--check", path.join(__dirname, "..", "netlify", "functions", fn)], { stdio: "inherit" });

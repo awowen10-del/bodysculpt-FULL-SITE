@@ -28,6 +28,7 @@
 import { getStore } from "@netlify/blobs";
 import Anthropic from "@anthropic-ai/sdk";
 import { readVoice } from "./schedule.js";
+import { readTrends, trendBrief } from "./trends.js";
 
 export const KEY = "ig-ideas";
 const WANT = 5;
@@ -70,7 +71,7 @@ const SEASON = (d) => {
   return "December — write-off month, and the run-up to January";
 };
 
-export function ideasPrompt({ about, voice, hooks, ownPosts, recentTopics, now }) {
+export function ideasPrompt({ about, voice, hooks, ownPosts, recentTopics, trends, now }) {
   const winners = (hooks || []).slice(0, 12).map((h) =>
     "· " + (h.angle || h.template || "a reel") + " — @" + h.username +
     (h.vsMedian ? ", " + h.vsMedian.toFixed(1) + "× their normal" : "") +
@@ -85,6 +86,9 @@ export function ideasPrompt({ about, voice, hooks, ownPosts, recentTopics, now }
     (voice ? "HOW HE COMMUNICATES (for the subjects he returns to, not for style here):\n" + clip(voice, 2500) + "\n\n" : "") +
     (winners ? "WHAT IS WORKING FOR GYMS HE WATCHES — these beat their own account by double or more:\n" + winners + "\n\n" : "") +
     (mine ? "HIS OWN RECENT POSTS:\n" + mine + "\n\n" : "") +
+    // v198: the sixth source — Friday's scroll of the wider feed, clearly labelled as coming
+    // from outside so a nationally peaking meme cannot outrank a subject of his own
+    (trends ? trends + "\n\n" : "") +
     (recentTopics && recentTopics.length ? "HE HAS ALREADY WRITTEN THESE — do not repeat them:\n" + recentTopics.map((t) => "· " + clip(t, 120)).join("\n") + "\n\n" : "") +
     "It is " + now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }) + " — " + SEASON(now) + ".\n\n" +
     "Give him " + WANT + " reels he could film THIS WEEK.\n\n" +
@@ -93,7 +97,8 @@ export function ideasPrompt({ about, voice, hooks, ownPosts, recentTopics, now }
     "· He could film it in his own gym this week with the people who are already there. No actors, no studio, " +
     "nothing that needs a client to agree to be filmed crying.\n" +
     "· It comes from something real above — a question he already answers, a subject that worked for someone " +
-    "else, a post of his own worth a second angle, or the time of year. Never a generic content-calendar filler.\n" +
+    "else, a post of his own worth a second angle, what is trending more widely, or the time of year. " +
+    "Never a generic content-calendar filler.\n" +
     "· It is specific enough that he knows what to point the camera at before he has read the second sentence.\n" +
     "· Between them they cover different ground: do not give five versions of one idea.\n\n" +
     "Answer as exactly " + WANT + " blocks in this format and nothing else:\n" +
@@ -166,7 +171,9 @@ export async function gather(lib) {
       .sort((a, b) => ((b.views != null ? b.views : b.reach) || 0) - ((a.views != null ? a.views : a.reach) || 0));
   } catch { /* no cache is a thinner prompt, not a failure */ }
   const v = await readVoice();
+  const t = await readTrends();
   return {
+    trends: trendBrief(t),
     voice: (v && v.profile) || "",
     hooks: (lib && lib.hooks) || [],
     ownPosts,
