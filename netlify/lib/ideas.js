@@ -33,6 +33,14 @@ import { readTrends, trendBrief } from "./trends.js";
 export const KEY = "ig-ideas";
 const WANT = 5;
 const MAX_ABOUT = 3000;
+/* v200: ideas ACCUMULATE through the week instead of being replaced each morning.
+   Ash: "I write all my content ideas / decide what they are on a Friday. I don't want the
+   suggestions from the rest of the week to have gone." They were going — each 5:30am run
+   overwrote the lot, so by Friday he was looking at Friday's five and Monday to Thursday had
+   never existed as far as he was concerned. Five a day for a working week is about
+   twenty-five, which is what a planning session wants in front of it. */
+const SHELF_DAYS = 10;      // after that an unused idea is stale, and staleness reads as noise
+const MAX_SHELF = 26;       // a week of five, plus a little room
 
 const env = (k) => (process.env[k] || "").trim();
 const clip = (s, n) => (typeof s === "string" ? s.slice(0, n) : "");
@@ -47,6 +55,57 @@ export async function readIdeas() {
     if (!v || typeof v !== "object") return empty();
     return { generatedAt: clip(v.generatedAt, 40), ideas: Array.isArray(v.ideas) ? v.ideas : [], about: clip(v.about, MAX_ABOUT) };
   } catch { return empty(); }
+}
+
+/* Two ideas are the same idea when they say the same thing, not when they match character for
+   character — the generator will phrase yesterday's suggestion slightly differently tomorrow,
+   and a shelf with the same reel on it five times is worse than no shelf. */
+const norm = (t) => String(t || "").toLowerCase().replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ").trim();
+export function sameIdea(a, b) {
+  const A = norm(a), B = norm(b);
+  if (!A || !B) return false;
+  if (A === B) return true;
+  /* "Rank the September restarts" and "Ranking September restarts worst to best" are the same
+     idea, and comparing them word for word says they are not — rank/ranking and
+     restart/restarts miss. Stemming the endings off is the honest fix; loosening the
+     threshold instead would start merging ideas that genuinely differ, and a false merge
+     silently loses a suggestion, which is the worse of the two mistakes. */
+  const stem = (w) => w.replace(/(ings?|ing|ed|es|s)$/, "");
+  const words = (t) => new Set(t.split(" ").map(stem).filter((w) => w.length > 3));
+  const wa = words(A), wb = words(B);
+  if (!wa.size || !wb.size) return false;
+  let hit = 0;
+  for (const w of wa) if (wb.has(w)) hit++;
+  return hit / Math.min(wa.size, wb.size) >= 0.7;
+}
+
+/* What survives a new morning: everything he has kept, anything used (it stays visible so he
+   can see what became a script), and everything else until it is ten days old or the shelf is
+   full. Kept ideas never age out — keeping one is him saying it is still on. */
+export function shelve(existing, fresh) {
+  const now = Date.now();
+  const alive = (existing || []).filter((i) =>
+    i.kept || !i.addedAt || (now - Date.parse(i.addedAt)) < SHELF_DAYS * 864e5);
+  const added = (fresh || []).filter((n) => !alive.some((o) => sameIdea(o.title, n.title)));
+  const all = added.concat(alive);
+  const kept = all.filter((i) => i.kept);
+  const rest = all.filter((i) => !i.kept);
+  return kept.concat(rest).slice(0, MAX_SHELF);
+}
+
+export async function setIdeaFlag(id, patch) {
+  const cur = await readIdeas();
+  cur.ideas = (patch && patch.drop)
+    ? cur.ideas.filter((i) => i.id !== id)
+    : cur.ideas.map((i) => (i.id === id ? { ...i, ...patch } : i));
+  return await writeIdeas(cur);
+}
+
+// when a script gets kept, the idea it came from is marked rather than removed — he should be
+// able to see on Friday which of the week's suggestions he actually turned into something
+export async function markIdeaUsed(id, scriptId) {
+  if (!id) return null;
+  return await setIdeaFlag(id, { used: clip(scriptId, 40) || "yes" });
 }
 export async function writeIdeas(v) { await store().set(KEY, JSON.stringify(v)); return v; }
 
@@ -71,7 +130,7 @@ const SEASON = (d) => {
   return "December — write-off month, and the run-up to January";
 };
 
-export function ideasPrompt({ about, voice, hooks, ownPosts, recentTopics, trends, now }) {
+export function ideasPrompt({ about, voice, hooks, ownPosts, recentTopics, onShelf, trends, now }) {
   const winners = (hooks || []).slice(0, 12).map((h) =>
     "· " + (h.angle || h.template || "a reel") + " — @" + h.username +
     (h.vsMedian ? ", " + h.vsMedian.toFixed(1) + "× their normal" : "") +
@@ -90,6 +149,10 @@ export function ideasPrompt({ about, voice, hooks, ownPosts, recentTopics, trend
     // from outside so a nationally peaking meme cannot outrank a subject of his own
     (trends ? trends + "\n\n" : "") +
     (recentTopics && recentTopics.length ? "HE HAS ALREADY WRITTEN THESE — do not repeat them:\n" + recentTopics.map((t) => "· " + clip(t, 120)).join("\n") + "\n\n" : "") +
+    // v200: the shelf builds up over the week, so today's five have to be five he has not
+    // already been offered — otherwise Friday's planning session is the same idea five times
+    (onShelf && onShelf.length ? "ALREADY SUGGESTED THIS WEEK AND STILL ON HIS LIST — give him five DIFFERENT ones:\n" +
+      onShelf.map((t) => "· " + clip(t, 120)).join("\n") + "\n\n" : "") +
     "It is " + now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }) + " — " + SEASON(now) + ".\n\n" +
     "Give him " + WANT + " reels he could film THIS WEEK.\n\n" +
     "What makes one of these good:\n" +
@@ -126,6 +189,9 @@ export function parseIdeas(text) {
     const format = field(b, "FORMAT").toLowerCase();
     return {
       id: "i" + Date.now().toString(36) + i,
+      addedAt: nowIso(),
+      kept: false,
+      used: "",
       title: clip(field(b, "TITLE"), 160),
       why: clip(field(b, "WHY"), 300),
       source: clip(field(b, "SOURCE"), 120),
@@ -150,13 +216,15 @@ export async function generate(deps) {
     max_tokens: 2000,
     // the 26-second wall: choosing five subjects is judgement, not deep reasoning
     output_config: { effort: "low" },
-    messages: [{ role: "user", content: ideasPrompt({ ...deps, about: cur.about, now: new Date() }) }],
+    messages: [{ role: "user", content: ideasPrompt({ ...deps, about: cur.about,
+      onShelf: (cur.ideas || []).filter((i) => !i.used).map((i) => i.title), now: new Date() }) }],
   });
   console.log("[ideas] " + JSON.stringify({ ms: Date.now() - started, stop: response.stop_reason }));
   if (response.stop_reason === "refusal") throw new Error("Claude declined to suggest ideas.");
   const ideas = parseIdeas(response.content.filter((b) => b.type === "text").map((b) => b.text).join(""));
   if (!ideas.length) throw new Error("No ideas came back. Try again in a moment.");
-  return await writeIdeas({ generatedAt: nowIso(), ideas, about: cur.about });
+  // v200: added to the shelf, not swapped for it
+  return await writeIdeas({ generatedAt: nowIso(), ideas: shelve(cur.ideas, ideas), about: cur.about });
 }
 
 /* Everything the generator reads, gathered in one place so both the API and the nightly run

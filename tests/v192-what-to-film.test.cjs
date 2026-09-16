@@ -199,5 +199,55 @@ async function loadLib(file, tag, seed) {
       "an empty box asks for nothing — that guard was right, it was only ever reached wrongly");
   }
 
-  console.log("v192/v193 what to film: OK");
+  /* ============ 7. v200: the week's ideas build up, they do not replace each other ============
+     Ash: "I write all my content ideas / decide what they are on a Friday. I don't want the
+     suggestions from the rest of the week to have gone." They were going — each 5:30am run
+     overwrote the lot, so by Friday he saw Friday's five and Monday to Thursday had never
+     existed as far as he was concerned. */
+  {
+    const day = (n) => new Date(Date.now() - n * 864e5).toISOString();
+    const existing = [
+      { id: "mon", title: "Answer the bulky question", addedAt: day(4) },
+      { id: "old", title: "Something from a fortnight ago", addedAt: day(14) },
+      { id: "pin", title: "One he wants to hold", kept: true, addedAt: day(30) },
+      { id: "done", title: "One he already wrote", used: "s1", addedAt: day(2) },
+    ];
+    const fresh = [
+      { id: "n1", title: "Answer the bulky question on camera" },   // the same idea, reworded
+      { id: "n2", title: "A genuinely new one about September" },
+    ];
+    const out = lib.shelve(existing, fresh);
+    const titles = out.map((i) => i.title);
+
+    assert.ok(titles.includes("Answer the bulky question"), "Monday's idea is still there on Friday");
+    assert.ok(!titles.includes("Answer the bulky question on camera"),
+      "…and today's reworded version of it does not appear beside it — the same reel five times is worse than no shelf");
+    assert.ok(titles.includes("A genuinely new one about September"), "a genuinely new one is added");
+    assert.ok(!titles.includes("Something from a fortnight ago"), "a fortnight-old idea has aged off");
+    assert.ok(titles.includes("One he wants to hold"),
+      "…but one he pinned survives at thirty days, because keeping it is him saying it is still on");
+    assert.strictEqual(out[0].title, "One he wants to hold", "kept ideas sit at the top");
+    assert.ok(titles.includes("One he already wrote"),
+      "an idea he turned into a script stays, marked, so on Friday he can see what he actually used");
+
+    assert.ok(lib.sameIdea("Rank the September restarts", "Ranking September restarts worst to best"),
+      "the same idea reworded is the same idea");
+    assert.ok(!lib.sameIdea("Answer the bulky question", "Walk through a full session"),
+      "…and two different ideas are not");
+    assert.ok(!lib.sameIdea("", "anything"), "nothing is never the same as something");
+
+    // and the generator is told what is already on the shelf, or tomorrow it suggests it again
+    const p = lib.ideasPrompt({ hooks: [], ownPosts: [], recentTopics: [],
+      onShelf: ["Answer the bulky question"], now: new Date() });
+    assert.ok(/ALREADY SUGGESTED THIS WEEK/.test(p) && /Answer the bulky question/.test(p),
+      "today's five have to be five he has not already been offered");
+
+    const js = scriptOf(SOCIAL);
+    assert.ok(/hk-gday/.test(js) && /Earlier this week/.test(js),
+      "grouped by the day they arrived — a day heading turns twenty-five into five short lists");
+    assert.ok(/data-keep=/.test(js) && /data-dropidea=/.test(js), "he can hold one or bin one");
+    assert.ok(/ideaId: hkFromIdea/.test(js), "and a script remembers which suggestion it came from");
+  }
+
+  console.log("v192-v200 what to film: OK");
 })().catch((e) => { console.error(e); process.exit(1); });

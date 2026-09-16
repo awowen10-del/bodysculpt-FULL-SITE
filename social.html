@@ -729,6 +729,27 @@
     padding:10px 12px;min-height:110px;resize:vertical;}
   .hk-about-r{display:flex;align-items:center;gap:var(--sp-2);}
 
+  /* --- v200: the week's shelf ---
+     Ash plans content on a Friday, so the week's suggestions have to still be there on Friday.
+     A day heading turns a list of twenty-five into five short ones, which is the difference
+     between a shelf and a pile. */
+  .hk-gday{font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink-faint);margin:var(--sp-4) 0 var(--sp-2);}
+  .hk-gday:first-child{margin-top:0;}
+  .hk-idea.used{opacity:.62;}
+  .hk-used{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--tint-green);background:rgba(var(--green-rgb),.12);border-radius:var(--r-pill);padding:2px 8px;}
+  .hk-idea-go{display:flex;align-items:center;gap:6px;}
+  .hk-pin{background:none;border:none;font-family:inherit;cursor:pointer;color:var(--ink-faint);
+    padding:4px 5px;border-radius:var(--r-sm);display:inline-flex;}
+  .hk-pin:hover{color:var(--orange-soft);background:rgba(var(--orange-rgb),.1);}
+  .hk-pin.on{color:var(--orange);background:rgba(var(--orange-rgb),.13);}
+  .hk-pin .ic{width:13px;height:13px;}
+  @media(max-width:560px){
+    .hk-idea{flex-direction:column;align-items:stretch;}
+    .hk-idea-go{justify-content:flex-start;}
+  }
+
   /* --- v198: accounts the Friday scout thinks are worth watching ---
      Presented as a decision, not a list: the name and the reason, then the one button that
      acts on it and the one that ends it. */
@@ -1139,7 +1160,7 @@ const TIPS = {
   // place the rest of the suite already keeps this kind of thing
   writer: ["Write your own idea", "Use this when you already know what the reel is about. Type it in plain words — \"a client asked if she would get bulky\" — and you get eight ways to open it, each one borrowed from a reel that genuinely worked for another gym. Pick the one you like and it writes the rest: the lines that go on screen, the caption, and what to point the camera at."],
   voice: ["How Bodysculpt sounds", "Every gym's posts sound slightly different, and most AI writing sounds like none of them. So this reads Ash's own best reels — what he says, what goes on screen, how he writes a caption — and writes down the habits: no hashtags, sentence case, contractions, soft calls to action. Everything written on this page and every caption on the Scheduling page is checked against it, so nothing goes out sounding like an agency wrote it."],
-  ideas: ["Film one of these", "Five reels you could film this week. They are not generic content ideas — each one comes from something real: a reel that took off for a gym you watch, one of your own posts worth another angle, a question you already answer in your captions, what the Friday trend scout found happening more widely, or what time of year it is. The small grey line on each says which. Press Write this one and it takes the idea straight into the writer."],
+  ideas: ["Film one of these", "Five new reels every morning, and they build up through the week rather than replacing each other — so on Friday you are looking at the whole week's suggestions, grouped by the day they arrived. The pin holds one on the list past the ten days it would otherwise drop off after; the ✕ bins one now. Anything you have already written is marked and greyed rather than removed. They are not generic content ideas — each one comes from something real: a reel that took off for a gym you watch, one of your own posts worth another angle, a question you already answer in your captions, what the Friday trend scout found happening more widely, or what time of year it is. The small grey line on each says which. Press Write this one and it takes the idea straight into the writer."],
   library: ["What's working for other gyms", "An opening is the first line or the first card of a reel — the bit that decides whether somebody keeps watching. Every night this looks at the gyms on your Competitors tab, finds any reel that did at least double what THAT account normally does, and writes down how it opened. It then strips out the specifics, so \"Everyone thinks cardio burns the most fat\" becomes \"Everyone thinks [THING] does [OUTCOME]\" — a shape you can say about your own subject. The writer builds every opening it offers you on one of these."],
 };
 let tipEl = null, tipFor = null;
@@ -1820,11 +1841,12 @@ function applyFixed(s, fixed) {
 async function saveScript() {
   if (!hkScript) return;
   try {
-    const r = await hkPost({ action: "save", script: hkScript });
+    const r = await hkPost({ action: "save", script: hkScript, ideaId: hkFromIdea });
     hkLib.scripts = r.scripts;
     // the writer clears: the script has a home now, and leaving it on screen invites a
     // second Keep that saves the same thing twice
-    hkScript = null; hkOptions = null; hkPicked = -1; hkTopic = "";
+    if (r.ideas) hkLib.ideas = r.ideas;
+    hkScript = null; hkOptions = null; hkPicked = -1; hkTopic = ""; hkFromIdea = "";
     hkError = "";
   } catch (e) { hkError = e.message; }
   renderHooks();
@@ -1976,14 +1998,38 @@ function renderIdeas() {
     h = '<div class="setup"><b>No ideas yet.</b> Press New ideas — it reads what has taken off for the accounts you ' +
       "watch, your own posts, and the time of year.</div>";
   } else {
-    h = '<div class="hk-ideas">' + ideas.map((i, n) =>
-      '<div class="hk-idea"><div class="hk-idea-b">' +
-        '<span class="hk-idea-t">' + esc(i.title) + "</span>" +
-        (i.why ? '<span class="hk-idea-w">' + esc(i.why) + "</span>" : "") +
-        (i.source ? '<span class="hk-idea-s"><svg class="ic"><use href="#ic-flame"/></svg>' + esc(i.source) + "</span>" : "") +
-      "</div>" +
-      '<span class="hk-idea-go"><button type="button" class="abtn primary" data-idea="' + n + '">Write this one</button></span>' +
-      "</div>").join("") + "</div>";
+    /* v200: grouped by the day they arrived, newest first. Ash plans his content on a Friday,
+       so the week's suggestions have to still be here on Friday — they used to be replaced
+       every morning, which meant Monday to Thursday had never existed as far as he was
+       concerned. Anything he has kept sits at the top and never ages out. */
+    const day = (iso) => { const d = new Date(iso || Date.now()); const t = new Date();
+      const diff = Math.round((new Date(t.getFullYear(), t.getMonth(), t.getDate()) -
+        new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 864e5);
+      return diff <= 0 ? "Today" : diff === 1 ? "Yesterday" : diff < 7 ? "Earlier this week" : "Older"; };
+
+    const groups = [];
+    const push = (label, item) => { const g = groups.find((x) => x.label === label); if (g) g.items.push(item); else groups.push({ label, items: [item] }); };
+    ideas.forEach((i, n) => push(i.kept ? "Kept" : day(i.addedAt), { i, n }));
+
+    h = groups.map((g) =>
+      '<div class="hk-gday">' + esc(g.label) + (g.label === "Kept" ? "" : " · " + g.items.length) + "</div>" +
+      '<div class="hk-ideas">' + g.items.map(({ i, n }) =>
+        '<div class="hk-idea' + (i.used ? " used" : "") + '"><div class="hk-idea-b">' +
+          '<span class="hk-idea-t">' + esc(i.title) + "</span>" +
+          (i.why ? '<span class="hk-idea-w">' + esc(i.why) + "</span>" : "") +
+          '<span class="hk-idea-s">' +
+            (i.source ? '<svg class="ic"><use href="#ic-flame"/></svg>' + esc(i.source) : "") +
+            (i.used ? '<span class="hk-used">written</span>' : "") +
+          "</span>" +
+        "</div>" +
+        '<span class="hk-idea-go">' +
+          '<button type="button" class="abtn primary" data-idea="' + n + '">Write this one</button>' +
+          '<button type="button" class="hk-pin' + (i.kept ? " on" : "") + '" data-keep="' + esc(i.id) + '" ' +
+            'title="' + (i.kept ? "Let it drop off again" : "Keep this one on the list") + '">' +
+            '<svg class="ic"><use href="#ic-pin"/></svg></button>' +
+          '<button type="button" class="hk-x" data-dropidea="' + esc(i.id) + '" aria-label="Not this one">' +
+            '<svg class="ic"><use href="#ic-close"/></svg></button>' +
+        "</span></div>").join("") + "</div>").join("");
   }
 
   const tr = hkLib.trends || {};
@@ -2012,11 +2058,22 @@ function renderIdeas() {
     // the idea becomes the topic, and the openings are asked for straight away — the whole
     // point is that he does not have to write the sentence himself
     hkFormat = i.format || "onscreen";
+    hkFromIdea = i.id || "";
     hkOptions = null; hkPicked = -1; hkScript = null;
     // the idea IS the topic — handed over explicitly, never left for the box to supply
     askOptions(i.title + (i.why ? " — " + i.why : ""));
     const w = $("hkWriter"); if (w) w.scrollIntoView({ behavior: "smooth", block: "center" });
   }));
+  const flag = async (action, id, kept) => {
+    try { hkLib.ideas = (await hkPost({ action, id, kept })).ideas; }
+    catch (e) { hkError = e.message; }
+    renderHooks();
+  };
+  el.querySelectorAll("[data-keep]").forEach((b) => b.addEventListener("click", () => {
+    const i = ideas.find((x) => x.id === b.dataset.keep);
+    flag("keepIdea", b.dataset.keep, !(i && i.kept));
+  }));
+  el.querySelectorAll("[data-dropidea]").forEach((b) => b.addEventListener("click", () => flag("dropIdea", b.dataset.dropidea)));
   const ab = $("hkAboutBtn");
   if (ab) ab.addEventListener("click", () => { hkAboutOpen = !hkAboutOpen; renderHooks(); });
   const save = $("hkAboutSave");
@@ -2047,6 +2104,7 @@ async function loadIdeas(force) {
    that governs how everything on this tab is written, so it reads as a status line and opens
    only when he wants to read what it learnt. */
 let hkVoiceOpen = false;
+let hkFromIdea = "";      // v200: which suggestion this came from, so it can be marked as written
 
 function renderVoiceBar() {
   const el = $("hkVoiceBar"), btn = $("hkVoiceGo"), lbl = $("hkVoiceLbl");

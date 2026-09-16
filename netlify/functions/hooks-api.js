@@ -11,6 +11,7 @@
 //   POST { action: "retry" }            put the given-up-on reels back in the queue
 //   POST { action: "ideas", force }     five reels he could film this week (cached for the day)
 //   POST { action: "about", about }     his own note about the business, which sharpens them
+//   POST { action: "keepIdea" / "dropIdea", id }   hold one past its ten days, or bin it now
 //   POST { action: "check", draft }     mark a draft against the rules his own voice profile set
 //   POST { action: "ban" / "unban" }    phrases he never wants to see again
 //   POST { action: "trends", week, notes, accounts }   the Friday trend scout posting its findings
@@ -25,7 +26,7 @@
 import { readLib, writeLib, candidates, hookOptions, writeScript, config, clip, nowIso, json,
          normFormat, leadOf, parseBeats } from "../lib/hooks.js";
 import { readVoice } from "../lib/schedule.js";
-import { readIdeas, generate as generateIdeas, gather, isFresh, setAbout } from "../lib/ideas.js";
+import { readIdeas, generate as generateIdeas, gather, isFresh, setAbout, setIdeaFlag, markIdeaUsed } from "../lib/ideas.js";
 import { matchPerformance, checkPrompt, parseCheck } from "../lib/learn.js";
 import { readTrends, addTrends, dismissAccount, pending } from "../lib/trends.js";
 import { getStore } from "@netlify/blobs";
@@ -143,7 +144,11 @@ export default async (req) => {
       const lib = await readLib();
       lib.scripts = [kept, ...lib.scripts.filter((x) => x.id !== kept.id)];
       await writeLib(lib);
-      return json({ ok: true, scripts: lib.scripts });
+      // v200: the idea it came from is marked rather than removed, so on Friday he can see
+      // which of the week's suggestions he actually turned into something
+      let ideas = null;
+      if (body.ideaId) { try { ideas = (await markIdeaUsed(clip(body.ideaId, 40), kept.id)).ideas; } catch { /* the script is saved either way */ } }
+      return json({ ok: true, scripts: lib.scripts, ideas });
     }
 
     if (action === "status") {
@@ -222,6 +227,16 @@ export default async (req) => {
         : cur.filter((x) => x !== phrase);
       await store.set("ig-voice", JSON.stringify(v));
       return json({ ok: true, userBanned: v.userBanned });
+    }
+
+    /* v200: the shelf is his to curate. Keeping one holds it past the ten days it would
+       otherwise age out after; dropping one takes it off now rather than leaving a dud sitting
+       there until Friday. */
+    if (action === "keepIdea" || action === "dropIdea") {
+      const id = clip(body.id, 40);
+      if (!id) return json({ ok: false, error: "Which one?" }, 400);
+      const r = await setIdeaFlag(id, action === "dropIdea" ? { drop: true } : { kept: body.kept !== false });
+      return json({ ok: true, ideas: r.ideas });
     }
 
     if (action === "about") {
