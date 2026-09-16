@@ -9,10 +9,14 @@
 //   POST { action: "status", id, status }  filmed / posted / binned
 //   POST { action: "forget", id }       drop a hook from the library
 //
+// v178: the GET also reports the spoken-voice profile — when it was built, from how many
+// reels, and what it says. Building it is voice-build-background's job, not this one's.
+//
 // Writing is a long call to Claude — the timeout is raised to 26s in netlify.toml, the same
 // as mentor-ai, and the options call is deliberately eight hooks rather than ten so it lands
 // inside it. Mining is not here: a video takes minutes, which is a background function's job.
 import { readLib, writeLib, candidates, hookOptions, writeScript, config, clip, nowIso, json } from "../lib/hooks.js";
+import { readVoice } from "../lib/schedule.js";
 
 const STATUSES = ["draft", "filmed", "posted", "binned"];
 
@@ -23,6 +27,7 @@ export default async (req) => {
     const lib = await readLib();
     let waiting = 0;
     try { waiting = (await candidates(lib)).length; } catch { /* the count is a nicety, not the page */ }
+    const v = await readVoice();
     return json({
       ok: true,
       configured: cfg.gemini && cfg.anthropic,
@@ -32,6 +37,10 @@ export default async (req) => {
       waiting,
       lastMineAt: lib.lastMineAt,
       lastMineNote: lib.lastMineNote,
+      // the profile itself, not just a flag: the page shows it, because a voice profile Ash
+      // cannot read is one he cannot tell is wrong
+      voice: v ? { builtAt: v.builtAt || "", reels: (v.reels || []).length, words: v.words || 0,
+                   profile: v.profile || "", banned: v.banned || [], note: v.note || "" } : null,
     });
   }
 

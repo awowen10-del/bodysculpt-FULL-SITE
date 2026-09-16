@@ -3585,7 +3585,12 @@ async function runAnalysis(){
       answerRevisions, inputSignature: signature,
       evidenceCoverage: input.evidence.coverage,
       dataLimitations: input.dataLimitations,
-      outputs: parsed, status: "complete", model: "claude-opus-4-8"
+      // v178: the provenance label on a stored version — what actually generated it, shown
+      // on the version chip. The REQUEST asks for the tier "opus" (see qanRun); this has to
+      // move with mentor-ai's table when the tier changes generation, or old analyses and new
+      // ones become indistinguishable. Versions generated before today keep their own label,
+      // which was true when they were written.
+      outputs: parsed, status: "complete", model: "claude-opus-5"
     };
     const r = await fetch(STORE, { method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({ qttAnalysis: { reviewTag, version } }) }).then(x=>x.json());

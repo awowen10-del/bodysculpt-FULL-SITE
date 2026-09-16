@@ -679,6 +679,20 @@
   .hk-err{font-size:12.5px;line-height:1.55;color:var(--tint-red);background:rgba(var(--red-rgb),.08);
     border:1px solid rgba(var(--red-rgb),.22);border-radius:var(--r-md);padding:10px 12px;}
 
+  /* --- v178: the spoken voice profile --- */
+  .hk-voice{display:flex;flex-direction:column;gap:var(--sp-3);}
+  .hk-vstate{display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap;font-size:12.5px;color:var(--ink-dim);}
+  .hk-vstate b{color:var(--ink-strong);}
+  /* the profile reads as a document, because that is what it is — indented off the card so it
+     is plainly a thing the model was given rather than a thing the page is saying */
+  .hk-vprofile{font-size:13px;line-height:1.65;color:var(--ink);white-space:pre-wrap;
+    background:var(--card-2);border:1px solid var(--line);border-left:3px solid rgba(var(--orange-rgb),.4);
+    border-radius:var(--r-md);padding:var(--sp-4);max-height:420px;overflow-y:auto;}
+  .hk-banned{display:flex;flex-wrap:wrap;gap:6px;}
+  .hk-bword{font-size:11.5px;color:var(--tint-red);background:rgba(var(--red-rgb),.08);
+    border:1px solid rgba(var(--red-rgb),.18);border-radius:var(--r-pill);padding:3px 10px;
+    text-decoration:line-through;text-decoration-thickness:1px;}
+
   /* The orange bar on the leading tile. Deliberately NOT called .brand: that class already
      belongs to the logo block in the app bar, where it means display:flex — and a stat tile
      that quietly inherits flex lays its label out beside its number instead of above it.
@@ -897,6 +911,21 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
     </section>
 
     <section class="card">
+      <div class="cardhead">
+        <div>
+          <div class="chead"><svg class="ic"><use href="#ic-note"/></svg> How you talk</div>
+          <div class="csub">Built from transcripts of your own best reels. Every script and every caption on the
+            Scheduling page is written against this — it is the difference between sounding like you and sounding
+            like marketing.</div>
+        </div>
+        <div class="cardhead-r">
+          <button type="button" class="abtn" id="hkVoiceGo"><svg class="ic"><use href="#ic-refresh"/></svg> <span id="hkVoiceLbl">Learn how I talk</span></button>
+        </div>
+      </div>
+      <div id="hkVoice"></div>
+    </section>
+
+    <section class="card">
       <div class="cardhead"><div>
         <div class="chead"><svg class="ic"><use href="#ic-flame"/></svg> The hook library</div>
         <div class="csub">Every reel on your Competitors tab that beat its own account by double, with what was
@@ -975,6 +1004,7 @@ const IG_SNAP = "/.netlify/functions/ig-followers";   // v169: the follower coun
 const IG_SCRAPE = "/.netlify/functions/ig-scrape-background";   // v172: a competitor's views, from their public page
 const HOOKS = "/api/hooks";                                     // v177: the hook library and the writing
 const HOOKS_MINE = "/.netlify/functions/hooks-mine-background"; // v177: reading the reels that took off (slow)
+const VOICE_BUILD = "/.netlify/functions/voice-build-background"; // v178: learning how he talks (slow)
 const RIVAL_CAP = 10;
 
 /* ---------- small helpers ---------- */
@@ -1672,6 +1702,44 @@ function renderLib() {
   }));
 }
 
+/* v178: the spoken voice profile.
+   The captions were only ever half the job — how he writes one is not how he talks to
+   camera. This is shown in full rather than as a "voice profile: on" tick, because a profile
+   he cannot read is one he cannot tell is wrong, and it is steering every script and every
+   caption the site writes. */
+function renderVoice() {
+  const el = $("hkVoice"), btn = $("hkVoiceGo"), lbl = $("hkVoiceLbl");
+  if (!el) return;
+  const v = hkLib && hkLib.voice;
+  const configured = hkLib && hkLib.configured;
+  if (btn) btn.disabled = hkBusy === "voice" || !configured;
+  if (lbl) lbl.textContent = hkBusy === "voice" ? "Listening…" : (v && v.profile ? "Learn it again" : "Learn how I talk");
+
+  if (!hkLib || hkLib.ok === false) { el.innerHTML = '<div class="loading">Reading…</div>'; return; }
+
+  let h = "";
+  if (v && v.note) h += '<div class="hk-err">' + esc(v.note) + "</div>";
+
+  if (!v || !v.profile) {
+    el.innerHTML = h + '<div class="hk-note">Nothing learned yet — scripts and captions are being written from your ' +
+      "recent captions instead, which carries your words but not your rhythm. Press <b>Learn how I talk</b> and it will " +
+      "transcribe your ten best reels and write down how you actually speak. Takes about five minutes, once.</div>";
+    return;
+  }
+
+  h += '<div class="hk-voice">' +
+    '<div class="hk-vstate"><span>Learnt from <b>' + v.reels + '</b> of your reels' +
+      (v.words ? ", <b>" + nfmt(v.words) + "</b> words" : "") + "</span>" +
+      (v.builtAt ? "<span>" + esc(when(v.builtAt)) + "</span>" : "") + "</div>" +
+    '<div class="hk-vprofile">' + esc(v.profile) + "</div>" +
+    (v.banned && v.banned.length
+      ? '<div><div class="hk-lbl">Never written in your name</div><div class="hk-banned">' +
+        v.banned.map((b) => '<span class="hk-bword">' + esc(b) + "</span>").join("") + "</div></div>"
+      : "") +
+    "</div>";
+  el.innerHTML = h;
+}
+
 function renderHooks() {
   const w = $("hkWriter");
   if (!w) return;
@@ -1683,6 +1751,7 @@ function renderHooks() {
   if (focused) { const t = $("hkTopicIn"); if (t) { t.focus(); if (caret != null) t.setSelectionRange(caret, caret); } }
   renderScripts();
   renderLib();
+  renderVoice();
   const mine = $("hkMine");
   if (mine) mine.disabled = hkBusy === "mine" || !(hkLib && hkLib.configured);
 }
@@ -1698,6 +1767,20 @@ $("hkMine").addEventListener("click", async () => {
   const lib = $("hkLib");
   if (lib) lib.insertAdjacentHTML("afterbegin", '<div class="hk-note" id="hkMineNote" style="margin-bottom:var(--sp-3)">Reading the reels that took off — a few minutes. You can leave this page; they will be here when you come back.</div>');
   setTimeout(async () => { hkBusy = ""; await loadHooks(); }, 90000);
+});
+
+// Learning the voice: ten reels transcribed in full is the slowest job on the site, so the
+// background function answers at once and the page re-reads a few minutes later. There is no
+// nightly rebuild and should not be — a voice does not drift week to week.
+$("hkVoiceGo").addEventListener("click", async () => {
+  if (hkBusy) return;
+  hkBusy = "voice"; hkError = "";
+  renderHooks();
+  try { await fetch(VOICE_BUILD, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); }
+  catch { hkError = "Could not start it."; hkBusy = ""; renderHooks(); return; }
+  const el = $("hkVoice");
+  if (el) el.insertAdjacentHTML("afterbegin", '<div class="hk-note">Transcribing your best reels and writing down how you talk — about five minutes. You can leave this page.</div>');
+  setTimeout(async () => { hkBusy = ""; await loadHooks(); }, 300000);
 });
 
 /* ---------- the toggle ---------- */

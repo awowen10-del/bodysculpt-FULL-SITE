@@ -29,18 +29,32 @@ export default async (req) => {
     return Response.json({ error: "Missing prompt" }, { status: 400 });
   }
 
-  // The caller may request a specific model / token budget. Default to Sonnet so existing
-  // callers (e.g. the monthly review) are unchanged. Only allow known models.
+  // The caller may request a specific model / token budget. Callers name a TIER — "opus",
+  // "sonnet", "haiku" — never an id, so the whole suite moves generation by editing this one
+  // table. Only allow known models.
+  //
+  // v178: moved to the Claude 5 generation. The pages were still on Opus 4.8 / Sonnet 4.6
+  // while lib/schedule.js had been writing captions on claude-opus-5 since v170, so the
+  // reviews were a generation behind the thing writing the captions underneath them.
+  //
+  // ONE BEHAVIOURAL CHANGE WORTH KNOWING: on Opus 4.8, omitting `thinking` meant the model
+  // did not think. On Opus 5 thinking is ON by default (adaptive). Every review here will
+  // reason before it answers — better answers, slower and dearer. The non-streaming path
+  // below already caps effort at "medium" to stay inside the 26s function wall, which is what
+  // keeps the weekly and monthly reviews responsive; if one of them ever starts timing out,
+  // the fix is for that caller to ask for effort "low", not to disable thinking (a
+  // thinking-off Opus 5 writes tool calls and stray tags into its visible answer).
   const ALLOWED_MODELS = {
-    "opus": "claude-opus-4-8",
-    "sonnet": "claude-sonnet-4-6",
-    "haiku": "claude-haiku-4-5-20251001",
+    "opus": "claude-opus-5",
+    "sonnet": "claude-sonnet-5",
+    "haiku": "claude-haiku-4-5",
   };
-  const model = ALLOWED_MODELS[body && body.model] || "claude-opus-4-8";
+  const model = ALLOWED_MODELS[body && body.model] || "claude-opus-5";
   const maxTokens = (body && Number.isInteger(body.maxTokens) && body.maxTokens > 0 && body.maxTokens <= 16000)
     ? body.maxTokens : 1600;
   const wantStream = !!(body && body.stream);
-  // Effort control (Opus 4.8 / Sonnet 5). Opus defaults to HIGH on the API, which is slower.
+  // Effort control (Opus 5 / Sonnet 5, which take all five levels). Opus defaults to HIGH on
+  // the API, which is slower.
   // The non-streaming path is bound by the ~26s function timeout, so unless the caller asks
   // otherwise we cap it at "medium" there to keep monthly/weekly reviews responsive. Streaming
   // callers (e.g. the quarterly analysis) have no single-response wall, so we leave their

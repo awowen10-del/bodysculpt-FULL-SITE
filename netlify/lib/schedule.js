@@ -203,10 +203,41 @@ export async function voiceReference() {
     return caps.map((c, i) => (i + 1) + '. "' + c.slice(0, 300) + '"').join("\n");
   } catch { return ""; }
 }
+
+/* ---------- v178: the spoken voice ----------
+   Captions were the only voice reference this site had, and they are the weaker half: how
+   Ash WRITES a caption is not how he TALKS to camera. lib/voice.js transcribes his own best
+   reels and writes a profile from what he actually says; this is the read side of it, kept
+   here rather than there so schedule.js imports nothing from voice.js and the one import
+   runs in a single direction (voice.js -> schedule.js, for geminiAsk).
+
+   Both callers embed the block VERBATIM and add no heading of their own, because the two
+   sources need different framing — a profile is an instruction, a list of captions is
+   evidence — and only this function knows which one came back. */
+export const VOICE_KEY = "ig-voice";
+
+export async function readVoice() {
+  try { const v = await store().get(VOICE_KEY, { type: "json" }); return v && typeof v === "object" ? v : null; }
+  catch { return null; }
+}
+
+export async function voiceBrief() {
+  const v = await readVoice();
+  if (v && v.profile) {
+    return "HOW ASH TALKS ON CAMERA. This is drawn from transcripts of his own best reels — " +
+      "it describes his actual speech, so follow it over any instinct about how social copy should sound:\n\n" +
+      v.profile +
+      (v.banned && v.banned.length
+        ? "\n\nNever write these — they are not his words:\n" + v.banned.map((b) => "· " + b).join("\n")
+        : "");
+  }
+  const caps = await voiceReference();
+  return caps ? "Ash's recent captions, for his vocabulary (written, not spoken — match the words, not the rhythm):\n" + caps : "";
+}
 export function captionPrompt(transcript, name, voice, wantYoutube) {
   return "You write the social media captions for Bodysculpt, a gym in Warrington, UK, run by Ash. " +
     "The audience is local people who want to lose weight, get stronger and feel better — busy, ordinary, a bit nervous about gyms. Plain British English, no hype.\n\n" +
-    (voice ? "Ash's recent captions, for his voice:\n" + voice + "\n\n" : "") +
+    (voice ? voice + "\n\n" : "") +
     (transcript ? 'Transcript of the video:\n"' + transcript.slice(0, 3000) + '"\n\n' : 'There is no transcript. The file is called "' + name + '".\n\n') +
     "Write the caption in this exact shape:\n" +
     "LINE 1 — the hook: one short sentence, specific to what is actually said or shown. Never generic.\n" +
@@ -220,7 +251,7 @@ export function captionPrompt(transcript, name, voice, wantYoutube) {
 export async function writeCaption(transcript, name, wantYoutube) {
   if (!env("ANTHROPIC_API_KEY")) throw new Error("ANTHROPIC_API_KEY is not set.");
   const client = new Anthropic();
-  const voice = await voiceReference();
+  const voice = await voiceBrief();
   const response = await client.messages.create({
     model: "claude-opus-5",
     max_tokens: 1024,

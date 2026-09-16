@@ -35,7 +35,7 @@
 // are already on the site for the Scheduling page. Nothing new to set up.
 import { getStore } from "@netlify/blobs";
 import Anthropic from "@anthropic-ai/sdk";
-import { geminiAsk, voiceReference } from "./schedule.js";
+import { geminiAsk, voiceBrief } from "./schedule.js";
 
 export const KEY = "ig-hooks";
 const MAX_HOOKS = 400;
@@ -315,11 +315,11 @@ export async function mine(limit, log) {
 }
 
 /* ---------- Claude: the hook options, then the script ----------
-   Ash's voice reference is the same one the caption writer uses — his own recent captions.
-   It is the weaker half of a voice profile (how he writes is not how he talks) and the
-   honest fix is to transcribe his own reels into a proper spoken profile, which is the
-   obvious next thing to build. Until then this is what there is, and it is better than
-   nothing: it carries his vocabulary and his refusal to hype, if not his rhythm. */
+   v178: the voice reference goes through schedule.js's voiceBrief(), which hands back the
+   SPOKEN profile when one has been built — transcripts of his own best reels, describing how
+   he actually talks — and falls back to his captions when it has not. The block arrives
+   pre-labelled, because a profile is an instruction and a list of captions is only evidence;
+   these prompts embed it verbatim and add no heading of their own. */
 const AUDIENCE =
   "Bodysculpt is a gym in Warrington, UK, run by Ash. The audience is local people who want to lose weight, " +
   "get stronger and feel better — busy, ordinary, a lot of them nervous about gyms and half-sure it will not work for them. " +
@@ -333,7 +333,7 @@ export function optionsPrompt(topic, hooks, voice) {
   return AUDIENCE + "\n\n" +
     "These hook shapes are proven: each one is taken from a reel that beat its own account's normal by at least double.\n\n" +
     lines + "\n\n" +
-    (voice ? "Ash's recent captions, for his vocabulary:\n" + voice + "\n\n" : "") +
+    (voice ? voice + "\n\n" : "") +
     'The reel is about: "' + clip(topic, 400) + '"\n\n' +
     "Write EIGHT hook options for this topic, each one built on a different shape from the list above.\n" +
     "For each, all three parts must work together and must not repeat each other:\n" +
@@ -382,7 +382,7 @@ export async function hookOptions(topic) {
   const lib = await readLib();
   const hooks = forWriting(lib.hooks, 16);
   if (!hooks.length) throw new Error("There are no hooks in the library yet. Press Find hooks once the competitor scrape has run.");
-  const text = await ask(optionsPrompt(topic, hooks, await voiceReference()), 3000);
+  const text = await ask(optionsPrompt(topic, hooks, await voiceBrief()), 3000);
   const options = parseOptions(text, hooks);
   if (!options.length) throw new Error("Claude returned no usable hooks. Try wording the topic differently.");
   return options;
@@ -391,7 +391,7 @@ export async function hookOptions(topic) {
 export function scriptPrompt(topic, option, format, voice) {
   const shape = format === "demo" ? "a walkthrough — show the thing, 150 to 200 words" : "a piece to camera — one strong point, about 100 words";
   return AUDIENCE + "\n\n" +
-    (voice ? "Ash's recent captions, for his vocabulary and his tone:\n" + voice + "\n\n" : "") +
+    (voice ? voice + "\n\n" : "") +
     'The reel is about: "' + clip(topic, 400) + '"\n' +
     'It opens with him saying: "' + option.spoken + '"\n' +
     (option.onScreen ? 'On the screen at that moment: "' + option.onScreen + '"\n' : "") +
@@ -413,7 +413,7 @@ export function scriptPrompt(topic, option, format, voice) {
 }
 
 export async function writeScript(topic, option, format) {
-  const text = await ask(scriptPrompt(topic, option, format, await voiceReference()), 2000);
+  const text = await ask(scriptPrompt(topic, option, format, await voiceBrief()), 2000);
   const part = (name) => {
     const m = new RegExp("---" + name + "---\\s*([\\s\\S]*?)(?=---[A-Z]+---|$)").exec(text);
     return m ? m[1].trim() : "";

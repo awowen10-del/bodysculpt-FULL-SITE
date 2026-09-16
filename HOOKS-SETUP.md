@@ -85,14 +85,30 @@ don't want to wait until morning. It takes a few minutes and you can leave the p
 
 ---
 
-## The honest limitation
+## How you talk
 
-The scripts are written against your recent **captions**, because that's the voice reference the
-site already has. How you write a caption is not how you talk to camera, so expect the vocabulary
-to be right and the rhythm to be roughly yours.
+The card above the library. Press **Learn how I talk** once and it transcribes your ten
+best-performing reels in full, then writes down how you actually speak: the words you reach for,
+the ones you never use, how long your sentences run, how you open, how you close, whether you
+swear, what you call the viewer. Plus a list of phrases that would instantly give away that a
+script wasn't yours.
 
-The fix is to transcribe your own best reels into a proper spoken-voice profile and write against
-that instead. Everything needed for it is already here — it's the obvious next thing to build.
+**This steers everything.** Scripts on this tab and captions on the Scheduling page both read it.
+One build improves both.
+
+The profile is shown in full on the page, on purpose — it's an instruction being handed to a
+model on your behalf, so you should be able to read it and tell it it's wrong. If a line in it
+doesn't sound like you, press Learn it again after your next few reels.
+
+Until you build it, everything falls back to your recent captions, and the card says so. That
+still works — it carries your vocabulary — but a caption is typed and edited, and a reel is
+spoken once into a phone. The rhythm is the bit only the transcripts can teach.
+
+Takes about five minutes. There's no nightly rebuild, and there shouldn't be: your voice doesn't
+drift week to week. Press it again when you feel your content has moved on.
+
+A build needs at least **three** reels it can transcribe. Instagram's video links go stale, so if
+it complains, press Refresh on the Content page first and try again.
 
 ---
 
@@ -105,6 +121,9 @@ that instead. Everything needed for it is already here — it's the obvious next
 | Reels waiting but nothing appears after Find hooks | Instagram's video links go stale within the day. A reel scraped last night reads fine; one from last week won't, and it goes on the skip list rather than being retried nightly. |
 | "There are no hooks in the library yet" when writing | The library has to have something in it before it can build on it. Press Find hooks first. |
 | An opening that sounds nothing like you | Say so in the topic box — more detail there changes the output more than anything else. Or pick a different shape; they're genuinely different. |
+| Scripts sound generic | Check the *How you talk* card. If it says nothing has been learned yet, that's why — it's writing from captions. |
+| "Only N of your reels could be transcribed" | Instagram's video links go stale. Press Refresh on the Content page, then try again. |
+| The voice profile describes someone else | Press **Learn it again**. It reads your ten best reels, so it follows your content as it changes. |
 
 ---
 
@@ -118,4 +137,7 @@ that instead. Everything needed for it is already here — it's the obvious next
 | Reading the reels (slow) | `netlify/functions/hooks-mine-background.js` |
 | The nightly run, 05:30 | `netlify/functions/hooks-mine-scheduled.js` |
 | The stored library | one blob, `ig-hooks` |
-| The tests | `tests/v177-hook-library.test.cjs` |
+| How you talk | `netlify/lib/voice.js` + `netlify/functions/voice-build-background.js` |
+| The stored voice profile | one blob, `ig-voice` |
+| Where both writers read it | `voiceBrief()` in `netlify/lib/schedule.js` |
+| The tests | `tests/v177-hook-library.test.cjs`, `tests/v178-spoken-voice.test.cjs` |

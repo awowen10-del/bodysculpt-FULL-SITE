@@ -64,6 +64,12 @@ so you can start captioning straight away.
 
 `ANTHROPIC_API_KEY` — the caption writer — is already on the site.
 
+**v178 — the captions now sound more like you.** They used to be written from your recent
+Instagram captions. If you have pressed **Learn how I talk** on Content → Hooks, they are written
+from a profile of how you actually speak, transcribed from your own best reels. Nothing here
+changes; the caption just gets better. Without that profile it falls back to the captions exactly
+as before.
+
 ---
 
 ## Using it

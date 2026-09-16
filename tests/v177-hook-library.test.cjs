@@ -202,7 +202,9 @@ const normalPosts = () => Array.from({ length: 10 }, (_, i) => ({
     const js = scriptOf(SOCIAL);
     const writes = [...js.matchAll(/fetch\(([^,]+),\s*\{[\s\S]{0,200}?method:/g)].map((m) => m[1].trim());
     assert.ok(writes.length >= 3, "the page does write — otherwise this test proves nothing");
-    const allowed = new Set(["API", "IG_SCRAPE", "IG_SNAP", "HOOKS", "HOOKS_MINE"]);
+    // v178 admitted VOICE_BUILD deliberately: the list is the point, so a new endpoint has to
+    // be added here on purpose rather than arriving unnoticed.
+    const allowed = new Set(["API", "IG_SCRAPE", "IG_SNAP", "HOOKS", "HOOKS_MINE", "VOICE_BUILD"]);
     for (const w of writes) assert.ok(allowed.has(w), "every write names one of the page's own endpoints; found " + w);
     assert.ok(writes.includes("HOOKS"), "the Hooks tab writes through /api/hooks");
     assert.ok(/const HOOKS = "\/api\/hooks"/.test(js), "the page talks to /api/hooks, which netlify.toml routes");
