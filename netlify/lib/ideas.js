@@ -102,7 +102,13 @@ export function ideasPrompt({ about, voice, hooks, ownPosts, recentTopics, now }
     "WHY: one sentence on why this one is worth his time this week.\n" +
     "SOURCE: where it came from, in a few words — e.g. \"@dm_pt got 30× with this\", \"your reel on X did 9.6k\", " +
     "\"you answer this in your captions\", \"it is September\".\n" +
-    "FORMAT: one of onscreen, talking, demo — whichever genuinely suits it.\n";
+    "FORMAT: one of these three, and it must not contradict the title.\n" +
+    "  onscreen — footage with text over it, nobody speaks. He makes these most.\n" +
+    "  talking  — he speaks to camera.\n" +
+    "  demo     — he speaks while showing something.\n" +
+    "If the idea is about showing rather than saying, it is onscreen. An idea whose title says " +
+    "\"no talking\" and whose format says talking or demo is a contradiction, and the writer will " +
+    "follow the format and write him a monologue for a silent reel.\n";
 }
 
 const field = (block, name) => {
@@ -120,6 +126,12 @@ export function parseIdeas(text) {
       source: clip(field(b, "SOURCE"), 120),
       format: ["onscreen", "talking", "demo"].includes(format) ? format : "onscreen",
     };
+  }).map((x) => {
+    /* v196: found in testing — an idea came back titled "…start to finish, no talking" with
+       its format set to demo, and the writer did as the format said and wrote a monologue for
+       a silent reel. A title that rules speech out overrules a format that puts it back. */
+    const silent = /\bno talking\b|\bno voice ?over\b|\bsilent\b|\bwithout (?:talking|speaking)\b/i.test(x.title);
+    return silent && x.format !== "onscreen" ? { ...x, format: "onscreen" } : x;
   }).filter((x) => x.title);
 }
 

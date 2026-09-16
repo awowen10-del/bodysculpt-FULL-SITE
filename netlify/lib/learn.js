@@ -119,6 +119,13 @@ export function checkPrompt(draft, profile, banned) {
     "Also watch for the tells that give away writing-that-was-written: three short sentences in a row " +
     "with the same shape, \"It's not X. It's Y.\", a rule of three, sections balanced too evenly. Real " +
     "speech and real captions are lumpier than that.\n\n" +
+    /* v196: found in testing — it decided "sculpt" was a banned word and took
+       @bodysculptwarrington out of the CTA. A checker that edits away the name of the business
+       is worse than no checker: it looks like care and it costs him the only thing in the
+       caption that tells anyone where to go. */
+    "NEVER flag or remove any of these, whatever a rule seems to say: the name Bodysculpt, the " +
+    "handle @bodysculptwarrington, Ash's own name, the name of any client, or the town Warrington. " +
+    "They are his, not marketing language, and a rule about words he avoids never applies to them.\n\n" +
     "Go through the profile line by line, not just the numbered checks. A habit stated anywhere in it — " +
     "how long his on-screen lines run, whether he uses hashtags, whether he capitalises, how he closes — " +
     "is a rule the draft has to meet.\n\n" +

@@ -112,5 +112,31 @@ const scriptOf = (src) => src.slice(src.lastIndexOf("<script>") + 8, src.lastInd
       "…and his own bans ride with the profile into every caption and every reel");
   }
 
-  console.log("v194 learns from him: OK");
+  /* ============ 5. v196: two things a live run-through found ============ */
+  {
+    /* (a) The checker decided "sculpt" was a banned word and took @bodysculptwarrington out of
+       the CTA — a checker that edits away the name of the business is worse than none, because
+       it looks like care while costing the caption the only thing that says where to go. */
+    const p = learn.checkPrompt("draft", "CHECKS\n1. No marketing words.", ["sculpt"]);
+    assert.ok(/NEVER flag or remove/.test(p), "his own name is off limits to the marker");
+    assert.ok(/@bodysculptwarrington/.test(p) && /Bodysculpt/.test(p) && /Warrington/.test(p),
+      "…by name, because a rule about words he avoids will otherwise catch the word in his own brand");
+    assert.ok(/name of any client/.test(p), "and a client's name is not marketing language either");
+
+    /* (b) An idea came back titled "…start to finish, no talking" with its format set to demo,
+       and the writer did as the format said and wrote him a monologue for a silent reel. */
+    const ideas = await import("file://" + root("netlify/lib/ideas.js"));
+    const out = ideas.parseIdeas(
+      "---IDEA---\nTITLE: Walk through one full session, start to finish, no talking\nWHY: w\nSOURCE: s\nFORMAT: demo\n" +
+      "---IDEA---\nTITLE: A silent look round the gym at 6am\nWHY: w\nSOURCE: s\nFORMAT: talking\n" +
+      "---IDEA---\nTITLE: Answer the bulky question on camera\nWHY: w\nSOURCE: s\nFORMAT: talking\n");
+    assert.strictEqual(out[0].format, "onscreen", "a title that rules speech out overrules a format that puts it back");
+    assert.strictEqual(out[1].format, "onscreen", "…however it is worded");
+    assert.strictEqual(out[2].format, "talking", "and an idea that genuinely is to camera keeps its format");
+    const prompt = ideas.ideasPrompt({ hooks: [], ownPosts: [], recentTopics: [], now: new Date() });
+    assert.ok(/must not contradict the title/.test(prompt), "the model is told, as well as corrected");
+    assert.ok(/write him a monologue for a silent reel/.test(prompt), "…and told what the contradiction costs");
+  }
+
+  console.log("v194/v196 learns from him: OK");
 })().catch((e) => { console.error(e); process.exit(1); });
