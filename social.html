@@ -1484,7 +1484,12 @@ let hkError = "";
 async function hkPost(payload) {
   const r = await fetch(HOOKS, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
   const b = await r.json().catch(() => ({}));
-  if (!r.ok || !b.ok) throw new Error(b.error || "HTTP " + r.status);
+  // v190: a gateway timeout has no JSON body, so this used to surface as the bare words
+  // "HTTP 504" — which tells Ash nothing about what happened or what to do about it.
+  if (r.status === 504 || r.status === 502) {
+    throw new Error("That took too long and the server gave up on it. Press it again — and if it keeps happening, say so.");
+  }
+  if (!r.ok || !b.ok) throw new Error(b.error || "Something went wrong (HTTP " + r.status + ").");
   return b;
 }
 

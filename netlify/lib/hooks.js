@@ -261,14 +261,27 @@ function templatePrompt(cand, read) {
     "build the template from the on-screen text instead.";
 }
 
-async function ask(prompt, maxTokens) {
+/* v190: EFFORT, because there is a 26-second wall and this was leaning on it.
+   Found by pressing Find openings on the live page: HTTP 504. The same call had squeaked
+   through on the command line minutes earlier, which is the worst kind of pass — it means
+   the margin is thin rather than the feature working.
+   Opus 5 thinks by default and defaults to HIGH effort, and these are not reasoning jobs:
+   writing eight variations of a hook, or a caption, is generation. Low effort is the setting
+   that matches the task, and it is what puts the call comfortably inside the wall rather than
+   a second or two under it. Mining stays at the default — it runs in a background function
+   with fifteen minutes and its judgement about what a hook IS deserves the thought. */
+async function ask(prompt, maxTokens, effort) {
   if (!env("ANTHROPIC_API_KEY")) throw new Error("ANTHROPIC_API_KEY is not set.");
   const client = new Anthropic();
+  const started = Date.now();
   const response = await client.messages.create({
     model: "claude-opus-5",
     max_tokens: maxTokens || 1024,
+    ...(effort ? { output_config: { effort } } : {}),
     messages: [{ role: "user", content: prompt }],
   });
+  console.log("[hooks] " + JSON.stringify({ stage: "claude", ms: Date.now() - started, effort: effort || "default",
+    out: response.usage && response.usage.output_tokens }));
   if (response.stop_reason === "refusal") throw new Error("Claude declined to answer.");
   return response.content.filter((b) => b.type === "text").map((b) => b.text).join("");
 }
@@ -465,7 +478,7 @@ export async function hookOptions(topic, format) {
   const lib = await readLib();
   const hooks = forWriting(lib.hooks, 16);
   if (!hooks.length) throw new Error("There are no hooks in the library yet. Press Find hooks once the competitor scrape has run.");
-  const text = await ask(optionsPrompt(topic, hooks, await voiceBrief(), format), 3000);
+  const text = await ask(optionsPrompt(topic, hooks, await voiceBrief(), format), 3000, "low");
   const options = parseOptions(text, hooks, format);
   if (!options.length) throw new Error("Claude returned no usable hooks. Try wording the topic differently.");
   return options;
@@ -546,7 +559,7 @@ export function parseBeats(text) {
 
 export async function writeScript(topic, option, format) {
   const fmt = normFormat(format);
-  const text = await ask(scriptPrompt(topic, option, fmt, await voiceBrief()), 2000);
+  const text = await ask(scriptPrompt(topic, option, fmt, await voiceBrief()), 2000, "low");
   const part = (name) => {
     const m = new RegExp("---" + name + "---\\s*([\\s\\S]*?)(?=---[A-Z]+---|$)").exec(text);
     return m ? m[1].trim() : "";
