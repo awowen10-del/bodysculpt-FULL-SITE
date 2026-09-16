@@ -199,5 +199,25 @@ async function loadLib(file, tag, seed) {
       "the one reel there is a file for is chosen, even though two better-performing posts outrank it — a reel that cannot be downloaded is not a candidate");
   }
 
-  console.log("v182/v183 silent reels + live-site fixes: OK");
+  /* ============ 8. v185: an exhausted quota is not a busy model ============
+     A voice build on the live site spent ten of its fifteen minutes walking five models ×
+     three attempts × growing pauses — 230 seconds per reel — against a quota every one of
+     those models draws on, then reported the failure it already knew at the first call. */
+  {
+    const SCHED = read("netlify/lib/schedule.js");
+    assert.ok(/const isQuota = /.test(SCHED), "quota is told apart from load");
+    assert.ok(/exceeded your current quota\|quota exceeded\|billing details/.test(SCHED),
+      "…by the words Google actually uses");
+    assert.ok(/if \(isQuota\(detail\)\) throw/.test(SCHED),
+      "…and it abandons the run at once rather than working through models that share the quota");
+    const ladder = SCHED.slice(SCHED.indexOf("if (isQuota(detail))"));
+    assert.ok(ladder.indexOf("isTransient") > 0 && ladder.indexOf("sleep(GEMINI_RETRY_WAITS_MS") > 0,
+      "the quota check comes BEFORE the retry and the walk to the next model, which is the whole point");
+    assert.ok(/HTTP " \+ status/.test(SCHED),
+      "v184: the status travels with the message — 503 (busy, wait) and 429 (quota, wait longer) read identically in Google's own wording");
+    assert.ok(/free Gemini allowance for the day/.test(VOICE_LIB),
+      "and the page says what a quota failure means in words Ash can act on");
+  }
+
+  console.log("v182–v185 silent reels + live-site fixes: OK");
 })().catch((e) => { console.error(e); process.exit(1); });

@@ -198,7 +198,7 @@ export async function buildVoice(log) {
                      words: (read.spoken + " " + read.onScreen).trim().split(/\s+/).length });
       note({ stage: "read", url: r.url, spoken: !!read.spoken, onScreen: !!read.onScreen, usedCached });
     } catch (e) {
-      const why = clip((e && e.message) || "unknown", 120);
+      const why = clip((e && e.message) || "unknown", 200);
       failures.push(why);
       note({ stage: "skipped", url: r.url, usedCached, message: why });
     }

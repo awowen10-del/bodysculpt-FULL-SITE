@@ -34,6 +34,13 @@ const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-
 // Google must not cost Ash the caption.
 const GEMINI_RETRY_WAITS_MS = [4000, 12000, 30000];
 const isTransient = (status, msg) => status === 429 || status === 503 || /high demand|overloaded|try again later|resource exhausted|unavailable/i.test(msg || "");
+/* v185: an exhausted QUOTA is not a busy model, and the retry ladder makes it worse.
+   Found on the live site: a voice build spent ten of its fifteen minutes walking five models
+   × three attempts × growing pauses — 230 seconds per reel — against a quota that every one
+   of those models shares, and then reported the failure it already knew about at the first
+   call. The quota belongs to the project, so once one model says it is gone, the others will
+   say the same. Stop and say so, while there is still time in the run to say it. */
+const isQuota = (msg) => /exceeded your current quota|quota exceeded|billing details/i.test(msg || "");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const ZERNIO = "https://zernio.com/api/v1";
 const MAX_ITEMS = 300;
@@ -186,6 +193,8 @@ export async function geminiAsk(buffer, mime, name, prompt, limit) {
         const detail = (b.error && b.error.message) || "";
         const status = res.status + (b.error && b.error.status ? "/" + b.error.status : "");
         lastErr = clip(detail ? detail + " [" + model + ", HTTP " + status + "]" : ("Gemini returned " + status + " [" + model + "]"), 240);
+        // out of quota: every model here draws on the same one, so there is nothing left to try
+        if (isQuota(detail)) throw new Error("Gemini's quota is used up for now: " + lastErr);
         if (!isTransient(res.status, lastErr)) break;          // a real refusal: next model, now
         await sleep(GEMINI_RETRY_WAITS_MS[attempt]);           // busy: wait, then the same model again
       }
