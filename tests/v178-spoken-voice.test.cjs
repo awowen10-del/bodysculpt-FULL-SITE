@@ -196,5 +196,53 @@ const CAPTIONS = { "ig-cache-mine": { account: { username: "bodysculptwarrington
       "the SDK callers agree with the proxy");
   }
 
+  /* ============ 10. a declined answer never shows as a blank panel ============
+     The trap: a refusal is not an error. The call succeeds, HTTP 200, a normal body — with
+     no text and a flag saying why. Read literally it is an empty string, and the review panel
+     rendered nothing at all, with no way to tell a refusal from a bug. */
+  {
+    const savedFetch = globalThis.fetch, savedKey = process.env.ANTHROPIC_API_KEY;
+    process.env.ANTHROPIC_API_KEY = "sk-test";
+    const handler = (await import("file://" + root("netlify/functions/mentor-ai.js"))).default;
+    const call = async (apiBody) => {
+      globalThis.fetch = async () => new Response(JSON.stringify(apiBody), { status: 200, headers: { "Content-Type": "application/json" } });
+      const res = await handler(new Request("https://x/mentor-ai", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: "Review the month." }) }));
+      return await res.json();
+    };
+    try {
+      const ok = await call({ stop_reason: "end_turn", content: [{ type: "text", text: "Revenue is up 8%." }] });
+      assert.strictEqual(ok.text, "Revenue is up 8%.", "a normal answer is untouched");
+      assert.ok(!ok.error, "…and carries no error");
+
+      const refused = await call({ stop_reason: "refusal", stop_details: { explanation: "Declined." }, content: [] });
+      assert.ok(refused.error && /declined/i.test(refused.error),
+        "a refusal comes back as an error — the shape every page already knows how to display");
+      assert.strictEqual(refused.refusal, true, "…flagged, so a caller can tell it from a network fault");
+      assert.ok(/not a fault with the dashboard/.test(refused.detail || ""),
+        "…and says so plainly, or Ash spends the afternoon checking Netlify for a break that is not there");
+      assert.ok(!refused.text, "no empty text field to render as a blank panel");
+
+      const empty = await call({ stop_reason: "max_tokens", content: [] });
+      assert.ok(empty.error, "any other way of arriving with nothing is also said out loud");
+
+      const cut = await call({ stop_reason: "max_tokens", content: [{ type: "text", text: "Revenue is up 8% and" }] });
+      assert.strictEqual(cut.text, "Revenue is up 8% and", "a TRUNCATED answer still has text and is left alone — the pages handle truncation themselves");
+      assert.ok(!cut.error, "…and is not turned into an error");
+    } finally {
+      globalThis.fetch = savedFetch;
+      if (savedKey === undefined) delete process.env.ANTHROPIC_API_KEY; else process.env.ANTHROPIC_API_KEY = savedKey;
+    }
+
+    // the streaming path is parsed in the page, so the same claim is checked there
+    const q = read("quarterly.html");
+    assert.ok(/const REFUSAL_MSG = /.test(q), "one message, shared by both SSE readers on the page");
+    assert.ok(/if\(evt\.delta\.stop_reason === "refusal"\) refused = true;/.test(q), "the first reader notices");
+    assert.ok(/if\(stopReason === "refusal"\)\{/.test(q), "the second reader notices");
+    const tail = q.slice(q.indexOf('if(stopReason === "refusal")'));
+    assert.ok(tail.indexOf('kind="empty"') > 0 && tail.indexOf('kind="truncated"') > 0,
+      "…and it is checked BEFORE the empty and cut-off cases, which would otherwise report a refusal as a server time limit and send him hunting for a fault that is not there");
+  }
+
   console.log("v178 spoken voice: OK");
 })().catch((e) => { console.error(e); process.exit(1); });

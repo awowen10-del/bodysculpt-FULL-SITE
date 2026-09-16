@@ -1020,6 +1020,11 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 /* Bodysculpt Quarterly Review — reads the shared monthly store, rolls months into quarters. */
 const STORE = "/.netlify/functions/kpi-store";
 const MENTOR = "/.netlify/functions/mentor-ai";
+// v178: what to say when Claude declines to answer. A refusal is not a failure of the
+// dashboard, the network or the key — the call succeeded and the model chose not to answer —
+// so the message says that plainly rather than sending Ash to check Netlify. Shared by both
+// SSE readers on this page and matched by mentor-ai's non-streaming reply.
+const REFUSAL_MSG = "Claude declined to answer this one. That is not a fault with the dashboard — the request went through and the model chose not to answer it. Re-run it; if it happens again, the question itself is what needs rewording.";
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const QUARTERS = [
   {name:"Q1", months:[0,1,2], label:"Jan – Mar"},
@@ -1742,7 +1747,7 @@ async function callMentor(prompt, onChunk){
   // from content_block_delta events (type "text_delta").
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
-  let buffer = "", full = "", truncated = false;
+  let buffer = "", full = "", truncated = false, refused = false;
   while(true){
     const { done, value } = await reader.read();
     if(done) break;
@@ -1760,14 +1765,19 @@ async function callMentor(prompt, onChunk){
       if(evt.type === "content_block_delta" && evt.delta && typeof evt.delta.text === "string"){
         full += evt.delta.text;
         if(onChunk) onChunk(full);
-      } else if(evt.type === "message_delta" && evt.delta && evt.delta.stop_reason === "max_tokens"){
-        truncated = true;
+      } else if(evt.type === "message_delta" && evt.delta && evt.delta.stop_reason){
+        // v178: "refusal" means Claude read the request and declined to answer it. The
+        // stream is otherwise perfectly healthy, so without this the run ends as the
+        // generic "returned no text" below and reads like a bug in the dashboard.
+        if(evt.delta.stop_reason === "refusal") refused = true;
+        if(evt.delta.stop_reason === "max_tokens") truncated = true;
       } else if(evt.type === "error"){
         throw new Error(evt.error && evt.error.message ? evt.error.message : "Streaming error");
       }
     }
   }
   full = full.trim();
+  if(refused) throw new Error(REFUSAL_MSG);
   if(!full) throw new Error("The AI service returned no text.");
   if(truncated) full += "\n\n*(The review reached its length limit and may be cut off. Re-run for a fresh version, or work from what's here.)*";
   return full;
@@ -3318,7 +3328,7 @@ async function callMentorJson(prompt, onProgress){
         full += evt.delta.text;
         if(onProgress) onProgress(full);
       } else if(evt.type === "message_delta" && evt.delta && evt.delta.stop_reason){
-        stopReason = evt.delta.stop_reason;              // "end_turn" (good) | "max_tokens" (too long)
+        stopReason = evt.delta.stop_reason;              // "end_turn" (good) | "max_tokens" (too long) | "refusal" (declined)
         if(stopReason === "max_tokens") truncated = true;
       } else if(evt.type === "message_stop"){
         sawStop = true;                                   // a complete, cleanly-finished stream
@@ -3328,6 +3338,10 @@ async function callMentorJson(prompt, onProgress){
     }
   }
   full = full.trim();
+  // v178: a declined answer is checked BEFORE the empty and cut-off cases below, because it
+  // would otherwise be reported as one of them — an honest-looking message about time limits
+  // that sends Ash looking for a fault that is not there.
+  if(stopReason === "refusal"){ const e = new Error(REFUSAL_MSG); e.kind="refusal"; throw e; }
   if(!full){ const e = new Error("The AI service returned no text."); e.kind="empty"; throw e; }
   // A cleanly-finished stream ends with message_stop AND stop_reason "end_turn". If we got
   // neither — the connection ended mid-generation — the response was CUT OFF (most often the

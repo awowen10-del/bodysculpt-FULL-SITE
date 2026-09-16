@@ -154,6 +154,34 @@ export default async (req) => {
       .join("")
       .trim();
 
+    // v178: a DECLINED answer is not an error, and that is the trap. Claude occasionally
+    // reads a request and decides not to answer it: the call succeeds, HTTP 200, a normal
+    // response body — with no text in it and a flag saying why. Read literally, as this did
+    // until now, that is an empty string, and the page rendered a blank review with nothing
+    // to explain it. Ash would press the button again, get the same nothing, and have no way
+    // to tell a refusal from a bug. Every other Claude caller on this site (lib/schedule.js,
+    // lib/hooks.js, lib/voice.js) checks this; mentor-ai predates them and never did.
+    //
+    // Unlikely on this site's prompts — it is being asked about gym takings and ad spend —
+    // but a silent blank box is the worst way to find out.
+    if (data.stop_reason === "refusal") {
+      const why = (data.stop_details && data.stop_details.explanation) || "";
+      return Response.json({
+        error: "Claude declined to answer this one." + (why ? " " + String(why).slice(0, 200) : ""),
+        detail: "This is not a fault with the dashboard and retrying the same question will most likely give the same answer. Re-run it, and if it happens again the prompt itself is what needs changing.",
+        refusal: true,
+      });
+    }
+    // Any other way of arriving with nothing to show. A truncated answer still has text and
+    // is left alone — the pages handle that themselves — but empty is empty, and saying so
+    // beats a blank panel.
+    if (!text) {
+      return Response.json({
+        error: "The AI returned an empty answer" + (data.stop_reason ? " (" + data.stop_reason + ")" : "") + ".",
+        detail: "Nothing came back to show. Re-run it — if it keeps happening the prompt is probably too large.",
+      });
+    }
+
     return Response.json({ text });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 502 });
