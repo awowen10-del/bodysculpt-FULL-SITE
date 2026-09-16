@@ -141,6 +141,9 @@ export function profilePrompt(samples, captions) {
     "Every claim must be something you can point at above, and every claim must be checkable by someone reading a " +
     "draft. \"Short, punchy lines\" is useless. \"On-screen lines are almost never longer than six words\" can be " +
     "checked. Quote him where a quote says it faster than a rule.\n\n" +
+    "Keep each section to what a person would actually read before writing: a handful of bullets or a short " +
+    "paragraph, never an essay. This is pasted into every prompt that writes for him, so length here is a cost " +
+    "paid on every reel and every caption.\n\n" +
     "Cover, under these exact headings, and nothing else:\n" +
     "HOW HE COMES ACROSS — three or four sentences. The specific version, not the flattering one.\n" +
     "WORDS HE USES — the ones he actually reaches for, with a real example each.\n" +
@@ -155,7 +158,7 @@ export function profilePrompt(samples, captions) {
     "CHECKS — six numbered rules a draft must pass to sound like him, each specific enough to answer yes or no by " +
     "looking at the draft. At least three must be about on-screen lines or captions. Derive them from the evidence " +
     "above, not from general advice.\n\n" +
-    "Then, after a line reading BANNED, list eight to twelve phrases that would immediately give away that a reel " +
+    "Then — and do not stop before this, it is the most useful part — after a line reading BANNED, list eight to twelve phrases that would immediately give away that a reel " +
     "was not written by him. Draw them from what is ABSENT above — the marketing and AI-copy reflexes he never once " +
     "reaches for. One per line, no bullets, no numbering, no explanation.";
 }
@@ -233,15 +236,23 @@ export async function buildVoice(log) {
   }
 
   const client = new Anthropic();
+  /* v191: 4,000 tokens was not enough and the failure was silent. The first real profile
+     stopped mid-sentence — "When he does write to the viewer it's 'you' in" — and because
+     BANNED comes last, the banned list came back empty and looked like a model that had
+     simply not found any. A truncated profile is worse than a short one: it is injected into
+     every caption and every reel this site writes, and it would have gone on being trusted. */
   const response = await client.messages.create({
     model: "claude-opus-5",
-    max_tokens: 4000,
+    max_tokens: 8000,
     messages: [{ role: "user", content: profilePrompt(samples, captions) }],
   });
   if (response.stop_reason === "refusal") throw new Error("Claude declined to write the profile.");
   const text = response.content.filter((b) => b.type === "text").map((b) => b.text).join("");
   const { profile, banned } = parseProfile(text);
   if (!profile) throw new Error("Claude returned no profile.");
+  if (response.stop_reason === "max_tokens") {
+    throw new Error("The profile ran past its limit and came back half-written. Press Learn my voice again — if it happens twice, say so.");
+  }
 
   const spokenCount = samples.filter((x) => x.spoken).length;
   return await writeVoice({
