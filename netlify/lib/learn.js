@@ -99,18 +99,29 @@ export function preferenceBrief(scripts) {
    list, and until now nothing ever sat that test. Generating a rubric and never marking
    against it is the kind of thing that looks thorough and changes nothing. */
 export function checkPrompt(draft, profile, banned) {
+  /* v195: the WHOLE profile, not just its CHECKS section.
+     The first live run caught five real things and left three hashtags standing, in a draft
+     for a man whose profile says "Zero hashtags. Not one appears in twelve captions. Don't
+     add any." That rule lives under CAPTIONS, and this function was passing only CHECKS —
+     trading the rulebook for the summary of it to save a few hundred tokens on a call that
+     had tokens to spare. CHECKS is still named as the explicit test, because a numbered
+     yes-or-no list is what a marker marks against; the rest is the evidence behind it. */
   const checks = /^CHECKS\s*$/mi.test(profile || "")
     ? (profile.split(/^CHECKS\s*$/mi)[1] || "").split(/^[A-Z][A-Z \-']{3,}$/m)[0].trim()
     : "";
-  return "Here is a draft written for Ash, who runs a gym in Warrington, and the rules his own " +
-    "voice profile sets. The rules were written from transcripts of his real reels, so they beat any " +
+  return "Here is a draft written for Ash, who runs a gym in Warrington, and the profile of how he actually " +
+    "writes and talks. The profile was built from transcripts and captions of his own reels, so it beats any " +
     "instinct about how social copy ought to sound.\n\n" +
-    (checks ? "HIS RULES:\n" + clip(checks, 2000) + "\n\n" : "") +
+    "HIS PROFILE — every line of it is a rule, not only the numbered ones:\n" + clip(profile, 6000) + "\n\n" +
+    (checks ? "THE NUMBERED CHECKS, which the draft must pass one by one:\n" + clip(checks, 2000) + "\n\n" : "") +
     (banned && banned.length ? "NEVER HIS WORDS:\n" + banned.map((b) => "· " + b).join("\n") + "\n\n" : "") +
     "THE DRAFT:\n" + clip(draft, 3000) + "\n\n" +
     "Also watch for the tells that give away writing-that-was-written: three short sentences in a row " +
     "with the same shape, \"It's not X. It's Y.\", a rule of three, sections balanced too evenly. Real " +
     "speech and real captions are lumpier than that.\n\n" +
+    "Go through the profile line by line, not just the numbered checks. A habit stated anywhere in it — " +
+    "how long his on-screen lines run, whether he uses hashtags, whether he capitalises, how he closes — " +
+    "is a rule the draft has to meet.\n\n" +
     "Answer in exactly this format and nothing else:\n" +
     "---FAILED---\n(one per line, each naming the rule broken and quoting the words that broke it. " +
     "If the draft passes everything, write: none)\n" +

@@ -72,8 +72,15 @@ const scriptOf = (src) => src.slice(src.lastIndexOf("<script>") + 8, src.lastInd
   {
     const profile = "HOW HE COMES ACROSS\nDry.\n\nCAPTIONS\nZero hashtags.\n\nCHECKS\n1. No hashtags at all.\n2. Nothing in capitals.\n\nTHE VIEWER\nOverhearing.";
     const p = learn.checkPrompt("HOOK: WHAT BULKY TAKES\n\nbody\n\n#warrington", profile, ["game changer"]);
-    assert.ok(/1\. No hashtags at all/.test(p), "the CHECKS section is pulled out of the profile and handed over as the rules");
-    assert.ok(!/HOW HE COMES ACROSS/.test(p), "…and only that section — the rest of the profile is not the test");
+    assert.ok(/1\. No hashtags at all/.test(p), "the numbered checks are named as the explicit test");
+    /* v195: and the WHOLE profile goes with them. The first live run caught five real things
+       and left three hashtags standing, for a man whose profile says "Zero hashtags… don't add
+       any" — a rule that lives under CAPTIONS, not under CHECKS. Passing only the summary to
+       save tokens on a call that had tokens to spare cost the most concrete rule he has. */
+    assert.ok(/HOW HE COMES ACROSS/.test(p) && /Zero hashtags/.test(p),
+      "the rest of the profile is the rulebook, not decoration — every line of it is a rule");
+    assert.ok(/not only the numbered ones/.test(p) && /line by line/.test(p),
+      "…and the marker is told so, because a numbered list looks like the whole test when it is not");
     assert.ok(/game changer/.test(p), "the banned phrases come too");
     assert.ok(/It's not X\. It's Y\./.test(p) && /lumpier/.test(p),
       "and the structural tells the bundle called a humanizer pass");
