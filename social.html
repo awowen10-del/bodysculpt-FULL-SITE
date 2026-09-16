@@ -1666,9 +1666,14 @@ function wireWriter() {
   });
 }
 
-async function askOptions() {
-  const t = $("hkTopicIn");
-  if (t) hkTopic = t.value;
+/* v193: the topic can come from the box OR from an idea, and this used to assume the box.
+   Ash: "When I press it, it doesn't do anything." Write it set hkTopic and called this, which
+   immediately overwrote it with the value of the (empty) textarea and returned on the guard —
+   silently, because an empty box is a perfectly ordinary reason not to go. The one path that
+   the whole of v192 exists to provide was the one path that could not work. */
+async function askOptions(topic) {
+  if (topic == null) { const t = $("hkTopicIn"); if (t) hkTopic = t.value; }
+  else hkTopic = topic;
   if (!hkTopic.trim() || hkBusy) return;
   hkBusy = "options"; hkError = ""; hkOptions = null; hkPicked = -1; hkScript = null;
   renderHooks();
@@ -1875,10 +1880,10 @@ function renderIdeas() {
     if (!i) return;
     // the idea becomes the topic, and the openings are asked for straight away — the whole
     // point is that he does not have to write the sentence himself
-    hkTopic = i.title + (i.why ? " — " + i.why : "");
     hkFormat = i.format || "onscreen";
     hkOptions = null; hkPicked = -1; hkScript = null;
-    askOptions();
+    // the idea IS the topic — handed over explicitly, never left for the box to supply
+    askOptions(i.title + (i.why ? " — " + i.why : ""));
     const w = $("hkWriter"); if (w) w.scrollIntoView({ behavior: "smooth", block: "center" });
   }));
   const ab = $("hkAboutBtn");

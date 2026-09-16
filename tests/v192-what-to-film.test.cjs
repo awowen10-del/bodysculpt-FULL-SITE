@@ -118,13 +118,82 @@ async function loadLib(file, tag, seed) {
       "the ideas come BEFORE the box — the box was the front door and should never have been");
     assert.ok(/Write something else/.test(SOCIAL), "…and the box is now plainly the fallback");
     assert.ok(/Film one of these/.test(SOCIAL), "the heading says what to do with them");
-    assert.ok(/hkTopic = i\.title/.test(js) && /askOptions\(\);/.test(js),
-      "pressing an idea fills the topic AND asks for openings — the step he could not take himself is the one removed");
+    // v193: what this used to assert — that the source contained `hkTopic = i.title` and a
+    // call to askOptions() — was true of code that did nothing at all. The claim is now made
+    // in section 6 by running it. What is worth pinning HERE is the shape that made the bug
+    // possible: the topic is handed over explicitly and never left for the box to supply.
+    assert.ok(/askOptions\(i\.title/.test(js),
+      "pressing an idea hands the topic straight to the writer rather than relying on the box having it");
+    assert.ok(/async function askOptions\(topic\)/.test(js) && /if \(topic == null\)/.test(js),
+      "…and the writer only reads the box when nothing was handed to it");
     assert.ok(/hkFormat = i\.format/.test(js), "…in the format that idea suits");
     assert.ok(/scrollIntoView/.test(js), "…and takes him to it");
     assert.ok(/renderIdeas\(\);/.test(js), "drawn on every render");
     assert.ok(/hkAboutIn/.test(js) && /action: "about"/.test(js), "and he can tell it about his gym");
   }
 
-  console.log("v192 what to film: OK");
+  /* ============ 6. v193: pressing Write it actually does something ============
+     Ash: "When I press it, it doesn't do anything."
+
+     askOptions() began by reading the topic textarea and overwriting whatever it had been
+     given, then returned on an empty-topic guard — silently, because an empty box is a
+     perfectly ordinary reason not to go. So the one path the whole of v192 exists to provide
+     was the one path that could not work.
+
+     The v192 assertions above passed throughout, because they matched SOURCE TEXT: `hkTopic =
+     i.title` was present and `askOptions()` was called. Both true, neither sufficient. This
+     one runs the function and looks at what goes over the wire. */
+  {
+    const vm = require("vm");
+    const js = scriptOf(SOCIAL);
+    const el = () => ({ innerHTML: "", textContent: "", hidden: false, disabled: false, value: "",
+      querySelectorAll: () => [], addEventListener() {}, insertAdjacentHTML() {}, scrollIntoView() {},
+      setAttribute() {}, classList: { toggle() {}, contains: () => false } });
+    const nodes = {}, cl = () => ({ toggle() {}, add() {}, remove() {}, contains: () => false });
+    const sent = [];
+    const sb = {
+      document: { getElementById: (id) => (nodes[id] = nodes[id] || el()), querySelectorAll: () => [],
+        addEventListener() {}, activeElement: null, body: { classList: cl() }, documentElement: { classList: cl() } },
+      window: { innerWidth: 1200, innerHeight: 800, addEventListener() {} },
+      navigator: { clipboard: { writeText: () => Promise.resolve() } },
+      localStorage: { getItem: () => null, setItem() {} }, setTimeout: (f) => f && 0, console,
+      fetch: async (url, opts) => {
+        sent.push({ url, body: opts && opts.body ? JSON.parse(opts.body) : null });
+        return { ok: true, status: 200, json: async () => ({ ok: true, options: [{ spoken: "", onScreen: "x", caption: "c", lead: "x" }] }) };
+      },
+    };
+    sb.globalThis = sb;
+    vm.createContext(sb);
+    vm.runInContext(js, sb);
+    vm.runInContext('hkLib = ' + JSON.stringify({ ok: true, configured: true, scripts: [], waiting: 0, skipped: 0,
+      hooks: [{ id: "h1", type: "Myth bust", template: "T", vsMedian: 3 }],
+      ideas: [{ id: "i1", title: "Answer the bulky question on camera", why: "Every consult ends with it.", source: "s", format: "talking" }],
+    }) + "; renderHooks();", sb);
+
+    // the topic box is empty, exactly as it is when he presses Write it
+    assert.strictEqual(nodes.hkTopicIn.value, "", "the box starts empty — this is the condition the bug needed");
+
+    await vm.runInContext('askOptions("Answer the bulky question on camera — Every consult ends with it.")', sb);
+    const ask = sent.find((r) => r.body && r.body.action === "options");
+    assert.ok(ask, "a topic handed in explicitly reaches the server — before v193 this request was never made at all");
+    assert.strictEqual(ask.body.topic, "Answer the bulky question on camera — Every consult ends with it.",
+      "…and it is the IDEA's words, not the empty box's");
+
+    // and the box still works on its own
+    sent.length = 0;
+    nodes.hkTopicIn.value = "something I typed myself";
+    await vm.runInContext("askOptions()", sb);
+    const typed = sent.find((r) => r.body && r.body.action === "options");
+    assert.ok(typed && typed.topic !== "", "typing in the box still works");
+    assert.strictEqual(typed.body.topic, "something I typed myself", "…and takes what is in it");
+
+    // an empty box with no idea still goes nowhere, quietly, as it should
+    sent.length = 0;
+    nodes.hkTopicIn.value = "   ";
+    await vm.runInContext("askOptions()", sb);
+    assert.strictEqual(sent.filter((r) => r.body && r.body.action === "options").length, 0,
+      "an empty box asks for nothing — that guard was right, it was only ever reached wrongly");
+  }
+
+  console.log("v192/v193 what to film: OK");
 })().catch((e) => { console.error(e); process.exit(1); });
