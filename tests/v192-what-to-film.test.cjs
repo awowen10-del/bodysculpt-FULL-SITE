@@ -106,9 +106,14 @@ async function loadLib(file, tag, seed) {
     const seeded = await loadLib("netlify/lib/ideas.js", "ideas2", {});
     await seeded.setAbout("  We do small group coaching.  ");
     assert.strictEqual((await seeded.readIdeas()).about, "  We do small group coaching.  ", "saved as written");
-    const long = "x".repeat(5000);
-    await seeded.setAbout(long);
-    assert.strictEqual((await seeded.readIdeas()).about.length, 3000, "bounded, like everything else that reaches a blob");
+    // v202 raised the cap to 12,000 after 3,000 cut his playbook off mid-sentence at
+    // "with weekly check-ins", silently. A realistic playbook must now fit whole.
+    await seeded.setAbout("y".repeat(5000));
+    assert.strictEqual((await seeded.readIdeas()).about.length, 5000,
+      "a five-thousand character playbook now arrives intact, where it used to lose two fifths of itself");
+    await seeded.setAbout("x".repeat(20000));
+    assert.strictEqual((await seeded.readIdeas()).about.length, 12000,
+      "…and it is still bounded, because a blob has a size");
   }
 
   /* ============ 5. the page leads with them, and one press is the whole journey ============ */
