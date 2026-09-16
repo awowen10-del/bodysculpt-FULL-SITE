@@ -215,8 +215,10 @@ async function loadLib(file, tag, seed) {
       "the quota check comes BEFORE the retry and the walk to the next model, which is the whole point");
     assert.ok(/HTTP " \+ status/.test(SCHED),
       "v184: the status travels with the message — 503 (busy, wait) and 429 (quota, wait longer) read identically in Google's own wording");
-    assert.ok(/free Gemini allowance for the day/.test(VOICE_LIB),
+    assert.ok(/free Gemini allowance/.test(VOICE_LIB) && /turn on billing/.test(VOICE_LIB),
       "and the page says what a quota failure means in words Ash can act on");
+    assert.ok(/clip\(\(e && e\.message\) \|\| "", 170\)/.test(VOICE_LIB),
+      "…without cutting Google's sentence off mid-word, which 90 characters did to the very message that carries the reason");
   }
 
   console.log("v182–v185 silent reels + live-site fixes: OK");

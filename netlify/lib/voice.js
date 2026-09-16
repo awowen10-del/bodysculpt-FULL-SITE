@@ -102,7 +102,9 @@ async function readReel(url) {
   const { buffer, mime } = await fetchVideo(url, MAX_VIDEO_BYTES);
   let text;
   try { text = await geminiAsk(buffer, mime, "voice.mp4", READ_PROMPT, 8000); }
-  catch (e) { throw new Error("Gemini could not read it (" + clip((e && e.message) || "", 90) + ")"); }
+  // 90 characters used to cut Google's message off mid-word — "You exceeded your current
+  // quota, please check your plan a" — in the one sentence whose whole job is to say why
+  catch (e) { throw new Error("Gemini could not read it (" + clip((e && e.message) || "", 170) + ")"); }
   const spoken = clip(field(text, "SPOKEN"), 4000);
   const onScreen = clip(field(text, "ONSCREEN"), 1500);
   if (!spoken && !onScreen) throw new Error("no words in it at all — nothing said and nothing on screen");
@@ -217,6 +219,8 @@ export async function buildVoice(log) {
       ? " IG_ACCESS_TOKEN and IG_USER_ID are not both set in Netlify, so a current video link could not be fetched."
       : /expired|403|CDN/i.test(why)
         ? " Instagram would not hand over the files even with a fresh link — worth retrying in a few minutes."
+        : /quota/i.test(why)
+          ? " That is Google's free Gemini allowance used up, not a fault here. It resets on its own; to stop it recurring, turn on billing for the Gemini key in Google AI Studio."
         : /Gemini/i.test(why)
           ? " That is Google's transcription service, not Instagram — usually temporary."
           : /no words in it at all/.test(why)
