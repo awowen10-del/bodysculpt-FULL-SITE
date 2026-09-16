@@ -181,10 +181,17 @@ const CAPTIONS = { "ig-cache-mine": { account: { username: "bodysculptwarrington
   /* ============ 8. the page shows it, and can start it ============ */
   {
     const js = scriptOf(SOCIAL);
-    assert.ok(/id="hkVoice"/.test(SOCIAL) && /id="hkVoiceGo"/.test(SOCIAL), "a card and a button");
-    assert.ok(/renderVoice\(\);/.test(js), "drawn as part of every Hooks render");
-    assert.ok(/hk-vprofile/.test(js), "the profile is shown in full — one he cannot read is one he cannot tell is wrong");
-    assert.ok(/hkBusy === "voice"/.test(js), "the button locks while it runs");
+    /* v188 turned the card into one line. Ash: "not much is showing, but there's so much text
+       on there." The voice is not a workflow, it is a setting that governs how everything on
+       this tab is written, so it reads as a status line and opens only when asked. */
+    assert.ok(/id="hkVoiceBar"/.test(SOCIAL), "the voice is a line at the foot of the writer, not a card of its own");
+    assert.ok(!/id="hkVoice"[^B]/.test(SOCIAL), "…and the card it used to live in is gone");
+    assert.ok(/renderVoiceBar\(\);/.test(js), "drawn as part of every Hooks render");
+    assert.ok(/hk-vprofile/.test(js) && /hkVoiceOpen/.test(js),
+      "the profile is still shown IN FULL — one he cannot read is one he cannot tell is wrong — but behind 'Read it'");
+    assert.ok(/hkBusy === "voice"/.test(js), "the control locks while it runs");
+    assert.ok(/tipBtn\("voice"\)/.test(js) && /voice: \["Your voice"/.test(js),
+      "the paragraph that used to sit on the page is in the suite's own tooltip instead");
     const writes = [...js.matchAll(/fetch\(([^,]+),\s*\{[\s\S]{0,200}?method:/g)].map((m) => m[1].trim());
     const allowed = new Set(["API", "IG_SCRAPE", "IG_SNAP", "HOOKS", "HOOKS_MINE", "VOICE_BUILD"]);
     for (const w of writes) assert.ok(allowed.has(w), "v136's write surface still holds; found " + w);

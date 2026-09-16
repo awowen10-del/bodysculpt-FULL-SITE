@@ -679,12 +679,22 @@
   .hk-err{font-size:12.5px;line-height:1.55;color:var(--tint-red);background:rgba(var(--red-rgb),.08);
     border:1px solid rgba(var(--red-rgb),.22);border-radius:var(--r-md);padding:10px 12px;}
 
-  /* --- v178: the spoken voice profile --- */
-  .hk-voice{display:flex;flex-direction:column;gap:var(--sp-3);}
-  .hk-vstate{display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap;font-size:12.5px;color:var(--ink-dim);}
-  .hk-vstate b{color:var(--ink-strong);}
-  /* the profile reads as a document, because that is what it is — indented off the card so it
-     is plainly a thing the model was given rather than a thing the page is saying */
+  /* --- v188: the voice, as one line ---
+     It was a card with a paragraph, an error block and a prompt, for something pressed about
+     once. A status line says the same thing in a tenth of the height, and what it learnt sits
+     behind "Read it" for the day that question is actually being asked. */
+  .hk-vb{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;
+    margin-top:var(--sp-4);padding-top:var(--sp-3);border-top:1px solid var(--line);font-size:12.5px;}
+  .hk-vb-dot{width:7px;height:7px;border-radius:var(--r-pill);background:var(--ink-faint);flex:0 0 auto;}
+  .hk-vb-dot.on{background:var(--green);}
+  .hk-vb-t{font-weight:700;color:var(--ink-strong);}
+  .hk-vb-s{color:var(--ink-faint);}
+  .hk-vb-r{margin-left:auto;display:flex;align-items:center;gap:var(--sp-2);flex:0 0 auto;}
+  .hk-vb-link{background:none;border:none;font-family:inherit;font-size:12.5px;font-weight:600;
+    color:var(--ink-dim);cursor:pointer;padding:3px 5px;border-radius:var(--r-sm);}
+  .hk-vb-link:hover{color:var(--orange-soft);}
+  .hk-vb-link.warn{color:var(--tint-red);}
+  .hk-vopen{display:flex;flex-direction:column;gap:var(--sp-3);margin-top:var(--sp-3);}
   .hk-vprofile{font-size:13px;line-height:1.65;color:var(--ink);white-space:pre-wrap;
     background:var(--card-2);border:1px solid var(--line);border-left:3px solid rgba(var(--orange-rgb),.4);
     border-radius:var(--r-md);padding:var(--sp-4);max-height:420px;overflow-y:auto;}
@@ -692,6 +702,10 @@
   .hk-bword{font-size:11.5px;color:var(--tint-red);background:rgba(var(--red-rgb),.08);
     border:1px solid rgba(var(--red-rgb),.18);border-radius:var(--r-pill);padding:3px 10px;
     text-decoration:line-through;text-decoration-thickness:1px;}
+  /* a number beside a heading, instead of a sentence under it */
+  .hk-count{font-size:11.5px;font-weight:700;color:var(--ink-faint);background:var(--navy-2);
+    border-radius:var(--r-pill);padding:2px 9px;}
+  .hk-count:empty{display:none;}
 
   /* --- v182: the beats of a silent reel ---
      A numbered run of lines with the shot beside each. This is read off a phone while
@@ -903,51 +917,37 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 
 <!-- =============================== HOOKS ===============================
      v177. The Competitors tab says WHICH reels took off. This says what was said in them,
-     and writes the next one. -->
+     and writes the next one.
+     v188: two cards, not three. Ash: "not much is showing, but there's so much text on
+     there." Every card had carried a paragraph explaining itself, on every visit, for ever —
+     teaching material where working material should be. The explanations moved into the
+     suite's own info tooltips, and the voice profile stopped being a card of its own: it is
+     not a workflow, it is a setting that governs how everything here is written, so it is a
+     line at the foot of the writer that opens when you want to read it. -->
 <div class="view" id="v-hooks" hidden>
   <div class="hk-wrap">
     <section class="card">
       <div class="cardhead">
-        <div>
-          <div class="chead"><svg class="ic"><use href="#ic-note"/></svg> Write a reel</div>
-          <div class="csub" id="hkWriterSub">Say what it is about. The openings you get back are the ones already working
-            in your feed — each one is the shape of a reel that beat its own account by double or more.</div>
-        </div>
+        <div><div class="chead"><svg class="ic"><use href="#ic-note"/></svg> Write a reel <span id="hkWriterTip"></span></div></div>
         <div class="cardhead-r">
           <button type="button" class="abtn" id="hkMine"><svg class="ic"><use href="#ic-refresh"/></svg> Find hooks</button>
         </div>
       </div>
       <div id="hkWriter"><div class="loading">Reading the library…</div></div>
+      <div id="hkVoiceBar"></div>
     </section>
 
     <section class="card" id="hkScriptsCard" hidden>
       <div class="cardhead"><div>
-        <div class="chead"><svg class="ic"><use href="#ic-camera"/></svg> To film</div>
-        <div class="csub" id="hkScriptsSub"></div>
+        <div class="chead"><svg class="ic"><use href="#ic-camera"/></svg> To film <span class="hk-count" id="hkScriptsSub"></span></div>
       </div></div>
       <div id="hkScripts"></div>
     </section>
 
     <section class="card">
-      <div class="cardhead">
-        <div>
-          <div class="chead"><svg class="ic"><use href="#ic-note"/></svg> Your voice</div>
-          <div class="csub">Built from your own best reels — what is said, what is on the screen, and how you write
-            your captions. Every reel and every caption on the Scheduling page is written against this. It is the
-            difference between sounding like you and sounding like marketing.</div>
-        </div>
-        <div class="cardhead-r">
-          <button type="button" class="abtn" id="hkVoiceGo"><svg class="ic"><use href="#ic-refresh"/></svg> <span id="hkVoiceLbl">Learn my voice</span></button>
-        </div>
-      </div>
-      <div id="hkVoice"></div>
-    </section>
-
-    <section class="card">
       <div class="cardhead"><div>
-        <div class="chead"><svg class="ic"><use href="#ic-flame"/></svg> The hook library</div>
-        <div class="csub">Every reel on your Competitors tab that beat its own account by double, with what was
-          actually said in the first three seconds and the shape underneath it. The shape is the part you reuse.</div>
+        <div class="chead"><svg class="ic"><use href="#ic-flame"/></svg> Hook library
+          <span class="hk-count" id="hkLibCount"></span> <span id="hkLibTip"></span></div>
       </div></div>
       <div id="hkLib"><div class="loading">Reading the library…</div></div>
     </section>
@@ -1062,6 +1062,11 @@ const TIPS = {
   saves: ["Saves", "How many people bookmarked it to come back to. The strongest signal there is: someone thought it was worth keeping."],
   shares: ["Shares", "How many people sent it on to someone else or put it on their story. This is how a post reaches people who do not follow you."],
   flame: ["Took off", "This post did at least twice what this account normally does. It is measured against that account's own middle post, not against anyone else's — so it means the same thing whichever account you are looking at."],
+  // v188: the Hooks tab's three paragraphs of explanation, moved off the page and into the
+  // place the rest of the suite already keeps this kind of thing
+  writer: ["Write a reel", "Say what the reel is about and you get eight openings back. Each one is built on the shape of a reel that already beat its own account by double, taken from the accounts you watch. Pick one and it writes the rest — on-screen lines and a caption for a silent reel, a script for a talking one."],
+  voice: ["Your voice", "Read from your own best reels: what is said, what is on the screen, and how you write your captions. Everything written here and every caption on the Scheduling page is written against it. Without it they are written from your captions alone, which carries your words but not your rhythm."],
+  library: ["Hook library", "Every reel on your Competitors tab that beat its own account by double, with what was said in the first three seconds, the text that was on screen, and the shape underneath both. The shape is the part that works on a subject of your own."],
 };
 let tipEl = null, tipFor = null;
 function tipBtn(key) {
@@ -1494,21 +1499,21 @@ function hkWriterHtml() {
   if (!hkLib) return '<div class="loading">Reading the library…</div>';
   if (hkLib.ok === false) return '<div class="setup"><b>Could not reach the hook library.</b><br>' + esc(hkLib.error || "") + "</div>";
   if (!hkLib.configured) {
-    return '<div class="setup"><b>Two keys are missing.</b><br>The hook library reads each reel with Gemini and writes with Claude — ' +
-      "the same two the Scheduling page uses. Add <b>GEMINI_API_KEY</b> and <b>ANTHROPIC_API_KEY</b> in Netlify, redeploy, and this page will work.</div>";
+    return '<div class="setup"><b>Two keys are missing.</b> Add <b>GEMINI_API_KEY</b> and <b>ANTHROPIC_API_KEY</b> in Netlify and redeploy.</div>';
   }
   if (!hkLib.hooks.length) {
-    return '<div class="setup"><b>The library is empty.</b><br>' +
+    // v188: one sentence and, where there is one, one button. The old version explained the
+    // whole system again in a box that exists only because there is nothing to show yet.
+    return '<div class="setup">' +
       (hkLib.waiting
-        ? "There " + (hkLib.waiting === 1 ? "is 1 reel" : "are " + hkLib.waiting + " reels") + " waiting to be read. Press <b>Find hooks</b> — it takes a few minutes, and it also runs on its own every night."
+        ? "<b>" + (hkLib.waiting === 1 ? "1 reel is" : hkLib.waiting + " reels are") + " waiting to be read.</b> Press Find hooks, or leave it for tonight's run."
         : hkLib.skipped
-          // v183: a reel given up on used to stay given up on for ever, including when the
-          // only thing wrong had been a busy minute at Google. Saying so, and offering the
-          // way back, beats an empty page that looks like nothing ever took off.
-          ? (hkLib.skipped === 1 ? "1 reel was" : hkLib.skipped + " reels were") +
-            " given up on — often just a busy moment at Google rather than anything wrong with the reel. " +
-            '<button type="button" class="abtn" id="hkRetry" style="margin-top:var(--sp-3)">Try those again</button>'
-          : "Nothing has taken off on your Competitors tab yet. Watch a few busy accounts, give the nightly scrape a night, and the reels that beat their own normal will land here.") +
+          // v183: a reel given up on used to stay given up on for ever, including when the only
+          // thing wrong had been a busy minute at Google. Offering the way back beats an empty
+          // page that looks like nothing ever took off.
+          ? "<b>" + (hkLib.skipped === 1 ? "1 reel was" : hkLib.skipped + " reels were") + " given up on</b>, often just a busy moment at Google. " +
+            '<button type="button" class="abtn" id="hkRetry" style="margin-left:var(--sp-2)">Try again</button>'
+          : "<b>Nothing has taken off yet.</b> Watch a few busy accounts on the Competitors tab and give the nightly scrape a night.") +
       "</div>";
   }
 
@@ -1694,9 +1699,7 @@ function renderScripts() {
   card.hidden = !live.length;
   if (!live.length) return;
   const drafts = live.filter((s) => s.status === "draft").length;
-  sub.textContent = drafts
-    ? drafts + (drafts === 1 ? " script" : " scripts") + " written and not yet filmed."
-    : "Everything written has been filmed.";
+  sub.textContent = drafts ? String(drafts) : "";
   body.innerHTML = live.map((s) =>
     '<div class="hk-sc' + (s.status === "posted" ? " done" : "") + '">' +
     '<div class="hk-sc-h" data-open="' + esc(s.id) + '">' + esc(s.lead || s.spoken || s.onScreen) +
@@ -1738,16 +1741,17 @@ function renderScripts() {
 
 /* the library */
 function renderLib() {
-  const el = $("hkLib");
+  const el = $("hkLib"), count = $("hkLibCount");
+  if (count) count.textContent = (hkLib && hkLib.hooks && hkLib.hooks.length) ? String(hkLib.hooks.length) : "";
   if (!hkLib || hkLib.ok === false) { el.innerHTML = '<div class="loading">Reading the library…</div>'; return; }
   const hooks = hkLib.hooks || [];
   if (!hooks.length) {
-    el.innerHTML = '<div class="empty">Nothing yet. The reels that beat their own account by double land here once they have been read.</div>';
+    el.innerHTML = '<div class="empty">Nothing yet.</div>';
     return;
   }
   const note = hkLib.waiting
     ? '<div class="hk-note" style="margin-bottom:var(--sp-3)">' + hkLib.waiting +
-      (hkLib.waiting === 1 ? " reel is" : " reels are") + " waiting to be read. Press Find hooks, or leave it for tonight's run.</div>"
+      (hkLib.waiting === 1 ? " reel" : " reels") + " still to read.</div>"
     : "";
   el.innerHTML = note + '<div class="hk-list">' + hooks.map((h) =>
     '<div class="hk-card">' +
@@ -1772,61 +1776,54 @@ function renderLib() {
   }));
 }
 
-/* v178: the spoken voice profile.
-   The captions were only ever half the job — how he writes one is not how he talks to
-   camera. This is shown in full rather than as a "voice profile: on" tick, because a profile
-   he cannot read is one he cannot tell is wrong, and it is steering every script and every
-   caption the site writes. */
-function renderVoice() {
-  const el = $("hkVoice"), btn = $("hkVoiceGo"), lbl = $("hkVoiceLbl");
+/* v188: the voice, as ONE LINE at the foot of the writer.
+   It was a card with a four-line explanation, a red block of error and a paragraph of
+   prompting — for something Ash presses roughly once. It is not a workflow, it is a setting
+   that governs how everything on this tab is written, so it reads as a status line and opens
+   only when he wants to read what it learnt. */
+let hkVoiceOpen = false;
+
+function renderVoiceBar() {
+  const el = $("hkVoiceBar"), btn = $("hkVoiceGo"), lbl = $("hkVoiceLbl");
   if (!el) return;
   const v = hkLib && hkLib.voice;
   const configured = hkLib && hkLib.configured;
-  if (btn) btn.disabled = hkBusy === "voice" || !configured;
-  if (lbl) lbl.textContent = hkBusy === "voice" ? "Listening…" : (v && v.profile ? "Learn it again" : "Learn my voice");
+  if (!hkLib || hkLib.ok === false) { el.innerHTML = ""; return; }
 
-  if (!hkLib || hkLib.ok === false) { el.innerHTML = '<div class="loading">Reading…</div>'; return; }
+  const busy = hkBusy === "voice";
+  const learnt = !!(v && v.profile);
+  const source = !learnt ? "" : (v.kind === "written" ? "on-screen text and captions"
+    : v.kind === "mixed" ? "speech, on-screen text and captions" : "speech");
 
-  // v181: a note is shown with WHEN it was recorded. Ash re-ran this after the fix had
-  // shipped and was shown the previous run's error again, with nothing to say it was old —
-  // so the fix looked like it had not worked. A stale error reading as a current one is
-  // worse than none. While a build is running there is no note to show at all: the function
-  // clears it before it starts, and the button already says what is happening.
-  let h = "";
-  if (v && v.note && hkBusy !== "voice") {
-    const stamp = v.triedAt ? " · " + esc(when(v.triedAt)) : "";
-    // a note ALONGSIDE a profile is information — it read 7 of 10 reels — not a failure
-    h += v.profile
-      ? '<div class="hk-note">' + esc(v.note) + stamp + "</div>"
-      : '<div class="hk-err">' + esc(v.note) + stamp + "</div>";
-  }
+  let state;
+  if (busy) state = '<span class="hk-vb-t">Learning your voice…</span><span class="hk-vb-s">about five minutes — you can leave this page</span>';
+  else if (learnt) state = '<span class="hk-vb-t">Your voice</span><span class="hk-vb-s">' +
+    v.reels + " reels · " + esc(source) + (v.builtAt ? " · " + esc(when(v.builtAt)) : "") + "</span>";
+  else state = '<span class="hk-vb-t">Your voice</span><span class="hk-vb-s">not learnt — written from your captions alone</span>';
 
-  if (!v || !v.profile) {
-    el.innerHTML = h + '<div class="hk-note">Nothing learned yet — reels and captions are being written from your ' +
-      "recent captions alone. Press <b>Learn my voice</b> and it will read your ten best reels — what is said, what is " +
-      "on the screen, and how you write — and write down how you come across. Takes about five minutes, once.</div>";
-    return;
-  }
+  el.innerHTML = '<div class="hk-vb">' +
+    '<span class="hk-vb-dot' + (learnt ? " on" : "") + '"></span>' + state +
+    tipBtn("voice") +
+    '<span class="hk-vb-r">' +
+      (learnt ? '<button type="button" class="hk-vb-link" id="hkVoiceShow">' + (hkVoiceOpen ? "Hide" : "Read it") + "</button>" : "") +
+      (v && v.note && !busy ? '<button type="button" class="hk-vb-link warn" id="hkVoiceWhy">' + (hkVoiceOpen ? "Hide" : "Why not?") + "</button>" : "") +
+      '<button type="button" class="abtn ghost" id="hkVoiceGo2"' + (busy || !configured ? " disabled" : "") + ">" +
+        (busy ? "Working…" : learnt ? "Relearn" : "Learn my voice") + "</button>" +
+    "</span></div>" +
+    (hkVoiceOpen ? '<div class="hk-vopen">' +
+      (v && v.note ? '<div class="hk-err">' + esc(v.note) + (v.triedAt ? " · " + esc(when(v.triedAt)) : "") + "</div>" : "") +
+      (learnt ? '<div class="hk-vprofile">' + esc(v.profile) + "</div>" +
+        ((v.banned && v.banned.length)
+          ? '<div class="hk-banned">' + v.banned.map((b) => '<span class="hk-bword">' + esc(b) + "</span>").join("") + "</div>"
+          : "") : "") +
+      "</div>" : "");
 
-  h += '<div class="hk-voice">' +
-    // v182: say WHICH evidence it learned from. A profile built from on-screen text and
-    // captions, presented as though it had listened to him talk, would be quietly misleading
-    // about the one thing Ash needs to judge — whether it actually sounds like him.
-    '<div class="hk-vstate"><span>Learnt from <b>' + v.reels + '</b> of your reels' +
-      (v.words ? ", <b>" + nfmt(v.words) + "</b> words" : "") + "</span>" +
-      '<span class="hk-type">' + (v.kind === "written" ? "on-screen text &amp; captions"
-        : v.kind === "mixed" ? "speech, on-screen text &amp; captions" : "speech") + "</span>" +
-      (v.kind === "written"
-        ? '<span>You rarely speak to camera, so this describes how you <b>write</b>.</span>'
-        : (v.spokenReels ? "<span><b>" + v.spokenReels + "</b> with you speaking</span>" : "")) +
-      (v.builtAt ? "<span>" + esc(when(v.builtAt)) + "</span>" : "") + "</div>" +
-    '<div class="hk-vprofile">' + esc(v.profile) + "</div>" +
-    (v.banned && v.banned.length
-      ? '<div><div class="hk-lbl">Never written in your name</div><div class="hk-banned">' +
-        v.banned.map((b) => '<span class="hk-bword">' + esc(b) + "</span>").join("") + "</div></div>"
-      : "") +
-    "</div>";
-  el.innerHTML = h;
+  const toggle = () => { hkVoiceOpen = !hkVoiceOpen; renderHooks(); };
+  const sh = $("hkVoiceShow"); if (sh) sh.addEventListener("click", toggle);
+  const wy = $("hkVoiceWhy"); if (wy) wy.addEventListener("click", toggle);
+  const go = $("hkVoiceGo2"); if (go) go.addEventListener("click", startVoiceBuild);
+  if (btn) btn.hidden = true;                      // the old header button is gone
+  if (lbl) lbl.textContent = "";
 }
 
 function renderHooks() {
@@ -1840,7 +1837,7 @@ function renderHooks() {
   if (focused) { const t = $("hkTopicIn"); if (t) { t.focus(); if (caret != null) t.setSelectionRange(caret, caret); } }
   renderScripts();
   renderLib();
-  renderVoice();
+  renderVoiceBar();
   const mine = $("hkMine");
   if (mine) mine.disabled = hkBusy === "mine" || !(hkLib && hkLib.configured);
 }
@@ -1861,16 +1858,14 @@ $("hkMine").addEventListener("click", async () => {
 // Learning the voice: ten reels transcribed in full is the slowest job on the site, so the
 // background function answers at once and the page re-reads a few minutes later. There is no
 // nightly rebuild and should not be — a voice does not drift week to week.
-$("hkVoiceGo").addEventListener("click", async () => {
+async function startVoiceBuild() {
   if (hkBusy) return;
-  hkBusy = "voice"; hkError = "";
+  hkBusy = "voice"; hkError = ""; hkVoiceOpen = false;
   renderHooks();
   try { await fetch(VOICE_BUILD, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); }
   catch { hkError = "Could not start it."; hkBusy = ""; renderHooks(); return; }
-  const el = $("hkVoice");
-  if (el) el.insertAdjacentHTML("afterbegin", '<div class="hk-note">Transcribing your best reels and writing down how you talk — about five minutes. You can leave this page.</div>');
   setTimeout(async () => { hkBusy = ""; await loadHooks(); }, 300000);
-});
+}
 
 /* ---------- the toggle ---------- */
 function setView(v) {
@@ -1893,6 +1888,13 @@ $("tabBar").addEventListener("click", (e) => {
 });
 $("sortSel").addEventListener("change", (e) => { sortBy = e.target.value; renderMine(); renderRivals(); });
 $("outOnly").addEventListener("change", (e) => { outliersOnly = e.target.checked; renderMine(); renderRivals(); });
+
+// v188: the card headings carry a "?" instead of a paragraph
+(function fillHookTips() {
+  const w = $("hkWriterTip"), l = $("hkLibTip");
+  if (w) w.innerHTML = tipBtn("writer");
+  if (l) l.innerHTML = tipBtn("library");
+})();
 
 /* ---------- load ---------- */
 async function loadAll(force) {
