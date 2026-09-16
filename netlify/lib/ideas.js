@@ -121,6 +121,12 @@ export async function markIdeaUsed(id, scriptId) {
 }
 export async function writeIdeas(v) { await store().set(KEY, JSON.stringify(v)); return v; }
 
+// v205: the writer and the checker need this too, so it gets a door of its own rather than
+// each of them reading the ideas blob and hoping the shape stays put.
+export async function readAbout() {
+  try { return clip(((await readIdeas()) || {}).about, MAX_ABOUT); } catch { return ""; }
+}
+
 export async function setAbout(about) {
   const cur = await readIdeas();
   cur.about = clip(about, MAX_ABOUT);

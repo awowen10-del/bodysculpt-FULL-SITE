@@ -98,7 +98,7 @@ export function preferenceBrief(scripts) {
    set? The profile ends in a CHECKS section — six specific, yes-or-no rules — and a banned
    list, and until now nothing ever sat that test. Generating a rubric and never marking
    against it is the kind of thing that looks thorough and changes nothing. */
-export function checkPrompt(draft, profile, banned) {
+export function checkPrompt(draft, profile, banned, about) {
   /* v195: the WHOLE profile, not just its CHECKS section.
      The first live run caught five real things and left three hashtags standing, in a draft
      for a man whose profile says "Zero hashtags. Not one appears in twelve captions. Don't
@@ -115,7 +115,18 @@ export function checkPrompt(draft, profile, banned) {
     "HIS PROFILE — every line of it is a rule, not only the numbered ones:\n" + clip(profile, 6000) + "\n\n" +
     (checks ? "THE NUMBERED CHECKS, which the draft must pass one by one:\n" + clip(checks, 2000) + "\n\n" : "") +
     (banned && banned.length ? "NEVER HIS WORDS:\n" + banned.map((b) => "· " + b).join("\n") + "\n\n" : "") +
+    /* v205: and the facts. The voice half of this catches a draft that does not sound like
+       him; nothing was catching one that says something about the gym that is not true — a
+       price he does not charge, a thing the programme does not include, a timescale nobody
+       promised. Of everything this system can get wrong, that is the one that costs him with
+       a real person standing in front of him. */
+    (about ? "WHAT THE GYM ACTUALLY DOES — his own words, and the only source of fact:\n" +
+      clip(about, 40000) + "\n\n" : "") +
     "THE DRAFT:\n" + clip(draft, 3000) + "\n\n" +
+    (about ? "Check every factual claim about the gym against the passage above — prices, what is " +
+      "included, how long things take, how many people are in a session, what happens when. Flag " +
+      "anything the draft states that is not supported there, and in the fix, cut the claim or " +
+      "soften it to what is true. Do not invent a replacement fact.\n\n" : "") +
     "Also watch for the tells that give away writing-that-was-written: three short sentences in a row " +
     "with the same shape, \"It's not X. It's Y.\", a rule of three, sections balanced too evenly. Real " +
     "speech and real captions are lumpier than that.\n\n" +

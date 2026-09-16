@@ -138,5 +138,34 @@ const scriptOf = (src) => src.slice(src.lastIndexOf("<script>") + 8, src.lastInd
     assert.ok(/write him a monologue for a silent reel/.test(prompt), "…and told what the contradiction costs");
   }
 
-  console.log("v194/v196 learns from him: OK");
+  /* ============ 6. v205: the playbook reaches the writer, and the facts get checked ============
+     The playbook fed the IDEAS and nothing else, so it would suggest "what happens on your
+     first 6 Week Challenge session" and then write that script with no idea what is in the
+     6 Week Challenge — writing around the gap instead of with the detail. */
+  {
+    const hooks = await import("file://" + root("netlify/lib/hooks.js"));
+    const about = "The 6 Week Challenge is £195. Everyone starts on it, no exceptions. Sessions are capped at 20.";
+
+    const script = hooks.scriptPrompt("first session", { onScreen: "x" }, "onscreen", "", about);
+    assert.ok(/£195/.test(script) && /capped at 20/.test(script), "the writer knows what the gym actually does");
+    assert.ok(/only source of fact/.test(script) && /never state anything about the gym that is not in it/.test(script),
+      "…and is told it is the only source of fact, not background colour");
+
+    /* The options call deliberately does NOT get it: eight opening lines touch no facts, and
+       it is the one call that has already hit the 26-second wall once. */
+    const opts = hooks.optionsPrompt("first session", [{ type: "T", template: "t" }], "", "onscreen");
+    assert.ok(!/£195/.test(opts),
+      "the options call is left alone — it touches no facts and it is the one that has already timed out");
+
+    // and the checker marks the claims, not just the voice
+    const check = learn.checkPrompt("Only £99 and you are in a group of 40", "CHECKS\n1. x", [], about);
+    assert.ok(/£195/.test(check), "the checker is given the facts");
+    assert.ok(/Check every factual claim about the gym/.test(check), "…and told to mark the draft against them");
+    assert.ok(/Do not invent a replacement fact/.test(check),
+      "…and not to paper over a wrong number with a different wrong number");
+    assert.ok(!/£195/.test(learn.checkPrompt("d", "CHECKS\n1. x", [])),
+      "with no playbook it still runs, on voice alone");
+  }
+
+  console.log("v194-v205 learns from him: OK");
 })().catch((e) => { console.error(e); process.exit(1); });

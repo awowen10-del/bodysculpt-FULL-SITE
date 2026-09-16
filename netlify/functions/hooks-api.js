@@ -26,7 +26,7 @@
 import { readLib, writeLib, candidates, hookOptions, writeScript, config, clip, nowIso, json,
          normFormat, leadOf, parseBeats } from "../lib/hooks.js";
 import { readVoice } from "../lib/schedule.js";
-import { readIdeas, generate as generateIdeas, gather, isFresh, setAbout, setIdeaFlag, markIdeaUsed } from "../lib/ideas.js";
+import { readIdeas, generate as generateIdeas, gather, isFresh, setAbout, setIdeaFlag, markIdeaUsed, readAbout } from "../lib/ideas.js";
 import { matchPerformance, checkPrompt, parseCheck } from "../lib/learn.js";
 import { readTrends, addTrends, dismissAccount, pending } from "../lib/trends.js";
 import { getStore } from "@netlify/blobs";
@@ -207,7 +207,7 @@ export default async (req) => {
       const client = new Anthropic();
       const r = await client.messages.create({
         model: "claude-opus-5", max_tokens: 3000, output_config: { effort: "low" },
-        messages: [{ role: "user", content: checkPrompt(draft, v.profile, banned) }],
+        messages: [{ role: "user", content: checkPrompt(draft, v.profile, banned, await readAbout()) }],
       });
       if (r.stop_reason === "refusal") return json({ ok: true, failed: [], fixed: draft });
       const out = parseCheck(r.content.filter((b) => b.type === "text").map((b) => b.text).join(""));

@@ -38,6 +38,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { geminiAsk, voiceBrief } from "./schedule.js";
 import { freshOwnVideoUrls, fetchVideo } from "./ig-media.js";
 import { preferenceBrief } from "./learn.js";
+import { readAbout } from "./ideas.js";
 
 export const KEY = "ig-hooks";
 const MAX_HOOKS = 400;
@@ -487,8 +488,18 @@ export async function hookOptions(topic, format) {
   return options;
 }
 
-export function scriptPrompt(topic, option, format, voice) {
+export function scriptPrompt(topic, option, format, voice, about) {
   const fmt = normFormat(format);
+  /* v205: the playbook rides with the script prompt but NOT with the options prompt.
+     The script is where facts land — the 6 Week Challenge, the accountability coach, what is
+     and is not included — and writing one without them means writing around the gap. The
+     options call only needs to produce eight opening lines, does not touch a fact, and is the
+     one call that has already hit the 26-second wall once; nine thousand tokens of playbook is
+     the last thing it needs. */
+  const playbook = about
+    ? "WHAT THE GYM ACTUALLY DOES — his own words, and the only source of fact here. Use it for " +
+      "detail, and never state anything about the gym that is not in it:\n" + clip(about, 40000) + "\n\n"
+    : "";
   const common =
     "How it has to read:\n" +
     "· Like one person talking to one other person, not a brand addressing a market. Lumpy, not balanced.\n" +
@@ -509,6 +520,7 @@ export function scriptPrompt(topic, option, format, voice) {
     return AUDIENCE + "\n\n" +
       "This is a SILENT reel: footage with text over it, no talking head, no voiceover. Every word is either " +
       "ON THE SCREEN or in the CAPTION.\n\n" +
+      playbook +
       (voice ? voice + "\n\n" : "") +
       'The reel is about: "' + clip(topic, 400) + '"\n' +
       'It opens with this on the screen: "' + (option.onScreen || option.spoken) + '"\n\n' +
@@ -531,6 +543,7 @@ export function scriptPrompt(topic, option, format, voice) {
 
   const shape = fmt === "demo" ? "a walkthrough — show the thing, 150 to 200 words" : "a piece to camera — one strong point, about 100 words";
   return AUDIENCE + "\n\n" +
+    playbook +
     (voice ? voice + "\n\n" : "") +
     'The reel is about: "' + clip(topic, 400) + '"\n' +
     'It opens with him saying: "' + (option.spoken || option.onScreen) + '"\n' +
@@ -562,7 +575,7 @@ export function parseBeats(text) {
 
 export async function writeScript(topic, option, format) {
   const fmt = normFormat(format);
-  const text = await ask(scriptPrompt(topic, option, fmt, await voiceBrief()), 2000, "low");
+  const text = await ask(scriptPrompt(topic, option, fmt, await voiceBrief(), await readAbout()), 2000, "low");
   const part = (name) => {
     const m = new RegExp("---" + name + "---\\s*([\\s\\S]*?)(?=---[A-Z]+---|$)").exec(text);
     return m ? m[1].trim() : "";
