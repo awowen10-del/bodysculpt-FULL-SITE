@@ -724,9 +724,11 @@
     color:var(--ink-dim);cursor:pointer;padding:2px 4px;border-radius:var(--r-sm);}
   .hk-ideas-foot button:hover{color:var(--orange-soft);}
   .hk-about{display:flex;flex-direction:column;gap:var(--sp-2);margin-top:var(--sp-3);}
-  .hk-about textarea{font-family:inherit;font-size:13px;line-height:1.55;color:var(--ink);
+  /* v204: a 35,000-word playbook is a document, not a note. Given room to be read back and
+     edited in, rather than a three-line slot to scroll a novel through. */
+  .hk-about textarea{font-family:inherit;font-size:13px;line-height:1.6;color:var(--ink);
     background:var(--card-2);border:1px solid var(--line);border-radius:var(--r-md);
-    padding:10px 12px;min-height:110px;resize:vertical;}
+    padding:12px 14px;min-height:380px;max-height:70vh;resize:vertical;}
   .hk-about-r{display:flex;align-items:center;gap:var(--sp-2);}
 
   /* --- v200: the week's shelf ---
@@ -2081,8 +2083,8 @@ function renderIdeas() {
     const t = $("hkAboutIn"), c = $("hkAboutCount");
     if (!t || !c) return;
     const n = t.value.length;
-    c.textContent = n > 11000
-      ? n.toLocaleString("en-GB") + " of 12,000 characters — close to the limit"
+    c.textContent = n > 37000
+      ? n.toLocaleString("en-GB") + " of 40,000 characters — close to the limit"
       : "Used every time it thinks of ideas. " + n.toLocaleString("en-GB") + " characters.";
   };
   const ai = $("hkAboutIn");

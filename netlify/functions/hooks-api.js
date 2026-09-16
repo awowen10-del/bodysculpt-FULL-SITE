@@ -240,7 +240,7 @@ export default async (req) => {
     }
 
     if (action === "about") {
-      const saved = await setAbout(clip(body.about, 12000));
+      const saved = await setAbout(clip(body.about, 40000));
       return json({ ok: true, about: saved.about });
     }
 

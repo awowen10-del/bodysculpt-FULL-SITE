@@ -39,8 +39,12 @@ const WANT = 8;
 /* His own note about the business is the single richest source there is, and this cap was
    silently eating it — his playbook arrived at exactly 3000 characters, cut off mid-sentence
    at "with weekly check-ins", with nothing anywhere to say so. A limit that truncates the best
-   input without a word is worse than no limit. */
-const MAX_ABOUT = 12000;
+   input without a word is worse than no limit.
+   v204: 40,000, because Ash asked for room for 35,000 and a cap should sit above the thing it
+   is capping rather than on top of it. The whole of it goes into the ideas prompt: that runs
+   once a day and has the time, and the playbook is the difference between ideas that are good
+   in general and ideas that are about this gym. */
+const MAX_ABOUT = 40000;
 /* v200: ideas ACCUMULATE through the week instead of being replaced each morning.
    Ash: "I write all my content ideas / decide what they are on a Friday. I don't want the
    suggestions from the rest of the week to have gone." They were going — each 5:30am run

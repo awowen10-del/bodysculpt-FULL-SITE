@@ -111,8 +111,11 @@ async function loadLib(file, tag, seed) {
     await seeded.setAbout("y".repeat(5000));
     assert.strictEqual((await seeded.readIdeas()).about.length, 5000,
       "a five-thousand character playbook now arrives intact, where it used to lose two fifths of itself");
-    await seeded.setAbout("x".repeat(20000));
-    assert.strictEqual((await seeded.readIdeas()).about.length, 12000,
+    await seeded.setAbout("x".repeat(35000));
+    assert.strictEqual((await seeded.readIdeas()).about.length, 35000,
+      "v204: the 35,000 Ash asked for fits, whole");
+    await seeded.setAbout("x".repeat(60000));
+    assert.strictEqual((await seeded.readIdeas()).about.length, 40000,
       "…and it is still bounded, because a blob has a size");
   }
 
@@ -261,15 +264,14 @@ async function loadLib(file, tag, seed) {
     const IDEAS = read("netlify/lib/ideas.js");
 
     // (a) his own note about the business — the richest source there is — was being eaten
-    assert.ok(/const MAX_ABOUT = 12000;/.test(IDEAS),
+    assert.ok(/const MAX_ABOUT = 40000;/.test(IDEAS),
       "his playbook arrived at exactly 3000 characters, cut off mid-sentence, with nothing to say so");
     const seeded = await loadLib("netlify/lib/ideas.js", "about", {});
-    const long = "x".repeat(20000);
-    await seeded.setAbout(long);
-    assert.strictEqual((await seeded.readIdeas()).about.length, 12000,
+    await seeded.setAbout("x".repeat(60000));
+    assert.strictEqual((await seeded.readIdeas()).about.length, 40000,
       "still bounded — a blob has a size — but four times what it was");
     const js = scriptOf(SOCIAL);
-    assert.ok(/of 12,000 characters/.test(js) && /close to the limit/.test(js),
+    assert.ok(/of 40,000 characters/.test(js) && /close to the limit/.test(js),
       "…and the box now counts, because a limit that truncates the best input silently is worse than no limit");
 
     // (b) less than half his voice profile, and a third of his posts, were reaching the prompt
