@@ -26,6 +26,7 @@
 import { getStore } from "@netlify/blobs";
 import Anthropic from "@anthropic-ai/sdk";
 import { geminiAsk, VOICE_KEY } from "./schedule.js";
+import { freshOwnVideoUrls, fetchVideo, summariseFailures, igConfigured } from "./ig-media.js";
 
 const env = (k) => (process.env[k] || "").trim();
 const clip = (s, n) => (typeof s === "string" ? s.slice(0, n) : "");
@@ -52,8 +53,11 @@ export async function bestReels() {
   const mine = await store().get("ig-cache-mine", { type: "json" });
   const posts = (mine && mine.posts) || [];
   return posts
-    .filter((p) => p.video)
-    .map((p) => ({ url: p.permalink, video: p.video, caption: clip(p.caption, 200), score: p.views != null ? p.views : (p.reach || 0), views: p.views != null ? p.views : p.reach }))
+    // v180: a post with a cached link OR an id is a candidate — the id is what gets a fresh
+    // link below, and a cache written before v177 has no `video` field at all.
+    .filter((p) => p.video || p.id)
+    .map((p) => ({ id: p.id, url: p.permalink, video: p.video, caption: clip(p.caption, 200),
+                   score: p.views != null ? p.views : (p.reach || 0), views: p.views != null ? p.views : p.reach }))
     .sort((a, b) => (b.score || 0) - (a.score || 0))
     .slice(0, WANT_REELS);
 }
@@ -62,16 +66,12 @@ const TRANSCRIBE_PROMPT =
   "Transcribe everything said in this video, word for word, as plain text. Keep the false starts, " +
   "the repeated words and the filler — they are the point. Do not tidy the grammar. If nothing is said, answer: none";
 
-async function transcribeReel(reel) {
-  const res = await fetch(reel.video);
-  if (!res.ok) throw new Error("download failed (" + res.status + ")");
-  const len = Number(res.headers.get("content-length") || 0);
-  if (len > MAX_VIDEO_BYTES) throw new Error("too large (" + Math.round(len / 1048576) + "MB)");
-  const buffer = Buffer.from(await res.arrayBuffer());
-  if (buffer.byteLength > MAX_VIDEO_BYTES) throw new Error("too large");
-  const mime = clip(res.headers.get("content-type") || "video/mp4", 60).split(";")[0];
-  const text = await geminiAsk(buffer, mime, "voice.mp4", TRANSCRIBE_PROMPT, 8000);
-  if (!text || /^none$/i.test(text.trim())) throw new Error("nothing said");
+async function transcribeReel(url) {
+  const { buffer, mime } = await fetchVideo(url, MAX_VIDEO_BYTES);
+  let text;
+  try { text = await geminiAsk(buffer, mime, "voice.mp4", TRANSCRIBE_PROMPT, 8000); }
+  catch (e) { throw new Error("Gemini could not read it (" + clip((e && e.message) || "", 90) + ")"); }
+  if (!text || /^none$/i.test(text.trim())) throw new Error("nobody speaks in it");
   return text.trim();
 }
 
@@ -117,22 +117,49 @@ export async function buildVoice(log) {
   if (!env("GEMINI_API_KEY")) throw new Error("GEMINI_API_KEY is not set, so the reels cannot be transcribed.");
 
   const reels = await bestReels();
-  if (!reels.length) throw new Error("No reels of yours to learn from yet. Open the Content page and press Refresh first — it is the feed's cache this reads.");
+  if (!reels.length) throw new Error("No reels of yours to learn from yet. Open the Content page and press Refresh, then try again.");
 
-  const samples = [];
+  // v180: a CURRENT link for each, asked of Instagram now. The cached one in `ig-cache-mine`
+  // is a signed url that expires within hours, which is why every reel failed before this —
+  // the run was replaying links that had already died. The cached link stays as the fallback
+  // for a post the fresh list does not cover (it returns the most recent 25).
+  const fresh = await freshOwnVideoUrls(25);
+  note({ stage: "links", fresh: fresh.size, configured: igConfigured() });
+
+  const samples = [], failures = [];
   for (const r of reels) {
+    const url = fresh.get(String(r.id)) || r.video;
+    const usedCached = !fresh.get(String(r.id));
     try {
-      const transcript = await transcribeReel(r);
+      const transcript = await transcribeReel(url);
       samples.push({ url: r.url, views: r.views, transcript, words: transcript.split(/\s+/).length });
-      note({ stage: "transcribed", url: r.url, words: transcript.split(/\s+/).length });
+      note({ stage: "transcribed", url: r.url, words: transcript.split(/\s+/).length, usedCached });
     } catch (e) {
-      note({ stage: "skipped", url: r.url, message: clip((e && e.message) || "", 120) });
+      const why = clip((e && e.message) || "unknown", 120);
+      failures.push(why);
+      note({ stage: "skipped", url: r.url, usedCached, message: why });
     }
   }
+
   // Three is the floor. Below it the model is describing one performance, not a voice, and a
   // confident profile drawn from two reels would be worse than the captions it replaces.
   if (samples.length < MIN_REELS) {
-    throw new Error("Only " + samples.length + " of your reels could be transcribed — too few to describe a voice. Instagram's video links go stale; press Refresh on the Content page and try again.");
+    // v180: say what actually happened. The old message asserted "Instagram's video links go
+    // stale" without having checked — which was a guess that happened to be right, and sent
+    // Ash to press a button that could not have fixed it. Now it reports the reasons it was
+    // actually given, and names the likely fix only when it knows which one applies.
+    const why = failures.length ? summariseFailures(failures) : "no reason given";
+    const hint = !igConfigured()
+      ? " IG_ACCESS_TOKEN and IG_USER_ID are not both set in Netlify, so a current video link could not be fetched."
+      : /expired|403|CDN/i.test(why)
+        ? " Instagram would not hand over the files even with a fresh link — worth retrying in a few minutes."
+        : /Gemini/i.test(why)
+          ? " That is Google's transcription service, not Instagram — usually temporary."
+          : "";
+    throw new Error(
+      (samples.length ? "Only " + samples.length + " of your " : "None of your ") +
+      reels.length + " reels could be transcribed" + (samples.length ? "" : "") +
+      " — at least " + MIN_REELS + " are needed to describe a voice. What went wrong: " + why + "." + hint);
   }
 
   const client = new Anthropic();
@@ -150,6 +177,9 @@ export async function buildVoice(log) {
     builtAt: nowIso(),
     reels: samples.map((s) => ({ url: s.url, views: s.views, words: s.words })),
     words: samples.reduce((n, s) => n + s.words, 0),
-    profile, banned, note: "",
+    profile, banned,
+    // a successful build that still lost some reels says so, rather than quietly describing
+    // a voice from half the evidence
+    note: failures.length ? "Read " + samples.length + " of " + reels.length + " reels. The others: " + summariseFailures(failures) + "." : "",
   });
 }

@@ -36,6 +36,7 @@
 import { getStore } from "@netlify/blobs";
 import Anthropic from "@anthropic-ai/sdk";
 import { geminiAsk, voiceBrief } from "./schedule.js";
+import { freshOwnVideoUrls, fetchVideo } from "./ig-media.js";
 
 export const KEY = "ig-hooks";
 const MAX_HOOKS = 400;
@@ -138,6 +139,10 @@ function flamesFromMine(mine) {
     .filter((p) => p.outlier && p.video)
     .map((p) => ({
       id: shortCodeOf(p.permalink) || clip(p.id, 40),
+      // v180: the MEDIA id as well as the short code. The short code identifies the hook in
+      // the library; the media id is what Instagram will trade for a current video link,
+      // because the cached one is signed and dies within hours.
+      mediaId: clip(p.id, 40),
       username: handle,
       isOwn: true,
       url: p.permalink,
@@ -193,14 +198,10 @@ const field = (text, name) => {
   return /^none$/i.test(v) ? "" : v;
 };
 
-export async function readReel(cand) {
-  const res = await fetch(cand.videoUrl);
-  if (!res.ok) throw new Error("The video could not be downloaded (" + res.status + "). Instagram's links go stale within the day.");
-  const len = Number(res.headers.get("content-length") || 0);
-  if (len > MAX_VIDEO_BYTES) throw new Error("The video is too large to read (" + Math.round(len / 1048576) + "MB).");
-  const buffer = Buffer.from(await res.arrayBuffer());
-  if (buffer.byteLength > MAX_VIDEO_BYTES) throw new Error("The video is too large to read.");
-  const mime = clip(res.headers.get("content-type") || "video/mp4", 60).split(";")[0];
+export async function readReel(cand, url) {
+  // v180: through ig-media's fetchVideo, which sends the headers Instagram's CDN expects and
+  // names the reason when it still says no — a bare server fetch gets refused outright.
+  const { buffer, mime } = await fetchVideo(url || cand.videoUrl, MAX_VIDEO_BYTES);
   const text = await geminiAsk(buffer, mime, cand.id + ".mp4", READ_PROMPT, 2000);
   return {
     spoken: clip(field(text, "SPOKEN"), 400),
@@ -262,8 +263,8 @@ export async function templatise(cand, read) {
 }
 
 /* ---------- one candidate, start to finish ---------- */
-export async function mineOne(cand) {
-  const read = await readReel(cand);
+export async function mineOne(cand, url) {
+  const read = await readReel(cand, url);
   if (!read.spoken && !read.onScreen) throw new Error("Nothing was said and there was no text on screen — there is no hook to learn.");
   const t = await templatise(cand, read);
   return {
@@ -288,10 +289,13 @@ export async function mineOne(cand) {
 export async function mine(limit, log) {
   const lib = await readLib();
   const cands = (await candidates(lib)).slice(0, limit || MINE_PER_RUN);
+  // Only asked for when one of his own reels is in the batch — competitors' links come from
+  // the Apify scrape half an hour earlier and are still warm.
+  const fresh = cands.some((c) => c.isOwn) ? await freshOwnVideoUrls(25) : new Map();
   let done = 0, failed = 0;
   for (const c of cands) {
     try {
-      const hook = await mineOne(c);
+      const hook = await mineOne(c, (c.isOwn && fresh.get(String(c.mediaId))) || c.videoUrl);
       const fresh = await readLib();                       // re-read: a script may have been saved meanwhile
       fresh.hooks = [hook, ...fresh.hooks.filter((h) => h.id !== hook.id)];
       fresh.lastMineAt = nowIso();

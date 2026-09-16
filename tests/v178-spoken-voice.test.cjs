@@ -125,7 +125,14 @@ const CAPTIONS = { "ig-cache-mine": { account: { username: "bodysculptwarrington
   {
     assert.ok(/const MIN_REELS = 3;/.test(VOICE_LIB), "the floor is stated as a constant, not buried in a condition");
     assert.ok(/samples\.length < MIN_REELS/.test(VOICE_LIB), "…and enforced before Claude is asked for a profile");
-    assert.ok(/too few to describe a voice/.test(VOICE_LIB), "…with a reason Ash can act on");
+    // v180 rewrote this message. It used to assert "Instagram's video links go stale" without
+    // having checked — a guess that happened to be right, and which sent Ash to press a
+    // Refresh button that could not have fixed it. It now reports the reasons it was actually
+    // given, and only names a likely fix once it knows which one applies.
+    assert.ok(/needed to describe a voice/.test(VOICE_LIB), "…with a reason Ash can act on");
+    assert.ok(/What went wrong: " \+ why/.test(VOICE_LIB), "…which is what actually happened, not a guess");
+    assert.ok(!/press Refresh on the Content page and try again/.test(VOICE_LIB),
+      "the old blanket advice is gone — a fresh link is now fetched by the server, so pressing Refresh was never the fix");
     assert.ok(/WANT_REELS = 10/.test(VOICE_LIB) && /\.slice\(0, WANT_REELS\)/.test(VOICE_LIB), "ten reels: enough to tell a habit from a one-off");
     assert.ok(/sort\(\(a, b\) => \(b\.score \|\| 0\) - \(a\.score \|\| 0\)\)/.test(VOICE_LIB),
       "his BEST reels, not his most recent — a profile averaged over the ones that did not land describes a worse version of him");
@@ -242,6 +249,46 @@ const CAPTIONS = { "ig-cache-mine": { account: { username: "bodysculptwarrington
     const tail = q.slice(q.indexOf('if(stopReason === "refusal")'));
     assert.ok(tail.indexOf('kind="empty"') > 0 && tail.indexOf('kind="truncated"') > 0,
       "…and it is checked BEFORE the empty and cut-off cases, which would otherwise report a refusal as a server time limit and send him hunting for a fault that is not there");
+  }
+
+  /* ============ 11. v180: the link is fetched fresh, not replayed from a cache ============
+     The bug Ash hit: "Only 0 of your reels could be transcribed." It had found his reels and
+     failed on every one, because it was transcribing from `ig-cache-mine` — the Content
+     page's cached copy of the feed — and Instagram's media_url is a SIGNED link that expires
+     within hours. The cached blob can be days old, so every download was 403ing.
+
+     The fix is not to ask him to press Refresh first. The server holds IG_ACCESS_TOKEN, so it
+     asks Instagram for a current link at the moment it needs one. A cache is for saving a
+     round trip, never for holding a credential that rots. */
+  {
+    const IGM = read("netlify/lib/ig-media.js");
+    assert.ok(/export async function freshOwnVideoUrls/.test(IGM), "there is one way to get a current link");
+    assert.ok(/const fresh = await freshOwnVideoUrls\(25\);/.test(VOICE_LIB), "the voice build asks for one");
+    assert.ok(/fresh\.get\(String\(r\.id\)\) \|\| r\.video/.test(VOICE_LIB),
+      "…and falls back to the cached link only for a post the fresh list does not cover");
+    assert.ok(/c\.isOwn && fresh\.get\(String\(c\.mediaId\)\)/.test(HOOKS_LIB),
+      "the hook miner does the same for HIS OWN reels — same cache, same rot, and it would have failed the same way");
+    assert.ok(/cands\.some\(\(c\) => c\.isOwn\) \? await freshOwnVideoUrls/.test(HOOKS_LIB),
+      "…asked for only when one of his own reels is actually in the batch; competitors' links come from the scrape half an hour earlier");
+    assert.ok(/mediaId: clip\(p\.id, 40\)/.test(HOOKS_LIB),
+      "an own candidate carries the media id as well as the short code — the short code names the hook, the media id buys a link");
+
+    // Instagram's CDN refuses a bare server fetch, which is the other half of why every reel failed
+    assert.ok(/"User-Agent": "Mozilla/.test(IGM), "the download looks like a browser, because a bare `User-Agent: node` gets refused");
+    assert.ok(/Referer/.test(IGM), "…with the referer it expects");
+    assert.ok(!/await fetch\(cand\.videoUrl\)/.test(HOOKS_LIB) && !/await fetch\(reel\.video\)/.test(VOICE_LIB),
+      "neither library does its own bare fetch any more — one door, one set of headers, one place the reasons are worded");
+
+    // and the failure reasons are named rather than guessed at
+    assert.ok(/the link had expired \(403\)/.test(IGM), "403 is named for what it is — the link was fine when stored and is not now");
+    assert.ok(/export function summariseFailures/.test(IGM), "repeated reasons are counted, not listed five times");
+    const igm = await import("file://" + root("netlify/lib/ig-media.js"));
+    assert.strictEqual(
+      igm.summariseFailures(["the link had expired (403)", "the link had expired (403)", "nobody speaks in it"]),
+      "2 × the link had expired (403); nobody speaks in it",
+      "…so the message reads as a diagnosis rather than a list");
+    assert.strictEqual(igm.summariseFailures([]), "", "nothing to summarise is an empty string, not the word undefined");
+    await assert.rejects(() => igm.fetchVideo(""), /no video link/, "a missing link says so rather than fetching undefined");
   }
 
   console.log("v178 spoken voice: OK");

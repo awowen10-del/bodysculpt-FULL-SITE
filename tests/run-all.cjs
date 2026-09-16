@@ -41,7 +41,9 @@ for (const fn of ["kpi-store.js", "stripe-feed.js", "instagram-feed.js", "google
                   // v177: the hook library — what was said in the reels that took off
                   "hooks-api.js", "hooks-mine-background.js", "hooks-mine-scheduled.js", "../lib/hooks.js",
                   // v178: the spoken voice, and the AI proxy whose model table it shares a generation with
-                  "voice-build-background.js", "../lib/voice.js", "mentor-ai.js"]) {
+                  "voice-build-background.js", "../lib/voice.js", "mentor-ai.js",
+                  // v180: one door for getting a video file off Instagram
+                  "../lib/ig-media.js"]) {
   const chk = spawnSync(process.execPath, ["--check", path.join(__dirname, "..", "netlify", "functions", fn)], { stdio: "inherit" });
   if (chk.status !== 0) {
     console.error("SYNTAX CHECK FAILED (" + fn + ") — aborting test run");

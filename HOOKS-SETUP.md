@@ -107,8 +107,8 @@ spoken once into a phone. The rhythm is the bit only the transcripts can teach.
 Takes about five minutes. There's no nightly rebuild, and there shouldn't be: your voice doesn't
 drift week to week. Press it again when you feel your content has moved on.
 
-A build needs at least **three** reels it can transcribe. Instagram's video links go stale, so if
-it complains, press Refresh on the Content page first and try again.
+A build needs at least **three** reels it can transcribe. If it can't manage that it tells you
+exactly what went wrong for each one, rather than guessing.
 
 ---
 
@@ -122,7 +122,7 @@ it complains, press Refresh on the Content page first and try again.
 | "There are no hooks in the library yet" when writing | The library has to have something in it before it can build on it. Press Find hooks first. |
 | An opening that sounds nothing like you | Say so in the topic box — more detail there changes the output more than anything else. Or pick a different shape; they're genuinely different. |
 | Scripts sound generic | Check the *How you talk* card. If it says nothing has been learned yet, that's why — it's writing from captions. |
-| "Only N of your reels could be transcribed" | Instagram's video links go stale. Press Refresh on the Content page, then try again. |
+| "Only N of your reels could be transcribed" | The message says which reason. "The link had expired" means Instagram refused the file even with a current link — retry in a few minutes. "Gemini could not read it" is Google's transcription service, usually temporary. |
 | The voice profile describes someone else | Press **Learn it again**. It reads your ten best reels, so it follows your content as it changes. |
 
 ---
