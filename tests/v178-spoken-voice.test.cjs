@@ -100,7 +100,8 @@ const CAPTIONS = { "ig-cache-mine": { account: { username: "bodysculptwarrington
   {
     assert.ok(/export async function voiceBrief/.test(SCHEDULE_LIB), "voiceBrief is the one way in");
     assert.ok(/const voice = await voiceBrief\(\);/.test(SCHEDULE_LIB), "the CAPTION writer goes through it");
-    assert.ok(/optionsPrompt\(topic, hooks, await voiceBrief\(\), format\)/.test(HOOKS_LIB), "the hook writer goes through it");
+    assert.ok(/optionsPrompt\(topic, hooks, await voiceBrief\(\), format, preferenceBrief/.test(HOOKS_LIB),
+      "the hook writer goes through it — and since v194 carries what he actually picks alongside it");
     assert.ok(/scriptPrompt\(topic, option, fmt, await voiceBrief\(\)\)/.test(HOOKS_LIB), "the SCRIPT writer goes through it");
     assert.ok(!/voiceReference\(\)/.test(HOOKS_LIB), "nothing reaches past it to the captions directly — that is how the two writers stay in one voice");
     // The prompts must not re-label the block: only voiceBrief knows which source came back,

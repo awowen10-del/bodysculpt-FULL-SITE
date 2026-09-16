@@ -262,9 +262,12 @@ export async function voiceBrief() {
         : "HOW ASH TALKS ON CAMERA, drawn from transcripts of his own best reels";
     return head + ". Follow it over any instinct about how social copy should sound:\n\n" +
       v.profile +
-      (v.banned && v.banned.length
-        ? "\n\nNever write these — they are not his words:\n" + v.banned.map((b) => "· " + b).join("\n")
-        : "");
+      (() => {
+        // v194: the ones read from his reels, plus the ones he has killed himself. His own
+        // carry more weight than any of it — he is the only one who knows what makes him wince.
+        const all = (v.banned || []).concat(v.userBanned || []);
+        return all.length ? "\n\nNever write these — they are not his words:\n" + all.map((b) => "· " + b).join("\n") : "";
+      })();
   }
   const caps = await voiceReference();
   return caps ? "Ash's recent captions, for his vocabulary (written, not spoken — match the words, not the rhythm):\n" + caps : "";

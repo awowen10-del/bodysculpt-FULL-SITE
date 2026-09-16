@@ -11,6 +11,8 @@
 //   POST { action: "retry" }            put the given-up-on reels back in the queue
 //   POST { action: "ideas", force }     five reels he could film this week (cached for the day)
 //   POST { action: "about", about }     his own note about the business, which sharpens them
+//   POST { action: "check", draft }     mark a draft against the rules his own voice profile set
+//   POST { action: "ban" / "unban" }    phrases he never wants to see again
 //
 // v178: the GET also reports the spoken-voice profile — when it was built, from how many
 // reels, and what it says. Building it is voice-build-background's job, not this one's.
@@ -22,6 +24,9 @@ import { readLib, writeLib, candidates, hookOptions, writeScript, config, clip, 
          normFormat, leadOf, parseBeats } from "../lib/hooks.js";
 import { readVoice } from "../lib/schedule.js";
 import { readIdeas, generate as generateIdeas, gather, isFresh, setAbout } from "../lib/ideas.js";
+import { matchPerformance, checkPrompt, parseCheck } from "../lib/learn.js";
+import { getStore } from "@netlify/blobs";
+import Anthropic from "@anthropic-ai/sdk";
 
 const STATUSES = ["draft", "filmed", "posted", "binned"];
 
@@ -34,12 +39,19 @@ export default async (req) => {
     try { waiting = (await candidates(lib)).length; } catch { /* the count is a nicety, not the page */ }
     const v = await readVoice();
     const ideas = await readIdeas();
+    // v194: tie posted scripts back to the reels they became, so the page and the writer both
+    // see what actually happened rather than only what was written
+    let scripts = lib.scripts;
+    try {
+      const mine = await getStore({ name: "bodysculpt-kpi", consistency: "strong" }).get("ig-cache-mine", { type: "json" });
+      scripts = matchPerformance(lib.scripts, (mine && mine.posts) || []);
+    } catch { /* no cache means no numbers yet, not a broken page */ }
     return json({
       ok: true,
       configured: cfg.gemini && cfg.anthropic,
       config: cfg,
       hooks: lib.hooks,
-      scripts: lib.scripts,
+      scripts,
       waiting,
       skipped: lib.skipped.length,
       // v192: what to film. The page leads with these; the topic box is the fallback for when
@@ -51,7 +63,7 @@ export default async (req) => {
       // cannot read is one he cannot tell is wrong
       voice: v ? { builtAt: v.builtAt || "", reels: (v.reels || []).length, words: v.words || 0,
                    profile: v.profile || "", banned: v.banned || [], note: v.note || "",
-                   kind: v.kind || "spoken", spokenReels: v.spokenReels || 0,
+                   kind: v.kind || "spoken", spokenReels: v.spokenReels || 0, userBanned: v.userBanned || [],
                    // v181: WHEN the note was recorded, so an old failure cannot read as a
                    // current one, and a run in progress is visibly a run in progress
                    triedAt: v.triedAt || "", startedAt: v.startedAt || "" } : null,
@@ -109,6 +121,12 @@ export default async (req) => {
         caption: clip(s.caption, 1500),
         visual: clip(s.visual, 300),
         status: STATUSES.includes(s.status) ? s.status : "draft",
+        // v194: the seven he did NOT take are the other half of the signal. Which archetypes
+        // he is offered and passes over says as much as the one he keeps.
+        shown: Array.isArray(s.shown)
+          ? s.shown.slice(0, 12).map((o) => ({ lead: clip(o && o.lead, 120), type: clip(o && o.type, 40), hookId: clip(o && o.hookId, 40) }))
+          : [],
+        checked: Array.isArray(s.checked) ? s.checked.slice(0, 8).map((x) => clip(x, 200)) : [],
       };
       const lib = await readLib();
       lib.scripts = [kept, ...lib.scripts.filter((x) => x.id !== kept.id)];
@@ -140,6 +158,40 @@ export default async (req) => {
       const lib = await readLib();
       const fresh = await generateIdeas(await gather(lib));
       return json({ ok: true, ideas: fresh.ideas, ideasAt: fresh.generatedAt, cached: false });
+    }
+
+    /* v194: the rules his voice profile set, finally marked against. A profile that ends in
+       six checkable rules and never checks anything looks thorough and changes nothing. Kept
+       as its own request so neither call goes near the 26-second wall. */
+    if (action === "check") {
+      const draft = clip(body.draft, 4000);
+      if (!draft) return json({ ok: false, error: "Nothing to check." }, 400);
+      const v = await readVoice();
+      if (!v || !v.profile) return json({ ok: true, failed: [], fixed: draft, skipped: "no voice profile yet" });
+      const banned = (v.banned || []).concat(v.userBanned || []);
+      const client = new Anthropic();
+      const r = await client.messages.create({
+        model: "claude-opus-5", max_tokens: 3000, output_config: { effort: "low" },
+        messages: [{ role: "user", content: checkPrompt(draft, v.profile, banned) }],
+      });
+      if (r.stop_reason === "refusal") return json({ ok: true, failed: [], fixed: draft });
+      const out = parseCheck(r.content.filter((b) => b.type === "text").map((b) => b.text).join(""));
+      return json({ ok: true, failed: out.failed, fixed: out.fixed || draft });
+    }
+
+    // his own banned phrases, on top of the ones read from his reels. The moment he sees a
+    // phrase that is not him, he should be able to kill it rather than mention it to somebody.
+    if (action === "ban" || action === "unban") {
+      const phrase = clip(body.phrase, 90).trim();
+      if (!phrase) return json({ ok: false, error: "Nothing to ban." }, 400);
+      const store = getStore({ name: "bodysculpt-kpi", consistency: "strong" });
+      const v = (await store.get("ig-voice", { type: "json" })) || {};
+      const cur = Array.isArray(v.userBanned) ? v.userBanned : [];
+      v.userBanned = action === "ban"
+        ? (cur.includes(phrase) ? cur : cur.concat([phrase])).slice(0, 40)
+        : cur.filter((x) => x !== phrase);
+      await store.set("ig-voice", JSON.stringify(v));
+      return json({ ok: true, userBanned: v.userBanned });
     }
 
     if (action === "about") {

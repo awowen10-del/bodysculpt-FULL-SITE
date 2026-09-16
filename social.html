@@ -729,6 +729,19 @@
     padding:10px 12px;min-height:110px;resize:vertical;}
   .hk-about-r{display:flex;align-items:center;gap:var(--sp-2);}
 
+  /* --- v194: what was tightened, and what it went on to do --- */
+  .hk-checked{font-size:11.5px;line-height:1.5;color:var(--tint-green);
+    background:rgba(var(--green-rgb),.08);border:1px solid rgba(var(--green-rgb),.2);
+    border-radius:var(--r-md);padding:8px 11px;}
+  .hk-checked b{font-weight:700;}
+  .hk-perf{font-size:11.5px;font-weight:700;color:var(--tint-green);
+    background:rgba(var(--green-rgb),.1);border-radius:var(--r-pill);padding:3px 9px;}
+  .hk-ban-add{display:flex;gap:6px;align-items:center;margin-top:6px;}
+  .hk-ban-add input{flex:1 1 180px;font-family:inherit;font-size:12px;color:var(--ink);
+    background:var(--card-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:5px 8px;}
+  .hk-bword.mine{cursor:pointer;}
+  .hk-bword.mine:hover{background:rgba(var(--red-rgb),.18);}
+
   /* a number beside a heading, instead of a sentence under it */
   .hk-count{font-size:11.5px;font-weight:700;color:var(--ink-faint);background:var(--navy-2);
     border-radius:var(--r-pill);padding:2px 9px;}
@@ -1519,7 +1532,8 @@ let hkFormat = "onscreen";   // v182: the reels Ash actually makes
 let hkOptions = null;          // the eight, once asked for
 let hkPicked = -1;
 let hkScript = null;           // the written one, before it is saved
-let hkBusy = "";               // "options" | "write" | "mine" | ""
+let hkBusy = "";               // "options" | "write" | "mine" | "voice" | "ideas" | ""
+let hkChecking = false;        // v194: marking the draft against his own rules
 let hkError = "";
 
 async function hkPost(payload) {
@@ -1624,6 +1638,12 @@ function hkWriterHtml() {
       (s.caption ? '<div class="hk-part"><div class="hk-lbl">Caption' +
         (silent ? " — this is doing the heavy lifting" : "") + '</div><div class="hk-cap">' + esc(s.caption) + "</div></div>" : "") +
       (s.visual ? '<div class="hk-part"><div class="hk-lbl">' + (silent ? "Opening shot" : "On camera") + '</div><div class="hk-row">' + esc(s.visual) + "</div></div>" : "") +
+      (hkChecking
+        ? '<div class="hk-idea-s" style="margin-top:2px">Marking it against your own rules…</div>'
+        : (s.checked && s.checked.length
+          ? '<div class="hk-checked"><b>Tightened ' + s.checked.length + ':</b> ' +
+            s.checked.map((c) => esc(c)).join(" · ") + "</div>"
+          : "")) +
       '<div class="hk-acts">' +
       '<button type="button" class="abtn primary" id="hkSave">Keep it — to film</button>' +
       '<button type="button" class="abtn" id="hkCopy">Copy</button>' +
@@ -1687,10 +1707,58 @@ async function writeIt() {
   if (hkPicked < 0 || hkBusy) return;
   hkBusy = "write"; hkError = ""; hkScript = null;
   renderHooks();
-  try { hkScript = (await hkPost({ action: "write", topic: hkTopic, option: hkOptions[hkPicked], format: hkFormat })).script; }
-  catch (e) { hkError = e.message; }
+  try {
+    hkScript = (await hkPost({ action: "write", topic: hkTopic, option: hkOptions[hkPicked], format: hkFormat })).script;
+    // v194: what he was SHOWN travels with the script, so the seven he passed over are not lost
+    hkScript.shown = hkOptions.map((o) => ({ lead: o.lead || o.spoken || o.onScreen, type: o.type, hookId: o.hookId }));
+  } catch (e) { hkError = e.message; hkBusy = ""; renderHooks(); return; }
   hkBusy = "";
   renderHooks();
+  checkScript();
+}
+
+/* v194: the draft is marked against the rules his own voice profile set — six yes-or-no rules
+   that had, until now, never been used for anything. A second short request rather than part
+   of the first, so neither goes near the 26-second wall, and so he sees the draft immediately
+   and watches it tighten rather than waiting longer for one that arrives already clean. */
+async function checkScript() {
+  if (!hkScript || hkChecking) return;
+  const forScript = hkScript.id;
+  hkChecking = true;
+  renderHooks();
+  try {
+    const draft = scriptText(hkScript);
+    const r = await hkPost({ action: "check", draft });
+    if (hkScript && hkScript.id === forScript && r.fixed && r.failed && r.failed.length) {
+      applyFixed(hkScript, r.fixed);
+      hkScript.checked = r.failed;
+    } else if (hkScript && hkScript.id === forScript) {
+      hkScript.checked = [];
+    }
+  } catch { /* a draft that could not be marked is still a draft */ }
+  hkChecking = false;
+  renderHooks();
+}
+
+// the tightened version comes back in the shape it went out in, so it is read back the same way
+function applyFixed(s, fixed) {
+  const grab = (re) => { const m = re.exec(fixed); return m ? m[1].trim() : ""; };
+  const cap = grab(/CAPTION:\s*\n([\s\S]*)$/);
+  if (cap) s.caption = cap;
+  const cta = grab(/^CTA:\s*(.+)$/m);
+  if (cta) s.cta = cta;
+  if (s.format === "onscreen") {
+    const lead = grab(/^ON SCREEN, FIRST:\s*(.+)$/m);
+    if (lead) { s.lead = lead; s.onScreen = lead; }
+    const beats = fixed.split("\n").map((l) => /^\s*\d+\.\s*(.+?)\s*(?:\[(.+)\])?\s*$/.exec(l)).filter(Boolean)
+      .map((m) => ({ text: m[1].trim(), shot: (m[2] || "").trim() }));
+    if (beats.length) { s.beats = beats; s.body = beats.map((b) => b.text + (b.shot ? "   [" + b.shot + "]" : "")).join("\n"); }
+  } else {
+    const hook = grab(/^HOOK:\s*(.+)$/m);
+    if (hook) { s.lead = hook; s.spoken = hook; }
+    const body = grab(/^HOOK:.*\n(?:ON SCREEN:.*\n)?\n([\s\S]*?)\n\nCTA:/);
+    if (body) s.body = body;
+  }
 }
 
 async function saveScript() {
@@ -1756,6 +1824,8 @@ function renderScripts() {
     '<div class="hk-sc-h" data-open="' + esc(s.id) + '">' + esc(s.lead || s.spoken || s.onScreen) +
       "<span>" + esc(s.topic.slice(0, 80)) + "</span></div>" +
     '<span class="hk-state ' + esc(s.status) + '">' + esc(s.status) + "</span>" +
+    // v194: what it actually did, once his feed shows it
+    (typeof s.postViews === "number" ? '<span class="hk-perf">' + nfmt(s.postViews) + " views</span>" : "") +
     (SC_NEXT[s.status] ? '<button type="button" class="abtn" data-adv="' + esc(s.id) + '">' + esc(SC_VERB[s.status]) + "</button>" : "") +
     '<button type="button" class="abtn ghost" data-copy="' + esc(s.id) + '">Copy</button>' +
     '<button type="button" class="hk-x" data-bin="' + esc(s.id) + '" aria-label="Bin this script"><svg class="ic"><use href="#ic-close"/></svg></button>' +
@@ -1946,16 +2016,32 @@ function renderVoiceBar() {
     "</span></div>" +
     (hkVoiceOpen ? '<div class="hk-vopen">' +
       (v && v.note ? '<div class="hk-err">' + esc(v.note) + (v.triedAt ? " · " + esc(when(v.triedAt)) : "") + "</div>" : "") +
-      (learnt ? '<div class="hk-vprofile">' + esc(v.profile) + "</div>" +
-        ((v.banned && v.banned.length)
-          ? '<div class="hk-banned">' + v.banned.map((b) => '<span class="hk-bword">' + esc(b) + "</span>").join("") + "</div>"
-          : "") : "") +
+      (learnt ? '<div class="hk-vprofile">' + esc(v.profile) + "</div>" : "") +
+      // v194: the phrases read from his reels, and the ones he has killed himself. His own are
+      // clickable to remove, because the moment he sees a phrase that is not him he should be
+      // able to end it rather than tell somebody about it.
+      '<div><div class="hk-lbl">Never written in your name</div><div class="hk-banned">' +
+        ((v && v.banned) || []).map((b) => '<span class="hk-bword">' + esc(b) + "</span>").join("") +
+        ((v && v.userBanned) || []).map((b) => '<span class="hk-bword mine" data-unban="' + esc(b) + '" title="Click to allow it again">' + esc(b) + " ×</span>").join("") +
+      "</div>" +
+      '<div class="hk-ban-add"><input type="text" id="hkBanIn" placeholder="a phrase you never want to see" maxlength="90">' +
+      '<button type="button" class="abtn" id="hkBanAdd">Never use this</button></div></div>' +
       "</div>" : "");
 
   const toggle = () => { hkVoiceOpen = !hkVoiceOpen; renderHooks(); };
   const sh = $("hkVoiceShow"); if (sh) sh.addEventListener("click", toggle);
   const wy = $("hkVoiceWhy"); if (wy) wy.addEventListener("click", toggle);
   const go = $("hkVoiceGo2"); if (go) go.addEventListener("click", startVoiceBuild);
+  const banAdd = $("hkBanAdd"), banIn = $("hkBanIn");
+  const ban = async (action, phrase) => {
+    if (!phrase) return;
+    try { hkLib.voice.userBanned = (await hkPost({ action, phrase })).userBanned; }
+    catch (e) { hkError = e.message; }
+    renderHooks();
+  };
+  if (banAdd) banAdd.addEventListener("click", () => ban("ban", (banIn && banIn.value || "").trim()));
+  if (banIn) banIn.addEventListener("keydown", (e) => { if (e.key === "Enter") ban("ban", banIn.value.trim()); });
+  el.querySelectorAll("[data-unban]").forEach((b) => b.addEventListener("click", () => ban("unban", b.dataset.unban)));
   if (btn) btn.hidden = true;                      // the old header button is gone
   if (lbl) lbl.textContent = "";
 }

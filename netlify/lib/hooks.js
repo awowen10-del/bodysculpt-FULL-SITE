@@ -37,6 +37,7 @@ import { getStore } from "@netlify/blobs";
 import Anthropic from "@anthropic-ai/sdk";
 import { geminiAsk, voiceBrief } from "./schedule.js";
 import { freshOwnVideoUrls, fetchVideo } from "./ig-media.js";
+import { preferenceBrief } from "./learn.js";
 
 export const KEY = "ig-hooks";
 const MAX_HOOKS = 400;
@@ -395,7 +396,7 @@ export const normFormat = (f) => (isFormat(f) ? f : "onscreen");
 export const leadOf = (option, format) =>
   (normFormat(format) === "onscreen" ? (option.onScreen || option.spoken) : (option.spoken || option.onScreen)) || "";
 
-export function optionsPrompt(topic, hooks, voice, format) {
+export function optionsPrompt(topic, hooks, voice, format, prefs) {
   const fmt = normFormat(format);
   const silent = fmt === "onscreen";
   const lines = hooks.map((h, i) =>
@@ -420,6 +421,8 @@ export function optionsPrompt(topic, hooks, voice, format) {
     "These hook shapes are proven: each one is taken from a reel that beat its own account's normal by at least double.\n\n" +
     lines + "\n\n" +
     (voice ? voice + "\n\n" : "") +
+    // v194: what he actually goes for, from what he has picked and what those reels then did
+    (prefs ? prefs + "\n\n" : "") +
     'The reel is about: "' + clip(topic, 400) + '"\n\n' +
     "Write EIGHT hook options for this topic, each one built on a different shape from the list above.\n" +
     /* v189: with one shape in the library, all eight came back opening on the same word —
@@ -478,7 +481,7 @@ export async function hookOptions(topic, format) {
   const lib = await readLib();
   const hooks = forWriting(lib.hooks, 16);
   if (!hooks.length) throw new Error("There are no hooks in the library yet. Press Find hooks once the competitor scrape has run.");
-  const text = await ask(optionsPrompt(topic, hooks, await voiceBrief(), format), 3000, "low");
+  const text = await ask(optionsPrompt(topic, hooks, await voiceBrief(), format, preferenceBrief(lib.scripts)), 3000, "low");
   const options = parseOptions(text, hooks, format);
   if (!options.length) throw new Error("Claude returned no usable hooks. Try wording the topic differently.");
   return options;
