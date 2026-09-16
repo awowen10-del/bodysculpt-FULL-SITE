@@ -179,7 +179,7 @@ export default async (req) => {
        which is why it cannot live in here — a Netlify function has no browser and no Instagram
        session. So it stays where it is and hands its findings over instead. */
     if (action === "trends") {
-      const t = await addTrends({ week: clip(body.week, 40), notes: body.notes, accounts: body.accounts });
+      const t = await addTrends({ week: clip(body.week, 40), notes: body.notes, accounts: body.accounts, clear: !!body.clear });
       return json({ ok: true, notes: t.notes.length, accounts: t.accounts.length });
     }
 

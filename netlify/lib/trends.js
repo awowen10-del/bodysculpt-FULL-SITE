@@ -61,7 +61,7 @@ export async function writeTrends(t) { await store().set(KEY, JSON.stringify(t))
 /* The scout posts once a week, so NOTES are replaced wholesale — last week's are last week's.
    ACCOUNTS accumulate, because a good suggestion Ash has not got round to is still a good
    suggestion, and one he has dismissed must never come back. */
-export async function addTrends({ week, notes, accounts }) {
+export async function addTrends({ week, notes, accounts, clear }) {
   const cur = await readTrends();
   const dismissed = new Set(cur.dismissed);
 
@@ -84,7 +84,10 @@ export async function addTrends({ week, notes, accounts }) {
   return await writeTrends({
     postedAt: nowIso(),
     week: clip(week, 40) || nowIso().slice(0, 10),
-    notes: cleanNotes.length ? cleanNotes : cur.notes,
+    // an empty list normally means "the scout sent no notes this week, keep last week's";
+    // `clear` is the explicit way to say the stored ones should go, which is what you want
+    // after a test run or when a week's findings turn out to be wrong
+    notes: cleanNotes.length ? cleanNotes : (clear ? [] : cur.notes),
     accounts: incoming.concat(kept).slice(0, MAX_ACCOUNTS),
     dismissed: cur.dismissed.slice(-200),
   });

@@ -56,6 +56,11 @@ async function loadLib(file, tag, seed) {
                  { username: "", why: "no name" }],
     });
     assert.strictEqual(saved.notes.length, 1, "a note with no text is not a note");
+    // an empty list means "no notes this week, keep last week's"; clearing has to be asked for
+    const kept = await t.addTrends({ notes: [], accounts: [] });
+    assert.strictEqual(kept.notes.length, 1, "a silent week keeps the notes it had");
+    const cleared = await t.addTrends({ notes: [], accounts: [], clear: true });
+    assert.strictEqual(cleared.notes.length, 0, "…and clearing is explicit, for a bad week or a test run");
     assert.strictEqual(saved.accounts.length, 1, "the same account twice is one account");
     assert.strictEqual(saved.accounts[0].username, "big_gym_tx",
       "a pasted profile URL is cleaned to a username, the way the watch list already does it");
