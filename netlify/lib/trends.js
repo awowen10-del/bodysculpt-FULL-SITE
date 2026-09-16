@@ -118,9 +118,11 @@ export function trendBrief(t) {
     "· " + n.text + (n.status ? "  [" + n.status + "]" : "") + (n.example ? "  e.g. " + clip(n.example, 120) : ""));
   return "WHAT IS TRENDING ON INSTAGRAM MORE WIDELY, from a scroll of Explore, the reels feed and " +
     "hashtag searches on " + (t.week || t.postedAt.slice(0, 10)) + ":\n" + lines.join("\n") +
-    "\nThis is the wider feed, not evidence about his gym. A format peaking nationally is worth one " +
-    "idea at most, and only where it genuinely suits a small-group gym in Warrington — never at the " +
-    "expense of a subject that came from his own account or the gyms he watches.";
+    "\nThis is the wider feed, not evidence about his gym. Use AT MOST TWO of the five ideas on it, " +
+    "and only where a trend genuinely suits a small-group gym in Warrington — the other three must come " +
+    "from his own account, the gyms he watches, or his own note about the business. The best use of one " +
+    "of these is not to copy the trend but to marry it to something of his: a format peaking nationally " +
+    "against a subject only he has.";
 }
 
 // Suggestions he has not already got, minus anyone he is already watching.

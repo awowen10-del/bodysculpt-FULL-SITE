@@ -113,10 +113,15 @@ async function loadLib(file, tag, seed) {
       notes: [{ text: "Ranked lists", status: "Peaking now", example: "@x" }], accounts: [], dismissed: [] };
     const brief = t.trendBrief(fresh);
     assert.ok(/Ranked lists/.test(brief) && /Peaking now/.test(brief), "a fresh one is");
-    assert.ok(/not evidence about his gym/.test(brief) && /one idea at most/.test(brief),
+    /* v201: the first real week through this produced exactly ONE trend-led idea out of five.
+       "worth one idea at most" read as a cap on the whole week rather than per trend, which
+       under-uses a report Ash pays for weekly. Two of five, stated as a number. */
+    assert.ok(/not evidence about his gym/.test(brief) && /AT MOST TWO of the five/.test(brief),
       "…and is weighted as the wider feed, so a peaking meme cannot outrank a subject of his own");
-    assert.ok(/never at the\s+expense of a subject that came from his own account/.test(brief.replace(/\n/g, "\n")),
-      "…explicitly");
+    assert.ok(/the other three must come/.test(brief),
+      "…with the balance stated as a number rather than left to judgement");
+    assert.ok(/marry it to something of his/.test(brief),
+      "the best use of a trend is not to copy it but to put it against a subject only he has");
   }
 
   /* ============ 5. the sixth source reaches the prompt, and is visible on the page ============ */
