@@ -125,10 +125,16 @@ export async function scanDrive() {
   return { added };
 }
 
-/* ---------- Gemini: the transcript ---------- */
-export async function transcribe(buffer, mime, name) {
+/* ---------- Gemini: asking a question of a video ----------
+   v177: this was the body of transcribe(), which is now a one-line caller. The Hooks page
+   asks a DIFFERENT question of a competitor's reel — what is said in the first three
+   seconds, and what is written on the screen — and everything around the question is the
+   same: the resumable upload, the wait for Google to finish processing, the walk down the
+   model list, the retry on a busy minute, the delete afterwards. Splitting it here means
+   the hook miner inherits all of that hardening rather than owning a second copy of it. */
+export async function geminiAsk(buffer, mime, name, prompt, limit) {
   const key = env("GEMINI_API_KEY");
-  if (!key) throw new Error("GEMINI_API_KEY is not set, so the video cannot be transcribed.");
+  if (!key) throw new Error("GEMINI_API_KEY is not set, so the video cannot be read.");
   // resumable upload: start, then upload+finalize
   const start = await fetch(GEMINI + "/upload/v1beta/files?key=" + key, {
     method: "POST",
@@ -158,7 +164,6 @@ export async function transcribe(buffer, mime, name) {
     state = b.state || "PROCESSING";
   }
   if (state !== "ACTIVE") throw new Error("Gemini did not finish processing the video (" + state + ").");
-  const prompt = "Transcribe everything that is said in this video, word for word, as plain text. If nothing is said, describe in two sentences what is shown on screen and any on-screen text.";
   let lastErr = "";
   try {
     for (const model of GEMINI_MODELS) {
@@ -171,7 +176,7 @@ export async function transcribe(buffer, mime, name) {
         if (res.ok) {
           const text = (((b.candidates || [])[0] || {}).content || {}).parts;
           const out = Array.isArray(text) ? text.map((p) => p.text || "").join("").trim() : "";
-          if (out) return clip(out, 6000);
+          if (out) return clip(out, limit || 6000);
         }
         lastErr = clip((b.error && b.error.message) || ("Gemini returned " + res.status), 200);
         if (!isTransient(res.status, lastErr)) break;          // a real refusal: next model, now
@@ -181,7 +186,12 @@ export async function transcribe(buffer, mime, name) {
   } finally {
     fetch(GEMINI + "/v1beta/" + file.name + "?key=" + key, { method: "DELETE" }).catch(() => {});
   }
-  throw new Error("Gemini could not transcribe the video: " + lastErr);
+  throw new Error("Gemini could not read the video: " + lastErr);
+}
+
+export async function transcribe(buffer, mime, name) {
+  return await geminiAsk(buffer, mime, name,
+    "Transcribe everything that is said in this video, word for word, as plain text. If nothing is said, describe in two sentences what is shown on screen and any on-screen text.");
 }
 
 /* ---------- Claude: the caption, in Ash's voice ---------- */

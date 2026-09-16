@@ -66,3 +66,23 @@
 # triggered the same way as the ads sync: the scheduled function asks the background one.
 [functions."ig-scrape-scheduled"]
   schedule = "0 5 * * *"
+
+# ===================== v177: the hook library =====================
+# What the flame on the Content page never said: what was actually SAID in the reels that
+# took off. This reads the opening of each flamed reel (Gemini) and writes down the shape
+# underneath it (Claude), so the Hooks tab can build a script on a line that is already
+# proven. 05:30 UTC — half an hour after the scrape above, because it reads what that scrape
+# found and follows Instagram's video links, which go stale within the day.
+[functions."hooks-mine-scheduled"]
+  schedule = "30 5 * * *"
+
+# The writing calls: hook options and then the script itself are each one long call to
+# Claude. The paid-plan maximum, the same as mentor-ai and stripe-feed.
+[functions."hooks-api"]
+  timeout = 26
+
+# The page talks to /api/hooks; 200 so the function sees the original path.
+[[redirects]]
+  from = "/api/hooks"
+  to = "/.netlify/functions/hooks-api"
+  status = 200

@@ -41,6 +41,12 @@ function shapePost(p) {
     url: clip(p.url || "", 300),
     type: clip(p.type || "", 24),
     timestamp: clip(p.timestamp || "", 40),
+    // v177: the caption and the video file, for the hook miner. Neither is shown on the
+    // Competitors tab — the miner needs the caption for context and the file to hear what
+    // was actually said. The URL is a signed CDN link that goes stale within the day,
+    // which is why mining runs straight after the scrape rather than on demand later.
+    caption: clip(p.caption || "", 600),
+    videoUrl: clip(p.videoUrl || "", 1000),
     likes: num(p.likesCount) || 0,
     comments: num(p.commentsCount) || 0,
     shares: num(p.sharesCount),

@@ -77,6 +77,9 @@ function shapeMedia(m) {
     // A video's media_url is the video file, which is useless as a card image — the
     // thumbnail is the frame Instagram itself shows in the grid.
     image: clip(m.thumbnail_url || m.media_url, 1000),
+    // v177: and kept separately, because the hook miner wants exactly the thing the card
+    // does not — the file itself, to hear the opening line of Ash's own reels that took off.
+    video: m.thumbnail_url ? clip(m.media_url, 1000) : "",
     permalink: clip(m.permalink, 300),
     timestamp: clip(m.timestamp, 40),
     likes: num(m.like_count) || 0,

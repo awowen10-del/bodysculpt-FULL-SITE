@@ -594,6 +594,91 @@
   .basis .ic{width:16px;height:16px;color:var(--ink-faint);flex:0 0 auto;margin-top:1px;}
   .basis b{color:var(--ink-strong);}
 
+  /* ===================== v177: HOOKS =====================
+     The third tab. Competitors says which reels took off; this says what was said in them,
+     and turns that into a script. Two halves, stacked: the writer at the top (a topic, then
+     eight openings to choose from, then the script) and the library beneath it.
+     No new colours and no new metrics — every value here is a token from the block at the
+     top of this file, so this tab restyles with the rest of the suite. */
+  .hk-wrap{display:flex;flex-direction:column;gap:var(--sp-4);}
+  /* the writer, step by step. Each step appears only once the one above it is answered, so
+     the page is never four things at once asking to be filled in. */
+  .hk-step{border-top:1px solid var(--line);padding-top:var(--sp-4);margin-top:var(--sp-4);}
+  .hk-step:first-child{border-top:none;padding-top:0;margin-top:0;}
+  .hk-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.12em;font-weight:700;
+    color:var(--ink-faint);margin-bottom:var(--sp-2);}
+  .hk-topic{display:flex;gap:var(--sp-2);flex-wrap:wrap;align-items:flex-start;}
+  .hk-topic textarea{flex:1 1 320px;min-height:64px;font-family:inherit;font-size:13.5px;
+    line-height:1.5;color:var(--ink);background:var(--card-2);border:1px solid var(--line);
+    border-radius:var(--r-md);padding:10px 12px;resize:vertical;}
+  .hk-topic textarea::placeholder{color:var(--ink-faint);}
+  .hk-fmt{display:flex;align-items:center;gap:var(--sp-2);font-size:12px;color:var(--ink-dim);
+    margin-top:var(--sp-2);}
+  .hk-fmt select{font-family:inherit;background:var(--card);color:var(--ink);
+    border:1px solid var(--line);border-radius:var(--r-md);padding:7px 10px;font-size:12.5px;font-weight:600;}
+  /* an option: pick it by clicking it. The spoken line is the thing being chosen, so it is
+     the only part at reading size — everything else is support. */
+  .hk-opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:var(--sp-3);}
+  .hk-opt{text-align:left;font-family:inherit;background:var(--card-2);border:1px solid var(--line);
+    border-radius:var(--r-md);padding:12px 13px;cursor:pointer;display:flex;flex-direction:column;
+    gap:7px;transition:border-color var(--tap),background var(--tap);}
+  .hk-opt:hover{border-color:var(--ink-faint);background:var(--card);}
+  .hk-opt.on{border-color:rgba(var(--orange-rgb),.45);background:rgba(var(--orange-rgb),.07);}
+  .hk-opt:focus-visible{outline:none;box-shadow:var(--focus);}
+  .hk-spoken{font-size:14px;font-weight:700;color:var(--ink-strong);line-height:1.35;}
+  .hk-row{font-size:12px;color:var(--ink-dim);line-height:1.45;}
+  .hk-row b{color:var(--ink);font-weight:600;}
+  .hk-why{font-size:11.5px;color:var(--ink-faint);line-height:1.45;font-style:italic;}
+  /* the type chip. One neutral chip, not a colour per archetype: fourteen colours would say
+     nothing, and the accents in this suite already carry meanings that are not these. */
+  .hk-type{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--ink-dim);background:var(--navy-2);
+    border-radius:var(--r-pill);padding:3px 9px;align-self:flex-start;}
+  /* the finished script, laid out to be read off a phone while filming */
+  .hk-script{background:var(--card-2);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:var(--sp-4);display:flex;flex-direction:column;gap:var(--sp-3);}
+  .hk-part{display:flex;flex-direction:column;gap:5px;}
+  .hk-part .hk-lbl{margin-bottom:0;}
+  .hk-body{font-size:15px;line-height:1.6;color:var(--ink);white-space:pre-wrap;}
+  .hk-hookline{font-size:17px;font-weight:800;color:var(--ink-strong);line-height:1.35;letter-spacing:-.01em;}
+  .hk-cap{font-size:13px;line-height:1.55;color:var(--ink-dim);white-space:pre-wrap;}
+  .hk-acts{display:flex;gap:var(--sp-2);flex-wrap:wrap;align-items:center;}
+  /* the library beneath. A hook is read as: the shape first, because the shape is the thing
+     being reused; what was actually said is the evidence under it. */
+  .hk-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:var(--sp-3);}
+  .hk-card{background:var(--card-2);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:13px 14px;display:flex;flex-direction:column;gap:8px;}
+  .hk-tmpl{font-size:14px;font-weight:700;color:var(--ink-strong);line-height:1.4;}
+  .hk-said{font-size:12.5px;color:var(--ink-dim);line-height:1.5;
+    border-left:2px solid var(--line);padding-left:10px;}
+  .hk-meta{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;font-size:11.5px;
+    color:var(--ink-faint);margin-top:auto;padding-top:6px;}
+  .hk-meta a{color:var(--ink-dim);text-decoration:none;font-weight:600;}
+  .hk-meta a:hover{color:var(--orange-soft);}
+  .hk-x{margin-left:auto;background:none;border:none;font-family:inherit;cursor:pointer;
+    color:var(--ink-faint);padding:2px 5px;border-radius:var(--r-sm);display:inline-flex;}
+  .hk-x:hover{color:var(--tint-red);background:rgba(var(--red-rgb),.1);}
+  .hk-x .ic{width:12px;height:12px;}
+  /* the flame number, said the same way the post tiles say it */
+  .hk-flame{display:inline-flex;align-items:center;gap:4px;font-weight:700;color:var(--tint-orange);}
+  .hk-flame .ic{width:12px;height:12px;}
+  /* a saved script, in the strip under the writer */
+  .hk-sc{display:flex;align-items:center;gap:var(--sp-3);padding:11px 13px;background:var(--card-2);
+    border:1px solid var(--line);border-radius:var(--r-md);flex-wrap:wrap;}
+  .hk-sc + .hk-sc{margin-top:var(--sp-2);}
+  .hk-sc.done{opacity:.6;}
+  .hk-sc-h{flex:1 1 200px;min-width:0;font-size:13.5px;font-weight:700;color:var(--ink-strong);
+    line-height:1.35;cursor:pointer;}
+  .hk-sc-h span{display:block;font-size:11.5px;font-weight:500;color:var(--ink-faint);margin-top:2px;}
+  .hk-state{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    border-radius:var(--r-pill);padding:3px 9px;}
+  .hk-state.draft{color:var(--tint-amber);background:rgba(var(--amber-rgb),.14);}
+  .hk-state.filmed{color:var(--tint-blue);background:rgba(var(--blue-rgb),.13);}
+  .hk-state.posted{color:var(--tint-green);background:rgba(var(--green-rgb),.13);}
+  .hk-note{font-size:12.5px;color:var(--ink-dim);line-height:1.55;}
+  .hk-err{font-size:12.5px;line-height:1.55;color:var(--tint-red);background:rgba(var(--red-rgb),.08);
+    border:1px solid rgba(var(--red-rgb),.22);border-radius:var(--r-md);padding:10px 12px;}
+
   /* The orange bar on the leading tile. Deliberately NOT called .brand: that class already
      belongs to the logo block in the app bar, where it means display:flex — and a stat tile
      that quietly inherits flex lays its label out beside its number instead of above it.
@@ -726,7 +811,8 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
   <div class="viewtoggle" id="tabBar">
     <button class="vt active" data-view="mine">My posts</button>
     <button class="vt" data-view="rivals">Competitors</button>
-    <div class="vt-right">
+    <button class="vt" data-view="hooks">Hooks</button>
+    <div class="vt-right" id="vtRight">
       <label class="outonly" id="outWrap" hidden><input type="checkbox" id="outOnly"> Only the ones that took off</label>
       <div class="sortpick"><span>Sort</span>
         <select id="sortSel">
@@ -781,6 +867,44 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
   <div class="fin-stats" id="rivalStats"></div>
   <div style="height:var(--sp-4)"></div>
   <div id="rivalBody"></div>
+</div>
+
+<!-- =============================== HOOKS ===============================
+     v177. The Competitors tab says WHICH reels took off. This says what was said in them,
+     and writes the next one. -->
+<div class="view" id="v-hooks" hidden>
+  <div class="hk-wrap">
+    <section class="card">
+      <div class="cardhead">
+        <div>
+          <div class="chead"><svg class="ic"><use href="#ic-note"/></svg> Write a reel</div>
+          <div class="csub" id="hkWriterSub">Say what it is about. The openings you get back are the ones already working
+            in your feed — each one is the shape of a reel that beat its own account by double or more.</div>
+        </div>
+        <div class="cardhead-r">
+          <button type="button" class="abtn" id="hkMine"><svg class="ic"><use href="#ic-refresh"/></svg> Find hooks</button>
+        </div>
+      </div>
+      <div id="hkWriter"><div class="loading">Reading the library…</div></div>
+    </section>
+
+    <section class="card" id="hkScriptsCard" hidden>
+      <div class="cardhead"><div>
+        <div class="chead"><svg class="ic"><use href="#ic-camera"/></svg> To film</div>
+        <div class="csub" id="hkScriptsSub"></div>
+      </div></div>
+      <div id="hkScripts"></div>
+    </section>
+
+    <section class="card">
+      <div class="cardhead"><div>
+        <div class="chead"><svg class="ic"><use href="#ic-flame"/></svg> The hook library</div>
+        <div class="csub">Every reel on your Competitors tab that beat its own account by double, with what was
+          actually said in the first three seconds and the shape underneath it. The shape is the part you reuse.</div>
+      </div></div>
+      <div id="hkLib"><div class="loading">Reading the library…</div></div>
+    </section>
+  </div>
 </div>
 
 <script>
@@ -849,6 +973,8 @@ const API = "/.netlify/functions/kpi-store";
 const IG_FEED = "/.netlify/functions/instagram-feed";
 const IG_SNAP = "/.netlify/functions/ig-followers";   // v169: the follower count, day by day (v173: not the scheduled function — Netlify 403s those)
 const IG_SCRAPE = "/.netlify/functions/ig-scrape-background";   // v172: a competitor's views, from their public page
+const HOOKS = "/api/hooks";                                     // v177: the hook library and the writing
+const HOOKS_MINE = "/.netlify/functions/hooks-mine-background"; // v177: reading the reels that took off (slow)
 const RIVAL_CAP = 10;
 
 /* ---------- small helpers ---------- */
@@ -1288,15 +1414,305 @@ async function loadRival(username, force) {
   }
 }
 
+/* ===================== v177: HOOKS =====================
+   Three steps, and only one of them is ever open: say what the reel is about → pick one of
+   eight openings → read the script. The state below is which step we are on; every render
+   is a function of it, so there is no way for the page to show step three's script beside
+   step one's empty box. */
+let hkLib = null;              // { hooks, scripts, waiting, configured, ... }
+let hkTopic = "";
+let hkFormat = "talking";
+let hkOptions = null;          // the eight, once asked for
+let hkPicked = -1;
+let hkScript = null;           // the written one, before it is saved
+let hkBusy = "";               // "options" | "write" | "mine" | ""
+let hkError = "";
+
+async function hkPost(payload) {
+  const r = await fetch(HOOKS, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+  const b = await r.json().catch(() => ({}));
+  if (!r.ok || !b.ok) throw new Error(b.error || "HTTP " + r.status);
+  return b;
+}
+
+async function loadHooks() {
+  try { hkLib = await jget(HOOKS); }
+  catch { hkLib = { ok: false, error: "Could not reach the hook library. The site may still be deploying." }; }
+  renderHooks();
+}
+
+/* the writer */
+function hkWriterHtml() {
+  if (!hkLib) return '<div class="loading">Reading the library…</div>';
+  if (hkLib.ok === false) return '<div class="setup"><b>Could not reach the hook library.</b><br>' + esc(hkLib.error || "") + "</div>";
+  if (!hkLib.configured) {
+    return '<div class="setup"><b>Two keys are missing.</b><br>The hook library reads each reel with Gemini and writes with Claude — ' +
+      "the same two the Scheduling page uses. Add <b>GEMINI_API_KEY</b> and <b>ANTHROPIC_API_KEY</b> in Netlify, redeploy, and this page will work.</div>";
+  }
+  if (!hkLib.hooks.length) {
+    return '<div class="setup"><b>The library is empty.</b><br>' +
+      (hkLib.waiting
+        ? "There " + (hkLib.waiting === 1 ? "is 1 reel" : "are " + hkLib.waiting + " reels") + " waiting to be read. Press <b>Find hooks</b> — it takes a few minutes, and it also runs on its own every night."
+        : "Nothing has taken off on your Competitors tab yet. Watch a few busy accounts, give the nightly scrape a night, and the reels that beat their own normal will land here.") +
+      "</div>";
+  }
+
+  let h = "";
+  if (hkError) h += '<div class="hk-err">' + esc(hkError) + "</div>";
+
+  // step one: the topic
+  h += '<div class="hk-step"><div class="hk-lbl">What is the reel about?</div>' +
+    '<div class="hk-topic"><textarea id="hkTopicIn" placeholder="A client asked whether she would get bulky lifting three times a week" ' +
+    'spellcheck="true">' + esc(hkTopic) + "</textarea>" +
+    '<button type="button" class="abtn primary" id="hkGo"' + (hkBusy ? " disabled" : "") + ">" +
+    (hkBusy === "options" ? "Finding openings…" : "Find openings") + "</button></div>" +
+    '<div class="hk-fmt"><span>Length</span><select id="hkFmt">' +
+    '<option value="talking"' + (hkFormat === "talking" ? " selected" : "") + ">To camera — about 100 words</option>" +
+    '<option value="demo"' + (hkFormat === "demo" ? " selected" : "") + ">Walkthrough — 150 to 200 words</option>" +
+    "</select></div></div>";
+
+  // step two: the eight
+  if (hkOptions && hkOptions.length) {
+    h += '<div class="hk-step"><div class="hk-lbl">Pick an opening</div><div class="hk-opts">' +
+      hkOptions.map((o, i) =>
+        '<button type="button" class="hk-opt' + (i === hkPicked ? " on" : "") + '" data-opt="' + i + '">' +
+        (o.type ? '<span class="hk-type">' + esc(o.type) + "</span>" : "") +
+        '<span class="hk-spoken">' + esc(o.spoken) + "</span>" +
+        (o.onScreen ? '<span class="hk-row"><b>On screen:</b> ' + esc(o.onScreen) + "</span>" : "") +
+        (o.caption ? '<span class="hk-row"><b>Caption:</b> ' + esc(o.caption) + "</span>" : "") +
+        (o.why ? '<span class="hk-why">' + esc(o.why) + "</span>" : "") +
+        "</button>").join("") +
+      "</div>" +
+      (hkPicked >= 0 && !hkScript
+        ? '<div class="hk-acts" style="margin-top:var(--sp-3)"><button type="button" class="abtn primary" id="hkWrite"' +
+          (hkBusy ? " disabled" : "") + ">" + (hkBusy === "write" ? "Writing…" : "Write the script") + "</button></div>"
+        : "") +
+      "</div>";
+  }
+
+  // step three: the script
+  if (hkScript) {
+    const s = hkScript;
+    h += '<div class="hk-step"><div class="hk-lbl">The script</div><div class="hk-script">' +
+      '<div class="hk-part"><div class="hk-lbl">He says</div><div class="hk-hookline">' + esc(s.spoken) + "</div></div>" +
+      (s.onScreen ? '<div class="hk-part"><div class="hk-lbl">On screen</div><div class="hk-row">' + esc(s.onScreen) + "</div></div>" : "") +
+      '<div class="hk-part"><div class="hk-lbl">Then</div><div class="hk-body">' + esc(s.body) + "</div></div>" +
+      (s.cta ? '<div class="hk-part"><div class="hk-lbl">Ask them to</div><div class="hk-body">' + esc(s.cta) + "</div></div>" : "") +
+      (s.caption ? '<div class="hk-part"><div class="hk-lbl">Caption</div><div class="hk-cap">' + esc(s.caption) + "</div></div>" : "") +
+      (s.visual ? '<div class="hk-part"><div class="hk-lbl">On camera</div><div class="hk-row">' + esc(s.visual) + "</div></div>" : "") +
+      '<div class="hk-acts">' +
+      '<button type="button" class="abtn primary" id="hkSave">Keep it — to film</button>' +
+      '<button type="button" class="abtn" id="hkCopy">Copy</button>' +
+      '<button type="button" class="abtn ghost" id="hkAgain">Write it again</button>' +
+      "</div></div></div>";
+  }
+  return h;
+}
+
+function wireWriter() {
+  const t = $("hkTopicIn"), go = $("hkGo"), fmt = $("hkFmt");
+  // the box is not re-rendered while it is being typed in, so the value is read on the way
+  // out rather than bound on every keystroke — a re-render mid-sentence moves the caret.
+  if (t) t.addEventListener("input", () => { hkTopic = t.value; });
+  if (fmt) fmt.addEventListener("change", () => { hkFormat = fmt.value; });
+  if (go) go.addEventListener("click", askOptions);
+  if (t) t.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) askOptions(); });
+  document.querySelectorAll("#hkWriter [data-opt]").forEach((b) => b.addEventListener("click", () => {
+    hkPicked = Number(b.dataset.opt);
+    hkScript = null;
+    renderHooks();
+  }));
+  const w = $("hkWrite"); if (w) w.addEventListener("click", writeIt);
+  const sv = $("hkSave"); if (sv) sv.addEventListener("click", saveScript);
+  const ag = $("hkAgain"); if (ag) ag.addEventListener("click", writeIt);
+  const cp = $("hkCopy"); if (cp) cp.addEventListener("click", copyScript);
+}
+
+async function askOptions() {
+  const t = $("hkTopicIn");
+  if (t) hkTopic = t.value;
+  if (!hkTopic.trim() || hkBusy) return;
+  hkBusy = "options"; hkError = ""; hkOptions = null; hkPicked = -1; hkScript = null;
+  renderHooks();
+  try { hkOptions = (await hkPost({ action: "options", topic: hkTopic })).options; }
+  catch (e) { hkError = e.message; }
+  hkBusy = "";
+  renderHooks();
+}
+
+async function writeIt() {
+  if (hkPicked < 0 || hkBusy) return;
+  hkBusy = "write"; hkError = ""; hkScript = null;
+  renderHooks();
+  try { hkScript = (await hkPost({ action: "write", topic: hkTopic, option: hkOptions[hkPicked], format: hkFormat })).script; }
+  catch (e) { hkError = e.message; }
+  hkBusy = "";
+  renderHooks();
+}
+
+async function saveScript() {
+  if (!hkScript) return;
+  try {
+    const r = await hkPost({ action: "save", script: hkScript });
+    hkLib.scripts = r.scripts;
+    // the writer clears: the script has a home now, and leaving it on screen invites a
+    // second Keep that saves the same thing twice
+    hkScript = null; hkOptions = null; hkPicked = -1; hkTopic = "";
+    hkError = "";
+  } catch (e) { hkError = e.message; }
+  renderHooks();
+}
+
+// what you would read off a phone while filming — the labels included, because a bare
+// paragraph in a notes app is not a script.
+function scriptText(s) {
+  return [
+    "HOOK: " + s.spoken,
+    s.onScreen ? "ON SCREEN: " + s.onScreen : "",
+    "", s.body, "",
+    s.cta ? "CTA: " + s.cta : "",
+    s.caption ? "\nCAPTION:\n" + s.caption : "",
+  ].filter(Boolean).join("\n");
+}
+function copyScript() {
+  if (!hkScript) return;
+  const btn = $("hkCopy");
+  navigator.clipboard.writeText(scriptText(hkScript)).then(
+    () => { if (btn) { btn.textContent = "Copied"; setTimeout(() => { if (btn) btn.textContent = "Copy"; }, 1600); } },
+    () => { if (btn) btn.textContent = "Could not copy"; }
+  );
+}
+
+/* the scripts waiting to be filmed */
+const SC_NEXT = { draft: "filmed", filmed: "posted" };
+const SC_VERB = { draft: "Filmed it", filmed: "Posted it" };
+
+function renderScripts() {
+  const card = $("hkScriptsCard"), body = $("hkScripts"), sub = $("hkScriptsSub");
+  const all = (hkLib && hkLib.scripts) || [];
+  const live = all.filter((s) => s.status !== "binned");
+  card.hidden = !live.length;
+  if (!live.length) return;
+  const drafts = live.filter((s) => s.status === "draft").length;
+  sub.textContent = drafts
+    ? drafts + (drafts === 1 ? " script" : " scripts") + " written and not yet filmed."
+    : "Everything written has been filmed.";
+  body.innerHTML = live.map((s) =>
+    '<div class="hk-sc' + (s.status === "posted" ? " done" : "") + '">' +
+    '<div class="hk-sc-h" data-open="' + esc(s.id) + '">' + esc(s.spoken) +
+      "<span>" + esc(s.topic.slice(0, 80)) + "</span></div>" +
+    '<span class="hk-state ' + esc(s.status) + '">' + esc(s.status) + "</span>" +
+    (SC_NEXT[s.status] ? '<button type="button" class="abtn" data-adv="' + esc(s.id) + '">' + esc(SC_VERB[s.status]) + "</button>" : "") +
+    '<button type="button" class="abtn ghost" data-copy="' + esc(s.id) + '">Copy</button>' +
+    '<button type="button" class="hk-x" data-bin="' + esc(s.id) + '" aria-label="Bin this script"><svg class="ic"><use href="#ic-close"/></svg></button>' +
+    "</div>").join("");
+
+  const find = (id) => all.find((x) => x.id === id);
+  body.querySelectorAll("[data-adv]").forEach((b) => b.addEventListener("click", async () => {
+    const s = find(b.dataset.adv); if (!s) return;
+    b.disabled = true;
+    try { hkLib.scripts = (await hkPost({ action: "status", id: s.id, status: SC_NEXT[s.status] })).scripts; }
+    catch (e) { hkError = e.message; }
+    renderHooks();
+  }));
+  body.querySelectorAll("[data-bin]").forEach((b) => b.addEventListener("click", async () => {
+    b.disabled = true;
+    try { hkLib.scripts = (await hkPost({ action: "status", id: b.dataset.bin, status: "binned" })).scripts; }
+    catch (e) { hkError = e.message; }
+    renderHooks();
+  }));
+  body.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", () => {
+    const s = find(b.dataset.copy); if (!s) return;
+    navigator.clipboard.writeText(scriptText(s)).then(() => {
+      b.textContent = "Copied"; setTimeout(() => { b.textContent = "Copy"; }, 1600);
+    }, () => {});
+  }));
+  // tapping the hook line puts the whole script back in the writer, to read or re-copy
+  body.querySelectorAll("[data-open]").forEach((el) => el.addEventListener("click", () => {
+    const s = find(el.dataset.open); if (!s) return;
+    hkScript = s; hkTopic = s.topic; hkFormat = s.format || "talking";
+    renderHooks();
+    const w = $("hkWriter"); if (w) w.scrollIntoView({ behavior: "smooth", block: "start" });
+  }));
+}
+
+/* the library */
+function renderLib() {
+  const el = $("hkLib");
+  if (!hkLib || hkLib.ok === false) { el.innerHTML = '<div class="loading">Reading the library…</div>'; return; }
+  const hooks = hkLib.hooks || [];
+  if (!hooks.length) {
+    el.innerHTML = '<div class="empty">Nothing yet. The reels that beat their own account by double land here once they have been read.</div>';
+    return;
+  }
+  const note = hkLib.waiting
+    ? '<div class="hk-note" style="margin-bottom:var(--sp-3)">' + hkLib.waiting +
+      (hkLib.waiting === 1 ? " reel is" : " reels are") + " waiting to be read. Press Find hooks, or leave it for tonight's run.</div>"
+    : "";
+  el.innerHTML = note + '<div class="hk-list">' + hooks.map((h) =>
+    '<div class="hk-card">' +
+    '<span class="hk-type">' + esc(h.type || "Hook") + "</span>" +
+    '<div class="hk-tmpl">' + esc(h.template || h.spoken) + "</div>" +
+    (h.spoken ? '<div class="hk-said">' + esc(h.spoken) + "</div>" : "") +
+    (h.onScreen ? '<div class="hk-row"><b>On screen:</b> ' + esc(h.onScreen) + "</div>" : "") +
+    (h.why ? '<div class="hk-why">' + esc(h.why) + "</div>" : "") +
+    '<div class="hk-meta">' +
+      (h.vsMedian ? '<span class="hk-flame"><svg class="ic"><use href="#ic-flame"/></svg>' + h.vsMedian.toFixed(1) + "×</span>" : "") +
+      "<span>" + (h.isOwn ? "yours" : "@" + esc(h.username)) + "</span>" +
+      (h.views != null ? "<span>" + nfmt(h.views) + " " + (h.basis === "views" ? "views" : "reached") + "</span>" : "") +
+      (h.url ? '<a href="' + esc(h.url) + '" target="_blank" rel="noopener">watch</a>' : "") +
+      '<button type="button" class="hk-x" data-forget="' + esc(h.id) + '" aria-label="Drop this hook"><svg class="ic"><use href="#ic-close"/></svg></button>' +
+    "</div></div>").join("") + "</div>";
+
+  el.querySelectorAll("[data-forget]").forEach((b) => b.addEventListener("click", async () => {
+    b.disabled = true;
+    try { hkLib.hooks = (await hkPost({ action: "forget", id: b.dataset.forget })).hooks; }
+    catch (e) { hkError = e.message; }
+    renderHooks();
+  }));
+}
+
+function renderHooks() {
+  const w = $("hkWriter");
+  if (!w) return;
+  const focused = document.activeElement && document.activeElement.id === "hkTopicIn";
+  const caret = focused ? document.activeElement.selectionStart : null;
+  w.innerHTML = hkWriterHtml();
+  wireWriter();
+  // a render while the topic box has focus must not take it away mid-sentence
+  if (focused) { const t = $("hkTopicIn"); if (t) { t.focus(); if (caret != null) t.setSelectionRange(caret, caret); } }
+  renderScripts();
+  renderLib();
+  const mine = $("hkMine");
+  if (mine) mine.disabled = hkBusy === "mine" || !(hkLib && hkLib.configured);
+}
+
+// Find hooks: the background function answers 202 at once and works for minutes, so the
+// page says so and re-reads a little later rather than pretending to wait for it.
+$("hkMine").addEventListener("click", async () => {
+  if (hkBusy) return;
+  hkBusy = "mine"; hkError = "";
+  renderHooks();
+  try { await fetch(HOOKS_MINE, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); }
+  catch { hkError = "Could not start the read."; hkBusy = ""; renderHooks(); return; }
+  const lib = $("hkLib");
+  if (lib) lib.insertAdjacentHTML("afterbegin", '<div class="hk-note" id="hkMineNote" style="margin-bottom:var(--sp-3)">Reading the reels that took off — a few minutes. You can leave this page; they will be here when you come back.</div>');
+  setTimeout(async () => { hkBusy = ""; await loadHooks(); }, 90000);
+});
+
 /* ---------- the toggle ---------- */
 function setView(v) {
   view = v;
   document.querySelectorAll("#tabBar .vt").forEach((b) => b.classList.toggle("active", b.dataset.view === v));
   $("v-mine").hidden = v !== "mine";
   $("v-rivals").hidden = v !== "rivals";
-  // "Only the ones that took off" is meaningless before there is a list to filter
+  $("v-hooks").hidden = v !== "hooks";
+  // Sorting and "only the ones that took off" belong to a grid of posts. The Hooks tab has
+  // no grid of posts, so its toolbar goes with it.
+  $("vtRight").hidden = v === "hooks";
   $("outWrap").hidden = false;
   if (v === "rivals" && rivalSel && !rivalData[rivalSel]) loadRival(rivalSel);
+  if (v === "hooks" && !hkLib) loadHooks();
 }
 $("tabBar").addEventListener("click", (e) => {
   const b = e.target.closest(".vt");
@@ -1341,6 +1757,9 @@ window.__socialState = {
   get rivals() { return rivals.slice(); },
   get selected() { return rivalSel; },
   get sort() { return { by: sortBy, outliersOnly }; },
+  // v177
+  get hooks() { return hkLib; },
+  get writer() { return { topic: hkTopic, format: hkFormat, picked: hkPicked, busy: hkBusy, error: hkError, options: hkOptions, script: hkScript }; },
 };
 </script>
 
