@@ -191,7 +191,7 @@ const CAPTIONS = { "ig-cache-mine": { account: { username: "bodysculptwarrington
     assert.ok(/hk-vprofile/.test(js) && /hkVoiceOpen/.test(js),
       "the profile is still shown IN FULL — one he cannot read is one he cannot tell is wrong — but behind 'Read it'");
     assert.ok(/hkBusy === "voice"/.test(js), "the control locks while it runs");
-    assert.ok(/tipBtn\("voice"\)/.test(js) && /voice: \["Your voice"/.test(js),
+    assert.ok(/tipBtn\("voice"\)/.test(js) && /voice: \["How Bodysculpt sounds"/.test(js),
       "the paragraph that used to sit on the page is in the suite's own tooltip instead");
     const writes = [...js.matchAll(/fetch\(([^,]+),\s*\{[\s\S]{0,200}?method:/g)].map((m) => m[1].trim());
     const allowed = new Set(["API", "IG_SCRAPE", "IG_SNAP", "HOOKS", "HOOKS_MINE", "VOICE_BUILD"]);

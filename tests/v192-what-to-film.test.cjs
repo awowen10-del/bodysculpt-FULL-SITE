@@ -116,7 +116,11 @@ async function loadLib(file, tag, seed) {
     const js = scriptOf(SOCIAL);
     assert.ok(SOCIAL.indexOf('id="hkIdeas"') < SOCIAL.indexOf('id="hkWriter"'),
       "the ideas come BEFORE the box — the box was the front door and should never have been");
-    assert.ok(/Write something else/.test(SOCIAL), "…and the box is now plainly the fallback");
+    /* v197 renamed it. "Write something else" read as an afterthought and did not say what it
+       wanted from you; with the team in here, a label has to explain itself. */
+    assert.ok(/Or write your own idea/.test(SOCIAL), "…and the box is plainly the fallback, in words a newcomer can act on");
+    assert.ok(!/data-view="hooks">Hooks</.test(SOCIAL),
+      "the tab is not called Hooks — nobody new to marketing knows what a hook is");
     assert.ok(/Film one of these/.test(SOCIAL), "the heading says what to do with them");
     // v193: what this used to assert — that the source contained `hkTopic = i.title` and a
     // call to askOptions() — was true of code that did nothing at all. The claim is now made

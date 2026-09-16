@@ -897,7 +897,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
   <div class="viewtoggle" id="tabBar">
     <button class="vt active" data-view="mine">My posts</button>
     <button class="vt" data-view="rivals">Competitors</button>
-    <button class="vt" data-view="hooks">Hooks</button>
+    <button class="vt" data-view="hooks">Make a reel</button>
     <div class="vt-right" id="vtRight">
       <label class="outonly" id="outWrap" hidden><input type="checkbox" id="outOnly"> Only the ones that took off</label>
       <div class="sortpick"><span>Sort</span>
@@ -981,12 +981,9 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 
     <section class="card">
       <div class="cardhead">
-        <div><div class="chead"><svg class="ic"><use href="#ic-note"/></svg> Write something else <span id="hkWriterTip"></span></div></div>
-        <div class="cardhead-r">
-          <button type="button" class="abtn" id="hkMine"><svg class="ic"><use href="#ic-refresh"/></svg> Find hooks</button>
-        </div>
+        <div><div class="chead"><svg class="ic"><use href="#ic-note"/></svg> Or write your own idea <span id="hkWriterTip"></span></div></div>
       </div>
-      <div id="hkWriter"><div class="loading">Reading the library…</div></div>
+      <div id="hkWriter"><div class="loading">Reading…</div></div>
       <div id="hkVoiceBar"></div>
     </section>
 
@@ -998,10 +995,15 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
     </section>
 
     <section class="card">
-      <div class="cardhead"><div>
-        <div class="chead"><svg class="ic"><use href="#ic-flame"/></svg> Hook library
-          <span class="hk-count" id="hkLibCount"></span> <span id="hkLibTip"></span></div>
-      </div></div>
+      <div class="cardhead">
+        <div>
+          <div class="chead"><svg class="ic"><use href="#ic-flame"/></svg> What&rsquo;s working for other gyms
+            <span class="hk-count" id="hkLibCount"></span> <span id="hkLibTip"></span></div>
+        </div>
+        <div class="cardhead-r">
+          <button type="button" class="abtn ghost" id="hkMine"><svg class="ic"><use href="#ic-refresh"/></svg> Check for new ones</button>
+        </div>
+      </div>
       <div id="hkLib"><div class="loading">Reading the library…</div></div>
     </section>
   </div>
@@ -1117,10 +1119,10 @@ const TIPS = {
   flame: ["Took off", "This post did at least twice what this account normally does. It is measured against that account's own middle post, not against anyone else's — so it means the same thing whichever account you are looking at."],
   // v188: the Hooks tab's three paragraphs of explanation, moved off the page and into the
   // place the rest of the suite already keeps this kind of thing
-  writer: ["Write a reel", "Say what the reel is about and you get eight openings back. Each one is built on the shape of a reel that already beat its own account by double, taken from the accounts you watch. Pick one and it writes the rest — on-screen lines and a caption for a silent reel, a script for a talking one."],
-  voice: ["Your voice", "Read from your own best reels: what is said, what is on the screen, and how you write your captions. Everything written here and every caption on the Scheduling page is written against it. Without it they are written from your captions alone, which carries your words but not your rhythm."],
-  ideas: ["Film one of these", "Five reels you could film this week, worked out from what has taken off for the accounts you watch, your own posts that beat your normal, the questions you already answer in your captions, and the time of year. Press Write it and it takes the idea straight into the writer."],
-  library: ["Hook library", "Every reel on your Competitors tab that beat its own account by double, with what was said in the first three seconds, the text that was on screen, and the shape underneath both. The shape is the part that works on a subject of your own."],
+  writer: ["Write your own idea", "Use this when you already know what the reel is about. Type it in plain words — \"a client asked if she would get bulky\" — and you get eight ways to open it, each one borrowed from a reel that genuinely worked for another gym. Pick the one you like and it writes the rest: the lines that go on screen, the caption, and what to point the camera at."],
+  voice: ["How Bodysculpt sounds", "Every gym's posts sound slightly different, and most AI writing sounds like none of them. So this reads Ash's own best reels — what he says, what goes on screen, how he writes a caption — and writes down the habits: no hashtags, sentence case, contractions, soft calls to action. Everything written on this page and every caption on the Scheduling page is checked against it, so nothing goes out sounding like an agency wrote it."],
+  ideas: ["Film one of these", "Five reels you could film this week. They are not generic content ideas — each one comes from something real: a reel that took off for a gym you watch, one of your own posts worth another angle, a question you already answer in your captions, or what time of year it is. The small grey line on each says which. Press Write this one and it takes the idea straight into the writer."],
+  library: ["What's working for other gyms", "An opening is the first line or the first card of a reel — the bit that decides whether somebody keeps watching. Every night this looks at the gyms on your Competitors tab, finds any reel that did at least double what THAT account normally does, and writes down how it opened. It then strips out the specifics, so \"Everyone thinks cardio burns the most fat\" becomes \"Everyone thinks [THING] does [OUTCOME]\" — a shape you can say about your own subject. The writer builds every opening it offers you on one of these."],
 };
 let tipEl = null, tipFor = null;
 function tipBtn(key) {
@@ -1566,7 +1568,7 @@ function hkWriterHtml() {
     // whole system again in a box that exists only because there is nothing to show yet.
     return '<div class="setup">' +
       (hkLib.waiting
-        ? "<b>" + (hkLib.waiting === 1 ? "1 reel is" : hkLib.waiting + " reels are") + " waiting to be read.</b> Press Find hooks, or leave it for tonight's run."
+        ? "<b>" + (hkLib.waiting === 1 ? "1 reel is" : hkLib.waiting + " reels are") + " waiting to be read.</b> Press Check for new ones, or leave it for tonight's run."
         : hkLib.skipped
           // v183: a reel given up on used to stay given up on for ever, including when the only
           // thing wrong had been a busy minute at Google. Offering the way back beats an empty
@@ -1882,7 +1884,7 @@ function renderLib() {
     (h.onScreen ? '<div class="hk-row"><b>On screen:</b> ' + esc(h.onScreen) + "</div>" : "") +
     (h.why ? '<div class="hk-why">' + esc(h.why) + "</div>" : "") +
     '<div class="hk-meta">' +
-      (h.vsMedian ? '<span class="hk-flame"><svg class="ic"><use href="#ic-flame"/></svg>' + h.vsMedian.toFixed(1) + "×</span>" : "") +
+      (h.vsMedian ? '<span class="hk-flame"><svg class="ic"><use href="#ic-flame"/></svg>' + h.vsMedian.toFixed(1) + "× their normal</span>" : "") +
       "<span>" + (h.isOwn ? "yours" : "@" + esc(h.username)) + "</span>" +
       (h.views != null ? "<span>" + nfmt(h.views) + " " + (h.basis === "views" ? "views" : "reached") + "</span>" : "") +
       (h.url ? '<a href="' + esc(h.url) + '" target="_blank" rel="noopener">watch</a>' : "") +
@@ -1926,13 +1928,13 @@ function renderIdeas() {
         (i.why ? '<span class="hk-idea-w">' + esc(i.why) + "</span>" : "") +
         (i.source ? '<span class="hk-idea-s"><svg class="ic"><use href="#ic-flame"/></svg>' + esc(i.source) + "</span>" : "") +
       "</div>" +
-      '<span class="hk-idea-go"><button type="button" class="abtn primary" data-idea="' + n + '">Write it</button></span>' +
+      '<span class="hk-idea-go"><button type="button" class="abtn primary" data-idea="' + n + '">Write this one</button></span>' +
       "</div>").join("") + "</div>";
   }
 
   h += '<div class="hk-ideas-foot">' +
     (hkLib.ideasAt ? "<span>" + esc(when(hkLib.ideasAt)) + "</span>" : "") +
-    '<button type="button" id="hkAboutBtn">' + (hkAboutOpen ? "Hide" : (hkLib.about ? "Edit what your gym does" : "Tell it about your gym")) + "</button>" +
+    '<button type="button" id="hkAboutBtn">' + (hkAboutOpen ? "Hide" : (hkLib.about ? "Edit what the gym does" : "Tell it about the gym")) + "</button>" +
     (!hkLib.about && !hkAboutOpen ? "<span>— these get a lot sharper once it knows</span>" : "") +
     "</div>";
 
@@ -2001,9 +2003,9 @@ function renderVoiceBar() {
 
   let state;
   if (busy) state = '<span class="hk-vb-t">Learning your voice…</span><span class="hk-vb-s">about five minutes — you can leave this page</span>';
-  else if (learnt) state = '<span class="hk-vb-t">Your voice</span><span class="hk-vb-s">' +
+  else if (learnt) state = '<span class="hk-vb-t">How Bodysculpt sounds</span><span class="hk-vb-s">' +
     v.reels + " reels · " + esc(source) + (v.builtAt ? " · " + esc(when(v.builtAt)) : "") + "</span>";
-  else state = '<span class="hk-vb-t">Your voice</span><span class="hk-vb-s">not learnt — written from your captions alone</span>';
+  else state = '<span class="hk-vb-t">How Bodysculpt sounds</span><span class="hk-vb-s">not set up yet — using your captions for now</span>';
 
   el.innerHTML = '<div class="hk-vb">' +
     '<span class="hk-vb-dot' + (learnt ? " on" : "") + '"></span>' + state +
@@ -2012,7 +2014,7 @@ function renderVoiceBar() {
       (learnt ? '<button type="button" class="hk-vb-link" id="hkVoiceShow">' + (hkVoiceOpen ? "Hide" : "Read it") + "</button>" : "") +
       (v && v.note && !busy ? '<button type="button" class="hk-vb-link warn" id="hkVoiceWhy">' + (hkVoiceOpen ? "Hide" : "Why not?") + "</button>" : "") +
       '<button type="button" class="abtn ghost" id="hkVoiceGo2"' + (busy || !configured ? " disabled" : "") + ">" +
-        (busy ? "Working…" : learnt ? "Relearn" : "Learn my voice") + "</button>" +
+        (busy ? "Working…" : learnt ? "Learn it again" : "Set this up") + "</button>" +
     "</span></div>" +
     (hkVoiceOpen ? '<div class="hk-vopen">' +
       (v && v.note ? '<div class="hk-err">' + esc(v.note) + (v.triedAt ? " · " + esc(when(v.triedAt)) : "") + "</div>" : "") +
