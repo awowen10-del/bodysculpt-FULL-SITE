@@ -153,7 +153,18 @@ export async function geminiAsk(buffer, mime, name, prompt, limit) {
     body: JSON.stringify({ file: { display_name: name } }),
   });
   const uploadUrl = start.headers.get("x-goog-upload-url");
-  if (!start.ok || !uploadUrl) throw new Error("Gemini would not accept the video (" + start.status + ").");
+  if (!start.ok || !uploadUrl) {
+    /* v187: say WHY it would not take it. The upload is a separate endpoint from
+       generateContent with its own limits, and this line threw the status away — so a run
+       that failed here reported "Gemini would not accept the video (429)" and nothing else,
+       which is not enough to tell an exhausted daily allowance from a per-minute rate limit
+       from a key whose project never got the billing that was just switched on. Google puts
+       the answer in the body; it just was not being read. */
+    const detail = await start.text().catch(() => "");
+    let why = "";
+    try { const j = JSON.parse(detail); why = (j.error && (j.error.message || j.error.status)) || ""; } catch { why = clip(detail, 200); }
+    throw new Error("Gemini would not accept the video (HTTP " + start.status + ")" + (why ? ": " + clip(why, 240) : "."));
+  }
   const up = await fetch(uploadUrl, {
     method: "PUT",
     headers: { "X-Goog-Upload-Command": "upload, finalize", "X-Goog-Upload-Offset": "0", "Content-Length": String(buffer.byteLength) },
