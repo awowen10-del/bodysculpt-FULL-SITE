@@ -2048,7 +2048,7 @@ function renderIdeas() {
       '<textarea id="hkAboutIn" placeholder="What you actually sell — small group coaching, one-to-one, the consult. The objections you hear most. What you are pushing this autumn. Anything you would tell a new coach on their first day.">' +
       esc(hkLib.about || "") + "</textarea>" +
       '<div class="hk-about-r"><button type="button" class="abtn primary" id="hkAboutSave">Save</button>' +
-      '<span class="hk-idea-s">Used every time it thinks of ideas.</span></div></div>';
+      '<span class="hk-idea-s" id="hkAboutCount"></span></div></div>';
   }
   el.innerHTML = h;
 
@@ -2076,6 +2076,17 @@ function renderIdeas() {
   el.querySelectorAll("[data-dropidea]").forEach((b) => b.addEventListener("click", () => flag("dropIdea", b.dataset.dropidea)));
   const ab = $("hkAboutBtn");
   if (ab) ab.addEventListener("click", () => { hkAboutOpen = !hkAboutOpen; renderHooks(); });
+  // v202: a running count, because this box silently ate the end of his playbook once
+  const counter = () => {
+    const t = $("hkAboutIn"), c = $("hkAboutCount");
+    if (!t || !c) return;
+    const n = t.value.length;
+    c.textContent = n > 11000
+      ? n.toLocaleString("en-GB") + " of 12,000 characters — close to the limit"
+      : "Used every time it thinks of ideas. " + n.toLocaleString("en-GB") + " characters.";
+  };
+  const ai = $("hkAboutIn");
+  if (ai) { ai.addEventListener("input", counter); counter(); }
   const save = $("hkAboutSave");
   if (save) save.addEventListener("click", async () => {
     const t = $("hkAboutIn"); if (!t) return;

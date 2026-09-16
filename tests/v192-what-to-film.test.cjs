@@ -249,5 +249,35 @@ async function loadLib(file, tag, seed) {
     assert.ok(/ideaId: hkFromIdea/.test(js), "and a script remembers which suggestion it came from");
   }
 
-  console.log("v192-v200 what to film: OK");
+  /* ============ 8. v202: the output was thin, not the material ============
+     Ash: "From the playbook, the accounts I follow and the scouting report… how are we only
+     getting 10 to choose from?" Three answers, two of them faults. */
+  {
+    const IDEAS = read("netlify/lib/ideas.js");
+
+    // (a) his own note about the business — the richest source there is — was being eaten
+    assert.ok(/const MAX_ABOUT = 12000;/.test(IDEAS),
+      "his playbook arrived at exactly 3000 characters, cut off mid-sentence, with nothing to say so");
+    const seeded = await loadLib("netlify/lib/ideas.js", "about", {});
+    const long = "x".repeat(20000);
+    await seeded.setAbout(long);
+    assert.strictEqual((await seeded.readIdeas()).about.length, 12000,
+      "still bounded — a blob has a size — but four times what it was");
+    const js = scriptOf(SOCIAL);
+    assert.ok(/of 12,000 characters/.test(js) && /close to the limit/.test(js),
+      "…and the box now counts, because a limit that truncates the best input silently is worse than no limit");
+
+    // (b) less than half his voice profile, and a third of his posts, were reaching the prompt
+    assert.ok(/clip\(voice, 4500\)/.test(IDEAS),
+      "his profile is 5,400 characters and 2,500 of it was getting through — the caption and check sections, which are where his recurring subjects live, were the half being cut");
+    assert.ok(/ownPosts \|\| \[\]\)\.slice\(0, 16\)/.test(IDEAS),
+      "and eight of his twenty-five posts is not his account, it is a third of it");
+
+    // (c) five a day was set before there was anything much to draw on
+    assert.ok(/const WANT = 8;/.test(IDEAS), "eight a day, from material that can carry eight");
+    assert.ok(/const MAX_SHELF = 44;/.test(IDEAS),
+      "…and the shelf grew with it, or raising the count would just evict Monday by Thursday");
+  }
+
+  console.log("v192-v202 what to film: OK");
 })().catch((e) => { console.error(e); process.exit(1); });

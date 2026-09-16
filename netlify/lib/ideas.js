@@ -31,8 +31,16 @@ import { readVoice } from "./schedule.js";
 import { readTrends, trendBrief } from "./trends.js";
 
 export const KEY = "ig-ideas";
-const WANT = 5;
-const MAX_ABOUT = 3000;
+/* v202: eight, not five. Ash: "From the playbook, the accounts I follow and the scouting
+   report… how are we only getting 10 to choose from?" Five was picked before there was
+   anything much to draw on; with a full playbook, a week of trend notes and twenty-five of his
+   own posts in front of it, it was the output that was thin rather than the material. */
+const WANT = 8;
+/* His own note about the business is the single richest source there is, and this cap was
+   silently eating it — his playbook arrived at exactly 3000 characters, cut off mid-sentence
+   at "with weekly check-ins", with nothing anywhere to say so. A limit that truncates the best
+   input without a word is worse than no limit. */
+const MAX_ABOUT = 12000;
 /* v200: ideas ACCUMULATE through the week instead of being replaced each morning.
    Ash: "I write all my content ideas / decide what they are on a Friday. I don't want the
    suggestions from the rest of the week to have gone." They were going — each 5:30am run
@@ -40,7 +48,7 @@ const MAX_ABOUT = 3000;
    never existed as far as he was concerned. Five a day for a working week is about
    twenty-five, which is what a planning session wants in front of it. */
 const SHELF_DAYS = 10;      // after that an unused idea is stale, and staleness reads as noise
-const MAX_SHELF = 26;       // a week of five, plus a little room
+const MAX_SHELF = 44;       // a week of eight, plus room for what he has pinned
 
 const env = (k) => (process.env[k] || "").trim();
 const clip = (s, n) => (typeof s === "string" ? s.slice(0, n) : "");
@@ -135,14 +143,14 @@ export function ideasPrompt({ about, voice, hooks, ownPosts, recentTopics, onShe
     "· " + (h.angle || h.template || "a reel") + " — @" + h.username +
     (h.vsMedian ? ", " + h.vsMedian.toFixed(1) + "× their normal" : "") +
     (h.why ? ". " + clip(h.why, 160) : "")).join("\n");
-  const mine = (ownPosts || []).slice(0, 8).map((p) =>
+  const mine = (ownPosts || []).slice(0, 16).map((p) =>
     "· " + clip((p.caption || "").replace(/\s+/g, " "), 130) + (p.views != null ? "  (" + p.views + " views)" : "")).join("\n");
 
   return "You are helping Ash decide what to film. He runs Bodysculpt, a small group training gym in Warrington, UK. " +
     "His audience is local people who want to lose weight, get stronger and feel better — busy, ordinary, a lot of " +
     "them nervous about gyms and half-sure it will not work for them.\n\n" +
     (about ? "WHAT ASH SAYS ABOUT THE BUSINESS:\n" + clip(about, MAX_ABOUT) + "\n\n" : "") +
-    (voice ? "HOW HE COMMUNICATES (for the subjects he returns to, not for style here):\n" + clip(voice, 2500) + "\n\n" : "") +
+    (voice ? "HOW HE COMMUNICATES (for the subjects he returns to, not for style here):\n" + clip(voice, 4500) + "\n\n" : "") +
     (winners ? "WHAT IS WORKING FOR GYMS HE WATCHES — these beat their own account by double or more:\n" + winners + "\n\n" : "") +
     (mine ? "HIS OWN RECENT POSTS:\n" + mine + "\n\n" : "") +
     // v198: the sixth source — Friday's scroll of the wider feed, clearly labelled as coming
@@ -154,7 +162,8 @@ export function ideasPrompt({ about, voice, hooks, ownPosts, recentTopics, onShe
     (onShelf && onShelf.length ? "ALREADY SUGGESTED THIS WEEK AND STILL ON HIS LIST — give him five DIFFERENT ones:\n" +
       onShelf.map((t) => "· " + clip(t, 120)).join("\n") + "\n\n" : "") +
     "It is " + now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }) + " — " + SEASON(now) + ".\n\n" +
-    "Give him " + WANT + " reels he could film THIS WEEK.\n\n" +
+    "Give him " + WANT + " reels he could film THIS WEEK. Use the material above properly — there is a lot of it, " +
+    "and eight genuinely different angles are in there.\n\n" +
     "What makes one of these good:\n" +
     "· It is a SUBJECT, not a format. \"Answer the bulky question\" is an idea; \"do a talking head\" is not.\n" +
     "· He could film it in his own gym this week with the people who are already there. No actors, no studio, " +
