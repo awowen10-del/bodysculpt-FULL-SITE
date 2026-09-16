@@ -702,6 +702,33 @@
   .hk-bword{font-size:11.5px;color:var(--tint-red);background:rgba(var(--red-rgb),.08);
     border:1px solid rgba(var(--red-rgb),.18);border-radius:var(--r-pill);padding:3px 10px;
     text-decoration:line-through;text-decoration-thickness:1px;}
+  /* --- v192: what to film ---
+     An idea has to read as a thing to DO, so the sentence is the loud part, the reason it is
+     being suggested is quiet underneath, and there is exactly one button. Where it came from
+     is the smallest text on the card, because it is the part that earns trust rather than the
+     part that prompts action. */
+  .hk-ideas{display:flex;flex-direction:column;gap:var(--sp-2);}
+  .hk-idea{display:flex;align-items:flex-start;gap:var(--sp-3);padding:13px 14px;
+    background:var(--card-2);border:1px solid var(--line);border-radius:var(--r-md);
+    transition:border-color var(--tap);}
+  .hk-idea:hover{border-color:var(--ink-faint);}
+  .hk-idea-b{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:4px;}
+  .hk-idea-t{font-size:15px;font-weight:700;color:var(--ink-strong);line-height:1.4;letter-spacing:-.01em;}
+  .hk-idea-w{font-size:12.5px;color:var(--ink-dim);line-height:1.5;}
+  .hk-idea-s{font-size:11px;color:var(--ink-faint);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .hk-idea-s .ic{width:11px;height:11px;}
+  .hk-idea-go{flex:0 0 auto;align-self:center;}
+  .hk-ideas-foot{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;
+    font-size:11.5px;color:var(--ink-faint);margin-top:var(--sp-3);}
+  .hk-ideas-foot button{background:none;border:none;font-family:inherit;font-size:11.5px;font-weight:600;
+    color:var(--ink-dim);cursor:pointer;padding:2px 4px;border-radius:var(--r-sm);}
+  .hk-ideas-foot button:hover{color:var(--orange-soft);}
+  .hk-about{display:flex;flex-direction:column;gap:var(--sp-2);margin-top:var(--sp-3);}
+  .hk-about textarea{font-family:inherit;font-size:13px;line-height:1.55;color:var(--ink);
+    background:var(--card-2);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:10px 12px;min-height:110px;resize:vertical;}
+  .hk-about-r{display:flex;align-items:center;gap:var(--sp-2);}
+
   /* a number beside a heading, instead of a sentence under it */
   .hk-count{font-size:11.5px;font-weight:700;color:var(--ink-faint);background:var(--navy-2);
     border-radius:var(--r-pill);padding:2px 9px;}
@@ -926,9 +953,22 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
      line at the foot of the writer that opens when you want to read it. -->
 <div class="view" id="v-hooks" hidden>
   <div class="hk-wrap">
+    <!-- v192: what to film, first. Ash: "I don't load this up and immediately feel inspired
+         or know what to post for a reel." The page used to open on an empty box asking him a
+         question he does not have the answer to — if he knew, he would not need the page. -->
     <section class="card">
       <div class="cardhead">
-        <div><div class="chead"><svg class="ic"><use href="#ic-note"/></svg> Write a reel <span id="hkWriterTip"></span></div></div>
+        <div><div class="chead"><svg class="ic"><use href="#ic-flag"/></svg> Film one of these <span id="hkIdeasTip"></span></div></div>
+        <div class="cardhead-r">
+          <button type="button" class="abtn ghost" id="hkIdeasNew">New ideas</button>
+        </div>
+      </div>
+      <div id="hkIdeas"><div class="loading">Reading…</div></div>
+    </section>
+
+    <section class="card">
+      <div class="cardhead">
+        <div><div class="chead"><svg class="ic"><use href="#ic-note"/></svg> Write something else <span id="hkWriterTip"></span></div></div>
         <div class="cardhead-r">
           <button type="button" class="abtn" id="hkMine"><svg class="ic"><use href="#ic-refresh"/></svg> Find hooks</button>
         </div>
@@ -1066,6 +1106,7 @@ const TIPS = {
   // place the rest of the suite already keeps this kind of thing
   writer: ["Write a reel", "Say what the reel is about and you get eight openings back. Each one is built on the shape of a reel that already beat its own account by double, taken from the accounts you watch. Pick one and it writes the rest — on-screen lines and a caption for a silent reel, a script for a talking one."],
   voice: ["Your voice", "Read from your own best reels: what is said, what is on the screen, and how you write your captions. Everything written here and every caption on the Scheduling page is written against it. Without it they are written from your captions alone, which carries your words but not your rhythm."],
+  ideas: ["Film one of these", "Five reels you could film this week, worked out from what has taken off for the accounts you watch, your own posts that beat your normal, the questions you already answer in your captions, and the time of year. Press Write it and it takes the idea straight into the writer."],
   library: ["Hook library", "Every reel on your Competitors tab that beat its own account by double, with what was said in the first three seconds, the text that was on screen, and the shape underneath both. The shape is the part that works on a subject of your own."],
 };
 let tipEl = null, tipFor = null;
@@ -1781,6 +1822,89 @@ function renderLib() {
   }));
 }
 
+/* v192: what to film.
+   The front door. Five things he could film this week, each one a subject rather than a
+   format, each drawn from something the dashboard already knows — a reel that took off for
+   an account he watches, one of his own worth a second angle, a question he answers in his
+   own captions, or the time of year. One button per idea, and pressing it fills the topic
+   box and asks for openings, so the step he could not take on his own is the step he no
+   longer has to. */
+let hkAboutOpen = false;
+
+function renderIdeas() {
+  const el = $("hkIdeas"), btn = $("hkIdeasNew");
+  if (!el) return;
+  if (btn) btn.disabled = hkBusy === "ideas" || !(hkLib && hkLib.configured);
+  if (!hkLib || hkLib.ok === false) { el.innerHTML = '<div class="loading">Reading…</div>'; return; }
+  if (!hkLib.configured) { el.innerHTML = '<div class="setup">Add the two keys and this fills in.</div>'; return; }
+
+  const ideas = hkLib.ideas || [];
+  let h = "";
+  if (hkBusy === "ideas") h = '<div class="loading">Thinking of five things you could film…</div>';
+  else if (!ideas.length) {
+    h = '<div class="setup"><b>No ideas yet.</b> Press New ideas — it reads what has taken off for the accounts you ' +
+      "watch, your own posts, and the time of year.</div>";
+  } else {
+    h = '<div class="hk-ideas">' + ideas.map((i, n) =>
+      '<div class="hk-idea"><div class="hk-idea-b">' +
+        '<span class="hk-idea-t">' + esc(i.title) + "</span>" +
+        (i.why ? '<span class="hk-idea-w">' + esc(i.why) + "</span>" : "") +
+        (i.source ? '<span class="hk-idea-s"><svg class="ic"><use href="#ic-flame"/></svg>' + esc(i.source) + "</span>" : "") +
+      "</div>" +
+      '<span class="hk-idea-go"><button type="button" class="abtn primary" data-idea="' + n + '">Write it</button></span>' +
+      "</div>").join("") + "</div>";
+  }
+
+  h += '<div class="hk-ideas-foot">' +
+    (hkLib.ideasAt ? "<span>" + esc(when(hkLib.ideasAt)) + "</span>" : "") +
+    '<button type="button" id="hkAboutBtn">' + (hkAboutOpen ? "Hide" : (hkLib.about ? "Edit what your gym does" : "Tell it about your gym")) + "</button>" +
+    (!hkLib.about && !hkAboutOpen ? "<span>— these get a lot sharper once it knows</span>" : "") +
+    "</div>";
+
+  if (hkAboutOpen) {
+    h += '<div class="hk-about">' +
+      '<textarea id="hkAboutIn" placeholder="What you actually sell — small group coaching, one-to-one, the consult. The objections you hear most. What you are pushing this autumn. Anything you would tell a new coach on their first day.">' +
+      esc(hkLib.about || "") + "</textarea>" +
+      '<div class="hk-about-r"><button type="button" class="abtn primary" id="hkAboutSave">Save</button>' +
+      '<span class="hk-idea-s">Used every time it thinks of ideas.</span></div></div>';
+  }
+  el.innerHTML = h;
+
+  el.querySelectorAll("[data-idea]").forEach((b) => b.addEventListener("click", () => {
+    const i = ideas[Number(b.dataset.idea)];
+    if (!i) return;
+    // the idea becomes the topic, and the openings are asked for straight away — the whole
+    // point is that he does not have to write the sentence himself
+    hkTopic = i.title + (i.why ? " — " + i.why : "");
+    hkFormat = i.format || "onscreen";
+    hkOptions = null; hkPicked = -1; hkScript = null;
+    askOptions();
+    const w = $("hkWriter"); if (w) w.scrollIntoView({ behavior: "smooth", block: "center" });
+  }));
+  const ab = $("hkAboutBtn");
+  if (ab) ab.addEventListener("click", () => { hkAboutOpen = !hkAboutOpen; renderHooks(); });
+  const save = $("hkAboutSave");
+  if (save) save.addEventListener("click", async () => {
+    const t = $("hkAboutIn"); if (!t) return;
+    save.disabled = true; save.textContent = "Saving…";
+    try { hkLib.about = (await hkPost({ action: "about", about: t.value })).about; hkAboutOpen = false; }
+    catch (e) { hkError = e.message; }
+    renderHooks();
+  });
+}
+
+async function loadIdeas(force) {
+  if (hkBusy) return;
+  hkBusy = "ideas"; hkError = "";
+  renderHooks();
+  try {
+    const r = await hkPost({ action: "ideas", force: !!force });
+    hkLib.ideas = r.ideas; hkLib.ideasAt = r.ideasAt; hkLib.ideasFresh = true;
+  } catch (e) { hkError = e.message; }
+  hkBusy = "";
+  renderHooks();
+}
+
 /* v188: the voice, as ONE LINE at the foot of the writer.
    It was a card with a four-line explanation, a red block of error and a paragraph of
    prompting — for something Ash presses roughly once. It is not a workflow, it is a setting
@@ -1840,6 +1964,7 @@ function renderHooks() {
   wireWriter();
   // a render while the topic box has focus must not take it away mid-sentence
   if (focused) { const t = $("hkTopicIn"); if (t) { t.focus(); if (caret != null) t.setSelectionRange(caret, caret); } }
+  renderIdeas();
   renderScripts();
   renderLib();
   renderVoiceBar();
@@ -1849,6 +1974,8 @@ function renderHooks() {
 
 // Find hooks: the background function answers 202 at once and works for minutes, so the
 // page says so and re-reads a little later rather than pretending to wait for it.
+$("hkIdeasNew").addEventListener("click", () => loadIdeas(true));
+
 $("hkMine").addEventListener("click", async () => {
   if (hkBusy) return;
   hkBusy = "mine"; hkError = "";
@@ -1885,6 +2012,7 @@ function setView(v) {
   $("outWrap").hidden = false;
   if (v === "rivals" && rivalSel && !rivalData[rivalSel]) loadRival(rivalSel);
   if (v === "hooks" && !hkLib) loadHooks();
+  else if (v === "hooks" && hkLib && hkLib.ok !== false && hkLib.configured && !(hkLib.ideas || []).length && !hkBusy) loadIdeas(false);
 }
 $("tabBar").addEventListener("click", (e) => {
   const b = e.target.closest(".vt");
@@ -1898,6 +2026,7 @@ $("outOnly").addEventListener("change", (e) => { outliersOnly = e.target.checked
 (function fillHookTips() {
   const w = $("hkWriterTip"), l = $("hkLibTip");
   if (w) w.innerHTML = tipBtn("writer");
+  const id = $("hkIdeasTip"); if (id) id.innerHTML = tipBtn("ideas");
   if (l) l.innerHTML = tipBtn("library");
 })();
 

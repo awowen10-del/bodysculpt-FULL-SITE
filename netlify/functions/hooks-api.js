@@ -9,6 +9,8 @@
 //   POST { action: "status", id, status }  filmed / posted / binned
 //   POST { action: "forget", id }       drop a hook from the library
 //   POST { action: "retry" }            put the given-up-on reels back in the queue
+//   POST { action: "ideas", force }     five reels he could film this week (cached for the day)
+//   POST { action: "about", about }     his own note about the business, which sharpens them
 //
 // v178: the GET also reports the spoken-voice profile — when it was built, from how many
 // reels, and what it says. Building it is voice-build-background's job, not this one's.
@@ -19,6 +21,7 @@
 import { readLib, writeLib, candidates, hookOptions, writeScript, config, clip, nowIso, json,
          normFormat, leadOf, parseBeats } from "../lib/hooks.js";
 import { readVoice } from "../lib/schedule.js";
+import { readIdeas, generate as generateIdeas, gather, isFresh, setAbout } from "../lib/ideas.js";
 
 const STATUSES = ["draft", "filmed", "posted", "binned"];
 
@@ -30,6 +33,7 @@ export default async (req) => {
     let waiting = 0;
     try { waiting = (await candidates(lib)).length; } catch { /* the count is a nicety, not the page */ }
     const v = await readVoice();
+    const ideas = await readIdeas();
     return json({
       ok: true,
       configured: cfg.gemini && cfg.anthropic,
@@ -38,6 +42,9 @@ export default async (req) => {
       scripts: lib.scripts,
       waiting,
       skipped: lib.skipped.length,
+      // v192: what to film. The page leads with these; the topic box is the fallback for when
+      // he already knows, not the front door.
+      ideas: ideas.ideas, ideasAt: ideas.generatedAt, ideasFresh: isFresh(ideas), about: ideas.about,
       lastMineAt: lib.lastMineAt,
       lastMineNote: lib.lastMineNote,
       // the profile itself, not just a flag: the page shows it, because a voice profile Ash
@@ -125,6 +132,21 @@ export default async (req) => {
     // that have since passed — a busy model, a dropped connection. This empties it so the
     // next run considers them again. Hooks already in the library are untouched, so nothing
     // is read or paid for twice.
+    if (action === "ideas") {
+      const cur = await readIdeas();
+      // today's ideas are today's. Regenerating on every page load would spend money to hand
+      // him a different five each time he changed tabs, which is its own kind of noise.
+      if (!body.force && isFresh(cur) && cur.ideas.length) return json({ ok: true, ideas: cur.ideas, ideasAt: cur.generatedAt, cached: true });
+      const lib = await readLib();
+      const fresh = await generateIdeas(await gather(lib));
+      return json({ ok: true, ideas: fresh.ideas, ideasAt: fresh.generatedAt, cached: false });
+    }
+
+    if (action === "about") {
+      const saved = await setAbout(clip(body.about, 3000));
+      return json({ ok: true, about: saved.about });
+    }
+
     if (action === "retry") {
       const lib = await readLib();
       const forgotten = lib.skipped.length;
