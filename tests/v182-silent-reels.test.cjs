@@ -221,5 +221,40 @@ async function loadLib(file, tag, seed) {
       "…without cutting Google's sentence off mid-word, which 90 characters did to the very message that carries the reason");
   }
 
-  console.log("v182–v185 silent reels + live-site fixes: OK");
+  /* ============ 9. v189: his OWN reels actually reach the miner ============
+     A second `const fresh` inside the mine loop shadowed the fresh-links Map declared two
+     lines above it, putting the Map in the temporal dead zone. Competitors short-circuit on
+     `c.isOwn &&` and never evaluate it, so every test and the first live run passed — while
+     any of Ash's own flamed reels would have thrown a ReferenceError, been judged permanent
+     (a programming error is not transient), and been skipped for good.
+
+     So the claim worth testing is not "it works" but "when it fails, it fails for a REAL
+     reason" — a programming error must never reach the skip list wearing the costume of a
+     bad reel. */
+  {
+    const savedFetch = globalThis.fetch;
+    globalThis.fetch = async () => { throw new Error("offline in this test"); };
+    try {
+      const h = await loadLib("netlify/lib/hooks.js", "own", {
+        "ig-cache-mine": { account: { username: "bodysculptwarrington" }, posts: [
+          { id: "9001", permalink: "https://www.instagram.com/reel/OWN/", video: "https://cdn/own.mp4",
+            outlier: true, vsMedian: 3.4, views: 900, caption: "c", timestamp: "t" },
+        ] },
+      });
+      const cands = await h.candidates(await h.readLib());
+      assert.strictEqual(cands.length, 1, "his own flamed reel is a candidate");
+      assert.strictEqual(cands[0].isOwn, true);
+      assert.strictEqual(cands[0].mediaId, "9001", "…carrying the media id the fresh-link lookup needs");
+
+      const r = await h.mine(1, () => {});
+      assert.strictEqual(r.mined, 0, "it cannot succeed with the network stubbed out");
+      const after = await h.readLib();
+      assert.ok(!/Cannot access|is not defined|undefined is not/.test(after.lastMineNote),
+        "…and it fails for a REAL reason, not a ReferenceError: " + after.lastMineNote);
+      assert.ok(/Instagram|CDN|download/i.test(after.lastMineNote),
+        "the reason names what actually went wrong: " + after.lastMineNote);
+    } finally { globalThis.fetch = savedFetch; }
+  }
+
+  console.log("v182–v189 silent reels + live-site fixes: OK");
 })().catch((e) => { console.error(e); process.exit(1); });

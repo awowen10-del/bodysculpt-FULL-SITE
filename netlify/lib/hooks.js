@@ -318,10 +318,19 @@ export async function mine(limit, log) {
   for (const c of cands) {
     try {
       const hook = await mineOne(c, (c.isOwn && fresh.get(String(c.mediaId))) || c.videoUrl);
-      const fresh = await readLib();                       // re-read: a script may have been saved meanwhile
-      fresh.hooks = [hook, ...fresh.hooks.filter((h) => h.id !== hook.id)];
-      fresh.lastMineAt = nowIso();
-      await writeLib(fresh);
+      // v189: named for what it is, and NOT `fresh` — which is the links Map two lines up.
+      // A second `const fresh` in this block put the Map in the temporal dead zone, so the
+      // line above threw "Cannot access 'fresh' before initialization" for any of Ash's OWN
+      // reels. Competitors short-circuit on `c.isOwn &&` and never touch it, which is why
+      // every test and the first live run passed while his own reels would have been lost —
+      // and lost for good, because a ReferenceError is not transient, so it skipped them.
+      const lib2 = await readLib();                        // re-read: a script may have been saved meanwhile
+      lib2.hooks = [hook, ...lib2.hooks.filter((h) => h.id !== hook.id)];
+      lib2.lastMineAt = nowIso();
+      // the last failure goes with it, or a library that filled up fine still carries the
+      // note from the night Google was busy, which reads as a live fault
+      lib2.lastMineNote = "";
+      await writeLib(lib2);
       done++;
       log && log({ stage: "mined", id: c.id, username: c.username, type: hook.type });
     } catch (e) {
@@ -400,6 +409,15 @@ export function optionsPrompt(topic, hooks, voice, format) {
     (voice ? voice + "\n\n" : "") +
     'The reel is about: "' + clip(topic, 400) + '"\n\n' +
     "Write EIGHT hook options for this topic, each one built on a different shape from the list above.\n" +
+    /* v189: with one shape in the library, all eight came back opening on the same word —
+       faithful to the template and useless as a choice. A template is a structure to borrow,
+       not a phrase to repeat, and when there are fewer shapes than options that has to be
+       said out loud or the model will copy the words. */
+    (hooks.length < 8
+      ? "There are only " + hooks.length + (hooks.length === 1 ? " shape" : " shapes") +
+        " here, so you will have to reuse them. A shape is a STRUCTURE to borrow, not a phrase to copy: " +
+        "no two of the eight may open on the same word, and each must take a genuinely different angle on the topic.\n"
+      : "") +
     "For each, the parts must work together and must not repeat each other:\n" + parts + "\n" +
     "Answer as exactly eight blocks in this format and nothing else:\n" +
     "---HOOK---\nN: (the number of the shape you used)\n" +
