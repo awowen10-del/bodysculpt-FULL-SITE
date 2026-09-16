@@ -178,7 +178,14 @@ export async function geminiAsk(buffer, mime, name, prompt, limit) {
           const out = Array.isArray(text) ? text.map((p) => p.text || "").join("").trim() : "";
           if (out) return clip(out, limit || 6000);
         }
-        lastErr = clip((b.error && b.error.message) || ("Gemini returned " + res.status), 200);
+        // v183: keep the STATUS alongside Google's wording. "This model is currently
+        // experiencing high demand" is what Google says for a genuinely busy model (503) and
+        // for an exhausted quota (429) alike, and the two need completely different
+        // responses — wait ten minutes, or wait until the quota resets. Without the number
+        // there is no way to tell them apart from the outside.
+        const detail = (b.error && b.error.message) || "";
+        const status = res.status + (b.error && b.error.status ? "/" + b.error.status : "");
+        lastErr = clip(detail ? detail + " [" + model + ", HTTP " + status + "]" : ("Gemini returned " + status + " [" + model + "]"), 240);
         if (!isTransient(res.status, lastErr)) break;          // a real refusal: next model, now
         await sleep(GEMINI_RETRY_WAITS_MS[attempt]);           // busy: wait, then the same model again
       }
