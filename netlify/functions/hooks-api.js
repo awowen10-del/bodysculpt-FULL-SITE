@@ -15,7 +15,8 @@
 // Writing is a long call to Claude — the timeout is raised to 26s in netlify.toml, the same
 // as mentor-ai, and the options call is deliberately eight hooks rather than ten so it lands
 // inside it. Mining is not here: a video takes minutes, which is a background function's job.
-import { readLib, writeLib, candidates, hookOptions, writeScript, config, clip, nowIso, json } from "../lib/hooks.js";
+import { readLib, writeLib, candidates, hookOptions, writeScript, config, clip, nowIso, json,
+         normFormat, leadOf, parseBeats } from "../lib/hooks.js";
 import { readVoice } from "../lib/schedule.js";
 
 const STATUSES = ["draft", "filmed", "posted", "binned"];
@@ -40,7 +41,11 @@ export default async (req) => {
       // the profile itself, not just a flag: the page shows it, because a voice profile Ash
       // cannot read is one he cannot tell is wrong
       voice: v ? { builtAt: v.builtAt || "", reels: (v.reels || []).length, words: v.words || 0,
-                   profile: v.profile || "", banned: v.banned || [], note: v.note || "" } : null,
+                   profile: v.profile || "", banned: v.banned || [], note: v.note || "",
+                   kind: v.kind || "spoken", spokenReels: v.spokenReels || 0,
+                   // v181: WHEN the note was recorded, so an old failure cannot read as a
+                   // current one, and a run in progress is visibly a run in progress
+                   triedAt: v.triedAt || "", startedAt: v.startedAt || "" } : null,
     });
   }
 
@@ -53,13 +58,17 @@ export default async (req) => {
     if (action === "options") {
       const topic = clip(body.topic, 400).trim();
       if (!topic) return json({ ok: false, error: "Say what the reel is about first." }, 400);
-      return json({ ok: true, options: await hookOptions(topic) });
+      // v182: the format shapes the OPTIONS as well as the script — a silent reel's hook is
+      // the card on screen, and asking for a spoken line first would bury it.
+      return json({ ok: true, options: await hookOptions(topic, clip(body.format, 20)) });
     }
 
     if (action === "write") {
       const topic = clip(body.topic, 400).trim();
       const option = body.option;
-      if (!topic || !option || !option.spoken) return json({ ok: false, error: "Pick a hook first." }, 400);
+      // v182: a silent reel's option has no spoken line at all, so the check is on whichever
+      // line opens the reel rather than on `spoken`.
+      if (!topic || !option || !leadOf(option, body.format)) return json({ ok: false, error: "Pick a hook first." }, 400);
       return json({ ok: true, script: await writeScript(topic, option, clip(body.format, 20)) });
     }
 
@@ -75,14 +84,20 @@ export default async (req) => {
         createdAt: clip(s.createdAt, 40) || nowIso(),
         updatedAt: nowIso(),
         topic: clip(s.topic, 400),
-        format: s.format === "demo" ? "demo" : "talking",
+        format: normFormat(s.format),
         hookId: clip(s.hookId, 40),
         type: clip(s.type, 40),
         spoken: clip(s.spoken, 200),
         onScreen: clip(s.onScreen, 120),
+        lead: clip(s.lead, 200) || leadOf(s, s.format),
+        // rebuilt through the same parser the writer used, so a hand-edited beat list is held
+        // to the same shape as a generated one
+        beats: Array.isArray(s.beats)
+          ? s.beats.slice(0, 6).map((b) => ({ text: clip(b && b.text, 120), shot: clip(b && b.shot, 160) })).filter((b) => b.text)
+          : parseBeats(s.beats),
         body: clip(s.body, 3000),
         cta: clip(s.cta, 300),
-        caption: clip(s.caption, 1000),
+        caption: clip(s.caption, 1500),
         visual: clip(s.visual, 300),
         status: STATUSES.includes(s.status) ? s.status : "draft",
       };

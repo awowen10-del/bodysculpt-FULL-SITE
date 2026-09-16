@@ -100,8 +100,8 @@ const CAPTIONS = { "ig-cache-mine": { account: { username: "bodysculptwarrington
   {
     assert.ok(/export async function voiceBrief/.test(SCHEDULE_LIB), "voiceBrief is the one way in");
     assert.ok(/const voice = await voiceBrief\(\);/.test(SCHEDULE_LIB), "the CAPTION writer goes through it");
-    assert.ok(/optionsPrompt\(topic, hooks, await voiceBrief\(\)\)/.test(HOOKS_LIB), "the hook writer goes through it");
-    assert.ok(/scriptPrompt\(topic, option, format, await voiceBrief\(\)\)/.test(HOOKS_LIB), "the SCRIPT writer goes through it");
+    assert.ok(/optionsPrompt\(topic, hooks, await voiceBrief\(\), format\)/.test(HOOKS_LIB), "the hook writer goes through it");
+    assert.ok(/scriptPrompt\(topic, option, fmt, await voiceBrief\(\)\)/.test(HOOKS_LIB), "the SCRIPT writer goes through it");
     assert.ok(!/voiceReference\(\)/.test(HOOKS_LIB), "nothing reaches past it to the captions directly — that is how the two writers stay in one voice");
     // The prompts must not re-label the block: only voiceBrief knows which source came back,
     // so a heading pasted on at the prompt would eventually describe a spoken profile as
@@ -141,11 +141,26 @@ const CAPTIONS = { "ig-cache-mine": { account: { username: "bodysculptwarrington
   /* ============ 6. the profile is written to be used, not admired ============ */
   {
     const lib = await loadLib("netlify/lib/voice.js", "voice", {});
-    const p = lib.profilePrompt([{ views: 900, transcript: "Right, so listen." }]);
+    const spokenSamples = [1, 2, 3].map((n) => ({ views: 900, spoken: "Right, so listen. Number " + n, onScreen: "" }));
+    const p = lib.profilePrompt(spokenSamples, "1. a caption");
     assert.ok(/instruction, not a character study/.test(p), "the output's job is stated");
-    assert.ok(/under eight words/.test(p), "…with an example of checkable versus useless, because 'short punchy sentences' is not a rule anyone can apply");
-    assert.ok(/WORDS HE NEVER USES/.test(p) && /HOW HE CLOSES/.test(p) && /CHECKS/.test(p), "the headings the parser depends on");
+    assert.ok(/never longer than six words/.test(p), "…with an example of checkable versus useless, because 'short punchy lines' is not a rule anyone can apply");
+    assert.ok(/WORDS HE NEVER USES/.test(p) && /CHECKS/.test(p), "the headings the parser depends on");
     assert.ok(/If he does not swear, say so plainly/.test(p), "an honest answer is allowed — a profile that invents edge would put words in his mouth");
+    assert.ok(/He does speak to camera, and there are 3 transcripts/.test(p), "with speech present it says so");
+
+    /* v182: the account that does NOT talk to camera — Ash's actual case. Ash: "we don't have
+       enough videos where we're talking … our prospects value on-screen hooks more with the
+       captions doing the heavy lifting." The prompt must stop the model writing a confident
+       paragraph about how he speaks, because the only evidence for it would be his captions,
+       and a profile that invents is worse than none: everything downstream follows it. */
+    const silentSamples = [1, 2, 3, 4].map((n) => ({ views: 900, spoken: "", onScreen: "3 YEARS\nNO CARDIO " + n }));
+    const q = lib.profilePrompt(silentSamples, "1. a caption long enough to matter");
+    assert.ok(/he almost never speaks to camera — 0 of these 4/.test(q), "it counts the speech it actually has");
+    assert.ok(/Do not write a section about how he talks out loud/.test(q), "…and forbids inventing the missing half");
+    assert.ok(/do not invent one from the captions/.test(q), "…including from the captions, which are writing, not speech");
+    assert.ok(/should be the longest/.test(q), "on-screen lines become the main section, because that is where his voice actually lives");
+    assert.ok(/At least three must be about on-screen lines or captions/.test(q), "…and the checks follow the evidence");
 
     const { profile, banned } = lib.parseProfile(
       "HOW HE SOUNDS\nShort. Direct.\n\nCHECKS\n1. Under eight words often.\n\nBANNED\ngame changer\n- unlock your potential\n3. \"take it to the next level\"\n");

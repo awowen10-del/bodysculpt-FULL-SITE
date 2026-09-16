@@ -173,10 +173,19 @@ const normalPosts = () => Array.from({ length: 10 }, (_, i) => ({
     assert.ok(mod.HOOK_TYPES.length >= 10, "enough archetypes to be worth filtering by");
     assert.ok(mod.HOOK_TYPES.includes("Objection killer") && mod.HOOK_TYPES.includes("Transformation reveal"),
       "the list is named for what a gym audience responds to, not for what a tech account posts");
-    const prompt = mod.optionsPrompt("bulky", [{ type: "Myth bust", template: "Everyone thinks [X]", spoken: "s", username: "u", vsMedian: 3 }], "");
-    assert.ok(/Warrington/.test(prompt), "the audience is stated to the model, every time");
-    assert.ok(/EIGHT hook options/.test(prompt), "eight, not ten: the call has to land inside the 26s function timeout");
-    assert.ok(/does not repeat/.test(prompt), "the on-screen line must ADD to the spoken one — repeating it wastes the only two seconds that matter");
+    const hooksIn = [{ type: "Myth bust", template: "Everyone thinks [X]", spoken: "s", onScreen: "o", username: "u", vsMedian: 3 }];
+    const spokenPrompt = mod.optionsPrompt("bulky", hooksIn, "", "talking");
+    assert.ok(/Warrington/.test(spokenPrompt), "the audience is stated to the model, every time");
+    assert.ok(/EIGHT hook options/.test(spokenPrompt), "eight, not ten: the call has to land inside the 26s function timeout");
+    assert.ok(/does not repeat/.test(spokenPrompt), "on a talking reel the on-screen line must ADD to the spoken one — repeating it wastes the only two seconds that matter");
+
+    // v182: the silent reel, which is the one Ash actually makes
+    const silentPrompt = mod.optionsPrompt("bulky", hooksIn, "", "onscreen");
+    assert.ok(/SILENT reel/.test(silentPrompt) && /Do not write a spoken line/.test(silentPrompt),
+      "a silent reel is told plainly that nobody speaks — otherwise it writes a monologue for a format Ash does not film");
+    assert.ok(!/^SPOKEN: \.\.\./m.test(silentPrompt), "…and is not asked for one in the answer format");
+    assert.ok(/carries the reel on its own/.test(silentPrompt), "the on-screen line IS the hook here, not a supporting caption");
+    assert.ok(/caption does the heavy lifting/.test(silentPrompt), "…and the caption is where the selling happens");
   }
 
   /* ============ 8. a script is parsed out of what Claude returns ============ */

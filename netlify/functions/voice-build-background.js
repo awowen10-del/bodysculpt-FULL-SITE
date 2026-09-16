@@ -16,9 +16,22 @@ import { buildVoice } from "../lib/voice.js";
 import { getStore } from "@netlify/blobs";
 import { VOICE_KEY } from "../lib/schedule.js";
 
+const store = () => getStore({ name: "bodysculpt-kpi", consistency: "strong" });
+
 export default async (req) => {
   const log = (e) => console.log("[voice-build] " + JSON.stringify(e));
   if (req.method !== "POST") return;
+
+  // v181: clear the last failure BEFORE starting. Ash re-ran this after the v180 fix shipped
+  // and was shown the v178 error message again — not because it had failed the same way, but
+  // because the note from the earlier run was still sitting in the blob with nothing to say
+  // how old it was. A stale error that reads as a current one is worse than no error: it
+  // hides the fix that already landed.
+  try {
+    const prev = (await store().get(VOICE_KEY, { type: "json" })) || {};
+    await store().set(VOICE_KEY, JSON.stringify({ ...prev, note: "", startedAt: new Date().toISOString() }));
+  } catch { /* the run matters more than the housekeeping */ }
+
   try {
     const v = await buildVoice(log);
     log({ stage: "done", reels: v.reels.length, words: v.words, banned: v.banned.length });
@@ -29,9 +42,8 @@ export default async (req) => {
     // would have to go to Netlify to read. A previous good profile is never overwritten by
     // a failed run — only its note is.
     try {
-      const store = getStore({ name: "bodysculpt-kpi", consistency: "strong" });
-      const prev = (await store.get(VOICE_KEY, { type: "json" })) || {};
-      await store.set(VOICE_KEY, JSON.stringify({ ...prev, note: message, triedAt: new Date().toISOString() }));
+      const prev = (await store().get(VOICE_KEY, { type: "json" })) || {};
+      await store().set(VOICE_KEY, JSON.stringify({ ...prev, note: message, triedAt: new Date().toISOString() }));
     } catch { /* if the note cannot be written the log still has it */ }
   }
 };

@@ -224,8 +224,16 @@ export async function readVoice() {
 export async function voiceBrief() {
   const v = await readVoice();
   if (v && v.profile) {
-    return "HOW ASH TALKS ON CAMERA. This is drawn from transcripts of his own best reels — " +
-      "it describes his actual speech, so follow it over any instinct about how social copy should sound:\n\n" +
+    // v182: the heading names the EVIDENCE. A profile built from on-screen text and captions
+    // introduced as "how Ash talks on camera" invites the model to write him a monologue —
+    // which is the whole thing v182 exists to stop.
+    const head = v.kind === "written"
+      ? "HOW ASH WRITES. He rarely speaks to camera; his voice lives in the text on screen and in his captions, " +
+        "and this is drawn from his own best-performing reels and captions"
+      : v.kind === "mixed"
+        ? "HOW ASH COMMUNICATES, drawn from his own best-performing reels — what he says, what he puts on screen, and how he writes his captions"
+        : "HOW ASH TALKS ON CAMERA, drawn from transcripts of his own best reels";
+    return head + ". Follow it over any instinct about how social copy should sound:\n\n" +
       v.profile +
       (v.banned && v.banned.length
         ? "\n\nNever write these — they are not his words:\n" + v.banned.map((b) => "· " + b).join("\n")

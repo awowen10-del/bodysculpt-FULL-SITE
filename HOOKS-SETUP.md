@@ -46,15 +46,28 @@ its account's normal has nothing to teach. On a normal night there are two or th
 
 ### Writing a reel
 
-1. Type what the reel is about, in a sentence. Plain words — *"a client asked whether she'd get
+1. Pick the **format**. Three of them, and the first is the default:
+
+   | | |
+   |---|---|
+   | **On-screen reel** | Footage with text over it, no talking. You get an opening card, 2–5 on-screen lines with a shot note for each, and a full caption. |
+   | **To camera** | A piece to camera, about 100 words. |
+   | **Walkthrough** | Showing something, 150–200 words. |
+
+2. Type what the reel is about, in a sentence. Plain words — *"a client asked whether she'd get
    bulky lifting three times a week"* is perfect.
-2. Press **Find openings**. You get eight, each one built on a different proven shape from your
-   library, and each one has three parts: what you say, what goes on the screen, and a caption
-   line. The on-screen text deliberately does **not** repeat the spoken line — saying the same
-   thing twice wastes the only two seconds that matter.
-3. Pick one. Press **Write the script**.
-4. **Keep it — to film** puts it in the *To film* list. **Copy** gives you the whole thing to
-   paste into a teleprompter app.
+3. Press **Find openings**. You get eight, each built on a different proven shape from your
+   library. On an on-screen reel each one gives you the card for second one and a caption line;
+   on a talking reel it gives you the spoken line too, and the on-screen text deliberately does
+   **not** repeat it — saying the same thing twice wastes the only two seconds that matter.
+4. Pick one. Press **Write the script**.
+5. **Keep it — to film** puts it in the *To film* list. **Copy** gives you the whole thing —
+   for an on-screen reel that's a numbered shot list with the caption underneath, ready to read
+   off your phone while you film.
+
+Changing the format clears any openings you'd already generated. They're written *for* a
+format — a silent reel's options have no spoken line at all — so keeping them would mean
+writing up the wrong kind of reel.
 
 ### The list
 
@@ -85,15 +98,20 @@ don't want to wait until morning. It takes a few minutes and you can leave the p
 
 ---
 
-## How you talk
+## Your voice
 
-The card above the library. Press **Learn how I talk** once and it transcribes your ten
-best-performing reels in full, then writes down how you actually speak: the words you reach for,
-the ones you never use, how long your sentences run, how you open, how you close, whether you
-swear, what you call the viewer. Plus a list of phrases that would instantly give away that a
-script wasn't yours.
+The card above the library. Press **Learn my voice** once and it reads your ten best-performing
+reels — **what's said, what's on the screen, and how you write your captions** — then writes down
+how you come across. Plus a list of phrases that would instantly give away that a reel wasn't
+yours.
 
-**This steers everything.** Scripts on this tab and captions on the Scheduling page both read it.
+It follows the evidence. If you rarely speak to camera it says so on the card and describes how
+you **write** instead: the length and punctuation of your on-screen lines, how your captions open
+and close, what you call the viewer. It won't invent a section about how you talk out loud from
+captions — a profile that guesses is worse than none, because everything downstream then follows
+the guess.
+
+**This steers everything.** Reels on this tab and captions on the Scheduling page both read it.
 One build improves both.
 
 The profile is shown in full on the page, on purpose — it's an instruction being handed to a
@@ -121,7 +139,8 @@ exactly what went wrong for each one, rather than guessing.
 | Reels waiting but nothing appears after Find hooks | Instagram's video links go stale within the day. A reel scraped last night reads fine; one from last week won't, and it goes on the skip list rather than being retried nightly. |
 | "There are no hooks in the library yet" when writing | The library has to have something in it before it can build on it. Press Find hooks first. |
 | An opening that sounds nothing like you | Say so in the topic box — more detail there changes the output more than anything else. Or pick a different shape; they're genuinely different. |
-| Scripts sound generic | Check the *How you talk* card. If it says nothing has been learned yet, that's why — it's writing from captions. |
+| Reels sound generic | Check the *Your voice* card. If it says nothing has been learned yet, that's why — it's writing from captions alone. |
+| It wrote me a talking-head script | Check the format picker — it should say *On-screen reel*. Changing it clears the openings, so generate again after switching. |
 | "Only N of your reels could be transcribed" | The message says which reason. "The link had expired" means Instagram refused the file even with a current link — retry in a few minutes. "Gemini could not read it" is Google's transcription service, usually temporary. |
 | The voice profile describes someone else | Press **Learn it again**. It reads your ten best reels, so it follows your content as it changes. |
 
@@ -140,4 +159,4 @@ exactly what went wrong for each one, rather than guessing.
 | How you talk | `netlify/lib/voice.js` + `netlify/functions/voice-build-background.js` |
 | The stored voice profile | one blob, `ig-voice` |
 | Where both writers read it | `voiceBrief()` in `netlify/lib/schedule.js` |
-| The tests | `tests/v177-hook-library.test.cjs`, `tests/v178-spoken-voice.test.cjs` |
+| The tests | `tests/v177-hook-library.test.cjs`, `tests/v178-spoken-voice.test.cjs`, `tests/v182-silent-reels.test.cjs` |

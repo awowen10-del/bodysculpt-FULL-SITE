@@ -62,43 +62,94 @@ export async function bestReels() {
     .slice(0, WANT_REELS);
 }
 
-const TRANSCRIBE_PROMPT =
-  "Transcribe everything said in this video, word for word, as plain text. Keep the false starts, " +
-  "the repeated words and the filler — they are the point. Do not tidy the grammar. If nothing is said, answer: none";
-
-async function transcribeReel(url) {
-  const { buffer, mime } = await fetchVideo(url, MAX_VIDEO_BYTES);
-  let text;
-  try { text = await geminiAsk(buffer, mime, "voice.mp4", TRANSCRIBE_PROMPT, 8000); }
-  catch (e) { throw new Error("Gemini could not read it (" + clip((e && e.message) || "", 90) + ")"); }
-  if (!text || /^none$/i.test(text.trim())) throw new Error("nobody speaks in it");
-  return text.trim();
+/* v182: both halves of a reel, not just the spoken one.
+   Ash: "our prospects value on-screen hooks more with the captions doing the heavy lifting."
+   v178 asked only for speech and threw the reel away when there was none, which on this
+   account meant throwing away nearly all of them. The words on the screen ARE his writing —
+   chosen, edited, and the thing his audience actually reads — so they are evidence of his
+   voice in exactly the way a transcript is. Gemini reads text off a silent video perfectly
+   well; nothing new is needed but the asking. */
+// his own recent captions, straight from the feed's cache — the one piece of evidence that
+// needs no video, no link and no transcription
+async function captionEvidence() {
+  try {
+    const mine = await store().get("ig-cache-mine", { type: "json" });
+    const caps = ((mine && mine.posts) || []).map((p) => p.caption).filter((c) => c && c.length > 30).slice(0, 12);
+    return caps.map((c, i) => (i + 1) + ". " + clip(c, 400)).join("\n\n");
+  } catch { return ""; }
 }
 
-/* ---------- Claude: describing the speech ---------- */
-export function profilePrompt(samples) {
-  return "Below are transcripts of Instagram reels by Ash, who runs Bodysculpt, a gym in Warrington, UK. " +
-    "They are verbatim — the filler and false starts are deliberate.\n\n" +
-    samples.map((s, i) => "--- REEL " + (i + 1) + " (" + (s.views != null ? s.views + " views" : "") + ") ---\n" + clip(s.transcript, 4000)).join("\n\n") +
-    "\n\nWrite a description of how this person TALKS, to be pasted into the prompt of another model that has to " +
-    "write scripts he will read out loud. You are writing an instruction, not a character study.\n\n" +
-    "Every claim must be something you can point at in the transcripts, and every claim must be checkable by " +
-    "someone reading a draft. \"Short, punchy sentences\" is useless. \"At least a third of his sentences are " +
-    "under eight words\" can be checked. Quote him where a quote says it faster than a rule.\n\n" +
+const READ_PROMPT =
+  "Answer about this Instagram reel in exactly this format and nothing else:\n" +
+  "SPOKEN: everything said out loud, word for word. Keep the false starts, repeated words and filler — they are the point. " +
+  "Do not tidy the grammar. If nobody speaks, write: none\n" +
+  "ONSCREEN: every line of text that appears on screen, in the order it appears, one per line, verbatim including " +
+  "capitalisation and punctuation. If there is no text on screen, write: none";
+
+const field = (text, name) => {
+  const m = new RegExp("^" + name + ":\\s*([\\s\\S]*?)(?=\\n[A-Z]+:|$)").exec(text || "");
+  const v = m ? m[1].trim() : "";
+  return /^none$/i.test(v) ? "" : v;
+};
+
+async function readReel(url) {
+  const { buffer, mime } = await fetchVideo(url, MAX_VIDEO_BYTES);
+  let text;
+  try { text = await geminiAsk(buffer, mime, "voice.mp4", READ_PROMPT, 8000); }
+  catch (e) { throw new Error("Gemini could not read it (" + clip((e && e.message) || "", 90) + ")"); }
+  const spoken = clip(field(text, "SPOKEN"), 4000);
+  const onScreen = clip(field(text, "ONSCREEN"), 1500);
+  if (!spoken && !onScreen) throw new Error("no words in it at all — nothing said and nothing on screen");
+  return { spoken, onScreen };
+}
+
+/* ---------- Claude: describing how he communicates ---------- */
+// The headings follow the EVIDENCE. Asking "how he opens when speaking" of an account that
+// never speaks produces a confident paragraph of invention, and a profile that invents is
+// worse than none because everything downstream then follows it.
+export function profilePrompt(samples, captions) {
+  const spoken = samples.filter((s) => s.spoken);
+  const onScreen = samples.filter((s) => s.onScreen);
+  const speechLed = spoken.length >= 3;
+
+  const evidence = samples.map((s, i) =>
+    "--- REEL " + (i + 1) + (s.views != null ? " (" + s.views + " views)" : "") + " ---" +
+    (s.spoken ? "\nSPOKEN: " + clip(s.spoken, 3000) : "") +
+    (s.onScreen ? "\nON SCREEN:\n" + clip(s.onScreen, 1200) : "")).join("\n\n");
+
+  return "Below is the content of Instagram reels by Ash, who runs Bodysculpt, a gym in Warrington, UK. " +
+    "Where somebody speaks, the transcript is verbatim and the filler is deliberate. " +
+    "Where there is text on screen, it is copied exactly as written.\n\n" +
+    evidence +
+    (captions ? "\n\n--- HIS RECENT CAPTIONS ---\n" + clip(captions, 4000) : "") +
+    "\n\nWrite a description of how this person COMMUNICATES, to be pasted into the prompt of another model that " +
+    "has to write reels for him. You are writing an instruction, not a character study.\n\n" +
+    (speechLed
+      ? "He does speak to camera, and there are " + spoken.length + " transcripts here. Cover his speech AND his writing.\n\n"
+      : "IMPORTANT: he almost never speaks to camera — " + spoken.length + " of these " + samples.length +
+        " reels have any speech in them at all. His voice lives in the TEXT ON SCREEN and in his CAPTIONS. " +
+        "Describe those. Do not write a section about how he talks out loud, and do not invent one from the captions: " +
+        "say plainly that there is not enough speech to describe.\n\n") +
+    "Every claim must be something you can point at above, and every claim must be checkable by someone reading a " +
+    "draft. \"Short, punchy lines\" is useless. \"On-screen lines are almost never longer than six words\" can be " +
+    "checked. Quote him where a quote says it faster than a rule.\n\n" +
     "Cover, under these exact headings, and nothing else:\n" +
-    "HOW HE SOUNDS — three or four sentences. The specific version.\n" +
+    "HOW HE COMES ACROSS — three or four sentences. The specific version, not the flattering one.\n" +
     "WORDS HE USES — the ones he actually reaches for, with a real example each.\n" +
     "WORDS HE NEVER USES — what is conspicuously absent, and what he says instead.\n" +
-    "SENTENCE SHAPE — length, fragments, how he joins clauses, how he emphasises.\n" +
-    "HOW HE OPENS — the pattern, with two real examples.\n" +
-    "HOW HE CLOSES — the pattern, with two real examples.\n" +
+    "ON-SCREEN LINES — length, capitalisation, punctuation, whether they are sentences or fragments, how a " +
+    "sequence of them builds. This is the most important section" + (speechLed ? "." : " and should be the longest.") + "\n" +
+    "CAPTIONS — how they open, how long they run, how they are broken up, how they close, what he does with hashtags.\n" +
+    "SPEAKING — " + (speechLed ? "how he talks out loud: sentence length, fillers, how he opens and closes." :
+      "one line only, saying there is too little to go on. Do not invent this.") + "\n" +
     "THE VIEWER — what he calls them and how he addresses them.\n" +
     "SWEARING AND EDGE — honestly. If he does not swear, say so plainly.\n" +
-    "CHECKS — six numbered rules a draft must pass to sound like him, each one specific enough " +
-    "to answer yes or no by looking at the draft. Derive them from the transcripts, not from general advice.\n\n" +
-    "Then, after a line reading BANNED, list eight to twelve phrases that would immediately give away that a " +
-    "script was not written by him. Draw them from what is ABSENT in the transcripts — the marketing and " +
-    "AI-copy reflexes he never once reaches for. One per line, no bullets, no numbering, no explanation.";
+    "CHECKS — six numbered rules a draft must pass to sound like him, each specific enough to answer yes or no by " +
+    "looking at the draft. At least three must be about on-screen lines or captions. Derive them from the evidence " +
+    "above, not from general advice.\n\n" +
+    "Then, after a line reading BANNED, list eight to twelve phrases that would immediately give away that a reel " +
+    "was not written by him. Draw them from what is ABSENT above — the marketing and AI-copy reflexes he never once " +
+    "reaches for. One per line, no bullets, no numbering, no explanation.";
 }
 
 export function parseProfile(text) {
@@ -131,9 +182,10 @@ export async function buildVoice(log) {
     const url = fresh.get(String(r.id)) || r.video;
     const usedCached = !fresh.get(String(r.id));
     try {
-      const transcript = await transcribeReel(url);
-      samples.push({ url: r.url, views: r.views, transcript, words: transcript.split(/\s+/).length });
-      note({ stage: "transcribed", url: r.url, words: transcript.split(/\s+/).length, usedCached });
+      const read = await readReel(url);
+      samples.push({ url: r.url, views: r.views, spoken: read.spoken, onScreen: read.onScreen,
+                     words: (read.spoken + " " + read.onScreen).trim().split(/\s+/).length });
+      note({ stage: "read", url: r.url, spoken: !!read.spoken, onScreen: !!read.onScreen, usedCached });
     } catch (e) {
       const why = clip((e && e.message) || "unknown", 120);
       failures.push(why);
@@ -141,13 +193,14 @@ export async function buildVoice(log) {
     }
   }
 
-  // Three is the floor. Below it the model is describing one performance, not a voice, and a
-  // confident profile drawn from two reels would be worse than the captions it replaces.
+  // v182: his CAPTIONS are evidence too, and always available. On an account that does not
+  // talk to camera they are most of the voice, not a consolation prize.
+  const captions = await captionEvidence();
+
+  // The floor is three reels that yielded WORDS — spoken or on screen — not three transcripts.
+  // v178 counted only speech, which on this account meant failing at nought every time while
+  // sitting on plenty of readable material.
   if (samples.length < MIN_REELS) {
-    // v180: say what actually happened. The old message asserted "Instagram's video links go
-    // stale" without having checked — which was a guess that happened to be right, and sent
-    // Ash to press a button that could not have fixed it. Now it reports the reasons it was
-    // actually given, and names the likely fix only when it knows which one applies.
     const why = failures.length ? summariseFailures(failures) : "no reason given";
     const hint = !igConfigured()
       ? " IG_ACCESS_TOKEN and IG_USER_ID are not both set in Netlify, so a current video link could not be fetched."
@@ -155,28 +208,36 @@ export async function buildVoice(log) {
         ? " Instagram would not hand over the files even with a fresh link — worth retrying in a few minutes."
         : /Gemini/i.test(why)
           ? " That is Google's transcription service, not Instagram — usually temporary."
-          : "";
+          : /no words in it at all/.test(why)
+            ? " These reels have no speech and no text on screen, so there is nothing to learn a voice from."
+            : "";
     throw new Error(
       (samples.length ? "Only " + samples.length + " of your " : "None of your ") +
-      reels.length + " reels could be transcribed" + (samples.length ? "" : "") +
-      " — at least " + MIN_REELS + " are needed to describe a voice. What went wrong: " + why + "." + hint);
+      reels.length + " reels could be read — at least " + MIN_REELS +
+      " are needed to describe a voice. What went wrong: " + why + "." + hint);
   }
 
   const client = new Anthropic();
   const response = await client.messages.create({
     model: "claude-opus-5",
     max_tokens: 4000,
-    messages: [{ role: "user", content: profilePrompt(samples) }],
+    messages: [{ role: "user", content: profilePrompt(samples, captions) }],
   });
   if (response.stop_reason === "refusal") throw new Error("Claude declined to write the profile.");
   const text = response.content.filter((b) => b.type === "text").map((b) => b.text).join("");
   const { profile, banned } = parseProfile(text);
   if (!profile) throw new Error("Claude returned no profile.");
 
+  const spokenCount = samples.filter((x) => x.spoken).length;
   return await writeVoice({
     builtAt: nowIso(),
-    reels: samples.map((s) => ({ url: s.url, views: s.views, words: s.words })),
+    reels: samples.map((s) => ({ url: s.url, views: s.views, words: s.words, spoken: !!s.spoken, onScreen: !!s.onScreen })),
     words: samples.reduce((n, s) => n + s.words, 0),
+    // what it actually learned from, so the page and the prompts can say so honestly rather
+    // than every profile claiming to describe how he talks
+    kind: spokenCount >= 3 ? (spokenCount === samples.length ? "spoken" : "mixed") : "written",
+    spokenReels: spokenCount,
+    captions: !!captions,
     profile, banned,
     // a successful build that still lost some reels says so, rather than quietly describing
     // a voice from half the evidence

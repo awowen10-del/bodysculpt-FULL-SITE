@@ -329,26 +329,61 @@ const AUDIENCE =
   "get stronger and feel better — busy, ordinary, a lot of them nervous about gyms and half-sure it will not work for them. " +
   "Plain British English. No hype, no American gym-bro language, no emojis.";
 
-export function optionsPrompt(topic, hooks, voice) {
+/* v182: THREE formats, and the silent one is the default.
+   Ash: "we don't have enough videos where we're talking … those types of videos aren't
+   massive in the small group gym world, our prospects value on-screen hooks more with the
+   captions doing the heavy lifting."
+   v177 wrote a monologue and only a monologue. For a gym that does not make talking-head
+   reels that is not a weak output, it is an unusable one — and a tool that hands back
+   something you would never film is a tool you stop opening. The hook library was already
+   fine (it reads on-screen text separately and templatises from it when nothing is spoken);
+   it was the WRITER that assumed a person talking to camera. */
+export const FORMATS = {
+  onscreen: { label: "On-screen reel", lead: "onScreen" },
+  talking:  { label: "To camera",      lead: "spoken" },
+  demo:     { label: "Walkthrough",    lead: "spoken" },
+};
+export const isFormat = (f) => Object.prototype.hasOwnProperty.call(FORMATS, f);
+export const normFormat = (f) => (isFormat(f) ? f : "onscreen");
+// which line the reel actually opens with — the one the option is chosen on
+export const leadOf = (option, format) =>
+  (normFormat(format) === "onscreen" ? (option.onScreen || option.spoken) : (option.spoken || option.onScreen)) || "";
+
+export function optionsPrompt(topic, hooks, voice, format) {
+  const fmt = normFormat(format);
+  const silent = fmt === "onscreen";
   const lines = hooks.map((h, i) =>
     (i + 1) + '. [' + h.type + '] "' + h.template + '"' +
-    (h.spoken ? '  — worked as: "' + clip(h.spoken, 120) + '"' : "") +
+    // for a silent reel the evidence that matters is what the winning reel PUT ON SCREEN,
+    // not what its presenter said — so that is what gets shown to the writer first
+    (silent && h.onScreen ? '  — on screen: "' + clip(h.onScreen, 120) + '"' : "") +
+    (h.spoken ? '  — said: "' + clip(h.spoken, 120) + '"' : "") +
     (h.vsMedian ? "  (" + h.vsMedian.toFixed(1) + "× for @" + h.username + ")" : "")).join("\n");
+
+  const parts = silent
+    ? "  ONSCREEN — the words on the screen in the first second. Three to eight words. This is the whole hook: nobody is speaking, so it carries the reel on its own. Write it as something you would read, not say.\n" +
+      "  CAPTION — the first line of the caption. Five to fifteen words. On a silent reel the caption does the heavy lifting, so this line has to earn the tap on 'more'.\n"
+    : "  SPOKEN — what Ash says in the first three seconds. Three to twelve words. It is a sentence a person says out loud, not a headline.\n" +
+      "  ONSCREEN — the words on the screen. Three to eight words. It ADDS to the spoken line, it does not repeat it.\n" +
+      "  CAPTION — a short first line for the caption. Three to ten words. Punchy or curious, never a summary.\n";
+
   return AUDIENCE + "\n\n" +
+    (silent
+      ? "This is a SILENT reel: footage with text over it, no talking head, and a caption underneath. Nobody speaks. Do not write a spoken line.\n\n"
+      : "") +
     "These hook shapes are proven: each one is taken from a reel that beat its own account's normal by at least double.\n\n" +
     lines + "\n\n" +
     (voice ? voice + "\n\n" : "") +
     'The reel is about: "' + clip(topic, 400) + '"\n\n' +
     "Write EIGHT hook options for this topic, each one built on a different shape from the list above.\n" +
-    "For each, all three parts must work together and must not repeat each other:\n" +
-    "  SPOKEN — what Ash says in the first three seconds. Three to twelve words. It is a sentence a person says out loud, not a headline.\n" +
-    "  ONSCREEN — the words on the screen. Three to eight words. It ADDS to the spoken line, it does not repeat it.\n" +
-    "  CAPTION — a short first line for the caption. Three to ten words. Punchy or curious, never a summary.\n\n" +
+    "For each, the parts must work together and must not repeat each other:\n" + parts + "\n" +
     "Answer as exactly eight blocks in this format and nothing else:\n" +
-    "---HOOK---\nN: (the number of the shape you used)\nSPOKEN: ...\nONSCREEN: ...\nCAPTION: ...\nWHY: (one short sentence: why this stops a Warrington thumb)\n";
+    "---HOOK---\nN: (the number of the shape you used)\n" +
+    (silent ? "" : "SPOKEN: ...\n") +
+    "ONSCREEN: ...\nCAPTION: ...\nWHY: (one short sentence: why this stops a Warrington thumb)\n";
 }
 
-export function parseOptions(text, hooks) {
+export function parseOptions(text, hooks, format) {
   return text.split("---HOOK---").slice(1).map((block) => {
     const n = parseInt(field(block, "N"), 10);
     const src = hooks[n - 1];
@@ -361,7 +396,9 @@ export function parseOptions(text, hooks) {
       type: src ? src.type : "",
       template: src ? src.template : "",
     };
-  }).filter((o) => o.spoken);
+    // v182: the option is kept on whichever line OPENS the reel. A silent reel has no spoken
+    // line at all, and filtering on `spoken` threw every one of them away.
+  }).map((o) => ({ ...o, lead: leadOf(o, format) })).filter((o) => o.lead);
 }
 
 // The library, ranked for the writer: the biggest outliers, but spread across archetypes so
@@ -382,33 +419,66 @@ export function forWriting(hooks, want) {
   return out.slice(0, want || 16);
 }
 
-export async function hookOptions(topic) {
+export async function hookOptions(topic, format) {
   const lib = await readLib();
   const hooks = forWriting(lib.hooks, 16);
   if (!hooks.length) throw new Error("There are no hooks in the library yet. Press Find hooks once the competitor scrape has run.");
-  const text = await ask(optionsPrompt(topic, hooks, await voiceBrief()), 3000);
-  const options = parseOptions(text, hooks);
+  const text = await ask(optionsPrompt(topic, hooks, await voiceBrief(), format), 3000);
+  const options = parseOptions(text, hooks, format);
   if (!options.length) throw new Error("Claude returned no usable hooks. Try wording the topic differently.");
   return options;
 }
 
 export function scriptPrompt(topic, option, format, voice) {
-  const shape = format === "demo" ? "a walkthrough — show the thing, 150 to 200 words" : "a piece to camera — one strong point, about 100 words";
+  const fmt = normFormat(format);
+  const common =
+    "How it has to read:\n" +
+    "· Like one person talking to one other person, not a brand addressing a market. Lumpy, not balanced.\n" +
+    "· Speak to the viewer directly — you, your.\n" +
+    "· Say what happens, not how it works. The detail is what they come in for.\n" +
+    "· Never promise a result, a timescale or a price that is not in the topic above. This is a real gym and it has to be true.\n\n" +
+    "Banned, because they are what marketing sounds like and not what Ash sounds like: " +
+    '"Let me break this down", "What if I told you", "Here is the thing", "The truth is", "In today\'s world", ' +
+    '"game changer", "unlock", "dive in", "journey", "transform your life", and any sentence that starts with "So,".\n' +
+    "Do not write three short lines in a row with the same shape. Do not write \"It's not X. It's Y.\"\n\n";
+
+  if (fmt === "onscreen") {
+    /* The silent reel. There is no monologue to write, and pretending otherwise is what made
+       v177 useless here. What Ash actually needs off this page is: the card that opens it,
+       the handful of lines that carry it, what to point the camera at for each, and a caption
+       that can stand on its own — because on a silent reel the caption is where the selling
+       happens, not a label under the video. */
+    return AUDIENCE + "\n\n" +
+      "This is a SILENT reel: footage with text over it, no talking head, no voiceover. Every word is either " +
+      "ON THE SCREEN or in the CAPTION.\n\n" +
+      (voice ? voice + "\n\n" : "") +
+      'The reel is about: "' + clip(topic, 400) + '"\n' +
+      'It opens with this on the screen: "' + (option.onScreen || option.spoken) + '"\n\n' +
+      "Write the rest of it.\n\n" +
+      common +
+      "The beats are what appears on screen after the opening card, in order. Two to five of them — fewer is " +
+      "usually better. Each is ONE line a person can read while the clip is moving: under nine words, no " +
+      "semicolons, no sentence that needs reading twice. They have to make sense read straight through, " +
+      "because that is how they will be read.\n\n" +
+      "The caption is the long half of this reel and the only place anything can be explained. Open with a line " +
+      "that earns the tap on 'more', then two or three short paragraphs, then the call to action, then 3 to 5 " +
+      "lowercase hashtags relevant to the video and to Warrington. It must stand on its own for somebody who " +
+      "watched with the sound off and never read the screen.\n\n" +
+      "Answer in exactly this format and nothing else:\n" +
+      "---BEATS---\n(one per line, as: the on-screen line | what is on camera under it)\n" +
+      "---CAPTION---\n(the full caption, as described above)\n" +
+      "---CTA---\n(one line: what you want them to do. If it suits, comment a word; otherwise follow @bodysculptwarrington for more. Never \"link in bio\".)\n" +
+      "---VISUAL---\n(one line: what is on camera behind the opening card)\n";
+  }
+
+  const shape = fmt === "demo" ? "a walkthrough — show the thing, 150 to 200 words" : "a piece to camera — one strong point, about 100 words";
   return AUDIENCE + "\n\n" +
     (voice ? voice + "\n\n" : "") +
     'The reel is about: "' + clip(topic, 400) + '"\n' +
-    'It opens with him saying: "' + option.spoken + '"\n' +
+    'It opens with him saying: "' + (option.spoken || option.onScreen) + '"\n' +
     (option.onScreen ? 'On the screen at that moment: "' + option.onScreen + '"\n' : "") +
     "\nWrite the rest of it as " + shape + ".\n\n" +
-    "How it has to sound:\n" +
-    "· Like a person talking to one other person, not presenting to a room. Lumpy, not balanced.\n" +
-    "· Speak to the viewer directly — you, your — at least twice.\n" +
-    "· Say what happens, not how it works. The detail is what they come in for.\n" +
-    "· Never promise a result, a timescale or a price that is not in the topic above. This is a real gym and it has to be true.\n\n" +
-    "Banned, because they are what writing sounds like and not what Ash sounds like: " +
-    '"Let me break this down", "What if I told you", "Here is the thing", "The truth is", "In today\'s world", ' +
-    '"game changer", "unlock", "dive in", "journey", "transform your life", and any sentence that starts with "So,".\n' +
-    "Do not write three short sentences in a row with the same shape. Do not write \"It's not X. It's Y.\"\n\n" +
+    common +
     "Answer in exactly this format and nothing else:\n" +
     "---BODY---\n(what he says after the hook)\n" +
     "---CTA---\n(one line: what he asks them to do. If it suits, comment a word; otherwise follow @bodysculptwarrington for more. Never \"link in bio\".)\n" +
@@ -416,27 +486,54 @@ export function scriptPrompt(topic, option, format, voice) {
     "---VISUAL---\n(one line: what is on screen while he says the hook)\n";
 }
 
+// "line | what is on camera" — the shot note is optional, because sometimes the footage is
+// obvious and inventing a direction for it would be noise.
+export function parseBeats(text) {
+  return String(text || "").split("\n")
+    .map((l) => l.replace(/^[-*•\d.)\s]+/, "").trim())
+    .filter(Boolean)
+    .map((l) => {
+      const i = l.indexOf("|");
+      return i < 0
+        ? { text: clip(l, 120), shot: "" }
+        : { text: clip(l.slice(0, i).trim(), 120), shot: clip(l.slice(i + 1).trim(), 160) };
+    })
+    .filter((b) => b.text)
+    .slice(0, 6);
+}
+
 export async function writeScript(topic, option, format) {
-  const text = await ask(scriptPrompt(topic, option, format, await voiceBrief()), 2000);
+  const fmt = normFormat(format);
+  const text = await ask(scriptPrompt(topic, option, fmt, await voiceBrief()), 2000);
   const part = (name) => {
     const m = new RegExp("---" + name + "---\\s*([\\s\\S]*?)(?=---[A-Z]+---|$)").exec(text);
     return m ? m[1].trim() : "";
   };
-  const body = clip(part("BODY"), 3000);
-  if (!body) throw new Error("Claude returned no script.");
+
+  const beats = fmt === "onscreen" ? parseBeats(part("BEATS")) : [];
+  // `body` stays the plain-text rendering of whatever was written, silent or spoken, so the
+  // To-film list, the copy button and the saved record all keep working without knowing which
+  // format produced them. `beats` is the structured version, for the page to lay out properly.
+  const body = fmt === "onscreen"
+    ? beats.map((b) => b.text + (b.shot ? "   [" + b.shot + "]" : "")).join("\n")
+    : clip(part("BODY"), 3000);
+  if (!body) throw new Error(fmt === "onscreen" ? "Claude returned no on-screen lines." : "Claude returned no script.");
+
   return {
     id: "s" + Date.now().toString(36),
     createdAt: nowIso(),
     updatedAt: nowIso(),
     topic: clip(topic, 400),
-    format: format === "demo" ? "demo" : "talking",
+    format: fmt,
     hookId: option.hookId || "",
     type: option.type || "",
-    spoken: option.spoken,
-    onScreen: option.onScreen || "",
-    body,
+    spoken: clip(option.spoken || "", 200),
+    onScreen: clip(option.onScreen || "", 120),
+    lead: leadOf(option, fmt),
+    beats,
+    body: clip(body, 3000),
     cta: clip(part("CTA"), 300),
-    caption: clip(part("CAPTION"), 1000),
+    caption: clip(part("CAPTION"), 1500),
     visual: clip(part("VISUAL"), 300),
     status: "draft",
   };

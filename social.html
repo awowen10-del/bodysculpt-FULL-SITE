@@ -693,6 +693,24 @@
     border:1px solid rgba(var(--red-rgb),.18);border-radius:var(--r-pill);padding:3px 10px;
     text-decoration:line-through;text-decoration-thickness:1px;}
 
+  /* --- v182: the beats of a silent reel ---
+     A numbered run of lines with the shot beside each. This is read off a phone while
+     filming, so the line to put on screen is the loud part and the camera note is quiet
+     beside it, never above it competing for the eye. */
+  .hk-beats{list-style:none;counter-reset:beat;display:flex;flex-direction:column;gap:var(--sp-2);}
+  .hk-beats li{counter-increment:beat;display:flex;align-items:baseline;gap:var(--sp-3);
+    padding-left:26px;position:relative;}
+  .hk-beats li::before{content:counter(beat);position:absolute;left:0;top:0;
+    font-size:11px;font-weight:700;color:var(--ink-faint);background:var(--navy-2);
+    width:19px;height:19px;border-radius:var(--r-pill);display:flex;align-items:center;justify-content:center;}
+  .hk-beats li span{font-size:15px;font-weight:600;color:var(--ink-strong);line-height:1.4;}
+  .hk-beats li em{font-style:normal;font-size:11.5px;color:var(--ink-faint);margin-left:auto;
+    text-align:right;flex:0 0 auto;max-width:45%;line-height:1.4;}
+  @media(max-width:560px){
+    .hk-beats li{flex-direction:column;gap:2px;}
+    .hk-beats li em{margin-left:0;text-align:left;max-width:100%;}
+  }
+
   /* The orange bar on the leading tile. Deliberately NOT called .brand: that class already
      belongs to the logo block in the app bar, where it means display:flex — and a stat tile
      that quietly inherits flex lays its label out beside its number instead of above it.
@@ -913,13 +931,13 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
     <section class="card">
       <div class="cardhead">
         <div>
-          <div class="chead"><svg class="ic"><use href="#ic-note"/></svg> How you talk</div>
-          <div class="csub">Built from transcripts of your own best reels. Every script and every caption on the
-            Scheduling page is written against this — it is the difference between sounding like you and sounding
-            like marketing.</div>
+          <div class="chead"><svg class="ic"><use href="#ic-note"/></svg> Your voice</div>
+          <div class="csub">Built from your own best reels — what is said, what is on the screen, and how you write
+            your captions. Every reel and every caption on the Scheduling page is written against this. It is the
+            difference between sounding like you and sounding like marketing.</div>
         </div>
         <div class="cardhead-r">
-          <button type="button" class="abtn" id="hkVoiceGo"><svg class="ic"><use href="#ic-refresh"/></svg> <span id="hkVoiceLbl">Learn how I talk</span></button>
+          <button type="button" class="abtn" id="hkVoiceGo"><svg class="ic"><use href="#ic-refresh"/></svg> <span id="hkVoiceLbl">Learn my voice</span></button>
         </div>
       </div>
       <div id="hkVoice"></div>
@@ -1451,7 +1469,7 @@ async function loadRival(username, force) {
    step one's empty box. */
 let hkLib = null;              // { hooks, scripts, waiting, configured, ... }
 let hkTopic = "";
-let hkFormat = "talking";
+let hkFormat = "onscreen";   // v182: the reels Ash actually makes
 let hkOptions = null;          // the eight, once asked for
 let hkPicked = -1;
 let hkScript = null;           // the written one, before it is saved
@@ -1496,7 +1514,8 @@ function hkWriterHtml() {
     'spellcheck="true">' + esc(hkTopic) + "</textarea>" +
     '<button type="button" class="abtn primary" id="hkGo"' + (hkBusy ? " disabled" : "") + ">" +
     (hkBusy === "options" ? "Finding openings…" : "Find openings") + "</button></div>" +
-    '<div class="hk-fmt"><span>Length</span><select id="hkFmt">' +
+    '<div class="hk-fmt"><span>Format</span><select id="hkFmt">' +
+    '<option value="onscreen"' + (hkFormat === "onscreen" ? " selected" : "") + ">On-screen reel — text over footage, no talking</option>" +
     '<option value="talking"' + (hkFormat === "talking" ? " selected" : "") + ">To camera — about 100 words</option>" +
     '<option value="demo"' + (hkFormat === "demo" ? " selected" : "") + ">Walkthrough — 150 to 200 words</option>" +
     "</select></div></div>";
@@ -1507,8 +1526,12 @@ function hkWriterHtml() {
       hkOptions.map((o, i) =>
         '<button type="button" class="hk-opt' + (i === hkPicked ? " on" : "") + '" data-opt="' + i + '">' +
         (o.type ? '<span class="hk-type">' + esc(o.type) + "</span>" : "") +
-        '<span class="hk-spoken">' + esc(o.spoken) + "</span>" +
-        (o.onScreen ? '<span class="hk-row"><b>On screen:</b> ' + esc(o.onScreen) + "</span>" : "") +
+        // the line the reel OPENS with is the one being chosen, so it is the one at reading
+        // size — the card on screen for a silent reel, the spoken line for a talking one
+        '<span class="hk-spoken">' + esc(o.lead || o.spoken || o.onScreen) + "</span>" +
+        (hkFormat === "onscreen"
+          ? (o.spoken ? '<span class="hk-row"><b>Said:</b> ' + esc(o.spoken) + "</span>" : "")
+          : (o.onScreen ? '<span class="hk-row"><b>On screen:</b> ' + esc(o.onScreen) + "</span>" : "")) +
         (o.caption ? '<span class="hk-row"><b>Caption:</b> ' + esc(o.caption) + "</span>" : "") +
         (o.why ? '<span class="hk-why">' + esc(o.why) + "</span>" : "") +
         "</button>").join("") +
@@ -1523,13 +1546,26 @@ function hkWriterHtml() {
   // step three: the script
   if (hkScript) {
     const s = hkScript;
-    h += '<div class="hk-step"><div class="hk-lbl">The script</div><div class="hk-script">' +
-      '<div class="hk-part"><div class="hk-lbl">He says</div><div class="hk-hookline">' + esc(s.spoken) + "</div></div>" +
-      (s.onScreen ? '<div class="hk-part"><div class="hk-lbl">On screen</div><div class="hk-row">' + esc(s.onScreen) + "</div></div>" : "") +
-      '<div class="hk-part"><div class="hk-lbl">Then</div><div class="hk-body">' + esc(s.body) + "</div></div>" +
+    const silent = s.format === "onscreen";
+    h += '<div class="hk-step"><div class="hk-lbl">' + (silent ? "The reel" : "The script") + '</div><div class="hk-script">' +
+      '<div class="hk-part"><div class="hk-lbl">' + (silent ? "Opens with, on screen" : "He says") + "</div>" +
+        '<div class="hk-hookline">' + esc(s.lead || s.spoken || s.onScreen) + "</div></div>" +
+      (!silent && s.onScreen ? '<div class="hk-part"><div class="hk-lbl">On screen</div><div class="hk-row">' + esc(s.onScreen) + "</div></div>" : "") +
+      (silent
+        // the beats, numbered, with the shot note beside each — this is the thing he reads
+        // off his phone while filming, so it is laid out to be worked through in order
+        ? '<div class="hk-part"><div class="hk-lbl">Then, on screen</div>' +
+          ((s.beats && s.beats.length)
+            ? '<ol class="hk-beats">' + s.beats.map((b) =>
+                "<li><span>" + esc(b.text) + "</span>" +
+                (b.shot ? '<em>' + esc(b.shot) + "</em>" : "") + "</li>").join("") + "</ol>"
+            : '<div class="hk-body">' + esc(s.body) + "</div>") +
+          "</div>"
+        : '<div class="hk-part"><div class="hk-lbl">Then</div><div class="hk-body">' + esc(s.body) + "</div></div>") +
       (s.cta ? '<div class="hk-part"><div class="hk-lbl">Ask them to</div><div class="hk-body">' + esc(s.cta) + "</div></div>" : "") +
-      (s.caption ? '<div class="hk-part"><div class="hk-lbl">Caption</div><div class="hk-cap">' + esc(s.caption) + "</div></div>" : "") +
-      (s.visual ? '<div class="hk-part"><div class="hk-lbl">On camera</div><div class="hk-row">' + esc(s.visual) + "</div></div>" : "") +
+      (s.caption ? '<div class="hk-part"><div class="hk-lbl">Caption' +
+        (silent ? " — this is doing the heavy lifting" : "") + '</div><div class="hk-cap">' + esc(s.caption) + "</div></div>" : "") +
+      (s.visual ? '<div class="hk-part"><div class="hk-lbl">' + (silent ? "Opening shot" : "On camera") + '</div><div class="hk-row">' + esc(s.visual) + "</div></div>" : "") +
       '<div class="hk-acts">' +
       '<button type="button" class="abtn primary" id="hkSave">Keep it — to film</button>' +
       '<button type="button" class="abtn" id="hkCopy">Copy</button>' +
@@ -1544,7 +1580,15 @@ function wireWriter() {
   // the box is not re-rendered while it is being typed in, so the value is read on the way
   // out rather than bound on every keystroke — a re-render mid-sentence moves the caret.
   if (t) t.addEventListener("input", () => { hkTopic = t.value; });
-  if (fmt) fmt.addEventListener("change", () => { hkFormat = fmt.value; });
+  if (fmt) fmt.addEventListener("change", () => {
+    // v182: the options are written FOR a format — a silent reel's options have no spoken
+    // line — so switching format throws them away rather than leaving a mismatched set on
+    // screen that would then be written up as the wrong kind of reel.
+    if (fmt.value === hkFormat) return;
+    hkFormat = fmt.value;
+    if (hkOptions || hkScript) { hkOptions = null; hkPicked = -1; hkScript = null; }
+    renderHooks();
+  });
   if (go) go.addEventListener("click", askOptions);
   if (t) t.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) askOptions(); });
   document.querySelectorAll("#hkWriter [data-opt]").forEach((b) => b.addEventListener("click", () => {
@@ -1564,7 +1608,7 @@ async function askOptions() {
   if (!hkTopic.trim() || hkBusy) return;
   hkBusy = "options"; hkError = ""; hkOptions = null; hkPicked = -1; hkScript = null;
   renderHooks();
-  try { hkOptions = (await hkPost({ action: "options", topic: hkTopic })).options; }
+  try { hkOptions = (await hkPost({ action: "options", topic: hkTopic, format: hkFormat })).options; }
   catch (e) { hkError = e.message; }
   hkBusy = "";
   renderHooks();
@@ -1596,8 +1640,21 @@ async function saveScript() {
 // what you would read off a phone while filming — the labels included, because a bare
 // paragraph in a notes app is not a script.
 function scriptText(s) {
+  if (s.format === "onscreen") {
+    // a silent reel copies as a shot list, because that is what it is
+    const beats = (s.beats && s.beats.length)
+      ? s.beats.map((b, i) => (i + 1) + ". " + b.text + (b.shot ? "   [" + b.shot + "]" : "")).join("\n")
+      : s.body;
+    return [
+      "ON SCREEN, FIRST: " + (s.lead || s.onScreen),
+      s.visual ? "SHOT: " + s.visual : "",
+      "", beats, "",
+      s.cta ? "CTA: " + s.cta : "",
+      s.caption ? "\nCAPTION:\n" + s.caption : "",
+    ].filter(Boolean).join("\n");
+  }
   return [
-    "HOOK: " + s.spoken,
+    "HOOK: " + (s.lead || s.spoken),
     s.onScreen ? "ON SCREEN: " + s.onScreen : "",
     "", s.body, "",
     s.cta ? "CTA: " + s.cta : "",
@@ -1629,7 +1686,7 @@ function renderScripts() {
     : "Everything written has been filmed.";
   body.innerHTML = live.map((s) =>
     '<div class="hk-sc' + (s.status === "posted" ? " done" : "") + '">' +
-    '<div class="hk-sc-h" data-open="' + esc(s.id) + '">' + esc(s.spoken) +
+    '<div class="hk-sc-h" data-open="' + esc(s.id) + '">' + esc(s.lead || s.spoken || s.onScreen) +
       "<span>" + esc(s.topic.slice(0, 80)) + "</span></div>" +
     '<span class="hk-state ' + esc(s.status) + '">' + esc(s.status) + "</span>" +
     (SC_NEXT[s.status] ? '<button type="button" class="abtn" data-adv="' + esc(s.id) + '">' + esc(SC_VERB[s.status]) + "</button>" : "") +
@@ -1660,7 +1717,7 @@ function renderScripts() {
   // tapping the hook line puts the whole script back in the writer, to read or re-copy
   body.querySelectorAll("[data-open]").forEach((el) => el.addEventListener("click", () => {
     const s = find(el.dataset.open); if (!s) return;
-    hkScript = s; hkTopic = s.topic; hkFormat = s.format || "talking";
+    hkScript = s; hkTopic = s.topic; hkFormat = s.format || "onscreen";
     renderHooks();
     const w = $("hkWriter"); if (w) w.scrollIntoView({ behavior: "smooth", block: "start" });
   }));
@@ -1713,23 +1770,42 @@ function renderVoice() {
   const v = hkLib && hkLib.voice;
   const configured = hkLib && hkLib.configured;
   if (btn) btn.disabled = hkBusy === "voice" || !configured;
-  if (lbl) lbl.textContent = hkBusy === "voice" ? "Listening…" : (v && v.profile ? "Learn it again" : "Learn how I talk");
+  if (lbl) lbl.textContent = hkBusy === "voice" ? "Listening…" : (v && v.profile ? "Learn it again" : "Learn my voice");
 
   if (!hkLib || hkLib.ok === false) { el.innerHTML = '<div class="loading">Reading…</div>'; return; }
 
+  // v181: a note is shown with WHEN it was recorded. Ash re-ran this after the fix had
+  // shipped and was shown the previous run's error again, with nothing to say it was old —
+  // so the fix looked like it had not worked. A stale error reading as a current one is
+  // worse than none. While a build is running there is no note to show at all: the function
+  // clears it before it starts, and the button already says what is happening.
   let h = "";
-  if (v && v.note) h += '<div class="hk-err">' + esc(v.note) + "</div>";
+  if (v && v.note && hkBusy !== "voice") {
+    const stamp = v.triedAt ? " · " + esc(when(v.triedAt)) : "";
+    // a note ALONGSIDE a profile is information — it read 7 of 10 reels — not a failure
+    h += v.profile
+      ? '<div class="hk-note">' + esc(v.note) + stamp + "</div>"
+      : '<div class="hk-err">' + esc(v.note) + stamp + "</div>";
+  }
 
   if (!v || !v.profile) {
-    el.innerHTML = h + '<div class="hk-note">Nothing learned yet — scripts and captions are being written from your ' +
-      "recent captions instead, which carries your words but not your rhythm. Press <b>Learn how I talk</b> and it will " +
-      "transcribe your ten best reels and write down how you actually speak. Takes about five minutes, once.</div>";
+    el.innerHTML = h + '<div class="hk-note">Nothing learned yet — reels and captions are being written from your ' +
+      "recent captions alone. Press <b>Learn my voice</b> and it will read your ten best reels — what is said, what is " +
+      "on the screen, and how you write — and write down how you come across. Takes about five minutes, once.</div>";
     return;
   }
 
   h += '<div class="hk-voice">' +
+    // v182: say WHICH evidence it learned from. A profile built from on-screen text and
+    // captions, presented as though it had listened to him talk, would be quietly misleading
+    // about the one thing Ash needs to judge — whether it actually sounds like him.
     '<div class="hk-vstate"><span>Learnt from <b>' + v.reels + '</b> of your reels' +
       (v.words ? ", <b>" + nfmt(v.words) + "</b> words" : "") + "</span>" +
+      '<span class="hk-type">' + (v.kind === "written" ? "on-screen text &amp; captions"
+        : v.kind === "mixed" ? "speech, on-screen text &amp; captions" : "speech") + "</span>" +
+      (v.kind === "written"
+        ? '<span>You rarely speak to camera, so this describes how you <b>write</b>.</span>'
+        : (v.spokenReels ? "<span><b>" + v.spokenReels + "</b> with you speaking</span>" : "")) +
       (v.builtAt ? "<span>" + esc(when(v.builtAt)) + "</span>" : "") + "</div>" +
     '<div class="hk-vprofile">' + esc(v.profile) + "</div>" +
     (v.banned && v.banned.length
