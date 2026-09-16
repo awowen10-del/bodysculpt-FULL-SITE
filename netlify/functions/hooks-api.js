@@ -8,6 +8,7 @@
 //   POST { action: "save", script }     keep a script (or change its status)
 //   POST { action: "status", id, status }  filmed / posted / binned
 //   POST { action: "forget", id }       drop a hook from the library
+//   POST { action: "retry" }            put the given-up-on reels back in the queue
 //
 // v178: the GET also reports the spoken-voice profile — when it was built, from how many
 // reels, and what it says. Building it is voice-build-background's job, not this one's.
@@ -36,6 +37,7 @@ export default async (req) => {
       hooks: lib.hooks,
       scripts: lib.scripts,
       waiting,
+      skipped: lib.skipped.length,
       lastMineAt: lib.lastMineAt,
       lastMineNote: lib.lastMineNote,
       // the profile itself, not just a flag: the page shows it, because a voice profile Ash
@@ -117,6 +119,21 @@ export default async (req) => {
       it.updatedAt = nowIso();
       await writeLib(lib);
       return json({ ok: true, scripts: lib.scripts });
+    }
+
+    // v183: the skip list built up under the old rule holds reels that failed for reasons
+    // that have since passed — a busy model, a dropped connection. This empties it so the
+    // next run considers them again. Hooks already in the library are untouched, so nothing
+    // is read or paid for twice.
+    if (action === "retry") {
+      const lib = await readLib();
+      const forgotten = lib.skipped.length;
+      lib.skipped = [];
+      lib.lastMineNote = "";
+      await writeLib(lib);
+      let waiting = 0;
+      try { waiting = (await candidates(lib)).length; } catch { /* the count is a nicety */ }
+      return json({ ok: true, cleared: forgotten, waiting });
     }
 
     if (action === "forget") {

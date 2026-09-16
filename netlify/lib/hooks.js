@@ -54,6 +54,16 @@ export const nowIso = () => new Date().toISOString();
 const num = (v) => (typeof v === "number" && isFinite(v) ? v : null);
 const store = () => getStore({ name: "bodysculpt-kpi", consistency: "strong" });
 
+/* v183: is this failure worth trying again?
+   Found on the live site: the hook library was empty and nothing was waiting, because a busy
+   minute at Google ("This model is currently experiencing high demand") had put every
+   candidate on the skip list — permanently. v177's reasoning for skipping was sound for the
+   case it was written about (a CDN link that has expired is gone tomorrow, so a retry costs
+   money to fail identically) and wrong for everything else. A model that was busy at 5am is
+   not busy for ever, and nothing should be thrown away because of it. */
+const TRANSIENT = /high demand|overloaded|try again later|resource exhausted|unavailable|rate.?limit|timed? ?out|fetch failed|network|ECONN|socket|503|502|504|429/i;
+export const isTransient = (message) => TRANSIENT.test(String(message || ""));
+
 export function config() {
   return {
     gemini: !!env("GEMINI_API_KEY"),
@@ -105,15 +115,27 @@ function medianOf(values) {
   return v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2;
 }
 
-// A competitor's account, from the nightly scrape. Views only: the scrape is the one place
-// a competitor's play count exists, and engagement here would mean a different basis on
-// different accounts, which is exactly the muddle the Content page avoids.
+/* A competitor's account, from the nightly scrape.
+   v183: views WHERE THERE ARE ENOUGH OF THEM, engagement otherwise — which is what the
+   Content page has always done, and what this did not. Found by testing against the live
+   site: @dm_pt showed five flames on the Competitors tab and produced nought candidates
+   here, because only three of its twenty-five posts carry a play count and this function
+   gave up when it could not build a median from views. The page and the miner disagreeing
+   about which reels took off is exactly the thing v177's test claimed could not happen.
+
+   Raw engagement is the right fallback and not a compromise: inside ONE account the follower
+   count is a constant, so ranking likes+comments against that account's own median gives the
+   identical answer to ranking engagement RATE against its median. Across accounts it would
+   be meaningless — which is why it is never used that way. */
 function flamesFromScrape(rec) {
   const posts = (rec && rec.posts) || [];
-  const median = medianOf(posts.map((p) => p.views));
+  const withViews = posts.filter((p) => typeof p.views === "number" && p.views > 0).length;
+  const useViews = withViews >= 4;
+  const valueOf = (p) => useViews ? p.views : ((p.likes || 0) + (p.comments || 0));
+  const median = medianOf(posts.map(valueOf));
   if (!median) return [];
   return posts
-    .map((p) => ({ ...p, vsMedian: p.views > 0 ? p.views / median : null }))
+    .map((p) => ({ ...p, vsMedian: valueOf(p) > 0 ? valueOf(p) / median : null }))
     .filter((p) => p.vsMedian != null && p.vsMedian >= 2 && p.videoUrl)
     .map((p) => ({
       id: p.shortCode,
@@ -125,7 +147,7 @@ function flamesFromScrape(rec) {
       postedAt: p.timestamp || "",
       views: num(p.views),
       vsMedian: p.vsMedian,
-      basis: "views",
+      basis: useViews ? "views" : "engagement",
     }));
 }
 
@@ -305,14 +327,16 @@ export async function mine(limit, log) {
     } catch (e) {
       failed++;
       const msg = clip((e && e.message) || "", 200);
-      // Given up on, not retried nightly for ever: the CDN link that failed today is gone
-      // tomorrow, so a second attempt would fail the same way and cost the same money.
-      const fresh = await readLib();
-      fresh.skipped = fresh.skipped.concat([c.id]);
-      fresh.lastMineAt = nowIso();
-      fresh.lastMineNote = msg;
-      await writeLib(fresh);
-      log && log({ stage: "skipped", id: c.id, username: c.username, message: msg });
+      // Only a PERMANENT failure earns a place on the skip list. An expired link is gone
+      // tomorrow and retrying it costs money to fail identically; a busy model is not, and
+      // burning the candidate over it loses a hook for good.
+      const retryable = isTransient(msg);
+      const lib2 = await readLib();
+      if (!retryable) lib2.skipped = lib2.skipped.concat([c.id]);
+      lib2.lastMineAt = nowIso();
+      lib2.lastMineNote = msg;
+      await writeLib(lib2);
+      log && log({ stage: retryable ? "deferred" : "skipped", id: c.id, username: c.username, message: msg });
     }
   }
   return { considered: cands.length, mined: done, skipped: failed };

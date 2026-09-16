@@ -1501,7 +1501,14 @@ function hkWriterHtml() {
     return '<div class="setup"><b>The library is empty.</b><br>' +
       (hkLib.waiting
         ? "There " + (hkLib.waiting === 1 ? "is 1 reel" : "are " + hkLib.waiting + " reels") + " waiting to be read. Press <b>Find hooks</b> — it takes a few minutes, and it also runs on its own every night."
-        : "Nothing has taken off on your Competitors tab yet. Watch a few busy accounts, give the nightly scrape a night, and the reels that beat their own normal will land here.") +
+        : hkLib.skipped
+          // v183: a reel given up on used to stay given up on for ever, including when the
+          // only thing wrong had been a busy minute at Google. Saying so, and offering the
+          // way back, beats an empty page that looks like nothing ever took off.
+          ? (hkLib.skipped === 1 ? "1 reel was" : hkLib.skipped + " reels were") +
+            " given up on — often just a busy moment at Google rather than anything wrong with the reel. " +
+            '<button type="button" class="abtn" id="hkRetry" style="margin-top:var(--sp-3)">Try those again</button>'
+          : "Nothing has taken off on your Competitors tab yet. Watch a few busy accounts, give the nightly scrape a night, and the reels that beat their own normal will land here.") +
       "</div>";
   }
 
@@ -1600,6 +1607,12 @@ function wireWriter() {
   const sv = $("hkSave"); if (sv) sv.addEventListener("click", saveScript);
   const ag = $("hkAgain"); if (ag) ag.addEventListener("click", writeIt);
   const cp = $("hkCopy"); if (cp) cp.addEventListener("click", copyScript);
+  const rt = $("hkRetry");
+  if (rt) rt.addEventListener("click", async () => {
+    rt.disabled = true; rt.textContent = "Putting them back…";
+    try { await hkPost({ action: "retry" }); await loadHooks(); }
+    catch (e) { hkError = e.message; renderHooks(); }
+  });
 }
 
 async function askOptions() {

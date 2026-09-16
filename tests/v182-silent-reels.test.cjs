@@ -145,5 +145,59 @@ async function loadLib(file, tag, seed) {
     assert.ok(/this is doing the heavy lifting/.test(js), "the caption is labelled as the workhorse it is on a silent reel");
   }
 
-  console.log("v182 silent reels: OK");
+  /* ============ 7. v183: three faults found by testing the live site ============ */
+  {
+    /* (a) The page and the miner disagreed about which reels took off. @dm_pt showed five
+       flames on the Competitors tab and produced nought candidates here, because only three
+       of its twenty-five posts carry a play count and the miner gave up when it could not
+       build a median from views. Inside ONE account the follower count is a constant, so
+       ranking likes+comments against that account's own median gives the identical answer to
+       ranking engagement rate against its median — which is what the page does. */
+    const engagementOnly = Array.from({ length: 10 }, (_, i) => ({
+      shortCode: "e" + i, url: "u", videoUrl: "v", caption: "c", timestamp: "t",
+      likes: 10, comments: 0, views: null,
+    }));
+    engagementOnly.push({ shortCode: "e-hit", url: "u", videoUrl: "v", caption: "c", timestamp: "t", likes: 40, comments: 5, views: null });
+    const h = await loadLib("netlify/lib/hooks.js", "hooks2", {
+      "ig-competitors": [{ username: "dm_pt" }],
+      "ig-scrape-dm_pt": { username: "dm_pt", posts: engagementOnly },
+    });
+    const c = await h.candidates(await h.readLib());
+    assert.deepStrictEqual(c.map((x) => x.id), ["e-hit"],
+      "an account with no view data still yields its flames, on engagement — otherwise the Competitors tab shows five and the library sees none");
+    assert.strictEqual(c[0].basis, "engagement", "…and says which basis was used");
+    assert.ok(/v183/.test(HOOKS_LIB) && /is a constant, so ranking likes\+comments/.test(HOOKS_LIB),
+      "the reasoning is written down where the next person will question it");
+
+    /* (b) A busy minute at Google was burning candidates for good. */
+    assert.ok(hooks.isTransient("This model is currently experiencing high demand"), "Google being busy is temporary");
+    assert.ok(hooks.isTransient("fetch failed") && hooks.isTransient("503 Service Unavailable"), "so are dropped connections");
+    assert.ok(!hooks.isTransient("the link had expired (403)"), "an expired link is NOT — retrying costs money to fail identically");
+    assert.ok(!hooks.isTransient("no video link for this post"), "nor is a post with no file behind it");
+    assert.ok(/if \(!retryable\) lib2\.skipped = lib2\.skipped\.concat/.test(HOOKS_LIB),
+      "only a permanent failure earns a place on the skip list");
+
+    /* (c) The voice build chose its reels before it knew which ones it could download. Of
+       Ash's twenty videos Instagram hands over a file for only six; v180's filter let all
+       twenty-five posts through on the strength of having an id, so the top ten by views were
+       mostly ones with nothing behind them while readable reels sat outside the cut. */
+    assert.ok(/export async function bestReels\(hasLink\)/.test(VOICE_LIB), "the caller decides what counts as having a link");
+    assert.ok(/const reels = await bestReels\(\(p\) => fresh\.has\(String\(p\.id\)\) \|\| !!p\.video\);/.test(VOICE_LIB),
+      "…and it is called AFTER the fresh links are in hand, so the choice is made from what can actually be downloaded");
+    assert.ok(VOICE_LIB.indexOf("freshOwnVideoUrls(25)") < VOICE_LIB.indexOf("await bestReels("),
+      "the order matters and is the whole fix");
+
+    const voice = await loadLib("netlify/lib/voice.js", "voice2", {
+      "ig-cache-mine": { posts: [
+        { id: "1", permalink: "p1", video: "", views: 9000 },      // no file — Instagram withheld it
+        { id: "2", permalink: "p2", video: "https://cdn/b.mp4", views: 100 },
+        { id: "3", permalink: "p3", video: "", views: 8000 },
+      ] },
+    });
+    const picked = await voice.bestReels((p) => !!p.video);
+    assert.deepStrictEqual(picked.map((r) => r.id), ["2"],
+      "the one reel there is a file for is chosen, even though two better-performing posts outrank it — a reel that cannot be downloaded is not a candidate");
+  }
+
+  console.log("v182/v183 silent reels + live-site fixes: OK");
 })().catch((e) => { console.error(e); process.exit(1); });

@@ -49,15 +49,21 @@ async function writeVoice(v) { await store().set(VOICE_KEY, JSON.stringify(v)); 
    His BEST ones, not his most recent. A voice profile built from everything would average in
    the reels that did not land; built from the top it describes him at his most watchable,
    which is the version worth reproducing. Views where the feed has them, reach otherwise. */
-export async function bestReels() {
+export async function bestReels(hasLink) {
   const mine = await store().get("ig-cache-mine", { type: "json" });
   const posts = (mine && mine.posts) || [];
   return posts
-    // v180: a post with a cached link OR an id is a candidate — the id is what gets a fresh
-    // link below, and a cache written before v177 has no `video` field at all.
-    .filter((p) => p.video || p.id)
-    .map((p) => ({ id: p.id, url: p.permalink, video: p.video, caption: clip(p.caption, 200),
+    .map((p) => ({ id: p.id, url: p.permalink, video: p.video, type: p.type, caption: clip(p.caption, 200),
                    score: p.views != null ? p.views : (p.reach || 0), views: p.views != null ? p.views : p.reach }))
+    /* v183: only reels there is actually a video file for, and the caller decides what
+       counts as "actually" because it is the one holding the fresh links.
+       Found on the live site: of Ash's twenty videos, Instagram's Graph API returns a
+       media_url for only six — it simply does not hand over a file for the rest. v180's
+       filter let all twenty-five posts through on the strength of having an id, so the top
+       ten by views were mostly ones with nothing to download, and the run reported "7 × no
+       video link for this post" while three perfectly readable reels sat outside the cut.
+       Filtering FIRST and taking the best ten of what is left uses everything there is. */
+    .filter((p) => (hasLink ? hasLink(p) : !!p.video))
     .sort((a, b) => (b.score || 0) - (a.score || 0))
     .slice(0, WANT_REELS);
 }
@@ -167,15 +173,20 @@ export async function buildVoice(log) {
   if (!env("ANTHROPIC_API_KEY")) throw new Error("ANTHROPIC_API_KEY is not set.");
   if (!env("GEMINI_API_KEY")) throw new Error("GEMINI_API_KEY is not set, so the reels cannot be transcribed.");
 
-  const reels = await bestReels();
-  if (!reels.length) throw new Error("No reels of yours to learn from yet. Open the Content page and press Refresh, then try again.");
-
-  // v180: a CURRENT link for each, asked of Instagram now. The cached one in `ig-cache-mine`
-  // is a signed url that expires within hours, which is why every reel failed before this —
-  // the run was replaying links that had already died. The cached link stays as the fallback
-  // for a post the fresh list does not cover (it returns the most recent 25).
+  // v180: CURRENT links, asked of Instagram now. The cached one in `ig-cache-mine` is a
+  // signed url that expires within hours, which is why every reel failed before that — the
+  // run was replaying links that had already died. v183 fetches them BEFORE choosing which
+  // reels to use, so the choice is made from what can actually be downloaded.
   const fresh = await freshOwnVideoUrls(25);
   note({ stage: "links", fresh: fresh.size, configured: igConfigured() });
+
+  const reels = await bestReels((p) => fresh.has(String(p.id)) || !!p.video);
+  if (!reels.length) {
+    throw new Error(igConfigured()
+      ? "Instagram is not giving out a video file for any of your posts. That is its own limit, not a setting here — it withholds the file for a lot of reels. Nothing can be learned until it hands one over."
+      : "IG_ACCESS_TOKEN and IG_USER_ID are not both set in Netlify, so no video link could be fetched.");
+  }
+  note({ stage: "chose", reels: reels.length });
 
   const samples = [], failures = [];
   for (const r of reels) {
