@@ -30,6 +30,9 @@ is a **derived copy**, and it says so at the top. When the two disagree the play
 Change facts in the playbook, then re-seed the profile — never the other way round, or the two
 drift and nobody can tell which one an ad was written from.
 
+Seeded on 17 September 2026 from the playbook (30,809 characters) and the voice profile
+(5,406). The dashboard lives at `https://bodysculptdashboard.netlify.app`.
+
 Two other dashboard blobs are worth pulling into the profile at the same time:
 
 | Blob key | What it adds |
@@ -48,6 +51,20 @@ That reads `about`, `ig-voice` and `ig-competitors` from the live site and rewri
 marked `NEEDS PLAYBOOK` rather than guessed: a gym's price, proof or guarantee invented into
 an ad is the one failure mode that actually costs money.
 
+## Two things the seeding turned up
+
+**Calls to action are a genuine conflict, not an oversight.** Ash's organic voice contains
+none at all — no "DM", no "sign up", no "link in bio", no hashtags anywhere. A paid ad has to
+ask for something, and Meta puts a button on it regardless. So the profile says explicitly
+what the ask is allowed to be: the Meta button plus one plain next step in his own enquiry
+words ("Would Monday or Wednesday suit you better?"), landing on
+`bodysculptwarrington.co/skipthequeue`. Without that written down, every ad either shouts or
+never asks.
+
+**There are no testimonials.** The playbook is a coaching and sales manual and quotes no
+clients. It is the biggest gap in the profile for ad copy, and nothing goes in an ad as a
+testimonial until Ash supplies it and confirms the client agreed to it.
+
 ## What it needs on the laptop
 
 | | Status on 17 Sep 2026 |
@@ -55,6 +72,7 @@ an ad is the one failure mode that actually costs money.
 | `ffmpeg` | installed (9.0.1) |
 | `node` / `npx` | installed (24.21.0) — `agent-browser` downloads on first use |
 | local `whisper` | not installed. Optional: `pip3 install openai-whisper`, or an `OPENAI_API_KEY` instead |
+| competitors | the ten gyms from Social → Competitors are in the profile by Instagram handle. Each needs its Meta Ad Library page ID resolving on the first `/ad-spy` run |
 | keys | `~/.claude/ad-profiles/.env`, written by Ash, never committed. `GEMINI_API_KEY` (already on the Netlify site) drives image generation |
 
 ## The open loop, not yet built
