@@ -28,7 +28,7 @@
 //   hook   { id, username, isOwn, url, postedAt, views, vsMedian, basis, spoken, onScreen,
 //            template, type, why, angle, minedAt }
 //   script { id, createdAt, topic, format, hookId, type, spoken, onScreen, body, cta,
-//            caption, visual, status, updatedAt }
+//            caption, visual, stage, status, updatedAt }
 //   script status: draft → filmed → posted   (binned is a side exit)
 //
 // Environment: GEMINI_API_KEY (reading the video), ANTHROPIC_API_KEY (the writing). Both
@@ -39,6 +39,7 @@ import { geminiAsk, voiceBrief } from "./schedule.js";
 import { freshOwnVideoUrls, fetchVideo } from "./ig-media.js";
 import { preferenceBrief } from "./learn.js";
 import { readAbout } from "./ideas.js";
+import { stagesBrief, normStage } from "./stages.js";
 
 export const KEY = "ig-hooks";
 const MAX_HOOKS = 400;
@@ -500,6 +501,17 @@ export function scriptPrompt(topic, option, format, voice, about) {
     ? "WHAT THE GYM ACTUALLY DOES — his own words, and the only source of fact here. Use it for " +
       "detail, and never state anything about the gym that is not in it:\n" + clip(about, 40000) + "\n\n"
     : "";
+  /* v206: which of the four jobs this post does, suggested on the way out.
+     A reel started from one of the eight ideas already has a stage and keeps it — that is the
+     one Ash saw when he picked it. A topic typed into the box has never been near the ideas
+     engine, and used to arrive with no stage at all, so the label vanished exactly when he was
+     working fastest. The writer is already reading the topic and the hook; naming the job is
+     one more line out of it, not another call. */
+  const stage =
+    stagesBrief() +
+    "At the end, say which ONE of the four this reel is. Judge what you have actually written, " +
+    "not what would be flattering: a relatable or funny reel is attract even with the gym in shot, " +
+    "and only a reel that asks for an enquiry is convert.\n\n";
   const common =
     "How it has to read:\n" +
     "· Like one person talking to one other person, not a brand addressing a market. Lumpy, not balanced.\n" +
@@ -521,6 +533,7 @@ export function scriptPrompt(topic, option, format, voice, about) {
       "This is a SILENT reel: footage with text over it, no talking head, no voiceover. Every word is either " +
       "ON THE SCREEN or in the CAPTION.\n\n" +
       playbook +
+      stage +
       (voice ? voice + "\n\n" : "") +
       'The reel is about: "' + clip(topic, 400) + '"\n' +
       'It opens with this on the screen: "' + (option.onScreen || option.spoken) + '"\n\n' +
@@ -538,12 +551,14 @@ export function scriptPrompt(topic, option, format, voice, about) {
       "---BEATS---\n(one per line, as: the on-screen line | what is on camera under it)\n" +
       "---CAPTION---\n(the full caption, as described above)\n" +
       "---CTA---\n(one line: what you want them to do. If it suits, comment a word; otherwise follow @bodysculptwarrington for more. Never \"link in bio\".)\n" +
-      "---VISUAL---\n(one line: what is on camera behind the opening card)\n";
+      "---VISUAL---\n(one line: what is on camera behind the opening card)\n" +
+      "---STAGE---\n(one word, lower case: attract, nurture, position or convert)\n";
   }
 
   const shape = fmt === "demo" ? "a walkthrough — show the thing, 150 to 200 words" : "a piece to camera — one strong point, about 100 words";
   return AUDIENCE + "\n\n" +
     playbook +
+    stage +
     (voice ? voice + "\n\n" : "") +
     'The reel is about: "' + clip(topic, 400) + '"\n' +
     'It opens with him saying: "' + (option.spoken || option.onScreen) + '"\n' +
@@ -554,7 +569,8 @@ export function scriptPrompt(topic, option, format, voice, about) {
     "---BODY---\n(what he says after the hook)\n" +
     "---CTA---\n(one line: what he asks them to do. If it suits, comment a word; otherwise follow @bodysculptwarrington for more. Never \"link in bio\".)\n" +
     "---CAPTION---\n(the caption: the first line, then a blank line, then 3 to 5 lowercase hashtags relevant to the video and to Warrington)\n" +
-    "---VISUAL---\n(one line: what is on screen while he says the hook)\n";
+    "---VISUAL---\n(one line: what is on screen while he says the hook)\n" +
+    "---STAGE---\n(one word, lower case: attract, nurture, position or convert)\n";
 }
 
 // "line | what is on camera" — the shot note is optional, because sometimes the footage is
@@ -606,6 +622,9 @@ export async function writeScript(topic, option, format) {
     cta: clip(part("CTA"), 300),
     caption: clip(part("CAPTION"), 1500),
     visual: clip(part("VISUAL"), 300),
+    // blank if it came back as anything outside the model — the page shows no badge rather
+    // than a wrong one, and an idea's own stage overrides this anyway
+    stage: normStage(part("STAGE")),
     status: "draft",
   };
 }

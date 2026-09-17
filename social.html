@@ -718,6 +718,29 @@
   .hk-idea-s{font-size:11px;color:var(--ink-faint);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
   .hk-idea-s .ic{width:11px;height:11px;}
   .hk-idea-go{flex:0 0 auto;align-self:center;}
+  /* --- v206: which job the post is doing ---
+     Ash's content model: every post is an ATTRACT, a NURTURE, a POSITION or a CONVERT, and a
+     week is 2/2/2/1 of them. The badge sits ABOVE the idea rather than down in the source
+     line, because it is the thing he sorts a week by — but it stays small and tinted rather
+     than solid, so it labels the idea instead of competing with it. Four hues far enough
+     apart to tell at a glance, none of them the brand terracotta: a badge in the brand colour
+     would read as "selected". The plain-English gloss rides beside it, so a badge saying
+     ATTRACT also says what attract means and nobody has to learn four new words. */
+  .hk-idea-top{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+  .hk-stage{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+    border-radius:var(--r-pill);padding:2px 9px;white-space:nowrap;}
+  .hk-stage.attract{color:var(--tint-amber);background:rgba(var(--amber-rgb),.14);}
+  .hk-stage.nurture{color:var(--teal-bright);background:rgba(var(--teal-rgb),.13);}
+  .hk-stage.position{color:var(--tint-blue);background:rgba(var(--blue-rgb),.12);}
+  .hk-stage.convert{color:var(--tint-green);background:rgba(var(--green-rgb),.13);}
+  .hk-stage-w{font-size:11px;color:var(--ink-faint);}
+  /* In the To-film list the FILLED pill is already spoken for: draft is amber, filmed is
+     indigo, posted is green — the same three hues the stages use. Two filled pills of the
+     same colour side by side read as two statuses, so in there the stage is outlined
+     instead. Same hue, so it is recognisably the same label; different weight, so nobody
+     mistakes ATTRACT for a state the script is in. */
+  .hk-sc .hk-stage{background:none;border:1px solid currentColor;padding:1px 8px;opacity:.9;}
+  .hk-script-stage{margin:-2px 0 var(--sp-3);}
   .hk-ideas-foot{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;
     font-size:11.5px;color:var(--ink-faint);margin-top:var(--sp-3);}
   .hk-ideas-foot button{background:none;border:none;font-family:inherit;font-size:11.5px;font-weight:600;
@@ -1162,9 +1185,28 @@ const TIPS = {
   // place the rest of the suite already keeps this kind of thing
   writer: ["Write your own idea", "Use this when you already know what the reel is about. Type it in plain words — \"a client asked if she would get bulky\" — and you get eight ways to open it, each one borrowed from a reel that genuinely worked for another gym. Pick the one you like and it writes the rest: the lines that go on screen, the caption, and what to point the camera at."],
   voice: ["How Bodysculpt sounds", "Every gym's posts sound slightly different, and most AI writing sounds like none of them. So this reads Ash's own best reels — what he says, what goes on screen, how he writes a caption — and writes down the habits: no hashtags, sentence case, contractions, soft calls to action. Everything written on this page and every caption on the Scheduling page is checked against it, so nothing goes out sounding like an agency wrote it."],
-  ideas: ["Film one of these", "Five new reels every morning, and they build up through the week rather than replacing each other — so on Friday you are looking at the whole week's suggestions, grouped by the day they arrived. The pin holds one on the list past the ten days it would otherwise drop off after; the ✕ bins one now. Anything you have already written is marked and greyed rather than removed. They are not generic content ideas — each one comes from something real: a reel that took off for a gym you watch, one of your own posts worth another angle, a question you already answer in your captions, what the Friday trend scout found happening more widely, or what time of year it is. The small grey line on each says which. Press Write this one and it takes the idea straight into the writer."],
+  ideas: ["Film one of these", "Eight new reels every morning, and they build up through the week rather than replacing each other — so on Friday you are looking at the whole week's suggestions, grouped by the day they arrived. The pin holds one on the list past the ten days it would otherwise drop off after; the ✕ bins one now. Anything you have already written is marked and greyed rather than removed. They are not generic content ideas — each one comes from something real: a reel that took off for a gym you watch, one of your own posts worth another angle, a question you already answer in your captions, what the Friday trend scout found happening more widely, or what time of year it is. The small grey line on each says which. Press Write this one and it takes the idea straight into the writer. The coloured badge on each one says which job that post does, from your own content model: ATTRACT is relatable or funny and is there for reach and shares; NURTURE builds trust and reassures someone who thinks it will not work for them; POSITION shows the gym as experienced, welcoming and different from a standard gym; CONVERT is the softer ask that invites a DM. A week is two attract, two nurture, two position and one convert — so the badges are there to be counted, not just read."],
   library: ["What's working for other gyms", "An opening is the first line or the first card of a reel — the bit that decides whether somebody keeps watching. Every night this looks at the gyms on your Competitors tab, finds any reel that did at least double what THAT account normally does, and writes down how it opened. It then strips out the specifics, so \"Everyone thinks cardio burns the most fat\" becomes \"Everyone thinks [THING] does [OUTCOME]\" — a shape you can say about your own subject. The writer builds every opening it offers you on one of these."],
 };
+/* v206: Ash's content model — the four jobs a post can do, and what a week is made of.
+   The same four words netlify/lib/stages.js hands to the ideas engine and the writer; kept
+   here as the labels the page reads out. The gloss is why: a badge that says only ATTRACT is
+   jargon, and a badge that says "ATTRACT · reach and shares" explains itself once and for all.
+   An unknown or missing stage renders NOTHING — ideas suggested before this existed have no
+   stage, and no badge is better than a confident wrong one on the post he plans a week around. */
+const STAGES = {
+  attract:  { label: "Attract",  gloss: "reach and shares" },
+  nurture:  { label: "Nurture",  gloss: "trust and reassurance" },
+  position: { label: "Position", gloss: "experienced and different" },
+  convert:  { label: "Convert",  gloss: "encourage an enquiry" },
+};
+function stageChip(stage, gloss) {
+  const st = STAGES[stage];
+  if (!st) return "";
+  return '<span class="hk-stage ' + stage + '">' + esc(st.label) + "</span>" +
+    (gloss ? '<span class="hk-stage-w">' + esc(st.gloss) + "</span>" : "");
+}
+
 let tipEl = null, tipFor = null;
 function tipBtn(key) {
   return TIPS[key] ? '<button type="button" class="finfo" data-tip="' + key + '" aria-label="What does this mean?"><svg class="ic"><use href="#ic-help"/></svg></button>' : "";
@@ -1698,7 +1740,9 @@ function hkWriterHtml() {
   if (hkScript) {
     const s = hkScript;
     const silent = s.format === "onscreen";
-    h += '<div class="hk-step"><div class="hk-lbl">' + (silent ? "The reel" : "The script") + '</div><div class="hk-script">' +
+    h += '<div class="hk-step"><div class="hk-lbl">' + (silent ? "The reel" : "The script") + "</div>" +
+      (stageChip(s.stage, true) ? '<div class="hk-idea-top hk-script-stage">' + stageChip(s.stage, true) + "</div>" : "") +
+      '<div class="hk-script">' +
       '<div class="hk-part"><div class="hk-lbl">' + (silent ? "Opens with, on screen" : "He says") + "</div>" +
         '<div class="hk-hookline">' + esc(s.lead || s.spoken || s.onScreen) + "</div></div>" +
       (!silent && s.onScreen ? '<div class="hk-part"><div class="hk-lbl">On screen</div><div class="hk-row">' + esc(s.onScreen) + "</div></div>" : "") +
@@ -1771,7 +1815,12 @@ function wireWriter() {
    silently, because an empty box is a perfectly ordinary reason not to go. The one path that
    the whole of v192 exists to provide was the one path that could not work. */
 async function askOptions(topic) {
-  if (topic == null) { const t = $("hkTopicIn"); if (t) hkTopic = t.value; }
+  /* v206: a topic typed into the box is a NEW reel, so what was carried over from the last
+     idea he pressed goes with the old one. Without this, pressing Write this one and then
+     typing something else instead left the idea's id attached — the unrelated script got
+     saved against it and the suggestion was marked as written when it never was — and now
+     would have left its badge on too. */
+  if (topic == null) { const t = $("hkTopicIn"); if (t) hkTopic = t.value; hkFromIdea = ""; hkStage = ""; }
   else hkTopic = topic;
   if (!hkTopic.trim() || hkBusy) return;
   hkBusy = "options"; hkError = ""; hkOptions = null; hkPicked = -1; hkScript = null;
@@ -1790,6 +1839,9 @@ async function writeIt() {
     hkScript = (await hkPost({ action: "write", topic: hkTopic, option: hkOptions[hkPicked], format: hkFormat })).script;
     // v194: what he was SHOWN travels with the script, so the seven he passed over are not lost
     hkScript.shown = hkOptions.map((o) => ({ lead: o.lead || o.spoken || o.onScreen, type: o.type, hookId: o.hookId }));
+    // v206: from an idea, the badge he chose it on is the badge it keeps; from the box, the
+    // writer's own reading of what it wrote is all there is, and that is what shows
+    if (hkStage) hkScript.stage = hkStage;
   } catch (e) { hkError = e.message; hkBusy = ""; renderHooks(); return; }
   hkBusy = "";
   renderHooks();
@@ -1903,6 +1955,8 @@ function renderScripts() {
     '<div class="hk-sc' + (s.status === "posted" ? " done" : "") + '">' +
     '<div class="hk-sc-h" data-open="' + esc(s.id) + '">' + esc(s.lead || s.spoken || s.onScreen) +
       "<span>" + esc(s.topic.slice(0, 80)) + "</span></div>" +
+    // v206: the label survives the decision to film it — he sorts the week off this list too
+    stageChip(s.stage, false) +
     '<span class="hk-state ' + esc(s.status) + '">' + esc(s.status) + "</span>" +
     // v194: what it actually did, once his feed shows it
     (typeof s.postViews === "number" ? '<span class="hk-perf">' + nfmt(s.postViews) + " views</span>" : "") +
@@ -2017,6 +2071,8 @@ function renderIdeas() {
       '<div class="hk-gday">' + esc(g.label) + (g.label === "Kept" ? "" : " · " + g.items.length) + "</div>" +
       '<div class="hk-ideas">' + g.items.map(({ i, n }) =>
         '<div class="hk-idea' + (i.used ? " used" : "") + '"><div class="hk-idea-b">' +
+          // v206: what job this post does, before the idea itself — it is how he sorts a week
+          (stageChip(i.stage, true) ? '<span class="hk-idea-top">' + stageChip(i.stage, true) + "</span>" : "") +
           '<span class="hk-idea-t">' + esc(i.title) + "</span>" +
           (i.why ? '<span class="hk-idea-w">' + esc(i.why) + "</span>" : "") +
           '<span class="hk-idea-s">' +
@@ -2061,6 +2117,10 @@ function renderIdeas() {
     // point is that he does not have to write the sentence himself
     hkFormat = i.format || "onscreen";
     hkFromIdea = i.id || "";
+    // v206: the stage he was SHOWN is the stage the script keeps. The writer suggests one of
+    // its own for a topic typed into the box, but it must not quietly relabel an idea he
+    // already picked on the strength of its badge.
+    hkStage = i.stage || "";
     hkOptions = null; hkPicked = -1; hkScript = null;
     // the idea IS the topic — handed over explicitly, never left for the box to supply
     askOptions(i.title + (i.why ? " — " + i.why : ""));
@@ -2118,6 +2178,7 @@ async function loadIdeas(force) {
    only when he wants to read what it learnt. */
 let hkVoiceOpen = false;
 let hkFromIdea = "";      // v200: which suggestion this came from, so it can be marked as written
+let hkStage = "";         // v206: attract / nurture / position / convert, when it came from an idea
 
 function renderVoiceBar() {
   const el = $("hkVoiceBar"), btn = $("hkVoiceGo"), lbl = $("hkVoiceLbl");

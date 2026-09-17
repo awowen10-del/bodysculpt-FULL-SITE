@@ -44,6 +44,8 @@ for (const fn of ["kpi-store.js", "stripe-feed.js", "instagram-feed.js", "google
                   "voice-build-background.js", "../lib/voice.js", "mentor-ai.js",
                   // v192: what to film
                   "../lib/ideas.js", "../lib/learn.js", "../lib/trends.js",
+                  // v206: what the post is FOR — the four stages, defined once
+                  "../lib/stages.js",
                   // v180: one door for getting a video file off Instagram
                   "../lib/ig-media.js"]) {
   const chk = spawnSync(process.execPath, ["--check", path.join(__dirname, "..", "netlify", "functions", fn)], { stdio: "inherit" });

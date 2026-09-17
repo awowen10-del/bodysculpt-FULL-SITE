@@ -29,6 +29,7 @@ import { readVoice } from "../lib/schedule.js";
 import { readIdeas, generate as generateIdeas, gather, isFresh, setAbout, setIdeaFlag, markIdeaUsed, readAbout } from "../lib/ideas.js";
 import { matchPerformance, checkPrompt, parseCheck } from "../lib/learn.js";
 import { readTrends, addTrends, dismissAccount, pending } from "../lib/trends.js";
+import { normStage } from "../lib/stages.js";
 import { getStore } from "@netlify/blobs";
 import Anthropic from "@anthropic-ai/sdk";
 
@@ -133,6 +134,9 @@ export default async (req) => {
         cta: clip(s.cta, 300),
         caption: clip(s.caption, 1500),
         visual: clip(s.visual, 300),
+        // v206: which of the four jobs the post does. Held to the model rather than taken as
+        // sent — an unknown word becomes no stage, never a wrong one.
+        stage: normStage(s.stage),
         status: STATUSES.includes(s.status) ? s.status : "draft",
         // v194: the seven he did NOT take are the other half of the signal. Which archetypes
         // he is offered and passes over says as much as the one he keeps.

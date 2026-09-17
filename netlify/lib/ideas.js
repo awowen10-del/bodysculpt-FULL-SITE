@@ -21,7 +21,11 @@
 //   · what he has already written, so it does not repeat itself
 //
 // One blob key, `ig-ideas`: { generatedAt, ideas[], about }
-//   idea { id, title, why, source, format }
+//   idea { id, title, why, source, format, stage }
+// v206: `stage` is which of the four jobs the post does — attract, nurture, position or
+// convert. Ash's own content model, defined once in ./stages.js. Eight suggestions with no
+// idea which job any of them does can be planned into a week of seven posts that all do the
+// same one, which is not a week's content.
 // `about` is his own note about the business — services, the objections he actually hears,
 // what he is pushing this season. Optional, and the single biggest lever on quality: without
 // it the ideas are good in general, with it they are about his gym.
@@ -29,6 +33,7 @@ import { getStore } from "@netlify/blobs";
 import Anthropic from "@anthropic-ai/sdk";
 import { readVoice } from "./schedule.js";
 import { readTrends, trendBrief } from "./trends.js";
+import { stagesBrief, mixLine, normStage } from "./stages.js";
 
 export const KEY = "ig-ideas";
 /* v202: eight, not five. Ash: "From the playbook, the accounts I follow and the scouting
@@ -172,8 +177,14 @@ export function ideasPrompt({ about, voice, hooks, ownPosts, recentTopics, onShe
     (onShelf && onShelf.length ? "ALREADY SUGGESTED THIS WEEK AND STILL ON HIS LIST — give him five DIFFERENT ones:\n" +
       onShelf.map((t) => "· " + clip(t, 120)).join("\n") + "\n\n" : "") +
     "It is " + now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }) + " — " + SEASON(now) + ".\n\n" +
+    // v206: his content model. Without it every suggestion came back doing whichever job the
+    // material happened to suggest, which in practice meant a run of ATTRACT posts and nothing
+    // that built trust or asked for anything.
+    stagesBrief() + "\n" +
     "Give him " + WANT + " reels he could film THIS WEEK. Use the material above properly — there is a lot of it, " +
     "and eight genuinely different angles are in there.\n\n" +
+    "Cover the model in roughly the proportions of his posting week: " + mixLine(WANT) + ". He plans a week off " +
+    "these, so a set that is all one job is a set he cannot plan a week off.\n\n" +
     "What makes one of these good:\n" +
     "· It is a SUBJECT, not a format. \"Answer the bulky question\" is an idea; \"do a talking head\" is not.\n" +
     "· He could film it in his own gym this week with the people who are already there. No actors, no studio, " +
@@ -188,7 +199,9 @@ export function ideasPrompt({ about, voice, hooks, ownPosts, recentTopics, onShe
     "TITLE: the idea in plain words, as one line he would say out loud. Under twelve words. Not a headline, not a hook.\n" +
     "WHY: one sentence on why this one is worth his time this week.\n" +
     "SOURCE: where it came from, in a few words — e.g. \"@dm_pt got 30× with this\", \"your reel on X did 9.6k\", " +
-    "\"you answer this in your captions\", \"it is September\".\n" +
+    "\"you answer this in your captions\", \"it is September\".\n" +    "STAGE: which of the four jobs this post does. One word, lower case, one of: attract, nurture, position, " +
+    "convert. It has to be the job the post ACTUALLY does, not the one you would like it to do — a funny " +
+    "relatable reel is attract even if the gym is in shot, and only a post that asks for an enquiry is convert.\n" +
     "FORMAT: one of these three, and it must not contradict the title.\n" +
     "  onscreen — footage with text over it, nobody speaks. He makes these most.\n" +
     "  talking  — he speaks to camera.\n" +
@@ -214,6 +227,9 @@ export function parseIdeas(text) {
       title: clip(field(b, "TITLE"), 160),
       why: clip(field(b, "WHY"), 300),
       source: clip(field(b, "SOURCE"), 120),
+      // v206: blank when it did not come back or came back as something not in the model —
+      // no badge is better than a confident wrong one on the post he plans the week around
+      stage: normStage(field(b, "STAGE")),
       format: ["onscreen", "talking", "demo"].includes(format) ? format : "onscreen",
     };
   }).map((x) => {
