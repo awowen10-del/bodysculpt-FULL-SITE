@@ -16,6 +16,7 @@
 //   POST { action: "ban" / "unban" }    phrases he never wants to see again
 //   POST { action: "trends", week, notes, accounts }   the Friday trend scout posting its findings
 //   POST { action: "dropAccount", username }           a suggested account he does not want
+//   POST { action: "stages" }           label whatever has no stage yet — the shelf, and what he has written
 //
 // v178: the GET also reports the spoken-voice profile — when it was built, from how many
 // reels, and what it says. Building it is voice-build-background's job, not this one's.
@@ -26,10 +27,10 @@
 import { readLib, writeLib, candidates, hookOptions, writeScript, config, clip, nowIso, json,
          normFormat, leadOf, parseBeats } from "../lib/hooks.js";
 import { readVoice } from "../lib/schedule.js";
-import { readIdeas, generate as generateIdeas, gather, isFresh, setAbout, setIdeaFlag, markIdeaUsed, readAbout } from "../lib/ideas.js";
+import { readIdeas, writeIdeas, generate as generateIdeas, gather, isFresh, setAbout, setIdeaFlag, markIdeaUsed, readAbout } from "../lib/ideas.js";
 import { matchPerformance, checkPrompt, parseCheck } from "../lib/learn.js";
 import { readTrends, addTrends, dismissAccount, pending } from "../lib/trends.js";
-import { normStage } from "../lib/stages.js";
+import { normStage, classifyPrompt, parseClassify, MAX_CLASSIFY } from "../lib/stages.js";
 import { getStore } from "@netlify/blobs";
 import Anthropic from "@anthropic-ai/sdk";
 
@@ -171,6 +172,55 @@ export default async (req) => {
     // that have since passed — a busy model, a dropped connection. This empties it so the
     // next run considers them again. Hooks already in the library are untouched, so nothing
     // is read or paid for twice.
+    /* v207: the four jobs, run back over what is already written down.
+       Ash: "It has not labelled all of the previous ideas from the last 2 days. Can we back
+       track and do this?" v206 labelled new suggestions only, which left him planning a Friday
+       off a shelf where two days of it had no badge to count.
+
+       Only blanks are filled. A stage he has already seen is never overwritten, because the
+       badge on an idea he picked is the badge his choice was made on. It covers the scripts
+       as well as the shelf: the To-film list is planned off too, and one half of the feature
+       labelled is worse than a button pressed twice. */
+    if (action === "stages") {
+      const cur = await readIdeas();
+      const lib = await readLib();
+      const bare = [];
+      for (const i of cur.ideas) {
+        if (!normStage(i.stage) && i.id) bare.push({ id: i.id, text: [i.title, i.why].filter(Boolean).join(" — ") });
+      }
+      for (const sc of lib.scripts) {
+        if (!normStage(sc.stage) && sc.id && sc.status !== "binned") {
+          bare.push({ id: sc.id, text: [sc.topic, sc.lead || sc.onScreen || sc.spoken].filter(Boolean).join(" — ") });
+        }
+      }
+      if (!bare.length) return json({ ok: true, labelled: 0, left: 0, ideas: cur.ideas, scripts: lib.scripts });
+
+      const items = bare.slice(0, MAX_CLASSIFY);
+      const r = await new Anthropic().messages.create({
+        model: "claude-opus-5", max_tokens: 1500,
+        // sorting written-down reels into four buckets is judgement, not deep reasoning, and
+        // this has the same 26 seconds as everything else on this page
+        output_config: { effort: "low" },
+        messages: [{ role: "user", content: classifyPrompt(items, await readAbout()) }],
+      });
+      if (r.stop_reason === "refusal") return json({ ok: false, error: "Claude declined to label them." }, 502);
+      const map = parseClassify(r.content.filter((b) => b.type === "text").map((b) => b.text).join(""),
+                                items.map((i) => i.id));
+
+      let labelled = 0;
+      const fill = (x) => {
+        if (!map[x.id] || normStage(x.stage)) return x;
+        labelled++;
+        return { ...x, stage: map[x.id] };
+      };
+      cur.ideas = cur.ideas.map(fill);
+      lib.scripts = lib.scripts.map(fill);
+      if (labelled) { await writeIdeas(cur); await writeLib(lib); }
+      // what is left is what it did not answer for, plus anything over the cap — the button
+      // stays on the page while there is any of it, so a second press finishes the job
+      return json({ ok: true, labelled, left: bare.length - labelled, ideas: cur.ideas, scripts: lib.scripts });
+    }
+
     if (action === "ideas") {
       const cur = await readIdeas();
       // today's ideas are today's. Regenerating on every page load would spend money to hand

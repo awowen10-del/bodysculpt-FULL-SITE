@@ -1037,6 +1037,8 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
       <div class="cardhead">
         <div><div class="chead"><svg class="ic"><use href="#ic-flag"/></svg> Film one of these <span id="hkIdeasTip"></span></div></div>
         <div class="cardhead-r">
+          <!-- v207: filled only while something on the shelf has no badge yet -->
+          <span id="hkStagesSlot"></span>
           <button type="button" class="abtn ghost" id="hkIdeasNew">New ideas</button>
         </div>
       </div>
@@ -1653,7 +1655,7 @@ let hkFormat = "onscreen";   // v182: the reels Ash actually makes
 let hkOptions = null;          // the eight, once asked for
 let hkPicked = -1;
 let hkScript = null;           // the written one, before it is saved
-let hkBusy = "";               // "options" | "write" | "mine" | "voice" | "ideas" | ""
+let hkBusy = "";               // "options" | "write" | "mine" | "voice" | "ideas" | "stages" | ""
 let hkChecking = false;        // v194: marking the draft against his own rules
 let hkError = "";
 
@@ -2091,6 +2093,14 @@ function renderIdeas() {
   }
 
   const tr = hkLib.trends || {};
+  /* v207: what is still bare, and one press to fix it.
+     v206 badged new suggestions and left the shelf as it was, so Ash opened a week with two
+     days of it unlabelled: "It has not labelled all of the previous ideas from the last 2
+     days. Can we back track and do this?" The button only exists while something is missing
+     a badge, says how many, and takes itself off the page when there are none — including
+     the scripts, because the To-film list gets planned off too. */
+  const bare = (hkLib.ideas || []).filter((i) => !STAGES[i.stage]).length +
+    (hkLib.scripts || []).filter((x) => x.status !== "binned" && !STAGES[x.stage]).length;
   h += '<div class="hk-ideas-foot">' +
     (hkLib.ideasAt ? "<span>" + esc(when(hkLib.ideasAt)) + "</span>" : "") +
     // v198: Friday's scroll of the wider feed is one of the sources now. Saying so beats
@@ -2136,6 +2146,26 @@ function renderIdeas() {
     flag("keepIdea", b.dataset.keep, !(i && i.kept));
   }));
   el.querySelectorAll("[data-dropidea]").forEach((b) => b.addEventListener("click", () => flag("dropIdea", b.dataset.dropidea)));
+  const slot = $("hkStagesSlot");
+  if (slot) {
+    slot.innerHTML = bare
+      ? '<button type="button" class="abtn ghost" id="hkStagesBtn"' + (hkBusy ? " disabled" : "") + ">" +
+        (hkBusy === "stages" ? "Labelling them…" : "Label the " + (bare === 1 ? "one" : bare) + " without a badge") +
+        "</button>"
+      : "";
+  }
+  const sg = $("hkStagesBtn");
+  if (sg) sg.addEventListener("click", async () => {
+    if (hkBusy) return;
+    hkBusy = "stages"; hkError = "";
+    renderHooks();
+    try {
+      const r = await hkPost({ action: "stages" });
+      hkLib.ideas = r.ideas; hkLib.scripts = r.scripts;
+    } catch (e) { hkError = e.message; }
+    hkBusy = "";
+    renderHooks();
+  });
   const ab = $("hkAboutBtn");
   if (ab) ab.addEventListener("click", () => { hkAboutOpen = !hkAboutOpen; renderHooks(); });
   // v202: a running count, because this box silently ate the end of his playbook once

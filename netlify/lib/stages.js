@@ -85,6 +85,54 @@ export const mixLine = (n) => {
   return parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1];
 };
 
+/* v207: labelling what is ALREADY written down.
+   v206 gave every new suggestion its job and left the ones already on the shelf bare. That
+   was defensible for an idea about to age off and wrong for Ash, who plans Friday off the
+   whole week: "It has not labelled all of the previous ideas from the last 2 days." A week
+   with two days of it unbadged is a week he cannot count the mix on.
+
+   So the model can be run back over what is there. One short call, everything it is asked
+   about on one line, and it answers by id — matched back by id and never by position, because
+   an answer that quietly slips by one relabels every reel after it.
+
+   Pure prompt and parse here; the call itself belongs to hooks-api, beside the other one it
+   already makes. */
+export const MAX_CLASSIFY = 60;   // one press covers a fortnight's shelf; the button stays for the rest
+
+export function classifyPrompt(items, about) {
+  return "You are labelling reels for Bodysculpt, a small group training gym in Warrington, UK, run by Ash. " +
+    "His audience is local people who want to lose weight, get stronger and feel better — busy, ordinary, a " +
+    "lot of them nervous about gyms.\n\n" +
+    (about ? "WHAT THE GYM DOES — his own words:\n" + String(about).slice(0, 4000) + "\n\n" : "") +
+    stagesBrief() + "\n" +
+    "Below are reels he has already written down, one per line, each with an id in front of it. Say which " +
+    "ONE of the four jobs each of them does.\n\n" +
+    "Judge what the reel ACTUALLY does, not what would be flattering. A relatable or funny reel is attract " +
+    "even with the gym in shot; a reel that reassures somebody who thinks it will not work for them is " +
+    "nurture; a reel about the place, the coaches or how a session runs is position; and ONLY a reel that " +
+    "asks for an enquiry is convert. A week has one convert in it, so do not label half of these convert.\n\n" +
+    items.map((i) => i.id + ": " + String((i && i.text) || "").replace(/\s+/g, " ").slice(0, 200)).join("\n") + "\n\n" +
+    "Answer with one line per id and nothing else, in the form:\n" +
+    "id: stage\n" +
+    "Use the ids exactly as they are given. Every id gets a line. The stage is one word, lower case.\n";
+}
+
+/* Only the ids that were asked about, and only the four words. An answer about something that
+   was never sent is an answer about nothing, and a word outside the model is not a stage. */
+export function parseClassify(text, ids) {
+  const allow = new Set(ids || []);
+  const out = {};
+  for (const line of String(text || "").split("\n")) {
+    const m = /^\s*[-*\s]*([A-Za-z0-9_-]{1,40})\s*[:=]\s*([A-Za-z]+)/.exec(line);
+    if (!m) continue;
+    const stage = normStage(m[2]);
+    // first answer per id wins. Two lines about one reel is the model repeating itself, not
+    // changing its mind, and last-wins would make which label lands depend on stray output.
+    if (stage && allow.has(m[1]) && !out[m[1]]) out[m[1]] = stage;
+  }
+  return out;
+}
+
 /* The model, as prompt text. The same words reach the ideas engine and the script writer, so
    neither can quietly invent its own version of what "position" means. */
 export function stagesBrief() {
