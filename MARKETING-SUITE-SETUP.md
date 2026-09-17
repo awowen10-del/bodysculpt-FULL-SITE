@@ -61,9 +61,25 @@ words ("Would Monday or Wednesday suit you better?"), landing on
 `bodysculptwarrington.co/skipthequeue`. Without that written down, every ad either shouts or
 never asks.
 
-**There are no testimonials.** The playbook is a coaching and sales manual and quotes no
-clients. It is the biggest gap in the profile for ad copy, and nothing goes in an ad as a
-testimonial until Ash supplies it and confirms the client agreed to it.
+**The proof was never in the playbook — it was on the website.** The playbook is a coaching
+and sales manual and quotes no clients, so the first pass recorded "no testimonials held".
+Wrong place to look: `bodysculptwarrington.com/testimonials` carries six, published by Ash
+himself and therefore already cleared, and Google Maps carries **73 reviews at 5.0**. Both are
+now in the profile.
+
+Google's own topic tags across those 73 reviews are the most useful thing the seeding turned
+up, because they are what members volunteered rather than what the gym says about itself:
+supportive environment (20), knowledgeable team (14), confidence building (10), knowledgeable
+coaches (9), friendly members (8), helpful staff (7). Equipment, facilities, price and results
+photos appear nowhere. That is the playbook's whole argument, confirmed by customers.
+
+**The public website contradicts the playbook.** The site sells a "6 WEEK TRANSFORMATION
+CHALLENGE" and a "LIFE CHANGING TRANSFORMATION", calls itself "THE BEST GYM IN WARRINGTON" and
+promises to "make all your fitness dreams come true". The playbook bans the word
+transformation, bans superlatives about the gym, and names the product the 6 Week Challenge.
+The site's three-step flow does not match the playbook's enquiry flow either. Ads written to
+the playbook will therefore hand over to a page written against it, and the GoHighLevel move
+is the moment to fix that rather than rebuild it as it stands.
 
 ## What it needs on the laptop
 
