@@ -61,17 +61,22 @@ words ("Would Monday or Wednesday suit you better?"), landing on
 `bodysculptwarrington.co/skipthequeue`. Without that written down, every ad either shouts or
 never asks.
 
-**The proof was never in the playbook — it was on the website.** The playbook is a coaching
+**The proof was never in the playbook — it was in the reviews.** The playbook is a coaching
 and sales manual and quotes no clients, so the first pass recorded "no testimonials held".
 Wrong place to look: `bodysculptwarrington.com/testimonials` carries six, published by Ash
 himself and therefore already cleared, and Google Maps carries **73 reviews at 5.0**. Both are
 now in the profile.
 
-Google's own topic tags across those 73 reviews are the most useful thing the seeding turned
-up, because they are what members volunteered rather than what the gym says about itself:
-supportive environment (20), knowledgeable team (14), confidence building (10), knowledgeable
-coaches (9), friendly members (8), helpful staff (7). Equipment, facilities, price and results
-photos appear nowhere. That is the playbook's whole argument, confirmed by customers.
+Ash: "I do believe the Google Reviews are way more powerful." He was right. 35 of the 73 are
+now captured in full at `~/Documents/ad-copy/bodysculpt/google-reviews.md` (3,789 words), and
+the strongest lines are pulled out in the profile. Google's own review dialog only renders its
+reviews for real scroll events, so they came out through a `computer` scroll loop and the page
+clipboard rather than anything scriptable — worth knowing before anyone tries again.
+
+Counted across those 35: welcoming / no ego / no judgement (32), the Challenge (21), getting
+stronger (16), coaches know their stuff (15), adapting for the individual and for injuries
+(13), confidence (9). Equipment, facilities, price and before-and-after photos are almost
+absent. That is the playbook's whole argument, confirmed by 35 customers independently.
 
 **The public website contradicts the playbook.** The site sells a "6 WEEK TRANSFORMATION
 CHALLENGE" and a "LIFE CHANGING TRANSFORMATION", calls itself "THE BEST GYM IN WARRINGTON" and
