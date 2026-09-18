@@ -740,6 +740,9 @@
     font-size:12.5px;color:var(--ink-dim);line-height:1.45;}
   .binnote span#binNoteText,.binnote span#incNoteText{flex:1;min-width:200px;}
   .rulerow.suspect{background:rgba(var(--amber-rgb),.09);border-radius:var(--r-sm);}
+  .exportbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;
+    padding-top:14px;border-top:1px solid var(--line);}
+  .exportbar .k{font-size:12px;font-weight:700;color:var(--ink-dim);margin-right:auto;}
 
   /* --- breakdown bars --- */
   .bd-row{display:grid;grid-template-columns:150px 1fr 92px 34px;gap:12px;align-items:center;
@@ -1253,6 +1256,16 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
         <button class="abtn" id="binRestoreAll"><svg class="ic"><use href="#ic-refresh"/></svg><span>Put them all back</span></button>
       </div>
       <div class="fin-tw"><table class="fin" id="txTbl"></table></div>
+      <div class="exportbar">
+        <span class="k">Send this to Claude or your accountant</span>
+        <select class="fin-in" id="expRange" style="max-width:170px;width:auto;"></select>
+        <button class="abtn" id="expCsv"><svg class="ic"><use href="#ic-note"/></svg><span>Download CSV</span></button>
+        <button class="abtn ghost" id="expCopy"><span>Copy instead</span></button>
+      </div>
+      <div class="hint">The file carries every line the bank showed, so it still adds up to
+        your statement — and it opens with a plain-English note explaining what a transfer,
+        a directors loan and your own drawings each mean, and which of them count. That note
+        is the point: without it you get asked about the same lines one at a time.</div>
       <div class="hint">Set a category and it is saved straight away — and remembered, so the
         same merchant is filled in automatically from now on. A credit that is not really
         income — money in from one of your own accounts, or a directors loan you will pay
@@ -1495,7 +1508,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 })();
 
 /* =====================================================================
-   FINANCES — Income & Expenses.  v122, last changed v211
+   FINANCES — Income & Expenses.  v122, last changed v212
    Replaces the "Finance Cockpit 2026" Google Sheet: the Santander import, the
    month tabs, the SUMMARY block, the Breakdown tab and the Pot Moves tab.
    Storage is the same Netlify Blobs store the rest of the suite uses, under its
@@ -1930,6 +1943,187 @@ const SHAPE_NOTE = [
   "  says it will happen again. ASK ME whether one of those is a subscription before you",
   "  count stopping it as a saving, and do not annualise it yourself.",
 ];
+
+/* =====================================================================
+   v212: THE TRANSACTIONS EXPORT
+
+   A file of the ledger to hand to Claude (or an accountant) that answers the obvious
+   questions before they are asked. The whole cost of sending a bank export to anybody is
+   the interrogation that follows — "what is this £2,090.74 in from Capital One", "why is
+   £300 going out to yourself every week", "is this payment to you wages or a loan" — and
+   every one of those is already answered on this page. If the file does not carry the
+   answers, they get asked one line at a time.
+
+   CSV, not PDF and not XLSX. A PDF is the worst of the three to read back: the numbers
+   arrive as laid-out text and have to be re-parsed. XLSX would need a zip writer in a page
+   that has no build step. CSV is every row, exactly, in something a person can open in
+   Excel and a model can read without guessing — and it is the one of the three that can
+   carry a plain-English preamble without special handling.
+
+   Two rules the shape follows:
+     1. EVERY line the bank showed is in it, including the ones that count nowhere, each
+        one labelled with what it counts as. A file that quietly drops rows will not add
+        up to the bank statement, and then the questions are about the arithmetic instead.
+     2. The preamble is real CSV rows, not "#" comments, so the file still opens cleanly in
+        a spreadsheet rather than throwing a parse error or a wall of one-column junk.
+   ===================================================================== */
+
+/* One CSV field. Everything is quoted: it costs a byte and removes the entire class of
+   bugs where a description containing a comma shifts every column after it. */
+function csvCell(v) {
+  if (v === null || v === undefined || v === "") return '""';
+  return '"' + String(v).replace(/"/g, '""') + '"';
+}
+const csvRow = (cells) => cells.map(csvCell).join(",");
+
+/* What one row counts as, in the words the legend uses. */
+function countsAs(r) {
+  if (r.del) return "Deleted — not counted";
+  if (isTransfer(r)) return "Transfer — not counted";
+  if (isDirLoan(r)) return "Directors loan — not counted";
+  return r.dir === "in" ? "Income" : "Spending";
+}
+
+/* The preamble. This is the part that stops the line-by-line questions, so it names the
+   three things that look like each other and says which of them is a cost. */
+function exportLegend(label, rows) {
+  const live = liveOf(rows);
+  const inn = moneyIn(live), out = moneyOut(live);
+  const xIn = transfersIn(live), xOut = transfersOut(live);
+  const lIn = loanIn(live), lOut = loanOut(live);
+  const gone = rows.filter((r) => r.del);
+  const drawings = live.filter((r) => r.dir === "out" && r.cat === "Owners Pay")
+    .reduce((a, r) => a + r.amount, 0);
+  const L = [];
+  const P = (a, b) => L.push(csvRow(b === undefined ? [a] : [a, b]));
+
+  P("Bodysculpt Warrington — transactions");
+  P("Period", label);
+  P("Exported", dmy(ymd(new Date())));
+  P("Rows", String(rows.length) + " (every line the bank showed, nothing left out)");
+  P("");
+  P("READ THIS FIRST — WHAT THE 'Counts as' COLUMN MEANS");
+  P("Income", "Money a customer paid the business. Counted as income.");
+  P("Spending", "Money the business paid out for something. Counted as a cost.");
+  P("Transfer — not counted",
+    "My own money moving between my OWN accounts — the weekly move to the tax and "
+    + "investment pots, or money coming back out of one. It was already mine, so it is "
+    + "neither income nor a cost. Counting it would show the same pound twice.");
+  P("Directors loan — not counted",
+    "Borrowed money passing through the account that I owe back — typically drawn off a "
+    + "credit card and paid straight to me. It is a debt, not takings and not spending, "
+    + "so it counts on neither side. Do not treat repaying it as a saving.");
+  P("Deleted — not counted",
+    "A line I removed on purpose (a duplicate, or a row that should never have been "
+    + "imported). Left in this file so it still reconciles to the bank, but it counts "
+    + "nowhere.");
+  P("");
+  P("AND THE ONE THAT IS EASY TO CONFUSE WITH THOSE");
+  P("Owners Pay",
+    "My own drawings — what I actually pay myself. This IS a cost and IS counted in "
+    + "Money out, unlike the two above. If you are looking at what the business costs to "
+    + "run, this is part of it; if you are looking at what it costs to run WITHOUT paying "
+    + "me, take this line out yourself and say that you have.");
+  P("");
+  P("THE OTHER COLUMNS");
+  P("Money in / Money out", "Always positive. Which column it is in says the direction.");
+  P("Category", "What the spending was for. Blank means I have not categorised it yet — "
+    + "ask me rather than guessing.");
+  P("Keep or cut", "My own marking: Essential, Optional or Can Cut. Blank means unmarked.");
+  P("Source", "For income only — which processor it came through.");
+  P("");
+  P("THE TOTALS THIS FILE ADDS UP TO");
+  P("Money in", money(inn));
+  P("Money out", money(out));
+  P("Net", money(inn - out));
+  if (drawings) P("  of which Owners Pay (my drawings)", money(drawings));
+  if (xOut || xIn) P("Not counted — transfers between my own accounts",
+    money(xOut) + " out, " + money(xIn) + " back in");
+  if (lOut || lIn) P("Not counted — directors loan",
+    money(lIn) + " drawn, " + money(lOut) + " paid out");
+  if (gone.length) P("Not counted — deleted rows", gone.length);
+  P("");
+  return L;
+}
+
+/* The file itself. */
+function buildTxnCsv(rows, label) {
+  const sorted = rows.slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  const L = exportLegend(label, sorted);
+  L.push(csvRow(["Date", "Description", "Money in", "Money out", "Counts as",
+    "Category", "Keep or cut", "Source"]));
+  for (const r of sorted) {
+    L.push(csvRow([
+      r.date,
+      r.desc || "",
+      r.dir === "in" ? r.amount.toFixed(2) : "",
+      r.dir === "out" ? r.amount.toFixed(2) : "",
+      countsAs(r),
+      // A row that counts nowhere has already said so in 'Counts as'; repeating
+      // "Directors loan" in a column headed Category makes it look like a kind of
+      // spending, which is the exact confusion this file exists to remove.
+      r.dir === "out" && !notCounted(r) ? (r.cat || "") : "",
+      r.dir === "out" && !notCounted(r) ? (r.km || "") : "",
+      r.dir === "in" ? (r.src || sourceOf(r.desc)) : "",
+    ]));
+  }
+  return L.join("\r\n") + "\r\n";   // CRLF: what Excel expects from a .csv
+}
+
+/* Hand the file to the browser. A data: URL rather than a blob URL — it needs no revoking
+   and works the same in the in-app browsers Ash opens this page from. */
+function downloadFile(name, text, mime) {
+  const a = document.createElement("a");
+  a.href = "data:" + mime + ";charset=utf-8," + encodeURIComponent(text);
+  a.download = name;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+/* Which months the export covers, newest span ending at the month on screen. */
+function exportMonths() {
+  const n = Number($("expRange").value) || 1;
+  const idx = S.months.indexOf(S.ym);
+  const end = idx < 0 ? S.months.length : idx + 1;
+  const span = S.months.slice(Math.max(0, end - n), end);
+  return span.length ? span : [S.ym];
+}
+
+async function exportRows() {
+  const span = exportMonths();
+  const rows = [];
+  for (const ym of span) {
+    // the month on screen is already in hand, including anything deleted
+    if (ym === S.ym) rows.push(...S.all);
+    else rows.push(...((await api("fintxns=" + ym)).rows || []));
+  }
+  const label = span.length === 1 ? ymLabel(span[0])
+    : ymLabel(span[0]) + " to " + ymLabel(span[span.length - 1]);
+  return { rows, label, span };
+}
+
+async function doExport(copy) {
+  const btn = copy ? $("expCopy") : $("expCsv");
+  btn.disabled = true;
+  try {
+    const { rows, label, span } = await exportRows();
+    if (!rows.length) { toast("Nothing to export for " + label); return; }
+    const csv = buildTxnCsv(rows, label);
+    if (copy) {
+      await navigator.clipboard.writeText(csv);
+      toast("Copied — " + rows.length + " rows, ready to paste into Claude");
+    } else {
+      const name = "bodysculpt-transactions-"
+        + (span.length === 1 ? span[0] : span[0] + "-to-" + span[span.length - 1]) + ".csv";
+      downloadFile(name, csv, "text/csv");
+      toast("Downloaded " + name);
+    }
+  } catch (e) {
+    toast("Could not export: " + e.message);
+  } finally { btn.disabled = false; }
+}
 
 /* Which income source a credit came from, by the keywords in Settings. */
 function sourceOf(desc) {
@@ -3842,6 +4036,10 @@ function wire() {
     b.onclick = () => { S.filter = b.dataset.f; renderTxns(); }; });
   $("binRestoreAll").onclick = restoreAllDeleted;
   $("incResetAll").onclick = resetCreditsToIncome;
+  $("expRange").innerHTML = [1, 3, 6, 12].map((n) =>
+    `<option value="${n}">${n === 1 ? "The month on screen" : "Last " + n + " months"}</option>`).join("");
+  $("expCsv").onclick = () => doExport(false);
+  $("expCopy").onclick = () => doExport(true);
   let searchT = null;
   $("txSearch").oninput = () => { clearTimeout(searchT);
     searchT = setTimeout(() => { S.search = $("txSearch").value; renderTxns(); }, 180); };
