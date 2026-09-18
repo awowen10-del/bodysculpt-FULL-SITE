@@ -714,6 +714,14 @@
   tr.needs td.ds .desc{font-weight:600;}
   tr.needs{background:rgba(var(--amber-rgb),.06);}
   tr.dupe{opacity:.45;}
+  /* v208: a deleted row, shown only in the Deleted list. Struck through and faded, so
+     there is never a moment where it could be read as a live figure. */
+  tr.gone{opacity:.5;}
+  tr.gone .desc,tr.gone .num{text-decoration:line-through;}
+  td.rowact{width:1%;white-space:nowrap;text-align:right;}
+  td.rowact .iconbtn{opacity:.35;}
+  td.rowact .iconbtn:hover,td.rowact .iconbtn:focus-visible{opacity:1;color:var(--tint-red);}
+  tr.gone td.rowact .iconbtn:hover,tr.gone td.rowact .iconbtn:focus-visible{color:var(--tint-green);}
   .cellsel{font-family:inherit;font-size:12px;background:var(--card);color:var(--ink);
     border:1px solid var(--line);border-radius:var(--r-sm);padding:5px 7px;max-width:150px;}
   .cellsel.empty{border-color:var(--amber);color:var(--tint-amber);font-weight:700;}
@@ -1215,13 +1223,19 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
         <button class="fchip" data-f="review">Needs review</button>
         <button class="fchip" data-f="out">Expenses</button>
         <button class="fchip" data-f="in">Income</button>
+        <button class="fchip" data-f="deleted" id="binChip" hidden>Deleted</button>
         <input class="fin-in" id="txSearch" placeholder="Search description…" style="max-width:230px;width:auto;">
         <button class="abtn primary" id="sortBtn" hidden><svg class="ic"><use href="#ic-flag"/></svg><span>Sort these out</span></button>
         <span class="msg" id="txMsg" style="margin-left:auto;"></span>
       </div>
       <div class="fin-tw"><table class="fin" id="txTbl"></table></div>
       <div class="hint">Set a category and it is saved straight away — and remembered, so the
-        same merchant is filled in automatically from now on.</div>
+        same merchant is filled in automatically from now on. A credit that is not really
+        income — money in from one of your own accounts, or a directors loan you will pay
+        back — gets that answer in the Category column instead, and then it counts nowhere.
+        The ✕ on the right deletes a row outright: it stops counting, it stops being
+        offered, and it does not come back on the next import. Nothing is thrown away —
+        the Deleted chip above lists them and puts any of them back.</div>
     </div>
   </section>
 </div>
@@ -1273,12 +1287,16 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
         <div><label>GoCardless contains</label><input class="fin-in" id="sGc"></div>
         <div><label>SumUp contains</label><input class="fin-in" id="sSumup"></div>
         <div><label>Nutraprep contains</label><input class="fin-in" id="sNutra"></div>
-        <div><label>Own accounts contain</label><input class="fin-in" id="sXfer"></div>
+        <div><label>Own accounts contain</label><input class="fin-in" id="sXfer" placeholder="NAME, ANOTHER NAME"></div>
       </div>
       <div class="hint">Used to split income by source, and to work out the meal-side profit
         (SumUp taken, less what went out to Nutraprep). "Own accounts" is how a move to or
         from your tax and investment pots is recognised: those rows are marked Transfer and
-        left out of every total, because they are your money changing pocket, not spending.</div>
+        left out of every total, because they are your money changing pocket, not spending.
+        Put as many names in that box as you like, separated by commas — whatever your tax
+        pot, your savings and your cards are called on the statement. Anything the box
+        misses you can still set by hand on the Transactions tab: every credit there can be
+        marked Transfer or Directors loan, and either one is left out of income.</div>
     </div>
   </section>
   <section>
@@ -1452,7 +1470,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 })();
 
 /* =====================================================================
-   FINANCES — Income & Expenses.  v122
+   FINANCES — Income & Expenses.  v122, last changed v208
    Replaces the "Finance Cockpit 2026" Google Sheet: the Santander import, the
    month tabs, the SUMMARY block, the Breakdown tab and the Pot Moves tab.
    Storage is the same Netlify Blobs store the rest of the suite uses, under its
@@ -1556,10 +1574,35 @@ const KEYMAPS = ["Essential","Optional","Can Cut"];
    skips it: counting it would show the tax pot as an expense AND as income when it
    comes back, which is how a good month starts looking like a bad one. */
 const TRANSFER = "Transfer";
+/* v208: "Directors loan" is the second kind of row that is not a cost and not income.
+   Money drawn off a credit card and paid straight to yourself is borrowed money on its
+   way through the account — it is owed back, so counting it as income would invent a
+   good month and counting the payment out would invent a bad one. It is kept SEPARATE
+   from Transfer on purpose: Transfer means a pot move, and the Profit First week shows
+   "left the account for your pots" from exactly those rows. A directors loan is not a
+   pot move and must never land in that figure. */
+const DIRLOAN = "Directors loan";
 const DEFAULT_CATS = ["Wages","Pensions","Rent","Accounting","Software","Marketing","Cleaning",
   "Lease","Bills","Website","Retail","Other","Travel","Mentorship","Charges","Owners Pay","Tax",
-  TRANSFER];
+  TRANSFER, DIRLOAN];
 const isTransfer = (r) => r.cat === TRANSFER;
+const isDirLoan = (r) => r.cat === DIRLOAN;
+/* The one test every total asks: does this row count as real money? Both kinds of
+   "my own money moving" answer no. Anything that sums income or spending uses THIS —
+   isTransfer stays for the pot-move figures alone. */
+const notCounted = (r) => isTransfer(r) || isDirLoan(r);
+/* v208: a deleted row is kept in the store, never thrown away — it is only hidden from
+   the page and left out of every total. Two reasons. The hash of a deleted row is what
+   stops the next statement import bringing it straight back; and a wrong delete is then
+   one click to undo rather than a re-import. Everything on the page reads S.rows, which
+   is the live ones; only the save path and the deleted list read S.all. */
+const liveOf = (rows) => (rows || []).filter((r) => !r.del);
+/* The category list always ends with the two that mean "does not count", whatever order
+   the Settings list is in and whether or not it mentions them. */
+function catList() {
+  const base = (S.settings.categories || DEFAULT_CATS).filter((c) => c !== TRANSFER && c !== DIRLOAN);
+  return base.concat([TRANSFER, DIRLOAN]);
+}
 /* The nine recurring jobs from the sheet's WEEKLY CHECKLIST, ids fixed so a tick
    survives a wording change. */
 const CHECKLIST = [
@@ -1582,8 +1625,8 @@ const CHECKLIST = [
    explanation, it is not finished. */
 const TIPS = {
   cash: ["Cash status", "A traffic light for the month so far. Comfortable means you are in front by more than your cushion. Tight means you are in front, but by less than it. Protect cash means more has gone out this month than came in."],
-  in: ["Money in", "Everything that landed in the account this month — memberships, meal sales, anything else. Money you shift between your own pots is not counted, because it was already yours."],
-  out: ["Money out", "Everything that left the account this month, apart from money moved to your own pots. This is real spending, not money you still have."],
+  in: ["Money in", "Everything that landed in the account this month — memberships, meal sales, anything else. Three things are left out because they are not takings: money you shift between your own accounts, because it was already yours; a directors loan, because you owe it back; and anything you have deleted."],
+  out: ["Money out", "Everything that left the account this month, apart from money moved to your own pots, a directors loan paid to yourself, and anything you have deleted. This is real spending, not money you still have."],
   net: ["Net movement", "Money in minus money out. A plus means the month added to your cash; a minus means the month ate into it."],
   action: ["One cashflow action", "The single most useful thing to do with the money this week, worked out from the numbers above. Do this one thing and the week has paid for itself."],
   pf: ["Profit First", "Every week you split the income the day it arrives: a slice for tax, a slice to invest, and the rest to run the business on. Splitting it first is the whole trick — money that was never in the spending account cannot be accidentally spent."],
@@ -1682,7 +1725,8 @@ const S = {
   rules: [],          // [{match,cat,km}] — the user's own, saved
   months: [],         // every "YYYY-MM" that has data
   ym: null,           // the month on screen
-  rows: [],           // that month's transactions
+  all: [],            // that month's transactions AS STORED — deleted ones included
+  rows: [],           // the live ones: S.all minus anything deleted. Everything reads this
   weekStart: null,    // Thursday of the pot-move week on screen
   week: null,         // that week's saved record
   weekRows: [],       // transactions inside that week (may span two months)
@@ -1744,10 +1788,18 @@ function merchantOf(desc) {
 
 /* Is this row money moving between your own accounts? Matched on the description, in
    BOTH directions — out to the pots, and back again when you spend from one. */
+/* v208: this used to be ONE keyword, which only ever recognised moves that carry the
+   business name. A move from a named pot, or a draw from a card in another provider's
+   name, carries a different description and so came in as plain income. It is now a
+   comma-separated LIST — one line in Settings, any number of names. A single keyword
+   with no comma still behaves exactly as it did. */
+function transferKeywords() {
+  return String((S.settings && S.settings.transferKeyword) || "")
+    .toUpperCase().split(",").map((k) => k.trim()).filter(Boolean);
+}
 function looksLikeTransfer(desc) {
-  const kw = String((S.settings && S.settings.transferKeyword) || "").toUpperCase().trim();
-  if (!kw) return false;
-  return String(desc || "").toUpperCase().includes(kw);
+  const d = String(desc || "").toUpperCase();
+  return transferKeywords().some((kw) => d.includes(kw));
 }
 
 /* Which income source a credit came from, by the keywords in Settings. */
@@ -2115,7 +2167,15 @@ async function refreshPreview() {
   $("mapNote").textContent = "";
   p.existing = await loadMonthsFor(rows);
   const have = new Set();
-  for (const ym of Object.keys(p.existing)) for (const r of p.existing[ym]) have.add(r.hash || hashOf(r, 1));
+  // v208: a row you deleted is still in the store, and its hash is why the same line in
+  // next week's statement does not walk back in. It is listed here as "deleted" rather
+  // than "already in", so the preview says what really happened to it.
+  const binned = new Set();
+  for (const ym of Object.keys(p.existing)) for (const r of p.existing[ym]) {
+    const h = r.hash || hashOf(r, 1);
+    have.add(h);
+    if (r.del) binned.add(h);
+  }
   let fresh = 0, dupe = 0, blank = 0;
   const body = rows.map((r) => {
     const isDupe = have.has(r.hash);
@@ -2125,7 +2185,7 @@ async function refreshPreview() {
       <td class="ds"><span class="desc" title="${esc(r.desc)}">${esc(r.desc)}</span></td>
       <td class="num ${r.dir}">${r.dir === "in" ? "+" : "−"}${money(r.amount)}</td>
       <td>${r.dir === "in" ? esc(r.src || "") : esc(r.cat || "—")}</td>
-      <td>${isDupe ? "already in" : "new"}</td></tr>`;
+      <td>${isDupe ? (binned.has(r.hash) ? "deleted" : "already in") : "new"}</td></tr>`;
   }).join("");
   $("prevTbl").innerHTML = `<thead><tr><th>Date</th><th>Description</th><th style="text-align:right">Amount</th>
     <th>Category / source</th><th>Status</th></tr></thead><tbody>${body}</tbody>`;
@@ -2154,7 +2214,7 @@ async function commitImport() {
   // Ask about anything new BEFORE writing, so the answers are saved with the import and
   // there is no half-sorted state on disk. One question per merchant, not per row.
   const fresh = [];
-  for (const ym of Object.keys(byMonth)) for (const r of byMonth[ym]) if (added && !r.cat) fresh.push(r);
+  for (const ym of Object.keys(byMonth)) for (const r of byMonth[ym]) if (added && !r.cat && !r.del) fresh.push(r);
   $("importMsg").textContent = "";
   await new Promise((resolve) => {
     if (!openWizard(fresh, () => resolve())) resolve();
@@ -2187,10 +2247,15 @@ async function commitImport() {
    THE COCKPIT
    ===================================================================== */
 const sum = (rows, f) => rows.reduce((a, r) => a + (f(r) ? r.amount : 0), 0);
-const moneyIn = (rows) => sum(rows, (r) => r.dir === "in" && !isTransfer(r));
-const moneyOut = (rows) => sum(rows, (r) => r.dir === "out" && !isTransfer(r));
+const moneyIn = (rows) => sum(rows, (r) => r.dir === "in" && !notCounted(r));
+const moneyOut = (rows) => sum(rows, (r) => r.dir === "out" && !notCounted(r));
 const transfersOut = (rows) => sum(rows, (r) => r.dir === "out" && isTransfer(r));
 const transfersIn = (rows) => sum(rows, (r) => r.dir === "in" && isTransfer(r));
+/* v208: the directors loan has its own pair, kept apart from the transfer pair, because
+   the Profit First week reads the transfer figures as "what actually left for the pots"
+   and a loan is not a pot move. */
+const loanIn = (rows) => sum(rows, (r) => r.dir === "in" && isDirLoan(r));
+const loanOut = (rows) => sum(rows, (r) => r.dir === "out" && isDirLoan(r));
 
 /* Cash status and the one action, both straight off the sheet's own formulas so the
    traffic light means exactly what it always meant:
@@ -2242,14 +2307,24 @@ function renderStats() {
   const nc = $("needsCard");
   if (nc) nc.onclick = () => { S.filter = "review"; setView("txns"); renderTxns(); };
 
-  // Transfers are shown, but well away from the four numbers — they are not spending,
-  // and the whole point is that they do not move Money Out.
+  // Money that is real but does not count is shown, well away from the four numbers.
+  // Leaving it off entirely would be worse than counting it wrongly: a figure that is
+  // nowhere on the page is a figure you go looking for in the bank app. So every pound
+  // the four tiles skip is named here, and said to be skipped.
   const xOut = transfersOut(S.rows), xIn = transfersIn(S.rows);
+  const lIn = loanIn(S.rows), lOut = loanOut(S.rows);
+  const gone = (S.all || []).filter((r) => r.del).length;
   const xf = $("xferNote");
-  if (xOut || xIn) {
+  const parts = [];
+  if (xOut || xIn) parts.push(money(xOut) + " moved out to your pots"
+    + (xIn ? ", " + money(xIn) + " brought back" : "") + " — your own money, not spending");
+  if (lIn || lOut) parts.push((lIn ? money(lIn) + " drawn" : "")
+    + (lIn && lOut ? " and " : "") + (lOut ? money(lOut) + " paid out" : "")
+    + " as a directors loan — borrowed money, owed back");
+  if (gone) parts.push(gone + " row" + (gone === 1 ? "" : "s") + " you deleted");
+  if (parts.length) {
     xf.hidden = false;
-    xf.textContent = "Not counted above: " + money(xOut) + " moved out to your pots"
-      + (xIn ? ", " + money(xIn) + " brought back" : "") + " — your own money, not spending.";
+    xf.textContent = "Not counted above: " + parts.join(". ") + ".";
   } else xf.hidden = true;
 
   ckAutoReview(needs);
@@ -2275,7 +2350,7 @@ async function loadWeek() {
   const yms = [...new Set([ymOf(ws), ymOf(we)])];
   const rows = [];
   for (const ym of yms) {
-    const got = (ym === S.ym) ? S.rows : ((await api("fintxns=" + ym)).rows || []);
+    const got = (ym === S.ym) ? S.rows : liveOf((await api("fintxns=" + ym)).rows || []);
     for (const r of got) if (r.date >= ws && r.date <= we) rows.push(r);
   }
   S.weekRows = rows;
@@ -2290,7 +2365,7 @@ function renderWeek() {
   const s = S.settings;
   const alloc = new Set(s.allocatable || ["stripe", "gocardless"]);
   const bySrc = {};
-  for (const r of S.weekRows) if (r.dir === "in" && !isTransfer(r)) {
+  for (const r of S.weekRows) if (r.dir === "in" && !notCounted(r)) {
     const src = r.src || sourceOf(r.desc);
     bySrc[src] = (bySrc[src] || 0) + r.amount;
   }
@@ -2421,9 +2496,9 @@ function renderChecklist() {
 function renderMeal() {
   const src = (S.settings && S.settings.sources) || {};
   const kwS = String(src.sumup || "").toUpperCase(), kwN = String(src.nutraprep || "").toUpperCase();
-  const took = S.rows.filter((r) => r.dir === "in" && !isTransfer(r) && kwS && r.desc.toUpperCase().includes(kwS))
+  const took = S.rows.filter((r) => r.dir === "in" && !notCounted(r) && kwS && r.desc.toUpperCase().includes(kwS))
     .reduce((a, r) => a + r.amount, 0);
-  const paid = S.rows.filter((r) => r.dir === "out" && !isTransfer(r) && kwN && r.desc.toUpperCase().includes(kwN))
+  const paid = S.rows.filter((r) => r.dir === "out" && !notCounted(r) && kwN && r.desc.toUpperCase().includes(kwN))
     .reduce((a, r) => a + r.amount, 0);
   $("mealMonth").textContent = "— " + ymLabel(S.ym);
   // the answer first, the arithmetic under it
@@ -2441,17 +2516,25 @@ function renderMeal() {
    TRANSACTIONS
    ===================================================================== */
 function catSelect(r) {
-  const cats = S.settings.categories || DEFAULT_CATS;
+  const cats = catList();
   return `<select class="cellsel ${r.cat ? "" : "empty"}" data-id="${esc(r.id)}" data-f="cat">
     <option value="">${r.cat ? "—" : "Set…"}</option>
     ${cats.map((c) => `<option ${c === r.cat ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>`;
 }
-/* A credit is either income or your own money coming back. Two options is the whole
-   choice — a credit never needs an expense category. */
+/* A credit is one of three things and never anything else, so a credit never needs the
+   expense category list:
+     income        — a customer paid you, and it counts;
+     Transfer      — your own money coming back from one of your own accounts or pots;
+     Directors loan — borrowed money landing in the account that you owe back.
+   Only the first counts as income. v208 added the third: the old two-option list had
+   nowhere to put a credit-card draw, so it was either wrongly called income or wrongly
+   called a pot move. */
 function inSelect(r) {
+  const plain = esc(r.src && r.src !== "transfer" ? r.src : "income");
   return `<select class="cellsel" data-id="${esc(r.id)}" data-f="cat">
-    <option value="" ${isTransfer(r) ? "" : "selected"}>${esc(r.src && r.src !== "transfer" ? r.src : "income")}</option>
-    <option value="${TRANSFER}" ${isTransfer(r) ? "selected" : ""}>${TRANSFER}</option></select>`;
+    <option value="" ${notCounted(r) ? "" : "selected"}>${plain}</option>
+    <option value="${esc(TRANSFER)}" ${isTransfer(r) ? "selected" : ""}>${esc(TRANSFER)} — my own account</option>
+    <option value="${esc(DIRLOAN)}" ${isDirLoan(r) ? "selected" : ""}>${esc(DIRLOAN)} — owed back</option></select>`;
 }
 function kmSelect(r) {
   return `<select class="cellsel" data-id="${esc(r.id)}" data-f="km">
@@ -2459,8 +2542,11 @@ function kmSelect(r) {
     ${KEYMAPS.map((k) => `<option ${k === r.km ? "selected" : ""}>${esc(k)}</option>`).join("")}</select>`;
 }
 
+const deletedRows = () => (S.all || []).filter((r) => r.del);
+
 function visibleRows() {
-  let rows = S.rows;
+  // The Deleted filter is the one that reads S.all — every other view is the live month.
+  let rows = S.filter === "deleted" ? deletedRows() : S.rows;
   if (S.filter === "review") rows = rows.filter((r) => r.dir === "out" && !r.cat);
   else if (S.filter === "in") rows = rows.filter((r) => r.dir === "in");
   else if (S.filter === "out") rows = rows.filter((r) => r.dir === "out");
@@ -2472,11 +2558,22 @@ function visibleRows() {
 function renderTxns() {
   document.querySelectorAll("#txFilters .fchip").forEach((b) =>
     b.classList.toggle("on", b.dataset.f === S.filter));
+  const gone = deletedRows();
+  // The Deleted chip only exists once something has been deleted — an empty bin is not
+  // a thing to look at, and a chip that is always there invites a click that shows nothing.
+  const binChip = $("binChip");
+  binChip.hidden = !gone.length;
+  binChip.textContent = "Deleted (" + gone.length + ")";
+  if (S.filter === "deleted" && !gone.length) S.filter = "all";
+  const showingBin = S.filter === "deleted";
   const rows = visibleRows();
   const needs = S.rows.filter((r) => r.dir === "out" && !r.cat).length;
-  $("txMsg").textContent = rows.length + " of " + S.rows.length + " shown"
-    + (needs ? " · " + needs + " need a category" : "");
-  const groups = needs ? unknownGroups(S.rows).length : 0;
+  $("txMsg").textContent = showingBin
+    ? rows.length + " deleted · left out of every total"
+    : rows.length + " of " + S.rows.length + " shown"
+      + (needs ? " · " + needs + " need a category" : "")
+      + (gone.length ? " · " + gone.length + " deleted" : "");
+  const groups = needs && !showingBin ? unknownGroups(S.rows).length : 0;
   const sb = $("sortBtn");
   sb.hidden = !groups;
   if (groups) sb.querySelector("span").textContent =
@@ -2488,19 +2585,48 @@ function renderTxns() {
     return;
   }
   $("txTbl").innerHTML = `<thead><tr><th>Date</th><th>Description</th><th style="text-align:right">Amount</th>
-    <th>Category</th><th>Keymap</th></tr></thead><tbody>` + rows.map((r) => `
-    <tr class="${r.dir === "out" && !r.cat ? "needs" : ""}">
+    <th>Category</th><th>Keymap</th><th></th></tr></thead><tbody>` + rows.map((r) => `
+    <tr class="${showingBin ? "gone" : (r.dir === "out" && !r.cat ? "needs" : "")}">
       <td class="dt">${dmy(r.date)}</td>
       <td class="ds"><span class="desc" title="${esc(r.desc)}">${esc(r.desc)}</span></td>
       <td class="num ${r.dir}">${r.dir === "in" ? "+" : "−"}${money(r.amount)}</td>
-      <td>${r.dir === "out" ? catSelect(r) : inSelect(r)}</td>
-      <td>${r.dir === "out" ? kmSelect(r) : ""}</td></tr>`).join("") + "</tbody>";
+      <td>${showingBin ? "deleted" : (r.dir === "out" ? catSelect(r) : inSelect(r))}</td>
+      <td>${showingBin ? "" : (r.dir === "out" ? kmSelect(r) : "")}</td>
+      <td class="rowact">${showingBin
+        ? `<button class="iconbtn" data-undel="${esc(r.id)}" title="Put this row back"><svg class="ic"><use href="#ic-refresh"/></svg></button>`
+        : `<button class="iconbtn" data-del="${esc(r.id)}" title="Delete this row — it stops counting, and can be put back"><svg class="ic"><use href="#ic-close"/></svg></button>`}</td></tr>`).join("") + "</tbody>";
   $("txTbl").querySelectorAll("select[data-id]").forEach((el) => { el.onchange = () => onCellChange(el); });
+  $("txTbl").querySelectorAll("[data-del]").forEach((b) => { b.onclick = () => setDeleted(b.dataset.del, true); });
+  $("txTbl").querySelectorAll("[data-undel]").forEach((b) => { b.onclick = () => setDeleted(b.dataset.undel, false); });
+}
+
+/* Delete, and put back, are the same act with a flag — which is the whole point. The row
+   is never removed from the store: it keeps its hash, so the next import of an overlapping
+   statement still recognises it and does not bring it back; and it keeps its figures, so
+   putting it back is exact rather than a retype. Nothing that totals money can see it,
+   because everything totals S.rows and S.rows is the live ones. */
+async function setDeleted(id, del) {
+  const r = (S.all || []).find((x) => x.id === id);
+  if (!r || !!r.del === !!del) return;
+  r.del = !!del;
+  S.rows = liveOf(S.all);
+  S.trend[S.ym] = S.rows;
+  renderTxns(); renderStats(); renderMeal();
+  if (S.view === "breakdown") renderBreakdown();
+  try {
+    await post({ finTxns: { ym: S.ym, rows: S.all } });
+    toast(del ? "Deleted — it counts nowhere now. Deleted (1) puts it back." : "Put back");
+  } catch (e) {
+    r.del = !del; S.rows = liveOf(S.all); S.trend[S.ym] = S.rows;
+    renderTxns(); renderStats();
+    toast("Could not save: " + e.message);
+  }
+  await loadWeek();
 }
 
 let saveT = null;
 async function onCellChange(el) {
-  const r = S.rows.find((x) => x.id === el.dataset.id);
+  const r = S.all.find((x) => x.id === el.dataset.id);
   if (!r) return;
   r[el.dataset.f] = el.value;
   el.classList.toggle("empty", el.dataset.f === "cat" && !el.value);
@@ -2528,7 +2654,8 @@ async function onCellChange(el) {
   // Capture the month and the rows NOW, not when the timer fires. Otherwise changing a
   // category and switching month inside the debounce window writes the new month's rows
   // under the new month's key and the edit just made is silently dropped.
-  const ym = S.ym, rows = S.rows;
+  // The full month goes to the store, deleted rows and all — S.rows is only what is shown.
+  const ym = S.ym, rows = S.all;
   clearTimeout(saveT);
   saveT = setTimeout(async () => {
     try { await post({ finTxns: { ym, rows } }); if (S.ym === ym) renderStats(); }
@@ -2541,7 +2668,7 @@ async function onCellChange(el) {
    ===================================================================== */
 function renderBreakdown() {
   $("bdMonth").textContent = ymLabel(S.ym);
-  const outRows = S.rows.filter((r) => r.dir === "out" && !isTransfer(r));
+  const outRows = S.rows.filter((r) => r.dir === "out" && !notCounted(r));
   const total = outRows.reduce((a, r) => a + r.amount, 0);
 
   const byKm = { Essential: 0, Optional: 0, "Can Cut": 0, "": 0 };
@@ -2587,13 +2714,13 @@ async function renderTrend() {
   if (!span.length) { $("trendTbl").innerHTML = ""; return; }
   await Promise.all(span.map(async (ym) => {
     if (S.trend[ym]) return;
-    S.trend[ym] = ym === S.ym ? S.rows : ((await api("fintxns=" + ym)).rows || []);
+    S.trend[ym] = ym === S.ym ? S.rows : liveOf((await api("fintxns=" + ym)).rows || []);
   }));
   S.trend[S.ym] = S.rows;
   const cats = new Set();
-  for (const ym of span) for (const r of S.trend[ym]) if (r.dir === "out" && !isTransfer(r)) cats.add(r.cat || "Uncategorised");
+  for (const ym of span) for (const r of S.trend[ym]) if (r.dir === "out" && !notCounted(r)) cats.add(r.cat || "Uncategorised");
   const catList = [...cats];
-  const tot = (ym, c) => S.trend[ym].filter((r) => r.dir === "out" && !isTransfer(r) && (r.cat || "Uncategorised") === c)
+  const tot = (ym, c) => S.trend[ym].filter((r) => r.dir === "out" && !notCounted(r) && (r.cat || "Uncategorised") === c)
     .reduce((a, r) => a + r.amount, 0);
   catList.sort((a, b) => span.reduce((s, y) => s + tot(y, b), 0) - span.reduce((s, y) => s + tot(y, a), 0));
   const head = `<thead><tr><th>Category</th>${span.map((y) => `<th style="text-align:right">${esc(ymLabel(y))}</th>`).join("")}</tr></thead>`;
@@ -2667,7 +2794,7 @@ function renderWizard() {
   $("wzEgs").innerHTML = g.rows.slice(0, 4)
     .map((r) => `${dmy(r.date)} &nbsp; <strong>${money(r.amount)}</strong> &nbsp; ${esc(r.desc)}`)
     .join("<br>") + (g.rows.length > 4 ? `<br>… and ${g.rows.length - 4} more` : "");
-  const cats = (S.settings.categories || DEFAULT_CATS).filter((c) => c !== TRANSFER).concat([TRANSFER]);
+  const cats = catList();
   $("wzCats").innerHTML = cats.map((c) =>
     `<button class="wz-opt" data-cat="${esc(c)}">${esc(c)}</button>`).join("");
   $("wzKms").innerHTML = KEYMAPS.map((k) =>
@@ -2744,14 +2871,14 @@ async function buildReport(forClaude) {
   const span = reportMonths();
   if (!span.length) return "Nothing imported yet — import a bank export first.";
   await Promise.all(span.map(async (ym) => {
-    if (!S.trend[ym]) S.trend[ym] = (await api("fintxns=" + ym)).rows || [];
+    if (!S.trend[ym]) S.trend[ym] = liveOf((await api("fintxns=" + ym)).rows || []);
   }));
   S.trend[S.ym] = S.rows;
 
   const all = [];
   for (const ym of span) for (const r of S.trend[ym]) all.push({ ...r, ym });
-  const outs = all.filter((r) => r.dir === "out" && !isTransfer(r));
-  const ins = all.filter((r) => r.dir === "in" && !isTransfer(r));
+  const outs = all.filter((r) => r.dir === "out" && !notCounted(r));
+  const ins = all.filter((r) => r.dir === "in" && !notCounted(r));
   const L = [];
   const P = (s) => L.push(s == null ? "" : s);
   const gbp = (n) => "£" + Math.round(n).toLocaleString("en-GB");
@@ -3066,7 +3193,7 @@ async function rowsForWeek(ws) {
   const we = weekEndOf(ws), out = [];
   for (const ym of [...new Set([ymOf(ws), ymOf(we)])]) {
     if (ym === S.ym) S.trend[ym] = S.rows;
-    else if (!S.trend[ym]) S.trend[ym] = (await api("fintxns=" + ym)).rows || [];
+    else if (!S.trend[ym]) S.trend[ym] = liveOf((await api("fintxns=" + ym)).rows || []);
     for (const r of S.trend[ym]) if (r.date >= ws && r.date <= we) out.push(r);
   }
   return out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
@@ -3090,7 +3217,7 @@ async function buildWeekChallenge() {
   const span = S.months.slice(Math.max(0, end - 6), end);
   await Promise.all(span.map(async (ym) => {
     if (ym === S.ym) S.trend[ym] = S.rows;
-    else if (!S.trend[ym]) S.trend[ym] = (await api("fintxns=" + ym)).rows || [];
+    else if (!S.trend[ym]) S.trend[ym] = liveOf((await api("fintxns=" + ym)).rows || []);
   }));
   const hist = [];
   for (const ym of span) for (const r of S.trend[ym] || []) hist.push({ ...r, ym });
@@ -3126,26 +3253,29 @@ async function buildWeekChallenge() {
     + "category".padEnd(15) + "cut?".padEnd(12) + "description");
   if (!week.length) P("  (nothing landed in the account this week)");
   for (const r of week) {
-    const what = isTransfer(r) ? "MOVE" : (r.dir === "in" ? "IN" : "OUT");
+    const what = isTransfer(r) ? "MOVE" : isDirLoan(r) ? "LOAN" : (r.dir === "in" ? "IN" : "OUT");
     P("  " + dmy(r.date).padEnd(11) + what.padEnd(6) + money(r.amount).padStart(11) + "  "
-      + String(isTransfer(r) ? "own pot" : (r.dir === "in" ? (r.src || sourceOf(r.desc)) : (r.cat || "UNCATEGORISED"))).padEnd(15)
-      + String(r.dir === "out" && !isTransfer(r) ? (r.km || "not marked") : "—").padEnd(12)
+      + String(isTransfer(r) ? "own pot" : isDirLoan(r) ? "directors loan"
+          : (r.dir === "in" ? (r.src || sourceOf(r.desc)) : (r.cat || "UNCATEGORISED"))).padEnd(15)
+      + String(r.dir === "out" && !notCounted(r) ? (r.km || "not marked") : "—").padEnd(12)
       + String(r.desc || "").slice(0, 72));
   }
   P("");
-  P("  MOVE lines are my own money going to my own tax/investment pots. That is not");
-  P("  spending and must not be counted as a saving. The '~ a year' figures below are what a");
+  P("  MOVE lines are my own money going to my own tax/investment pots. LOAN lines are a");
+  P("  directors loan — borrowed money passing through the account and owed back. Neither");
+  P("  is income and neither is spending, and they must not be counted as a saving. The");
+  P("  '~ a year' figures below are what a");
   P("  supplier would cost over twelve months at the rate shown — a projection from the");
   P("  history I have, not a bill. Say so if one of them is built on too little history.");
   P("");
 
   /* ---- what this week's suppliers really cost, annualised ---- */
   const seen = {};
-  for (const r of week) if (r.dir === "out" && !isTransfer(r)) {
+  for (const r of week) if (r.dir === "out" && !notCounted(r)) {
     const m = merchantOf(r.desc);
     (seen[m] = seen[m] || { week: 0, hist: 0, n: 0, months: new Set(), cat: r.cat || "", km: r.km || "" }).week += r.amount;
   }
-  for (const r of hist) if (r.dir === "out" && !isTransfer(r)) {
+  for (const r of hist) if (r.dir === "out" && !notCounted(r)) {
     const m = merchantOf(r.desc);
     if (!seen[m]) continue;
     seen[m].hist += r.amount; seen[m].n++; seen[m].months.add(r.ym);
@@ -3166,7 +3296,7 @@ async function buildWeekChallenge() {
 
   /* ---- and the standing costs that simply did not fall in this week ---- */
   const other = {};
-  for (const r of hist) if (r.dir === "out" && !isTransfer(r)) {
+  for (const r of hist) if (r.dir === "out" && !notCounted(r)) {
     const m = merchantOf(r.desc);
     if (seen[m]) continue;
     (other[m] = other[m] || { total: 0, n: 0, months: new Set(), cat: r.cat || "" }).total += r.amount;
@@ -3188,7 +3318,7 @@ async function buildWeekChallenge() {
 
   /* ---- the income, because it is half the argument ---- */
   const bySrc = {};
-  for (const r of week) if (r.dir === "in" && !isTransfer(r)) {
+  for (const r of week) if (r.dir === "in" && !notCounted(r)) {
     const k = r.src || sourceOf(r.desc);
     bySrc[k] = (bySrc[k] || 0) + r.amount;
   }
@@ -3220,7 +3350,7 @@ async function buildWeekChallenge() {
   P("THE MONTH SO FAR — " + ymLabel(S.ym));
   P("  In " + money0(mIn) + " · out " + money0(mOut) + " · net " + money0(mIn - mOut));
   const cats = {};
-  for (const r of S.rows) if (r.dir === "out" && !isTransfer(r)) {
+  for (const r of S.rows) if (r.dir === "out" && !notCounted(r)) {
     const c = r.cat || "UNCATEGORISED";
     cats[c] = (cats[c] || 0) + r.amount;
   }
@@ -3228,7 +3358,7 @@ async function buildWeekChallenge() {
     P("  " + c.padEnd(16) + money0(v).padStart(10) + "   " + (mOut ? Math.round((v / mOut) * 100) : 0) + "%");
   }
   P("");
-  const unk = S.rows.filter((r) => r.dir === "out" && !r.cat && !isTransfer(r));
+  const unk = S.rows.filter((r) => r.dir === "out" && !r.cat && !notCounted(r));
   if (unk.length) P("NOTE: " + unk.length + (unk.length === 1
     ? " payment this month has no category yet — ask me what it is before judging it."
     : " payments this month have no category yet — ask me what they are before judging them."));
@@ -3311,7 +3441,7 @@ function renderRules() {
     .filter((r) => !q || r.match.includes(q) || String(r.cat).toUpperCase().includes(q))
     .sort((a, b) => (a.match < b.match ? -1 : 1));
   $("ruleCount").textContent = S.rules.length + " of your own, plus " + SEED_RULES.length + " built in";
-  const cats = S.settings.categories || DEFAULT_CATS;
+  const cats = catList();
   $("ruleRows").innerHTML = list.length ? list.map((r) => `
     <div class="rulerow" data-i="${r.i}">
       <input class="fin-in" data-f="match" value="${esc(r.match)}">
@@ -3392,7 +3522,8 @@ async function loadMonths() {
 }
 
 async function loadMonth() {
-  S.rows = (await api("fintxns=" + S.ym)).rows || [];
+  S.all = (await api("fintxns=" + S.ym)).rows || [];
+  S.rows = liveOf(S.all);
   S.trend[S.ym] = S.rows;
   renderMonthSel();
   renderStats(); renderMeal();
@@ -3458,7 +3589,7 @@ function wire() {
       renderTxns(); renderStats();
       if (!n) return;
       try {
-        await post({ finTxns: { ym: S.ym, rows: S.rows } });
+        await post({ finTxns: { ym: S.ym, rows: S.all } });
         await post({ finRules: S.rules });
         toast(n + " sorted — and remembered");
       } catch (e) { toast("Could not save: " + e.message); }

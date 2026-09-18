@@ -475,7 +475,10 @@ function finWeekKeyOf(d) { return FIN_WEEK_PREFIX + d; }
 // The expense categories carried over from the sheet's SUMMARY block, in its order.
 const FIN_CATEGORIES = ["Wages","Pensions","Rent","Accounting","Software","Marketing",
   "Cleaning","Lease","Bills","Website","Retail","Other","Travel","Mentorship","Charges",
-  "Owners Pay","Tax","Transfer"];
+  // v208: "Directors loan" joins "Transfer" as the second category that counts nowhere.
+  // The page appends both to whatever list is saved here, so an older saved list that
+  // does not mention them still offers them.
+  "Owners Pay","Tax","Transfer","Directors loan"];
 const FIN_KEYMAPS = ["Essential","Optional","Can Cut"];
 
 function defaultFinanceSettings() {
@@ -506,6 +509,10 @@ function defaultFinanceSettings() {
 
 const FIN_CAP = 4000; // rows per month — far above a real month, but bounds a bad import
 
+// v208: the only two categories a CREDIT may carry. Both mean "this is not income":
+// money arriving from one of your own accounts, and borrowed money you owe back. Any
+// other value on a credit is dropped, so an expense category can never land on one.
+const FIN_IN_CATS = ["Transfer", "Directors loan"];
 function finStr(v, n) { return typeof v === "string" ? v.slice(0, n) : ""; }
 function finNum(v) { const x = Number(v); return Number.isFinite(x) ? Math.round(x * 100) / 100 : 0; }
 // Whitelist + coerce one transaction. `dir` is "in" or "out"; `amount` is always positive.
@@ -519,14 +526,29 @@ function cleanTxn(raw) {
   const amount = Math.abs(finNum(raw.amount));
   if (!amount) return null;
   return {
-    id: finStr(raw.id, 40) || (date + "-" + Math.random().toString(36).slice(2, 10)),
+    // v208: was capped at 40. The id IS the dedupe hash (date|DESCRIPTION|amount|dir),
+    // which is routinely longer than that, so every id came back truncated — and two
+    // payments to the same merchant on the same day truncated to the SAME id, which made
+    // editing one of them silently edit the other. 140 clears the 120-char hash plus its
+    // "|#2" repeat suffix. Rows already stored keep whatever id they have; nothing is
+    // rewritten, so no existing row moves.
+    id: finStr(raw.id, 140) || (date + "-" + Math.random().toString(36).slice(2, 10)),
     date, dir, amount,
     desc: finStr(raw.desc, 300),
-    cat: dir === "out" ? finStr(raw.cat, 40) : "",
+    // v208: `cat` used to be dropped on every credit — "cat: dir === 'out' ? ... : ''".
+    // The page has always let you mark a credit as a Transfer, and the save appeared to
+    // work, but the answer was thrown away here and the row came back as income the next
+    // time the month was opened. That is why a move from the tax account kept counting as
+    // money in. A credit's category is now kept, and it is one of exactly three things.
+    cat: dir === "out" ? finStr(raw.cat, 40) : (FIN_IN_CATS.includes(raw.cat) ? raw.cat : ""),
     km: FIN_KEYMAPS.includes(raw.km) ? raw.km : "",
     src: finStr(raw.src, 24),
     note: finStr(raw.note, 500),
     hash: finStr(raw.hash, 120),
+    // v208: a deleted row is KEPT, flagged rather than removed. Its hash is what stops the
+    // next overlapping statement re-importing it, and keeping it is what makes the delete
+    // undoable. The client hides it and leaves it out of every total.
+    del: raw.del === true,
     importedAt: finStr(raw.importedAt, 30) || new Date().toISOString(),
   };
 }

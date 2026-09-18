@@ -118,10 +118,16 @@ async function boot(opts = {}) {
   // S is a top-level const, so it never lands on globalThis. The accessor is appended
   // to the extracted source — same trick as env.cjs — rather than adding test-only
   // code to the page. It runs in the same script scope, so it can see the binding.
+  // v208: the money tests need the totals themselves, not just what they rendered.
+  // They are `const` arrows, so they live in the script scope and never reach globalThis
+  // on their own — same trick as S, and for the same reason.
   vm.runInContext(extract(path.join(__dirname, "..", "..", "finances.html"))
-    + "\n;globalThis.__S = S; globalThis.__WZ = WZ;", ctx);
+    + "\n;globalThis.__S = S; globalThis.__WZ = WZ;"
+    + "\n;globalThis.__fn = { moneyIn, moneyOut, transfersIn, transfersOut, loanIn, loanOut,"
+    + " isTransfer, isDirLoan, notCounted, liveOf, catList, deletedRows, TRANSFER, DIRLOAN };", ctx);
   await settle(); await settle(); await settle(); await settle();
-  return { ctx, S: ctx.__S, WZ: ctx.__WZ, els, store, posts, settle, clipboard: ctx.__clipboard, el: (id) => els.get(id) };
+  return { ctx, S: ctx.__S, WZ: ctx.__WZ, fn: ctx.__fn, els, store, posts, settle,
+    clipboard: ctx.__clipboard, el: (id) => els.get(id) };
 }
 
 module.exports = { boot };
