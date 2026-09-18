@@ -1361,9 +1361,9 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
         <div>
           <div class="chead">Have Claude challenge you</div>
           <div class="csub">One button, once a week. It copies every transaction of the week,
-            what each supplier costs you a year, and everything Claude already knows about the
-            gym — with the question written at the top. Paste it into a new chat in your
-            project.</div>
+            what the history does and does not say each supplier costs you a year, and
+            everything Claude already knows about the gym — with the question written at the
+            top. Paste it into a new chat in your project.</div>
         </div>
         <div class="cardhead-r"><span class="msg" id="repMsg"></span></div>
       </div>
@@ -1495,7 +1495,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 })();
 
 /* =====================================================================
-   FINANCES — Income & Expenses.  v122, last changed v210
+   FINANCES — Income & Expenses.  v122, last changed v211
    Replaces the "Finance Cockpit 2026" Google Sheet: the Santander import, the
    month tabs, the SUMMARY block, the Breakdown tab and the Pot Moves tab.
    Storage is the same Netlify Blobs store the rest of the suite uses, under its
@@ -1869,6 +1869,67 @@ function ruleLearnedFromCredit(rule) {
   if (rule.cat === DIRLOAN) words.push(...transferKeywords());
   return words.some((w) => m.includes(w) || w.includes(m));
 }
+
+/* =====================================================================
+   v211: WHAT THE HISTORY ACTUALLY SUPPORTS SAYING ABOUT A SUPPLIER
+
+   The report used to put a "~ a year" figure beside every merchant, worked out as
+   (what it cost) ÷ (months it appeared in) × 12, and to head the table "anything here is
+   a subscription or a standing cost". Neither is something the page can know. One £400
+   payment read as £4,800 a year; two unrelated Amazon orders in two different months read
+   as a subscription. A projection stated as a fact is worse than no projection, because it
+   is the figure that then gets ranked, argued over and acted on.
+
+   So the shape is measured instead of assumed, and the yearly figure is only offered where
+   the history earns it. Two questions, both answerable from the rows:
+     does it come EVERY MONTH?  — seen in at least three months, and in at least three
+                                  quarters of the months there is history for;
+     is it the SAME AMOUNT?     — at least three quarters of the payments within 5% of the
+                                  middle one. A subscription barely moves; a shop does.
+   Every month AND the same amount is the only combination quoted with confidence, and it
+   is quoted from the repeating amount rather than the average, so one odd month cannot
+   drag it. Every month at a varying amount gets a run rate, labelled as one. Anything else
+   gets no yearly figure at all — the honest answer to "what does this cost me a year" is
+   "nothing here tells you that".
+   ===================================================================== */
+const SHAPE_FIXED = "same amount, monthly";
+const SHAPE_VARIES = "monthly, varies";
+const SHAPE_NOW = "now and then";
+const SHAPE_ONCE = "once only";
+const SHAPE_THIN = "too little history";
+
+function spendShape(rows, monthsInSpan) {
+  const n = rows.length;
+  const months = new Set(rows.map((r) => r.ym)).size;
+  const total = rows.reduce((a, r) => a + r.amount, 0);
+  const sorted = rows.map((r) => r.amount).slice().sort((a, b) => a - b);
+  const mid = sorted.length ? sorted[Math.floor(sorted.length / 2)] : 0;
+  const same = mid && n ? rows.filter((r) => Math.abs(r.amount - mid) <= mid * 0.05).length / n : 0;
+  const everyMonth = monthsInSpan >= 3 && months >= 3 && months / monthsInSpan >= 0.75;
+
+  let shape;
+  if (n <= 1) shape = SHAPE_ONCE;                 // true whatever the span is
+  else if (monthsInSpan < 3) shape = SHAPE_THIN;  // you cannot call it from two months
+  else if (everyMonth && same >= 0.75) shape = SHAPE_FIXED;
+  else if (everyMonth) shape = SHAPE_VARIES;
+  else shape = SHAPE_NOW;
+
+  const perYear = shape === SHAPE_FIXED ? mid * 12
+    : shape === SHAPE_VARIES ? (total / months) * 12
+    : null;
+  return { n, months, total, mid, shape, perYear,
+    seen: months + " of " + monthsInSpan };
+}
+
+/* The one sentence that has to sit under every table carrying a yearly figure. */
+const SHAPE_NOTE = [
+  "  'pattern' is what the history shows, not something I have told you. A yearly figure is",
+  "  only given where the SAME amount has come out in most of the months below — that is the",
+  "  only shape the data can tell apart from a coincidence. Where it says 'now and then',",
+  "  'once only' or 'too little history' there is no yearly figure on purpose: nothing here",
+  "  says it will happen again. ASK ME whether one of those is a subscription before you",
+  "  count stopping it as a saving, and do not annualise it yourself.",
+];
 
 /* Which income source a credit came from, by the keywords in Settings. */
 function sourceOf(desc) {
@@ -3121,18 +3182,25 @@ async function buildReport(forClaude) {
   const byMerchant = {};
   for (const r of outs) { const m = merchantOf(r.desc); (byMerchant[m] = byMerchant[m] || []).push(r); }
   const recurring = Object.entries(byMerchant)
-    .map(([m, rs]) => ({ m, rs, months: new Set(rs.map((r) => r.ym)).size,
-      total: rs.reduce((a, r) => a + r.amount, 0), cat: rs[0].cat || "Uncategorised" }))
-    .filter((x) => x.months >= Math.min(2, span.length) && x.rs.length >= 2)
-    .sort((a, b) => b.total - a.total);
+    .map(([m, rs]) => ({ m, rs, cat: rs[0].cat || "Uncategorised", s: spendShape(rs, span.length) }))
+    .filter((x) => x.rs.length >= 2)
+    .sort((a, b) => b.s.total - a.s.total);
   if (recurring.length) {
-    P("REGULAR PAYMENTS — anything here is a subscription or a standing cost");
-    P("  " + "who".padEnd(30) + "total".padStart(9) + "  per mth".padStart(9) + "   n   category");
+    // v211: this table used to be headed "anything here is a subscription or a standing
+    // cost", which the page cannot know and which turned two shop visits into a standing
+    // order. It now reports the shape and lets the reader draw the conclusion.
+    P("WHAT COMES BACK — AND WHAT ONLY LOOKS LIKE IT DOES");
+    P("  " + "who".padEnd(30) + "total".padStart(9) + "   n" + "months".padStart(8)
+      + "  " + "pattern".padEnd(20) + "~ a year".padStart(10) + "   category");
     for (const x of recurring.slice(0, 40)) {
-      P("  " + x.m.slice(0, 29).padEnd(30) + gbp(x.total).padStart(9)
-        + gbp(x.total / span.length).padStart(10) + "  " + String(x.rs.length).padStart(3)
+      P("  " + x.m.slice(0, 29).padEnd(30) + gbp(x.s.total).padStart(9)
+        + String(x.rs.length).padStart(4) + x.s.seen.padStart(8)
+        + "  " + x.s.shape.padEnd(20)
+        + (x.s.perYear == null ? "—" : gbp(x.s.perYear)).padStart(10)
         + "   " + x.cat);
     }
+    P("");
+    SHAPE_NOTE.forEach(P);
     P("");
   }
 
@@ -3293,9 +3361,13 @@ function renderFacts() {
    Two halves, and both matter. The PROMPT has to ask for an argument — a
    summary of his own numbers read back to him is the failure mode, and the one
    thing a language model will do by default. The DATA has to carry the three
-   things you cannot challenge a payment without: the line itself, what that
-   supplier costs over a year at this rate, and the standing costs that did not
-   happen to fall inside this particular week.
+   things you cannot challenge a payment without: the line itself, what the
+   history does and does not say that supplier costs over a year, and the costs
+   that did not happen to fall inside this particular week.
+   v211: "what it costs over a year" used to be printed for every supplier,
+   including one paid once. It is now only given where the history earns it —
+   see spendShape. A projection stated as a fact is the one thing worse than no
+   projection, because it is the figure that then gets ranked and acted on.
    ===================================================================== */
 const CHALLENGE_PROMPT_HEAD = [
   "You are my finance director. You are blunt, numerate, and hard to impress.",
@@ -3308,11 +3380,15 @@ const CHALLENGE_PROMPT_HEAD = [
   "",
   "Go through EVERY line. Do not read my own numbers back to me.",
   "",
-  "  1. CHALLENGE EACH PAYMENT, one at a time. What is it for, what does it cost me a YEAR",
-  "     at this rate, and what would actually happen if I stopped it tomorrow? Assume",
-  "     nothing is sacred and nothing is too small.",
+  "  1. CHALLENGE EACH PAYMENT, one at a time. What is it for, and what would actually",
+  "     happen if I stopped it tomorrow? Assume nothing is sacred and nothing is too small.",
+  "     Where a yearly figure is given below, use it. Where it is a dash, DO NOT INVENT ONE",
+  "     and do not multiply the payment up yourself — the data does not say whether that one",
+  "     is a subscription or something I bought once. Ask me.",
   "  2. RANK WHAT TO CUT by what it saves me a year, biggest first, with the pounds next to",
-  "     it. Give me the running total if I did all of it.",
+  "     it. Give me the running total if I did all of it. Keep anything with no yearly figure",
+  "     in a separate list headed 'need to know if these repeat' — do not rank a guess",
+  "     alongside a number.",
   "  3. FLAG anything I appear to be paying for twice, paying monthly that should be annual,",
   "     paying for and not using, or that has quietly crept up.",
   "  4. TELL ME WHAT NOT TO TOUCH, because it is making the money — and say why. I would",
@@ -3326,7 +3402,8 @@ const CHALLENGE_PROMPT_HEAD = [
   "     answer of mine would be too weak to act on.",
   "",
   "Finish with the single biggest saving I can make this week, what it is worth over twelve",
-  "months, and the one thing to do first.",
+  "months, and the one thing to do first. If the biggest one turns on whether a payment",
+  "repeats, say so and ask me rather than assuming it does.",
   "",
   "Rules: UK business, pounds. Name the line and the amount — no generic advice about",
   "\"reviewing your subscriptions\". No flattery, no filler, nothing that is not above board.",
@@ -3407,13 +3484,12 @@ async function buildWeekChallenge() {
   const L = [];
   const P = (x) => L.push(x == null ? "" : x);
   const rule = () => P("=".repeat(78));
-  const yr = (total, months) => money0(months ? (total / months) * 12 : total * 12);
 
   // v133 offered a copy WITHOUT the brief, for a project whose instructions already carry
   // it. v134 dropped it: it saved a few hundred words out of thousands, and cost a rule to
   // remember and a wrong-button-on-a-Thursday. One copy, and it works in any chat anywhere.
-  challengePrompt("Below is EVERY transaction from one week of it, with what each supplier"
-    + "\ncosts me over a year at that rate.", S.notes).forEach(P);
+  challengePrompt("Below is EVERY transaction from one week of it, and what the history does"
+    + "\nand does not say about each supplier.", S.notes).forEach(P);
   P("");
   rule();
   P("");
@@ -3445,34 +3521,40 @@ async function buildWeekChallenge() {
   P("");
   P("  MOVE lines are my own money going to my own tax/investment pots. LOAN lines are a");
   P("  directors loan — borrowed money passing through the account and owed back. Neither");
-  P("  is income and neither is spending, and they must not be counted as a saving. The");
-  P("  '~ a year' figures below are what a");
-  P("  supplier would cost over twelve months at the rate shown — a projection from the");
-  P("  history I have, not a bill. Say so if one of them is built on too little history.");
+  P("  is income and neither is spending, and they must not be counted as a saving. A");
+  P("  '~ a year' figure below is a projection from my own history at the rate shown, not a");
+  P("  bill, and it is only given where the same amount has come out month after month. A");
+  P("  dash means the history does not support a yearly figure for that one — ask me.");
   P("");
 
   /* ---- what this week's suppliers really cost, annualised ---- */
   const seen = {};
   for (const r of week) if (r.dir === "out" && !notCounted(r)) {
     const m = merchantOf(r.desc);
-    (seen[m] = seen[m] || { week: 0, hist: 0, n: 0, months: new Set(), cat: r.cat || "", km: r.km || "" }).week += r.amount;
+    (seen[m] = seen[m] || { week: 0, rows: [], cat: r.cat || "", km: r.km || "" }).week += r.amount;
   }
   for (const r of hist) if (r.dir === "out" && !notCounted(r)) {
     const m = merchantOf(r.desc);
     if (!seen[m]) continue;
-    seen[m].hist += r.amount; seen[m].n++; seen[m].months.add(r.ym);
+    seen[m].rows.push(r);
     if (!seen[m].cat && r.cat) seen[m].cat = r.cat;
   }
   const paid = Object.entries(seen).sort((a, b) => b[1].week - a[1].week);
   if (paid.length) {
-    P("WHAT I PAID THIS WEEK, AND WHAT THAT SUPPLIER COSTS ME A YEAR AT THIS RATE");
-    P("  " + "who".padEnd(32) + "this week".padStart(11) + ("last " + span.length + " mths").padStart(13)
-      + "times".padStart(7) + "~ a year".padStart(11) + "   category");
+    // v211: the old heading — "AND WHAT THAT SUPPLIER COSTS ME A YEAR AT THIS RATE" —
+    // promised a yearly figure for every line, including ones paid once in six months.
+    P("WHAT I PAID THIS WEEK, AND WHAT THE HISTORY SAYS ABOUT EACH ONE");
+    P("  " + "who".padEnd(28) + "this week".padStart(11) + ("last " + span.length + "m").padStart(11)
+      + "  " + "pattern".padEnd(20) + "~ a year".padStart(10) + "   category");
     for (const [m, x] of paid) {
-      P("  " + m.slice(0, 31).padEnd(32) + money(x.week).padStart(11) + money(x.hist).padStart(13)
-        + String(x.n).padStart(7) + yr(x.hist, x.months.size).padStart(11)
+      const sh = spendShape(x.rows, span.length);
+      P("  " + m.slice(0, 27).padEnd(28) + money(x.week).padStart(11) + money(sh.total).padStart(11)
+        + "  " + sh.shape.padEnd(20)
+        + (sh.perYear == null ? "—" : money0(sh.perYear)).padStart(10)
         + (x.cat ? "   " + x.cat : ""));
     }
+    P("");
+    SHAPE_NOTE.forEach(P);
     P("");
   }
 
@@ -3481,19 +3563,21 @@ async function buildWeekChallenge() {
   for (const r of hist) if (r.dir === "out" && !notCounted(r)) {
     const m = merchantOf(r.desc);
     if (seen[m]) continue;
-    (other[m] = other[m] || { total: 0, n: 0, months: new Set(), cat: r.cat || "" }).total += r.amount;
-    other[m].n++; other[m].months.add(r.ym);
+    (other[m] = other[m] || { rows: [], cat: r.cat || "" }).rows.push(r);
     if (!other[m].cat && r.cat) other[m].cat = r.cat;
   }
-  const standing = Object.entries(other).filter(([, x]) => x.n >= 2)
-    .sort((a, b) => b[1].total - a[1].total).slice(0, 20);
+  const standing = Object.entries(other).map(([m, x]) => [m, x, spendShape(x.rows, span.length)])
+    .filter(([, x]) => x.rows.length >= 2)
+    .sort((a, b) => b[2].total - a[2].total).slice(0, 20);
   if (standing.length) {
-    P("REGULAR COSTS THAT DID NOT FALL IN THIS WEEK — challenge these too");
-    P("  " + "who".padEnd(32) + ("last " + span.length + " mths").padStart(13) + "times".padStart(7)
-      + "~ a year".padStart(11) + "   category");
-    for (const [m, x] of standing) {
-      P("  " + m.slice(0, 31).padEnd(32) + money0(x.total).padStart(13) + String(x.n).padStart(7)
-        + yr(x.total, x.months.size).padStart(11) + (x.cat ? "   " + x.cat : ""));
+    P("COSTS THAT DID NOT FALL IN THIS WEEK — challenge these too");
+    P("  " + "who".padEnd(28) + ("last " + span.length + "m").padStart(11) + "   n"
+      + "  " + "pattern".padEnd(20) + "~ a year".padStart(10) + "   category");
+    for (const [m, x, sh] of standing) {
+      P("  " + m.slice(0, 27).padEnd(28) + money0(sh.total).padStart(11) + String(sh.n).padStart(4)
+        + "  " + sh.shape.padEnd(20)
+        + (sh.perYear == null ? "—" : money0(sh.perYear)).padStart(10)
+        + (x.cat ? "   " + x.cat : ""));
     }
     P("");
   }

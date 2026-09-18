@@ -86,7 +86,13 @@ const okA = async (n, f) => { await f(); pass++; console.log("  ok " + n); };
     assert.ok(/TELL ME WHAT NOT TO TOUCH/.test(text), "4 — protect what earns");
     assert.ok(/CHALLENGE THE INCOME/.test(text), "5 — the income gets it too");
     assert.ok(/ASK ME/.test(text), "6 — it has to put questions BACK to me");
-    assert.ok(/cost me a YEAR/.test(text), "…priced over a year, which is where the decision is");
+    // v211: bullet 1 used to demand "what does it cost me a YEAR at this rate" for every
+    // payment, which is the instruction that made a one-off purchase get annualised. The
+    // yearly frame still drives the ranking in bullet 2 — that is where the decision is —
+    // but the brief now forbids inventing the figure where the data does not carry one.
+    assert.ok(/saves me a year/.test(text), "…still ranked over a year, which is where the decision is");
+    assert.ok(/DO NOT INVENT ONE/.test(text), "…but a missing yearly figure must not be guessed");
+    assert.ok(/Ask me\./.test(text), "…it has to come back and ask instead");
     assert.ok(/single biggest saving/.test(text), "it has to land on one thing to do");
     assert.ok(/No flattery, no filler/.test(text), "and no padding");
     assert.ok(/nothing that is not above board/.test(text), "…or anything dodgy");
@@ -121,19 +127,28 @@ const okA = async (n, f) => { await f(); pass++; console.log("  ok " + n); };
     assert.ok(/Money out +£1,584\.62/.test(text), "the week's spend excludes the pot move");
   });
 
-  ok("each supplier is quoted at what it costs over a year", () => {
-    const table = text.slice(text.indexOf("WHAT I PAID THIS WEEK"), text.indexOf("REGULAR COSTS"));
-    assert.ok(/~ a year/.test(table), "the annual rate is the point of the table");
-    assert.ok(/FACEBK +£1,180\.00 +£2,470\.00 +2 +£14,820/.test(table),
-      "this week, the history, how many times, and the yearly run-rate");
-    assert.ok(/ONTRAPORT INC[\s\S]*?£2,988/.test(table), "£249 a month is £2,988 a year — that is the argument");
-    assert.ok(/projection from the/.test(text), "…and it is honest that a run-rate is a projection");
+  // v211: this test used to assert the opposite of what it now asserts, and the old version
+  // is the clearest statement of the bug Ash found. This fixture holds TWO months. FACEBK
+  // is in both, at £1,290 and £1,180 — two ad payments of different sizes — and the report
+  // quoted it at "£14,820 a year" as though it were a standing order. Two points make a
+  // line through anything. A yearly figure now needs three months of history behind it, so
+  // on this fixture every line correctly gets a dash instead.
+  ok("with only two months of history, nothing is quoted at a yearly rate", () => {
+    const table = text.slice(text.indexOf("WHAT I PAID THIS WEEK"), text.indexOf("COSTS THAT DID NOT"));
+    assert.ok(/~ a year/.test(table), "the column is still there");
+    assert.ok(/FACEBK +£1,180\.00 +£2,470\.00 +too little history +—/.test(table),
+      "this week, the history, what shape it is, and an honest dash");
+    assert.ok(!/£14,820/.test(text), "the old invented figure is gone");
+    assert.ok(/ONTRAPORT INC +£249\.00 +£498\.00 +too little history +—/.test(table),
+      "…and £249 twice is not yet proof of £2,988 a year, however much it looks like it");
+    assert.ok(/ASK ME whether one of those is a subscription/.test(text),
+      "…and the brief is told to ask rather than fill the gap in");
   });
 
   ok("the standing costs that missed this week are still put up for challenge", () => {
-    const block = text.slice(text.indexOf("REGULAR COSTS THAT DID NOT FALL IN THIS WEEK"));
+    const block = text.slice(text.indexOf("COSTS THAT DID NOT FALL IN THIS WEEK"));
     assert.ok(/WARRINGTON PROPERTY/.test(block), "the rent is in the argument even in a week it was not paid");
-    assert.ok(!/WARRINGTON PROPERTY/.test(text.slice(text.indexOf("WHAT I PAID THIS WEEK"), text.indexOf("REGULAR COSTS"))),
+    assert.ok(!/WARRINGTON PROPERTY/.test(text.slice(text.indexOf("WHAT I PAID THIS WEEK"), text.indexOf("COSTS THAT DID NOT"))),
       "…and is not double-counted as a payment made this week");
   });
 

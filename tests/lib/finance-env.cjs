@@ -146,7 +146,7 @@ async function boot(opts = {}) {
   vm.runInContext(extract(path.join(__dirname, "..", "..", "finances.html"))
     + "\n;globalThis.__S = S; globalThis.__WZ = WZ;"
     + "\n;globalThis.__fn = { moneyIn, moneyOut, transfersIn, transfersOut, loanIn, loanOut,"
-    + " isTransfer, isDirLoan, notCounted, liveOf, catList, deletedRows, TRANSFER, DIRLOAN };", ctx);
+    + " isTransfer, isDirLoan, notCounted, liveOf, catList, deletedRows, TRANSFER, DIRLOAN, spendShape };", ctx);
   await settle(); await settle(); await settle(); await settle();
   return { ctx, S: ctx.__S, WZ: ctx.__WZ, fn: ctx.__fn, els, store, posts, settle,
     clipboard: ctx.__clipboard, el: (id) => els.get(id) };

@@ -597,7 +597,10 @@ const AUG = [
     assert.ok(plain.includes("£5,000"), "income is in there");
     assert.ok(plain.includes("£626"), "spending is 600+13+13 and excludes the £900 pot move");
     assert.ok(!plain.includes("£1,526"), "the pot move is never counted as spending");
-    assert.ok(/REGULAR PAYMENTS/.test(plain), "recurring charges get their own section");
+    // v211: the section was headed "REGULAR PAYMENTS — anything here is a subscription or a
+    // standing cost", which the page has no way of knowing. Same section, honest heading.
+    assert.ok(/WHAT COMES BACK — AND WHAT ONLY LOOKS LIKE IT DOES/.test(plain),
+      "repeated charges get their own section");
     assert.ok(/CANVA/.test(plain), "and the twice-monthly Canva charge is named in it");
     assert.ok(/Can Cut/.test(plain), "the discretionary split is shown");
 
