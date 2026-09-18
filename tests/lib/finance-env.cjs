@@ -10,7 +10,7 @@ const { extract } = require("./extract.cjs");
 function fakeElement(id) {
   const attrs = {};
   const el = {
-    id, dataset: {}, style: {}, value: "", textContent: "", innerHTML: "",
+    id, dataset: {}, style: {}, value: "",
     hidden: false, disabled: false, checked: false, files: [],
     children: [], options: [], onclick: null, onchange: null, oninput: null,
     getAttribute(k) { return k in attrs ? attrs[k] : null; },
@@ -18,15 +18,37 @@ function fakeElement(id) {
     hasAttribute(k) { return k in attrs; },
     removeAttribute(k) { delete attrs[k]; },
     classList: { _s: new Set(),
-      add(c) { this._s.add(c); }, remove(c) { this._s.delete(c); },
+      // v209: the real classList takes several names at once — add("on","act"). The stub
+      // took one and silently dropped the rest, which is a test that passes for the wrong
+      // reason waiting to happen.
+      add(...cs) { for (const c of cs) this._s.add(c); },
+      remove(...cs) { for (const c of cs) this._s.delete(c); },
       toggle(c, on) { if (on === undefined) this._s.has(c) ? this._s.delete(c) : this._s.add(c); else on ? this._s.add(c) : this._s.delete(c); },
       contains(c) { return this._s.has(c); } },
     addEventListener() {}, removeEventListener() {},
-    appendChild() {}, remove() {}, focus() {}, select() {}, click() {},
+    // v209: appendChild used to be a no-op, so anything built out of real nodes — the
+    // Undo toast — was invisible to a test. It now records what was appended.
+    appendChild(c) { this.children.push(c); return c; },
+    remove() {}, focus() {}, select() {}, click() {},
     querySelector(sel) { return /span/.test(String(sel)) ? fakeElement(id + ":span") : null; },
     querySelectorAll() { return []; },
     closest() { return null; },
   };
+  // v209: in a real DOM, setting textContent or innerHTML REMOVES every child node. The
+  // stub kept them, so a toast rebuilt as plain text still appeared to be carrying the
+  // Undo button from the delete before it. Mirroring the real behaviour is the only way a
+  // test of "there is nothing to press now" can mean anything.
+  let text = "", html = "";
+  Object.defineProperty(el, "textContent", {
+    enumerable: true, configurable: true,
+    get() { return text; },
+    set(v) { text = v == null ? "" : String(v); html = ""; el.children.length = 0; },
+  });
+  Object.defineProperty(el, "innerHTML", {
+    enumerable: true, configurable: true,
+    get() { return html; },
+    set(v) { html = v == null ? "" : String(v); text = ""; el.children.length = 0; },
+  });
   return el;
 }
 

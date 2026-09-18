@@ -730,6 +730,15 @@
     background:var(--card);border:1px solid var(--line);border-radius:var(--r-pill);padding:6px 13px;}
   .fchip:hover{border-color:var(--ink-faint);color:var(--ink);}
   .fchip.on{background:var(--ink);color:var(--card);border-color:var(--ink);}
+  /* v209: the Deleted chip is not a filter, it is the way back. It only exists when there
+     is something in it, and when it does it has to stand out from the four beside it —
+     the first version looked like one more grey pill and read as scenery. */
+  #binChip{border-color:var(--amber);color:var(--tint-amber);background:rgba(var(--amber-rgb),.10);}
+  #binChip.on{background:var(--amber);border-color:var(--amber);color:var(--card);}
+  .binnote{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;padding:11px 14px;
+    border:1px solid var(--amber);border-radius:var(--r-md);background:rgba(var(--amber-rgb),.07);
+    font-size:12.5px;color:var(--ink-dim);line-height:1.45;}
+  .binnote span#binNoteText{flex:1;min-width:200px;}
 
   /* --- breakdown bars --- */
   .bd-row{display:grid;grid-template-columns:150px 1fr 92px 34px;gap:12px;align-items:center;
@@ -758,6 +767,12 @@
     border-radius:var(--r-pill);box-shadow:var(--shadow-lift);opacity:0;pointer-events:none;
     transition:opacity .18s ease,transform .18s ease;}
   .toast.on{opacity:1;transform:translateX(-50%) translateY(-4px);}
+  /* v209: a toast that offers Undo has to be clickable, and has to stay long enough to be
+     clicked. The plain ones keep pointer-events:none so they never sit over a button. */
+  .toast.act{pointer-events:auto;display:flex;align-items:center;gap:14px;padding-right:8px;}
+  .toast .undo{font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;
+    background:var(--card);color:var(--ink);border:0;border-radius:var(--r-pill);padding:7px 15px;}
+  .toast .undo:hover{opacity:.85;}
 
   /* v122: the one cashflow action. Deliberately the loudest thing under the numbers —
      it is the sheet's "single most useful thing this week", and it changes state, so it
@@ -1228,6 +1243,10 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
         <button class="abtn primary" id="sortBtn" hidden><svg class="ic"><use href="#ic-flag"/></svg><span>Sort these out</span></button>
         <span class="msg" id="txMsg" style="margin-left:auto;"></span>
       </div>
+      <div class="binnote" id="binNote" hidden>
+        <span id="binNoteText"></span>
+        <button class="abtn" id="binRestoreAll"><svg class="ic"><use href="#ic-refresh"/></svg><span>Put them all back</span></button>
+      </div>
       <div class="fin-tw"><table class="fin" id="txTbl"></table></div>
       <div class="hint">Set a category and it is saved straight away — and remembered, so the
         same merchant is filled in automatically from now on. A credit that is not really
@@ -1470,7 +1489,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 })();
 
 /* =====================================================================
-   FINANCES — Income & Expenses.  v122, last changed v208
+   FINANCES — Income & Expenses.  v122, last changed v209
    Replaces the "Finance Cockpit 2026" Google Sheet: the Santander import, the
    month tabs, the SUMMARY block, the Breakdown tab and the Pot Moves tab.
    Storage is the same Netlify Blobs store the rest of the suite uses, under its
@@ -1703,8 +1722,29 @@ function addDays(s, n) { const d = new Date(s + "T12:00:00"); d.setDate(d.getDat
 
 let toastT = null;
 function toast(msg) {
-  const el = $("toast"); el.textContent = msg; el.classList.add("on");
+  const el = $("toast");
+  el.textContent = msg;
+  el.classList.remove("act");
+  el.classList.add("on");
   clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("on"), 2200);
+}
+
+/* v209: the same toast with a button on it. Undo belongs at the moment of the mistake —
+   a chip somewhere else on the page is where you go when you have already realised, and
+   by then you are hunting. It stays up for eight seconds, not two, because a button you
+   cannot reach in time is not a button. */
+function toastUndo(msg, label, fn) {
+  const el = $("toast");
+  el.textContent = "";
+  const t = document.createElement("span");
+  t.textContent = msg;
+  const b = document.createElement("button");
+  b.className = "undo"; b.type = "button"; b.textContent = label;
+  b.onclick = () => { el.classList.remove("on", "act"); clearTimeout(toastT); fn(); };
+  el.appendChild(t); el.appendChild(b);
+  el.classList.add("on", "act");
+  clearTimeout(toastT);
+  toastT = setTimeout(() => el.classList.remove("on", "act"), 8000);
 }
 
 async function api(qs) {
@@ -2566,6 +2606,15 @@ function renderTxns() {
   binChip.textContent = "Deleted (" + gone.length + ")";
   if (S.filter === "deleted" && !gone.length) S.filter = "all";
   const showingBin = S.filter === "deleted";
+  const bn = $("binNote");
+  bn.hidden = !showingBin;
+  if (showingBin) {
+    $("binNoteText").textContent = "These " + (gone.length === 1 ? "is the row" : "are the " + gone.length + " rows")
+      + " you deleted in " + ymLabel(S.ym) + ". They count in no total and no import will bring them back."
+      + " Use the arrow on the right to put one back, or the button here to put them all back."
+      + " Deleting is per month — if a row is missing, check the month at the top of the page.";
+    $("binRestoreAll").hidden = gone.length < 2;
+  }
   const rows = visibleRows();
   const needs = S.rows.filter((r) => r.dir === "out" && !r.cat).length;
   $("txMsg").textContent = showingBin
@@ -2600,6 +2649,30 @@ function renderTxns() {
   $("txTbl").querySelectorAll("[data-undel]").forEach((b) => { b.onclick = () => setDeleted(b.dataset.undel, false); });
 }
 
+/* Put every deleted row in this month back at once. One write, not one per row — the
+   month is saved wholesale anyway, so restoring six rows should cost one save and one
+   chance to fail, not six. */
+async function restoreAllDeleted() {
+  const back = (S.all || []).filter((r) => r.del);
+  if (!back.length) return;
+  for (const r of back) r.del = false;
+  S.rows = liveOf(S.all);
+  S.trend[S.ym] = S.rows;
+  S.filter = "all";
+  renderTxns(); renderStats(); renderMeal();
+  if (S.view === "breakdown") renderBreakdown();
+  try {
+    await post({ finTxns: { ym: S.ym, rows: S.all } });
+    toast(back.length + " row" + (back.length === 1 ? "" : "s") + " put back");
+  } catch (e) {
+    for (const r of back) r.del = true;
+    S.rows = liveOf(S.all); S.trend[S.ym] = S.rows;
+    renderTxns(); renderStats();
+    toast("Could not save: " + e.message);
+  }
+  await loadWeek();
+}
+
 /* Delete, and put back, are the same act with a flag — which is the whole point. The row
    is never removed from the store: it keeps its hash, so the next import of an overlapping
    statement still recognises it and does not bring it back; and it keeps its figures, so
@@ -2615,7 +2688,8 @@ async function setDeleted(id, del) {
   if (S.view === "breakdown") renderBreakdown();
   try {
     await post({ finTxns: { ym: S.ym, rows: S.all } });
-    toast(del ? "Deleted — it counts nowhere now. Deleted (1) puts it back." : "Put back");
+    if (del) toastUndo(dmy(r.date) + " " + money(r.amount) + " deleted", "Undo", () => setDeleted(id, false));
+    else toast("Put back");
   } catch (e) {
     r.del = !del; S.rows = liveOf(S.all); S.trend[S.ym] = S.rows;
     renderTxns(); renderStats();
@@ -3563,6 +3637,7 @@ function wire() {
   // Transactions.
   document.querySelectorAll("#txFilters .fchip").forEach((b) => {
     b.onclick = () => { S.filter = b.dataset.f; renderTxns(); }; });
+  $("binRestoreAll").onclick = restoreAllDeleted;
   let searchT = null;
   $("txSearch").oninput = () => { clearTimeout(searchT);
     searchT = setTimeout(() => { S.search = $("txSearch").value; renderTxns(); }, 180); };
