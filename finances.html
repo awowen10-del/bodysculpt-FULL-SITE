@@ -738,7 +738,8 @@
   .binnote{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;padding:11px 14px;
     border:1px solid var(--amber);border-radius:var(--r-md);background:rgba(var(--amber-rgb),.07);
     font-size:12.5px;color:var(--ink-dim);line-height:1.45;}
-  .binnote span#binNoteText{flex:1;min-width:200px;}
+  .binnote span#binNoteText,.binnote span#incNoteText{flex:1;min-width:200px;}
+  .rulerow.suspect{background:rgba(var(--amber-rgb),.09);border-radius:var(--r-sm);}
 
   /* --- breakdown bars --- */
   .bd-row{display:grid;grid-template-columns:150px 1fr 92px 34px;gap:12px;align-items:center;
@@ -1243,6 +1244,10 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
         <button class="abtn primary" id="sortBtn" hidden><svg class="ic"><use href="#ic-flag"/></svg><span>Sort these out</span></button>
         <span class="msg" id="txMsg" style="margin-left:auto;"></span>
       </div>
+      <div class="binnote" id="incNote" hidden>
+        <span id="incNoteText"></span>
+        <button class="abtn" id="incResetAll"><svg class="ic"><use href="#ic-refresh"/></svg><span>Set them all back to income</span></button>
+      </div>
       <div class="binnote" id="binNote" hidden>
         <span id="binNoteText"></span>
         <button class="abtn" id="binRestoreAll"><svg class="ic"><use href="#ic-refresh"/></svg><span>Put them all back</span></button>
@@ -1332,6 +1337,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
         <button class="abtn" id="addRule"><svg class="ic"><use href="#ic-plus"/></svg><span>Add a rule</span></button>
         <input class="fin-in" id="ruleSearch" placeholder="Find a rule…" style="max-width:220px;width:auto;">
       </div>
+      <div class="binnote" id="ruleWarn" hidden></div>
       <div id="ruleRows"></div>
       <div class="hint">Each rule says "if the description contains this, it is that category".
         They are matched longest-first, so a specific rule always beats a general one.</div>
@@ -1489,7 +1495,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 })();
 
 /* =====================================================================
-   FINANCES — Income & Expenses.  v122, last changed v209
+   FINANCES — Income & Expenses.  v122, last changed v210
    Replaces the "Finance Cockpit 2026" Google Sheet: the Santander import, the
    month tabs, the SUMMARY block, the Breakdown tab and the Pot Moves tab.
    Storage is the same Netlify Blobs store the rest of the suite uses, under its
@@ -1840,6 +1846,28 @@ function transferKeywords() {
 function looksLikeTransfer(desc) {
   const d = String(desc || "").toUpperCase();
   return transferKeywords().some((kw) => d.includes(kw));
+}
+
+/* v210: a rule that was learned from an INCOME line, back when setting a category on a
+   credit wrongly taught one. It can only ever do harm — credits are never matched against
+   the rules table, so it sits there doing nothing until the day an expense description
+   happens to contain the same words and gets called a directors loan.
+   The test is deliberately narrow: it must look like one of HIS income descriptions (a
+   source keyword, or one of the own-account names) AND point at one of the two categories
+   that only a credit could have been given. A genuine expense rule — the weekly pot move
+   out to his own account — matches the first half and not the second, so it is left alone.
+   Nothing is deleted automatically; it is flagged, and he decides. */
+function ruleLearnedFromCredit(rule) {
+  if (!rule || (rule.cat !== TRANSFER && rule.cat !== DIRLOAN)) return false;
+  const m = String(rule.match || "").toUpperCase();
+  if (!m) return false;
+  const src = (S.settings && S.settings.sources) || {};
+  const words = ["stripe", "gocardless", "sumup", "nutraprep"]
+    .map((k) => String(src[k] || "").toUpperCase().trim()).filter(Boolean);
+  // an own-account name only counts as a giveaway for Directors loan — a Transfer rule on
+  // one is exactly the pot move, and correct
+  if (rule.cat === DIRLOAN) words.push(...transferKeywords());
+  return words.some((w) => m.includes(w) || w.includes(m));
 }
 
 /* Which income source a credit came from, by the keywords in Settings. */
@@ -2615,6 +2643,22 @@ function renderTxns() {
       + " Deleting is per month — if a row is missing, check the month at the top of the page.";
     $("binRestoreAll").hidden = gone.length < 2;
   }
+  // v210: on the Income view, say out loud which credits are NOT being counted as income
+  // and offer to put them all back. This is where you look when a figure seems wrong, and
+  // it is the way back from marking the wrong one — or from a sweep that marked too many.
+  const notIncome = S.rows.filter((r) => r.dir === "in" && notCounted(r));
+  const inc = $("incNote");
+  inc.hidden = !(S.filter === "in" && notIncome.length);
+  if (!inc.hidden) {
+    const nX = notIncome.filter(isTransfer).length, nL = notIncome.filter(isDirLoan).length;
+    const bits = [];
+    if (nX) bits.push(nX + " as a transfer from your own account");
+    if (nL) bits.push(nL + " as a directors loan");
+    $("incNoteText").textContent = notIncome.length + " credit" + (notIncome.length === 1 ? " is" : "s are")
+      + " marked as not income — " + bits.join(", ") + ", worth "
+      + money(notIncome.reduce((a, r) => a + r.amount, 0)) + " in total. "
+      + (notIncome.length === 1 ? "It is" : "They are") + " left out of Money in.";
+  }
   const rows = visibleRows();
   const needs = S.rows.filter((r) => r.dir === "out" && !r.cat).length;
   $("txMsg").textContent = showingBin
@@ -2647,6 +2691,33 @@ function renderTxns() {
   $("txTbl").querySelectorAll("select[data-id]").forEach((el) => { el.onchange = () => onCellChange(el); });
   $("txTbl").querySelectorAll("[data-del]").forEach((b) => { b.onclick = () => setDeleted(b.dataset.del, true); });
   $("txTbl").querySelectorAll("[data-undel]").forEach((b) => { b.onclick = () => setDeleted(b.dataset.undel, false); });
+}
+
+/* Put every credit in this month back to plain income. The way out of having marked the
+   wrong one — and, before v210 stopped it happening, out of having marked one and watched
+   the page mark the rest. It is one write, and every row it touched is listed first so the
+   toast can say exactly what changed. */
+async function resetCreditsToIncome() {
+  const back = S.rows.filter((r) => r.dir === "in" && notCounted(r));
+  if (!back.length) return;
+  const was = back.map((r) => ({ row: r, cat: r.cat }));
+  for (const r of back) r.cat = "";
+  renderTxns(); renderStats(); renderMeal();
+  try {
+    await post({ finTxns: { ym: S.ym, rows: S.all } });
+    toastUndo(back.length + " credit" + (back.length === 1 ? "" : "s") + " back to income", "Undo", async () => {
+      for (const w of was) w.row.cat = w.cat;
+      renderTxns(); renderStats(); renderMeal();
+      try { await post({ finTxns: { ym: S.ym, rows: S.all } }); toast("Left as they were"); }
+      catch (e) { toast("Could not save: " + e.message); }
+      await loadWeek();
+    });
+  } catch (e) {
+    for (const w of was) w.row.cat = w.cat;
+    renderTxns(); renderStats();
+    toast("Could not save: " + e.message);
+  }
+  await loadWeek();
 }
 
 /* Put every deleted row in this month back at once. One write, not one per row — the
@@ -2706,30 +2777,67 @@ async function onCellChange(el) {
   el.classList.toggle("empty", el.dataset.f === "cat" && !el.value);
   // Remember it. One merchant, one rule — set the category once and every future
   // import of that merchant arrives already done.
-  if (el.dataset.f === "cat" && el.value) {
+  //
+  // v210: EXPENSES ONLY. This whole block predates v208, when a credit could not carry a
+  // category at all, and it was never guarded on direction. The moment a credit could be
+  // marked "Directors loan", marking ONE of them learned a rule from its description and
+  // filled in every other uncategorised credit in the month whose description contained
+  // it — and card takings all share a description, so one click relabelled the lot.
+  //
+  // It is not a missing guard so much as a category error. An expense category is a fact
+  // about a MERCHANT: rent is always rent, and learning it once is the point of the page.
+  // A credit's category is a fact about ONE PAYMENT — "this particular £2,090.74 is
+  // borrowed and I owe it back". The same name arriving next month may be an ordinary
+  // takings line. There is nothing there to learn, so nothing is learned: one row, one
+  // answer, and it touches nothing else.
+  if (el.dataset.f === "cat" && el.value && r.dir === "out") {
     const m = merchantOf(r.desc);
     if (m && m.length >= 3) {
       const i = S.rules.findIndex((x) => x.match === m);
+      const before = i >= 0 ? { ...S.rules[i] } : null;
       const rule = { match: m, cat: r.cat, km: r.km || "" };
       if (i >= 0) S.rules[i] = rule; else S.rules.push(rule);
       bustRules();
-      // Fill in every other uncategorised row in this month that the rule now covers.
-      let also = 0;
+      // Fill in every other uncategorised row in this month that the rule now covers,
+      // remembering what each one was so the whole sweep can be taken back in one click.
+      const touched = [];
       for (const o of S.rows) {
         if (o !== r && o.dir === r.dir && !o.cat && o.desc.toUpperCase().includes(m)) {
-          o.cat = r.cat; o.km = o.km || r.km || ""; also++;
+          touched.push({ row: o, cat: o.cat, km: o.km });
+          o.cat = r.cat; o.km = o.km || r.km || "";
         }
       }
       post({ finRules: S.rules }).catch(() => {});
-      if (also) { renderTxns(); toast("Remembered — and applied to " + also + " more"); }
-      else toast("Remembered for next time");
+      if (touched.length) {
+        renderTxns();
+        // v210: "applied to N more" is the behaviour Ash wants — it is why categorising is
+        // a one-time act — but it is still N rows changing on the strength of one click,
+        // so it has to be takeable back. Undo restores those rows AND the rules table,
+        // because the rule is what made the sweep happen; his own row keeps its answer,
+        // because that bit was deliberate.
+        toastUndo("Remembered — and applied to " + touched.length + " more", "Undo", () => {
+          for (const t of touched) { t.row.cat = t.cat; t.row.km = t.km; }
+          if (before) S.rules[i] = before; else S.rules = S.rules.filter((x) => x !== rule);
+          bustRules();
+          post({ finRules: S.rules }).catch(() => {});
+          renderTxns(); renderStats();
+          saveMonth(S.ym, S.all);
+          toast(touched.length + " left as " + (touched[0].cat || "they were"));
+        });
+      } else toast("Remembered for next time");
     }
+  } else if (el.dataset.f === "cat") {
+    // A credit, or a category being cleared: say what happened to this row and no other.
+    toast(r.dir === "in" && el.value ? "This payment only — nothing else changed" : "Saved");
   }
-  // Capture the month and the rows NOW, not when the timer fires. Otherwise changing a
-  // category and switching month inside the debounce window writes the new month's rows
-  // under the new month's key and the edit just made is silently dropped.
   // The full month goes to the store, deleted rows and all — S.rows is only what is shown.
-  const ym = S.ym, rows = S.all;
+  saveMonth(S.ym, S.all);
+}
+
+/* The debounced month write. The month and the rows are captured by the CALLER, not read
+   when the timer fires: changing a category and then switching month inside the debounce
+   window would otherwise write these rows under the new month's key and drop the edit. */
+function saveMonth(ym, rows) {
   clearTimeout(saveT);
   saveT = setTimeout(async () => {
     try { await post({ finTxns: { ym, rows } }); if (S.ym === ym) renderStats(); }
@@ -3515,9 +3623,20 @@ function renderRules() {
     .filter((r) => !q || r.match.includes(q) || String(r.cat).toUpperCase().includes(q))
     .sort((a, b) => (a.match < b.match ? -1 : 1));
   $("ruleCount").textContent = S.rules.length + " of your own, plus " + SEED_RULES.length + " built in";
+  const bad = S.rules.filter(ruleLearnedFromCredit);
+  const warn = $("ruleWarn");
+  warn.hidden = !bad.length;
+  if (bad.length) {
+    warn.textContent = bad.length + " rule" + (bad.length === 1 ? "" : "s")
+      + " below (" + bad.map((r) => r.match).join(", ") + ") look" + (bad.length === 1 ? "s" : "")
+      + " like it was learned from an income line rather than a payment you made. Setting a"
+      + " category on a credit used to teach a rule by mistake; it does not any more. Nothing"
+      + " has been deleted — check " + (bad.length === 1 ? "it" : "them") + " and remove"
+      + (bad.length === 1 ? " it" : " them") + " with the ✕ if" + (bad.length === 1 ? " it is" : " they are") + " wrong.";
+  }
   const cats = catList();
   $("ruleRows").innerHTML = list.length ? list.map((r) => `
-    <div class="rulerow" data-i="${r.i}">
+    <div class="rulerow${ruleLearnedFromCredit(r) ? " suspect" : ""}" data-i="${r.i}">
       <input class="fin-in" data-f="match" value="${esc(r.match)}">
       <select class="fin-in" data-f="cat">${cats.map((c) => `<option ${c === r.cat ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
       <select class="fin-in" data-f="km"><option value="">—</option>${KEYMAPS.map((k) => `<option ${k === r.km ? "selected" : ""}>${esc(k)}</option>`).join("")}</select>
@@ -3638,6 +3757,7 @@ function wire() {
   document.querySelectorAll("#txFilters .fchip").forEach((b) => {
     b.onclick = () => { S.filter = b.dataset.f; renderTxns(); }; });
   $("binRestoreAll").onclick = restoreAllDeleted;
+  $("incResetAll").onclick = resetCreditsToIncome;
   let searchT = null;
   $("txSearch").oninput = () => { clearTimeout(searchT);
     searchT = setTimeout(() => { S.search = $("txSearch").value; renderTxns(); }, 180); };
