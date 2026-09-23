@@ -22,6 +22,8 @@ const SOURCES = [
   ["ads.html", path.join(__dirname, "..", "ads.html")],
   // v170: Scheduling is the eighth
   ["schedule.html", path.join(__dirname, "..", "schedule.html")],
+  // v213: Projects is the ninth
+  ["projects.html", path.join(__dirname, "..", "projects.html")],
 ];
 for (const [label, file] of SOURCES) {
   const tmp = path.join(os.tmpdir(), "bodysculpt-extracted-" + process.pid + "-" + label + ".js");
@@ -47,7 +49,9 @@ for (const fn of ["kpi-store.js", "stripe-feed.js", "instagram-feed.js", "google
                   // v206: what the post is FOR — the four stages, defined once
                   "../lib/stages.js",
                   // v180: one door for getting a video file off Instagram
-                  "../lib/ig-media.js"]) {
+                  "../lib/ig-media.js",
+                  // v213: the Projects page's own store — it can reach nothing else
+                  "projects.js", "../lib/projects.js"]) {
   const chk = spawnSync(process.execPath, ["--check", path.join(__dirname, "..", "netlify", "functions", fn)], { stdio: "inherit" });
   if (chk.status !== 0) {
     console.error("SYNTAX CHECK FAILED (" + fn + ") — aborting test run");

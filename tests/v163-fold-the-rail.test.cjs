@@ -17,7 +17,7 @@ const path = require("path");
 const vm = require("vm");
 
 const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
-const FILES = ["index.html", "monthly.html", "quarterly.html", "finances.html", "daily.html", "social.html", "ads.html", "schedule.html"];   // v170: eight
+const FILES = ["index.html", "monthly.html", "quarterly.html", "finances.html", "daily.html", "social.html", "ads.html", "schedule.html", "projects.html"];   // v170: eight
 const SRC = {};
 FILES.forEach((f) => { SRC[f] = read(f); });
 const styleOf = (src) => src.slice(src.indexOf("<style>") + 7, src.indexOf("</style>"));
@@ -56,7 +56,7 @@ const scriptOf = (src) => src.slice(src.lastIndexOf("<script>") + 8, src.lastInd
     assert.ok(/html\.nav-collapsed \.sn-fold \.ic\{transform:rotate\(180deg\);\}/.test(wide), label + "the arrows turn round to say 'unfold'");
     // every link carries its name as a tooltip, so a folded icon is never nameless
     const links = [...src.matchAll(/<a href="[^"]+" class="sn-link(?: active)?" title="([^"]+)"><svg[^]*?<span class="sn-lbl">([^<]+)<\/span><\/a>/g)];
-    assert.strictEqual(links.length, 10, label + "ten links (v165: the two KPI doors; v167: Facebook Ads; v170: Scheduling)");
+    assert.strictEqual(links.length, 11, label + "eleven links (v165: the two KPI doors; v167: Facebook Ads; v170: Scheduling; v213: Projects)");
     for (const m of links) assert.strictEqual(m[1], m[2], label + "the tooltip is the label: " + m[1]);
     // the drawer never folds
     const mq = style.slice(style.indexOf("  @media(max-width:900px){"));

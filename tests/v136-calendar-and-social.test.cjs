@@ -36,7 +36,7 @@ const IG_PATH = path.join(__dirname, "..", "netlify", "functions", "instagram-fe
 const styleOf = (src) => src.slice(src.indexOf("<style>") + 7, src.indexOf("</style>"));
 const scriptOf = (src) => src.slice(src.lastIndexOf("<script>") + 8, src.lastIndexOf("</script>"));
 
-const PAGES = ["index.html", "monthly.html", "quarterly.html", "finances.html", "daily.html", "social.html", "ads.html", "schedule.html"];   // v170: eight
+const PAGES = ["index.html", "monthly.html", "quarterly.html", "finances.html", "daily.html", "social.html", "ads.html", "schedule.html", "projects.html"];   // v170: eight
 
 /* ---------- the blob store, faked (the v122 shape) ---------- */
 function fakeStore(seed) {
