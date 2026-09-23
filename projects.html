@@ -334,6 +334,14 @@
   .fld input:focus,.fld textarea:focus,.fld select:focus{outline:none;border-color:var(--orange);
     box-shadow:0 0 0 3px rgba(var(--orange-rgb),.13);}
   .fldrow{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);}
+  /* v216: the offer that follows a date. Tied to the field above it, and it stays until it
+     is answered — a toast would be gone by the time you looked up. */
+  .offer{margin-top:var(--sp-3);border:1px solid rgba(var(--orange-rgb),.35);
+    background:rgba(var(--orange-rgb),.06);border-radius:var(--r-md);padding:12px 13px;}
+  .offer-t{font-size:13.5px;font-weight:700;color:var(--ink-strong);letter-spacing:-.1px;}
+  .offer-s{font-size:12px;color:var(--ink-dim);margin-top:3px;line-height:1.45;}
+  .offer-b{display:flex;gap:var(--sp-2);justify-content:flex-end;margin-top:11px;}
+  .offer-b .abtn{padding:7px 13px;font-size:12.5px;}
   .duerow{display:flex;gap:var(--sp-3);align-items:center;flex-wrap:wrap;}
   .duerow input{width:auto;flex:0 0 auto;}
 
@@ -1112,6 +1120,9 @@ const S = {
   showArchived: false,
   openStepId: "",
   drag: null,
+  // v216: "<stepId>|<due>" — the step and date a "put it on my plan?" offer is about, so
+  // the offer belongs to the date just set and disappears the moment it is answered
+  dateOffer: "",
 };
 
 /* ---------- small words about time ---------- */
@@ -1467,9 +1478,9 @@ function stepHtml(s) {
   if ((s.files || []).length) meta.push('<span class="mini"><svg class="ic"><use href="#ic-paperclip"/></svg>' + s.files.length + '</span>');
   // v214: what you have already committed to this week, said on the card, so the board
   // answers "what am I actually doing" without opening anything
-  if (s.week && s.week === weekKeyNow() && s.day) {
+  if (s.week && s.day) {
     meta.push('<span class="mini wk"><svg class="ic"><use href="#ic-calendar"/></svg>' +
-      esc((WEEK_DAYS.find((d) => d[0] === s.day) || ["", s.day])[1]) + ' this week</span>');
+      esc(planLabel(s)) + '</span>');
   }
   if (s.notes) meta.push('<span class="mini"><svg class="ic"><use href="#ic-note"/></svg></span>');
   (s.tags || []).forEach((t) => meta.push('<span class="mini tag">' + esc(t) + '</span>'));
@@ -1757,6 +1768,21 @@ function currentStep() {
   const p = proj();
   return p ? stepById(p, S.openStepId) : null;
 }
+/* v216: Ash: "If I set a date on a task, it should move to the weekly and daily view…
+   I will select tomorrow & it should prompt me if it wants me to move that to my weekly
+   and daily view."
+   The offer shows for the date that was JUST set, and only when it would actually change
+   something: there is a date, it has not already been planned for that same day, and it is
+   not in the past. Returns the words for the day, or "" for no offer. */
+function offerFor(s) {
+  if (!s || !s.due) return "";
+  if (S.dateOffer !== s.id + "|" + s.due) return "";
+  const week = weekKeyOf(s.due), day = dayKeyOf(s.due);
+  if (!week || !day) return "";
+  if (s.week === week && s.day === day) return "";        // already exactly there
+  if (week < weekKeyNow()) return "";                     // a date already gone is not a plan
+  return planLabel({ week, day });
+}
 // what the board calls its finished stage, so the drawer can say it by name
 function doneStageName(p) {
   const c = (p.columns || []).find((x) => x.done === true);
@@ -1778,7 +1804,7 @@ function renderStep() {
     '<div class="fld"><label>Which stage</label><div class="urg" id="stCols">' +
       p.columns.map((c) => '<button type="button" data-c="' + esc(c.id) + '"' + (c.id === s.col ? ' class="on"' : "") + '>' + esc(c.name) + '</button>').join("") +
     '</div></div>' +
-    '<div class="fld"><label>This week</label><div class="urg" id="stWeek">' +
+    '<div class="fld"><label>' + (s.week && s.week !== weekKeyNow() ? "On the plan" : "This week") + '</label><div class="urg" id="stWeek">' +
       WEEK_DAYS.map(([k, w]) => '<button type="button" data-w="' + k + '"' + (inWeek && s.day === k ? ' class="on"' : "") + '>' + w + '</button>').join("") +
       '<button type="button" data-w=""' + (inWeek ? "" : ' class="on"') + '>Not this week</button>' +
     '</div>' +
@@ -1798,6 +1824,11 @@ function renderStep() {
         '<button type="button" data-q="0">Today</button><button type="button" data-q="1">Tomorrow</button>' +
         '<button type="button" data-q="7">A week</button><button type="button" data-q="">Clear</button>' +
       '</div></div>' +
+      (offerFor(s) ? '<div class="offer" id="stOffer">' +
+        '<div class="offer-t">Put it on your plan for ' + esc(offerFor(s)) + '?</div>' +
+        '<div class="offer-s">It goes on the weekly planner, and on your daily dashboard on the day.</div>' +
+        '<div class="offer-b"><button type="button" class="abtn quiet" data-offer="no">Not now</button>' +
+        '<button type="button" class="abtn primary" data-offer="yes">Yes, plan it</button></div></div>' : "") +
     '</div>' +
     '<div class="fld"><label>Tags</label><div class="tags" id="stTags">' +
       (s.tags || []).map((t, i) => '<span class="tagc">' + esc(t) +
@@ -1843,24 +1874,41 @@ function wireStep() {
   [...$("stCols").querySelectorAll("[data-c]")].forEach((b) => {
     b.onclick = () => { moveStep(s.id, b.dataset.c, null); renderStep(); };
   });
+  const offer = $("stOffer");
+  if (offer) [...offer.querySelectorAll("[data-offer]")].forEach((b) => {
+    b.onclick = () => {
+      const yes = b.dataset.offer === "yes";
+      S.dateOffer = "";
+      if (yes) setStepWeek(s, dayKeyOf(s.due), s.slot || "6-9", weekKeyOf(s.due));
+      else renderStep();
+    };
+  });
   [...$("stWeek").querySelectorAll("[data-w]")].forEach((b) => {
-    b.onclick = () => setStepWeek(s, b.dataset.w, s.slot || "6-9");
+    // the day row is always about THIS week; a step planned into a later week says so
+    // above it, and picking a day here brings it back to this one
+    b.onclick = () => setStepWeek(s, b.dataset.w, s.slot || "6-9", weekKeyNow());
   });
   const slotRow = $("stSlot");
   if (slotRow) [...slotRow.querySelectorAll("[data-s]")].forEach((b) => {
-    b.onclick = () => setStepWeek(s, s.day, b.dataset.s);
+    b.onclick = () => setStepWeek(s, s.day, b.dataset.s, s.week || weekKeyNow());
   });
   [...$("stUrg").querySelectorAll("[data-u]")].forEach((b) => {
     b.onclick = () => { s.urgency = b.dataset.u; s.updatedAt = new Date().toISOString(); pCommit(); renderStep(); };
   });
-  $("stDue").onchange = (e) => { s.due = e.target.value || ""; s.updatedAt = new Date().toISOString(); pCommit(); renderStep(); };
+  $("stDue").onchange = (e) => {
+    s.due = e.target.value || "";
+    s.updatedAt = new Date().toISOString();
+    S.dateOffer = s.due ? s.id + "|" + s.due : "";
+    pCommit(); renderStep(); renderBoard();
+  };
   [...$("stQuick").querySelectorAll("[data-q]")].forEach((b) => {
     b.onclick = () => {
       const q = b.dataset.q;
       if (q === "") s.due = "";
       else { const d = new Date(); d.setDate(d.getDate() + Number(q)); s.due = ymdOf(d); }
       s.updatedAt = new Date().toISOString();
-      pCommit(); renderStep();
+      S.dateOffer = s.due ? s.id + "|" + s.due : "";
+      pCommit(); renderStep(); renderBoard();
     };
   });
   [...$("stTags").querySelectorAll("[data-tagx]")].forEach((b) => {
@@ -1953,6 +2001,8 @@ async function toggleStepDone() {
   }
   renderStep(); renderBoard();
   toast(want ? "Done — moved to " + doneStageName(p) : "Back on the board");
+  // the week is showing this task too, and must not go on showing it as outstanding
+  syncWeekDone(s);
 }
 /* deleting a step keeps it. It is flagged, hidden, and the toast that says so is the way
    back — because the notes on a step are often the only record of why it existed. */
@@ -2003,59 +2053,190 @@ async function writeWeek(week, items, placements) {
   return r.json();
 }
 /* day === "" means take it out of the week again. */
-async function setStepWeek(step, day, slot) {
+/* which week a date belongs to, and which column of it — the same UTC Monday maths the
+   weekly page uses, applied to a date rather than to now */
+function weekKeyOf(ymdStr) {
+  const x = new Date(String(ymdStr) + "T00:00:00Z");
+  if (isNaN(x)) return "";
+  x.setUTCDate(x.getUTCDate() - ((x.getUTCDay() + 6) % 7));
+  return x.toISOString().slice(0, 10);
+}
+function dayKeyOf(ymdStr) {
+  const x = new Date(String(ymdStr) + "T00:00:00Z");
+  if (isNaN(x)) return "";
+  return WEEK_DAYS[(x.getUTCDay() + 6) % 7][0];
+}
+// how a plan reads on a card: "Thu this week", "Thu next week", "Thu 9 Oct"
+function planLabel(step) {
+  if (!step || !step.week || !step.day) return "";
+  const i = WEEK_DAYS.findIndex((d) => d[0] === step.day);
+  if (i < 0) return "";
+  const now = weekKeyNow();
+  const nextWeek = weekKeyOf(new Date(Date.parse(now + "T00:00:00Z") + 7 * 86400000).toISOString().slice(0, 10));
+  if (step.week === now) return WEEK_DAYS[i][1] + " this week";
+  if (step.week === nextWeek) return WEEK_DAYS[i][1] + " next week";
+  const d = new Date(step.week + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + i);
+  return WEEK_DAYS[i][1] + " " + d.getUTCDate() + " " + MONTHS[d.getUTCMonth()];
+}
+
+const weekRefOf = (it) => "project:" + it.id;
+function weekStripRef(st, ref) {
+  for (const k of Object.keys(st.placements)) {
+    st.placements[k] = (st.placements[k] || []).filter((r) => r !== ref);
+    if (!st.placements[k].length) delete st.placements[k];
+  }
+}
+// take a step's task out of a week. Returns the id it had there, or "".
+function weekRemoveStep(st, stepId) {
+  const mine = st.items.find((it) => it && it.sourceStepId === stepId);
+  if (!mine) return "";
+  weekStripRef(st, weekRefOf(mine));
+  st.items.splice(st.items.indexOf(mine), 1);
+  return mine.id;
+}
+// put it in, on a given day and band. Returns the id it now has there.
+function weekAddStep(st, step, p, week, day, slot) {
+  const it = { id: wUid(), title: String(step.title || "").slice(0, 200), done: !!step.done,
+    linkId: "projstep:" + p.id + ":" + step.id + ":" + week,
+    source: "project-step", sourceProjectId: p.id, sourceStepId: step.id,
+    sourceProjectName: String(p.name || "").slice(0, 80) };
+  st.items.push(it);
+  const cell = (slot || "6-9") + ":" + day;
+  st.placements[cell] = st.placements[cell] || [];
+  st.placements[cell].push(weekRefOf(it));
+  return it.id;
+}
+
+/* ---------- the daily dashboard ----------
+   The daily page does NOT read the weekly plan. It reads `weekly-agenda-<week>`, a cache the
+   WEEKLY page publishes from its own placement engine — so a task written straight into a
+   plan is invisible there until somebody opens the weekly planner. This puts the row in the
+   cache as well, at the same address the weekly page would give it.
+
+   IT NEVER INVENTS ONE. If a week has no agenda yet, the daily page says "open the weekly
+   plan" and shows nothing; a cache holding only this one task would instead claim the day
+   holds only this one task, hiding every recurring and training item. So: update an agenda
+   that exists, and otherwise say plainly that the planner needs opening once. The weekly
+   page rewrites the whole thing from its own engine on its next render either way. */
+async function syncAgenda(week, changes) {
+  try {
+    const r = await fetch(KPI + "?weeklyagenda=" + encodeURIComponent(week));
+    if (!r.ok) return false;
+    const j = await r.json();
+    const agenda = j && j.agenda;
+    if (!agenda || !agenda.cells) return false;      // never invent one
+    const cells = agenda.cells;
+    const drop = (id) => { for (const k of Object.keys(cells)) {
+      cells[k] = (cells[k] || []).filter((row) => !(row && row.tgt && row.tgt.l === "projectItems" && row.tgt.k === id));
+      if (!cells[k].length) delete cells[k];
+    } };
+    (changes.remove || []).forEach(drop);
+    if (changes.add) {
+      const a = changes.add;
+      drop(a.itemId);
+      const key = (a.slot || "6-9") + ":" + a.day;
+      cells[key] = cells[key] || [];
+      // the same row the weekly page's engine would derive, tick address and all
+      cells[key].push({ title: a.title, kind: "project", done: !!a.done,
+        tgt: { l: "projectItems", k: a.itemId } });
+    }
+    const w = await fetch(KPI, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ weeklyAgenda: { weekEnding: week, cells } }) });
+    return w.ok;
+  } catch (e) { return false; }
+}
+
+/* Put a step on the plan, take it off, or move it — including to a different week, which is
+   what a due date three weeks out means. day === "" takes it off altogether.
+   EVERY WEEK INVOLVED IS READ FIRST. A failed read writes nothing, anywhere. */
+async function setStepWeek(step, day, slot, week) {
   const p = proj();
   if (!p || !step) return;
-  const week = weekKeyNow();
-  let before;
-  try { before = await readWeek(week); }
+  const target = day ? (week || weekKeyNow()) : "";
+  const oldWeek = step.week || "";
+  const weeks = [...new Set([oldWeek, target].filter(Boolean))];
+  if (!weeks.length) { step.week = ""; step.day = ""; step.slot = ""; pCommit(); renderBoard(); return; }
+  const state = {};
+  try { for (const w of weeks) state[w] = await readWeek(w); }
   catch (e) { toast("Could not reach the weekly plan — nothing was changed."); return; }
-  const items = before.items.slice();
-  const placements = JSON.parse(JSON.stringify(before.placements));
-  const mine = items.find((it) => it && it.sourceStepId === step.id);
-  const refOf = (it) => "project:" + it.id;
-  const stripRef = (ref) => { for (const k of Object.keys(placements)) {
-    placements[k] = (placements[k] || []).filter((r) => r !== ref);
-    if (!placements[k].length) delete placements[k];
-  } };
-
-  if (!day) {
-    if (!mine) { step.week = ""; step.day = ""; pCommit(); renderBoard(); return; }
-    stripRef(refOf(mine));
-    const idx = items.indexOf(mine);
-    items.splice(idx, 1);
-  } else {
-    const cell = (slot || "6-9") + ":" + day;
-    let it = mine;
-    if (!it) {
-      it = { id: wUid(), title: String(step.title || "").slice(0, 200), done: !!step.done,
-        linkId: "projstep:" + p.id + ":" + step.id + ":" + week,
-        source: "project-step", sourceProjectId: p.id, sourceStepId: step.id,
-        sourceProjectName: String(p.name || "").slice(0, 80) };
-      items.push(it);
-    }
-    stripRef(refOf(it));                       // one task, one place — move rather than clone
-    placements[cell] = placements[cell] || [];
-    placements[cell].push(refOf(it));
-  }
-
-  try { await writeWeek(week, items, placements); }
+  const before = JSON.parse(JSON.stringify(state));
+  const removedIds = {};
+  for (const w of weeks) removedIds[w] = weekRemoveStep(state[w], step.id);
+  const newId = target ? weekAddStep(state[target], step, p, target, day, slot || "6-9") : "";
+  try { for (const w of weeks) await writeWeek(w, state[w].items, state[w].placements); }
   catch (e) { toast("Could not save into the weekly plan: " + e.message); return; }
-  step.week = day ? week : "";
-  step.day = day || "";
-  step.slot = day ? (slot || "6-9") : "";
+
+  step.week = target; step.day = target ? day : ""; step.slot = target ? (slot || "6-9") : "";
   pCommit();
   renderStep(); renderBoard();
-  // the way back, on the confirmation of the thing that just happened
-  toastUndo(day ? "On " + dayName(day) + " this week" : "Taken out of this week", "Undo", async () => {
+
+  // and the daily dashboard's cache, for every week that changed
+  let onDaily = true;
+  for (const w of weeks) {
+    const ok = await syncAgenda(w, {
+      remove: removedIds[w] ? [removedIds[w]] : [],
+      add: (w === target) ? { itemId: newId, day, slot: slot || "6-9", title: step.title, done: !!step.done } : null,
+    });
+    if (w === target && !ok) onDaily = false;
+  }
+  const where = target ? planLabel({ week: target, day }) : "";
+  toastUndo(target
+      ? (onDaily ? "On your plan for " + where : "On your plan for " + where + " — open the weekly planner once and it will show on your day too")
+      : "Taken off the plan",
+    "Undo", async () => {
+      try {
+        for (const w of weeks) await writeWeek(w, before[w].items, before[w].placements);
+        for (const w of weeks) await syncAgenda(w, { remove: [newId].filter(Boolean),
+          add: (before[w].items.find((x) => x && x.sourceStepId === step.id) && w === oldWeek)
+            ? { itemId: removedIds[w], day: step.day || dayKeyOf(step.due), slot: step.slot, title: step.title, done: !!step.done } : null });
+        step.week = oldWeek;
+        step.day = oldWeek ? (before[oldWeek].items.find((x) => x && x.sourceStepId === step.id) ? step.day : "") : "";
+        pCommit(); renderStep(); renderBoard();
+        toast("Put back");
+      } catch (e) { toast("Could not undo: " + e.message); }
+    });
+}
+
+/* The week has to hear about a tick made HERE, or it shows a task that is already done.
+   The other direction (a tick made in the weekly plan) already comes back through the
+   stepLink route; the third (a tick made on the daily dashboard, which can only write to a
+   plan) is picked up by reconcileWeek() when this page next loads. */
+async function syncWeekDone(step) {
+  if (!step || !step.week) return;
+  try {
+    const st = await readWeek(step.week);
+    const mine = st.items.find((it) => it && it.sourceStepId === step.id);
+    if (!mine || !!mine.done === !!step.done) return;
+    mine.done = !!step.done;
+    await writeWeek(step.week, st.items, st.placements);
+    await syncAgenda(step.week, { add: { itemId: mine.id, day: step.day, slot: step.slot,
+      title: step.title, done: !!step.done } });
+  } catch (e) { /* the board is right either way; the week catches up when it is opened */ }
+}
+
+/* A tick made on the DAILY dashboard can only reach the weekly plan — that page is allowed
+   one write and it is a single boolean. So when this page loads, this week's plan is read
+   once and anything it says is finished that the board still shows open is ticked off here.
+   ONE DIRECTION ONLY: done in the plan → done on the board. The reverse cannot happen,
+   because a tick made here writes to the week as it goes (syncWeekDone). */
+async function reconcileWeek() {
+  const week = weekKeyNow();
+  let st;
+  try { st = await readWeek(week); } catch (e) { return; }
+  const ticked = st.items.filter((it) => it && it.source === "project-step" && it.done && it.sourceStepId);
+  if (!ticked.length) return;
+  let changed = false;
+  for (const it of ticked) {
+    const p = S.projects.find((x) => x.id === it.sourceProjectId);
+    const step = p && (p.steps || []).find((x) => x.id === it.sourceStepId && !x.del);
+    if (!step || step.done) continue;
     try {
-      await writeWeek(week, before.items, before.placements);
-      step.week = (before.items.find((x) => x && x.sourceStepId === step.id)) ? week : "";
-      step.day = step.week ? (step.day || "") : "";
-      pCommit(); renderStep(); renderBoard();
-      toast("Put back");
-    } catch (e) { toast("Could not undo: " + e.message); }
-  });
+      const r = await post({ stepLink: { projectId: p.id, stepId: step.id, done: true } });
+      if (r && r.step) { Object.assign(step, r.step); changed = true; }
+    } catch (e) { /* leave it; nothing is lost by trying again next time */ }
+  }
+  if (changed) { renderBoard(); renderProjects(); }
 }
 
 /* =====================================================================
@@ -2703,6 +2884,9 @@ async function init() {
   const live = S.projects.filter((p) => !p.archived);
   S.currentId = (live.find((p) => p.id === last) || live[0] || {}).id || "";
   showView(viewFromHash(), { hash: false });
+  // after the first paint, never before it: one read of this week, to pick up anything
+  // ticked off on the daily dashboard since this page was last open
+  reconcileWeek();
 }
 init();
 </script>

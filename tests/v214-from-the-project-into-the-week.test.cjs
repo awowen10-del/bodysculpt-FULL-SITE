@@ -253,10 +253,15 @@ function boardProject(extra) {
      ===================================================================== */
   {
     const setWeek = bodyOf(PJS, "setStepWeek");
-    assert.ok(/await readWeek\(week\)/.test(setWeek), "it reads the week first");
+    // v216: a due date can land in ANY week, so a move can touch two of them — every week
+    // involved is read before a single one of them is written
+    assert.ok(/for \(const w of weeks\) state\[w\] = await readWeek\(w\);/.test(setWeek),
+      "it reads every week it is going to touch, first");
     assert.ok(/catch \(e\) \{ toast\("Could not reach the weekly plan — nothing was changed\."\); return; \}/.test(setWeek),
       "A FAILED READ IS NEVER FOLLOWED BY A WRITE — that is how a whole week gets replaced by one task");
     assert.ok(setWeek.indexOf("readWeek") < setWeek.indexOf("writeWeek"), "…read, then write, in that order");
+    assert.ok(/const before = JSON\.parse\(JSON\.stringify\(state\)\);/.test(setWeek),
+      "…and keeps a copy of what it read, for the way back");
     const readW = bodyOf(PJS, "readWeek");
     assert.ok(/if \(!r\.ok\) throw new Error/.test(readW), "a non-OK read throws rather than returning an empty week");
     const writeW = bodyOf(PJS, "writeWeek");
@@ -265,18 +270,23 @@ function boardProject(extra) {
     for (const f of ["timeBlocks", "notes", "foodNotes", "recurringDone", "exceptions", "reviewChecklist"]) {
       assert.ok(!writeW.includes(f), "it never sends the week's " + f);
     }
-    // one task, one place
-    assert.ok(/stripRef\(refOf\(it\)\)/.test(setWeek), "moving a step to another day moves it, rather than cloning it");
-    assert.ok(/if \(!day\) \{/.test(setWeek), '"Not this week" takes it back out again');
+    // one task, one place — including across a week boundary
+    assert.ok(/for \(const w of weeks\) removedIds\[w\] = weekRemoveStep\(state\[w\], step\.id\);/.test(setWeek),
+      "it comes out of wherever it was before it goes anywhere — a move, never a clone");
+    assert.ok(/const newId = target \? weekAddStep\(/.test(setWeek), "…and only then does it go in");
+    assert.ok(/weekStripRef/.test(bodyOf(PJS, "weekRemoveStep")), "…taking its grid placement with it");
+    assert.ok(/if \(!day\)/.test(bodyOf(PJS, "offerFor")) || /const target = day \? /.test(setWeek),
+      '"Not this week" takes it back out again');
     assert.ok(/toastUndo\(/.test(setWeek), "and the way back is on the confirmation, as everywhere else");
-    assert.ok(/writeWeek\(week, before\.items, before\.placements\)/.test(setWeek),
-      "…undo puts back exactly what was read, not a guess at it");
+    assert.ok(/for \(const w of weeks\) await writeWeek\(w, before\[w\]\.items, before\[w\]\.placements\);/.test(setWeek),
+      "…undo puts back exactly what was read, in every week it touched, not a guess at it");
 
     // the drawer offers the days, and the card says what was chosen
-    assert.ok(/<label>This week<\/label>/.test(PJS), "the step drawer has a This week row");
+    assert.ok(/"This week" \) \+ '<\/label>/.test(PJS) || /\? "On the plan" : "This week"/.test(PJS),
+      "the step drawer has a row of days for this week");
     assert.ok(/data-w=""' \+ \(inWeek \? "" : ' class="on"'\) \+ '>Not this week</.test(PJS),
       "…including the way out of it");
-    assert.ok(/mini wk/.test(PJS) && /this week<\/span>/.test(PJS), "a card that is on the week says so");
+    assert.ok(/mini wk/.test(PJS) && /planLabel\(s\)/.test(PJS), "a card that is on the plan says which day");
 
     // ticking here means what it means there: one implementation, server-side
     const tog = bodyOf(PJS, "toggleStepDone");
