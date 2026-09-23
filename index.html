@@ -1186,6 +1186,21 @@
   .wp-calnote.off a{color:var(--orange);}
 
   .wp-cellwrap{display:flex;flex-direction:column;height:100%;min-height:104px;}
+  /* v217: the + that adds a one-off task into this block. Out of the way until the block is
+     hovered, and always there on a touch screen, which has no hover to offer. */
+  .wp-cell-add{position:absolute;right:4px;bottom:4px;z-index:2;width:22px;height:22px;padding:0;
+    display:inline-flex;align-items:center;justify-content:center;border-radius:var(--r-sm);
+    border:1px solid var(--line);background:var(--card);color:var(--ink-faint);cursor:pointer;
+    opacity:0;transition:opacity var(--tap),color var(--tap),border-color var(--tap);}
+  .wp-cell-add .ic{width:13px;height:13px;}
+  table.wp-grid td.wp-daycell:hover .wp-cell-add{opacity:1;}
+  .wp-cell-add:hover{color:var(--orange-soft);border-color:var(--orange);}
+  .wp-cell-add:focus-visible{opacity:1;outline:none;box-shadow:var(--focus);}
+  @media(hover:none){ .wp-cell-add{opacity:.5;} }
+  .wp-cell-new{width:calc(100% - 12px);margin:6px 6px 0;font-family:inherit;font-size:11.5px;
+    color:var(--ink);background:var(--card);border:1px solid var(--orange);border-radius:var(--r-sm);
+    padding:6px 7px;box-shadow:0 0 0 2px rgba(var(--orange-rgb),.14);}
+  .wp-cell-new:focus{outline:none;}
   table.wp-grid td.wp-rowlabel{width:70px;background:var(--navy-2);font-size:12px;font-weight:600;
     color:var(--ink-dim);text-align:center;vertical-align:middle;padding:4px;white-space:nowrap;}
   table.wp-grid textarea{width:100%;flex:1;min-height:40px;border:none;background:transparent;color:var(--ink);
@@ -4570,7 +4585,7 @@ function renderWeeklyPlan(){
   wpPublishAgenda(gridPlacements);
   const gridBody = WP_TIME_ROWS.map(([rk,rlbl])=>{
     const notesRow = rk==="notes" ? " wp-grid-notes" : "";
-    const cells = visDays.map(([dk])=>{
+    const cells = visDays.map(([dk,dlbl])=>{
       const key = rk+":"+dk;
       const refs = (gridPlacements[key]||[]);
       const chips = refs.map(ref=>wpChipHtml(ref, dk, "", key)).join("");
@@ -4578,7 +4593,13 @@ function renderWeeklyPlan(){
       // v148: what is already committed goes in FIRST, above the tasks — you should see the
       // wall before you see the space. It is display only: it never enters placements.
       const appts = rk === "notes" ? "" : wpCalChipsHtml(dk, rk);
-      return `<td class="wp-daycell" ondragover="wpCellDragOver(event)" ondragleave="wpCellDragLeave(event)" ondrop="wpCellDrop(event,'${rk}','${dk}')"><div class="wp-cellwrap">${appts}${chips?`<div class="wp-cellchips">${chips}</div>`:""}<textarea data-tb="${key}" onblur="wpSaveSection('timeBlocks')">${wpEsc(txt)}</textarea></div></td>`;
+      // v217: a one-off task, typed straight into the block it belongs in. The Notes row is
+      // free text and has no tasks in it, so it gets no button.
+      const quickAdd = rk==="notes" ? "" :
+        `<button type="button" class="wp-cell-add" title="Add a one-off task here"
+          aria-label="Add a task to ${wpEsc(rlbl)} on ${wpEsc(dlbl)}"
+          onclick="wpCellAdd('${rk}','${dk}')"><svg class="ic"><use href="#ic-plus"/></svg></button>`;
+      return `<td class="wp-daycell" data-cell="${key}" ondragover="wpCellDragOver(event)" ondragleave="wpCellDragLeave(event)" ondrop="wpCellDrop(event,'${rk}','${dk}')"><div class="wp-cellwrap">${appts}${chips?`<div class="wp-cellchips">${chips}</div>`:""}<textarea data-tb="${key}" onblur="wpSaveSection('timeBlocks')">${wpEsc(txt)}</textarea></div>${quickAdd}</td>`;
     }).join("");
     return `<tr class="${notesRow}"><td class="wp-rowlabel">${rlbl}</td>${cells}</tr>`;
   }).join("");
@@ -5545,6 +5566,70 @@ async function wpPropagateProjectDone(item, done){
   }catch(e){ return null; }
 }
 
+/* =====================================================================
+   v217: A ONE-OFF TASK, TYPED INTO THE BLOCK IT BELONGS IN
+   Ash: "I want to be able to just add tasks in the blocks, and that add to the buffer.. you
+   know just one off tasks I can think of? Rather than have to type them in the buffer and
+   then move to the calendar."
+
+   So: a + in the corner of every block. It makes a BUFFER task — that is what the Buffer
+   list is for, the odd job that is not part of a project — and places it in the block you
+   were standing in, in one go. The task shows up in the Buffer box as well, because it is
+   the same task; this is a second door into the same list, not a second list.
+
+   Nothing new is stored. A task created here is exactly what typing it into Buffer and
+   dragging it onto the grid would have produced, which is why it drags, ticks, rolls over
+   and saves through every path that already existed.
+   ===================================================================== */
+function wpCellAdd(rk, dk){
+  if(rk === "notes") return;
+  wpSyncFromDom();
+  const td = document.querySelector(`td.wp-daycell[data-cell="${rk}:${dk}"]`);
+  if(!td) return;
+  // only one box open at a time — a second + while one is waiting just moves the cursor
+  const open = document.querySelector(".wp-cell-new");
+  if(open){
+    if(open.closest("td") === td){ open.focus(); return; }
+    open.dataset.cancelled = "1";
+    open.remove();
+  }
+  const wrap = td.querySelector(".wp-cellwrap");
+  if(!wrap) return;
+  const inp = document.createElement("input");
+  inp.className = "wp-cell-new";
+  inp.type = "text";
+  inp.maxLength = 200;
+  inp.placeholder = "One-off task…";
+  wrap.insertBefore(inp, wrap.querySelector("textarea"));
+  inp.focus();
+  let settled = false;
+  const finish = (keepOpen)=>{
+    if(settled || inp.dataset.cancelled) return;
+    const title = inp.value.trim();
+    settled = true;
+    if(!title){ inp.remove(); return; }
+    wpCellAddCommit(rk, dk, title, keepOpen);
+  };
+  inp.onkeydown = (e)=>{
+    if(e.key === "Enter"){ e.preventDefault(); finish(true); }
+    if(e.key === "Escape"){ e.preventDefault(); settled = true; inp.remove(); }
+  };
+  inp.onblur = ()=>finish(false);
+}
+async function wpCellAddCommit(rk, dk, title, keepOpen){
+  wpSyncFromDom();
+  const it = { id:wpUid(), title:String(title).slice(0,200), done:false };
+  wpPlan.bufferItems = Array.isArray(wpPlan.bufferItems) ? wpPlan.bufferItems : [];
+  wpPlan.bufferItems.push(it);
+  wpPlan.placements = wpPlan.placements || {};
+  const key = rk+":"+dk, ref = wpItemRef("buffer", it.id);
+  wpPlan.placements[key] = wpPlan.placements[key] || [];
+  if(!wpPlan.placements[key].includes(ref)) wpPlan.placements[key].push(ref);
+  renderWeeklyPlan();
+  await wpSaveSection("buffer");
+  // Enter keeps the box open for the next one, in the same block
+  if(keepOpen) wpCellAdd(rk, dk);
+}
 function wpAddItem(source){
   wpSyncFromDom();
   const arr = source==="project" ? wpPlan.projectItems : wpPlan.bufferItems;
