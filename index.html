@@ -1185,6 +1185,44 @@
   .wp-calnote .ic{width:12px;height:12px;}
   .wp-calnote.off a{color:var(--orange);}
 
+  /* ===================== v218: A PULLED STEP'S NOTES, FROM THE WEEK ===================== */
+  .wp-step-note{flex:none;font-family:inherit;font-size:10.5px;font-weight:700;cursor:pointer;
+    display:inline-flex;align-items:center;gap:4px;padding:2px 7px 2px 5px;border-radius:6px;
+    border:1px solid var(--line);background:var(--card);color:var(--ink-dim);}
+  .wp-step-note .ic{width:12px;height:12px;color:var(--ink-faint);}
+  .wp-step-note:hover{border-color:var(--orange);color:var(--orange-soft);}
+  .wp-step-note:hover .ic{color:var(--orange);}
+  .wp-chip-note{flex:none;background:transparent;border:0;padding:0 1px;cursor:pointer;
+    color:var(--ink-faint);line-height:0;opacity:.55;}
+  .wp-chip-note .ic{width:12px;height:12px;}
+  .wp-cellchip:hover .wp-chip-note{opacity:1;}
+  .wp-chip-note:hover{color:var(--orange);}
+  .wp-sn-modal{width:min(560px,100%);}
+  .wp-sn-meta{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+  .wp-sn-meta span{font-size:10.5px;font-weight:700;color:var(--ink-dim);background:var(--navy-2);
+    border-radius:6px;padding:3px 8px;}
+  .wp-sn-sec{margin-bottom:18px;}
+  .wp-sn-cap{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;
+    color:var(--ink-faint);margin-bottom:7px;}
+  .wp-sn-none{font-size:12.5px;color:var(--ink-faint);font-style:italic;}
+  .wp-sn-bar{height:5px;border-radius:999px;background:var(--navy-2);overflow:hidden;margin-bottom:9px;}
+  .wp-sn-bar i{display:block;height:100%;background:var(--green);border-radius:999px;transition:width .3s ease;}
+  .wp-sn-ck{display:flex;flex-direction:column;gap:1px;}
+  .wp-sn-ckrow{display:flex;align-items:flex-start;gap:9px;padding:6px 7px;border-radius:6px;
+    font-size:13px;line-height:1.45;color:var(--ink);cursor:pointer;}
+  .wp-sn-ckrow:hover{background:var(--navy-2);}
+  .wp-sn-ckrow.on span{color:var(--ink-faint);text-decoration:line-through;}
+  .wp-sn-ckrow input{flex:none;width:16px;height:16px;margin-top:1px;accent-color:var(--green);}
+  .wp-sn-files{display:flex;flex-wrap:wrap;gap:7px;}
+  .wp-sn-files a{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+    color:var(--ink-dim);background:var(--navy-2);border:1px solid var(--line);border-radius:8px;
+    padding:6px 10px;text-decoration:none;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .wp-sn-files a:hover{border-color:var(--orange);color:var(--ink);}
+  .wp-sn-files .ic{width:13px;height:13px;flex:none;color:var(--ink-faint);}
+  .wp-sn-foot{font-size:11.5px;color:var(--ink-faint);line-height:1.5;border-top:1px solid var(--line);
+    padding-top:12px;}
+  .wp-sn-foot a{color:var(--orange);}
+
   .wp-cellwrap{display:flex;flex-direction:column;height:100%;min-height:104px;}
   /* v217: the + that adds a one-off task into this block. Out of the way until the block is
      hovered, and always there on a touch screen, which has no hover to offer. */
@@ -1963,6 +2001,22 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
   </div>
 </div>
 
+<!-- v218: what a pulled project step actually says — its notes, its checklist and its
+     files — read from the week rather than by going back to the board. The checklist ticks
+     from here; the notes are written on the board and the panel says so. -->
+<div id="wpStepNotesOverlay" class="wp-today-overlay" hidden onclick="if(event.target===this)wpCloseStepNotes()">
+  <div class="wp-today-modal wp-sn-modal" role="dialog" aria-modal="true" aria-labelledby="wpStepNotesTitle">
+    <div class="wp-today-h">
+      <div>
+        <div class="wp-today-title" id="wpStepNotesKicker"></div>
+        <div class="wp-today-date" id="wpStepNotesTitle"></div>
+      </div>
+      <button class="wp-today-close" title="Close (Esc)" onclick="wpCloseStepNotes()"><svg class="ic"><use href="#ic-close"/></svg></button>
+    </div>
+    <div class="wp-today-body" id="wpStepNotesBody"></div>
+  </div>
+</div>
+
 <div id="wpAnchorNotesOverlay" class="wp-today-overlay" hidden onclick="if(event.target===this)wpCloseAnchorNotes()">
   <div class="wp-today-modal" role="dialog" aria-modal="true" aria-labelledby="wpAnchorNotesTitle">
     <div class="wp-today-h">
@@ -2554,6 +2608,8 @@ let wpMonthProjects = { ym:"", projects:[] };  // v61: this month's projects, fo
 let wpAnchorNotesOpen = false;      // v104: the anchor's read-only monthly-notes viewer
 let wpAnchorNotesCloseTimer = null; //       (declared up here so the render path is never in its TDZ)
 let wpRecurNotesId = "";            // v117: id of the recurring task whose notes are open ("" = closed)
+let wpStepNotesId = "";             // v218: weekly item id whose project-step detail is open ("" = closed)
+let wpStepNotesTimer = null;
 let wpRecurNotesCloseTimer = null;  //       (same reason — the row renderer reads the state)
 let wpRecurNotesDirty = false;      //       did this editing session actually write anything?
 let wpCheckins = null;     // v80: daily check-in history — a map { "YYYY-MM-DD": entry }, loaded once
@@ -3671,6 +3727,7 @@ function wpDragRow(source, it){
     ${placed?`<span class="wp-txt-tag">${placed}</span>`:""}
     ${it.source==="monthly-project"?`<span class="wp-txt-tag wp-from-monthly" title="Pushed from the Monthly plan${it.sourceYm?(" ("+it.sourceYm+")"):""}">↳ Monthly</span>`:""}
     ${it.source==="project-step"?`<a class="wp-txt-tag wp-from-project" href="/projects.html#board" title="Pulled from the project &quot;${wpEsc(it.sourceProjectName||"")}&quot; — ticking this off marks it done on the board">↳ ${wpEsc(it.sourceProjectName||"Project")}</a>`:""}
+    ${it.source==="project-step"?wpStepNoteBtnHtml(it,false):""}
     <button class="wp-txt-del" title="Remove" onclick="wpRemoveItem('${source}','${it.id}')"><svg class="ic"><use href="#ic-close"/></svg></button>
   </div>`;
 }
@@ -3841,6 +3898,8 @@ function wpChipHtml(ref, dk, mode, cellKey){
   // one-off just comes off the grid, as it always did from the popup. (A <button> inside a
   // <label> is interactive content, so it doesn't toggle the done checkbox — the handler
   // stops the event anyway.)
+  // v218: a pulled step carries its notes and checklist with it — the chip opens them
+  const noteOut = (source==="project" && item.source==="project-step") ? wpStepNoteBtnHtml(item, true) : "";
   const ck = wpValidCellKey(cellKey) || "";
   const delOut = ck
     ? `<button type="button" class="wp-chip-del" title="Remove from this slot" onclick="wpChipRemove(event,'${ref}','${ck}')"><svg class="ic"><use href="#ic-close"/></svg></button>`
@@ -3853,7 +3912,7 @@ function wpChipHtml(ref, dk, mode, cellKey){
       ondragover="wpChipDragOver(event,'${ck}')" ondragleave="wpChipDragLeave(event)" ondrop="wpChipDrop(event,'${ck}','${ref}')">
     <span class="wp-chip-grip" aria-hidden="true">⠿</span>
     <input type="checkbox" ${done?"checked":""} onchange="wpToggleDoneRef('${ref}',this.checked,'${dk}')">
-    <span class="wp-chip-title">${emoji}${wpEsc(item.title)}</span>${linkOut}${delOut}</label>`;
+    <span class="wp-chip-title">${emoji}${wpEsc(item.title)}</span>${noteOut}${linkOut}${delOut}</label>`;
 }
 
 /* ===== v70: RICH NOTES ===== */
@@ -5547,6 +5606,144 @@ async function wpProjPullConfirm(){
     }catch(e){ /* the week is saved; the chip is not worth an error */ }
   }
 }
+/* =====================================================================
+   v218: WHAT THE STEP ACTUALLY SAYS, WITHOUT LEAVING THE WEEK
+   Ash: "When tasks are pulled from projects into the weekly, it would be good to be able to
+   see their notes and checklists inside from the weekly view instead of going back to the
+   projects all the time?"
+
+   Nothing had to be fetched for this — the whole project list is already read when the week
+   loads, so the notes, the checklist and the files are sitting in memory. What was missing
+   was a door.
+
+   The checklist is TICKABLE from here, not just readable. A checklist you can read but not
+   tick sends you back to the board to tick it, which is the thing being complained about.
+   It goes through the same narrow stepLink route as every other write this page makes to a
+   project: one boolean on one item. The notes stay read-only — they are written on the
+   board, and this says so rather than pretending otherwise.
+   ===================================================================== */
+function wpStepFor(item){
+  if(!item || item.source !== "project-step") return null;
+  const pid = wpProjectIdOf(item), sid = wpProjectStepIdOf(item);
+  if(!pid || !sid) return null;
+  const project = (wpProjects.list||[]).find(x=>x.id===pid);
+  const step = project && (project.steps||[]).find(x=>x.id===sid && !x.del);
+  return step ? { project, step } : null;
+}
+// is there anything worth opening? A step with no notes, no checklist and no files has
+// nothing this panel could tell you that the title does not.
+function wpStepDetail(item){
+  const f = wpStepFor(item);
+  if(!f) return null;
+  const notes = String(f.step.notes||"").trim();
+  const list = Array.isArray(f.step.checklist) ? f.step.checklist : [];
+  const files = Array.isArray(f.step.files) ? f.step.files : [];
+  if(!notes && !list.length && !files.length) return null;
+  return { ...f, notes, list, files, done:list.filter(c=>c.done).length };
+}
+// the little button that opens it, on a list row and on a grid chip
+function wpStepNoteBtnHtml(item, compact){
+  const d = wpStepDetail(item);
+  if(!d) return "";
+  const count = d.list.length ? `${d.done}/${d.list.length}` : "";
+  const label = `Notes and checklist for ${wpEsc(item.title||"this step")}`;
+  if(compact){
+    return `<button type="button" class="wp-chip-note" title="${label}" aria-label="${label}"
+      onclick="event.preventDefault();event.stopPropagation();wpOpenStepNotes('${wpEsc(item.id)}')"><svg class="ic"><use href="#ic-note"/></svg></button>`;
+  }
+  return `<button type="button" class="wp-step-note" title="${label}" aria-label="${label}"
+    onclick="wpOpenStepNotes('${wpEsc(item.id)}')"><svg class="ic"><use href="#ic-note"/></svg>${count?`<span>${count}</span>`:""}</button>`;
+}
+function wpOpenStepNotes(itemId){
+  const item = (wpPlan && wpPlan.projectItems || []).find(x=>x && x.id===itemId);
+  if(!wpStepDetail(item)) return;
+  const ov = document.getElementById("wpStepNotesOverlay");
+  if(!ov) return;
+  wpStepNotesId = itemId;
+  wpRenderStepNotes();
+  if(wpStepNotesTimer){ clearTimeout(wpStepNotesTimer); wpStepNotesTimer = null; }
+  ov.hidden = false;
+  document.body.style.overflow = "hidden";
+  requestAnimationFrame(()=>requestAnimationFrame(()=>ov.classList.add("open")));
+}
+function wpCloseStepNotes(){
+  const ov = document.getElementById("wpStepNotesOverlay");
+  if(!ov || !wpStepNotesId) return;
+  wpStepNotesId = "";
+  document.body.style.overflow = "";
+  ov.classList.remove("open");
+  wpStepNotesTimer = setTimeout(()=>{ ov.hidden = true; wpStepNotesTimer = null; }, 200);
+}
+function wpRenderStepNotes(){
+  const item = (wpPlan && wpPlan.projectItems || []).find(x=>x && x.id===wpStepNotesId);
+  const d = item && wpStepDetail(item);
+  if(!d){ wpCloseStepNotes(); return; }
+  const kick = document.getElementById("wpStepNotesKicker");
+  if(kick) kick.textContent = d.project.name;
+  const t = document.getElementById("wpStepNotesTitle");
+  if(t) t.textContent = String(d.step.title||"").trim() || "Untitled";
+  const col = (d.project.columns||[]).find(c=>c.id===d.step.col);
+  const URG = { critical:"Critical", high:"High", normal:"Normal", low:"Low" };
+  const meta = [
+    col ? wpEsc(col.name) : "",
+    d.step.urgency && d.step.urgency !== "normal" ? wpEsc(URG[d.step.urgency]||d.step.urgency) : "",
+    d.step.due ? "Due " + wpEsc(wpStepDueLabel(d.step.due)) : "",
+    ...(d.step.tags||[]).map(x=>wpEsc(x)),
+  ].filter(Boolean);
+  const body = document.getElementById("wpStepNotesBody");
+  if(!body) return;
+  body.innerHTML =
+    (meta.length ? `<div class="wp-sn-meta">${meta.map(m=>`<span>${m}</span>`).join("")}</div>` : "") +
+    (d.notes
+      ? `<div class="wp-sn-sec"><div class="wp-sn-cap">Notes</div><div class="wp-anchor-notes-view">${wpNotesToEditorHtml(d.step.notes)}</div></div>`
+      : `<div class="wp-sn-sec"><div class="wp-sn-cap">Notes</div><div class="wp-sn-none">Nothing written down for this one.</div></div>`) +
+    (d.list.length
+      ? `<div class="wp-sn-sec"><div class="wp-sn-cap">Checklist — ${d.done} of ${d.list.length}</div>
+         <div class="wp-sn-bar"><i style="width:${Math.round(d.done/d.list.length*100)}%"></i></div>
+         <div class="wp-sn-ck">${d.list.map(c=>`
+           <label class="wp-sn-ckrow${c.done?" on":""}">
+             <input type="checkbox" ${c.done?"checked":""} onchange="wpStepCheckToggle('${wpEsc(item.id)}','${wpEsc(c.id)}',this.checked)">
+             <span>${wpEsc(c.text)}</span>
+           </label>`).join("")}</div></div>`
+      : "") +
+    (d.files.length
+      ? `<div class="wp-sn-sec"><div class="wp-sn-cap">Files</div><div class="wp-sn-files">${d.files.map(f=>
+          `<a href="/.netlify/functions/projects?file=${encodeURIComponent(f.id)}" target="_blank" rel="noopener">
+             <svg class="ic"><use href="#ic-note"/></svg>${wpEsc(f.name)}</a>`).join("")}</div></div>`
+      : "") +
+    `<div class="wp-sn-foot">Ticking here ticks it on the board too. Notes are written on the board —
+       <a href="/projects.html#board">open it there</a> to change them.</div>`;
+}
+function wpStepDueLabel(due){
+  const MN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const p2 = String(due).split("-");
+  return p2.length === 3 ? Number(p2[2]) + " " + MN[Number(p2[1])-1] : String(due);
+}
+/* On screen first, then told to the board. A tick that waited for the network would feel
+   broken on a phone, and the board is the one place this cannot silently disagree with —
+   so a failed write puts the box back and says so. */
+async function wpStepCheckToggle(itemId, checkId, checked){
+  const item = (wpPlan && wpPlan.projectItems || []).find(x=>x && x.id===itemId);
+  const f = wpStepFor(item);
+  if(!f) return;
+  const c = (f.step.checklist||[]).find(x=>x.id===checkId);
+  if(!c) return;
+  const was = !!c.done;
+  c.done = !!checked;
+  wpRenderStepNotes();
+  renderWeeklyPlan();
+  try{
+    const r = await fetch(WP_PROJECTS, { method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ stepLink:{ projectId:f.project.id, stepId:f.step.id,
+        check:{ id:checkId, done:!!checked } } }) }).then(x=>x.json());
+    if(!r || !r.ok) throw new Error((r && r.error) || "the board did not take it");
+  }catch(e){
+    c.done = was;                       // put it back rather than let the two disagree
+    wpRenderStepNotes();
+    renderWeeklyPlan();
+  }
+}
+
 /* The tick, going the other way. Mirrors wpPropagateMonthlyDone: the week's own save has
    already happened and is never conditional on this, so a projects store that is down
    cannot cost Ash the tick he just made. */
@@ -6681,6 +6878,7 @@ document.addEventListener("keydown", (e)=>{
   if(e.key!=="Escape") return;
   if(wpAskResolve){ wpCloseAsk(null); return; }
   if(document.getElementById("wpLocPopup")){ wpCloseLocPopup(); return; }
+  if(wpStepNotesId){ wpCloseStepNotes(); return; }     // v218: a pulled step's notes/checklist
   if(wpRecurNotesId){ wpCloseRecurNotes(); return; }   // v117: the recurring-notes editor
   if(wpAnchorNotesOpen){ wpCloseAnchorNotes(); return; }
   if(wpEowIsOpen){ wpEowClose(); return; }             // v119: the guided End-of-Week Review

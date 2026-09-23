@@ -11,7 +11,7 @@
 //   POST ?upload=1&name=&mime=   raw bytes in the body (4 MB cap) -> { file:{id,name,mime,size} }
 //   POST { project:{…} }  save one project, whole. The page always holds the whole project,
 //                         so a partial write can never half-erase a board.
-//   POST { stepLink:{ projectId, stepId, done?, week?, day?, slot? } }  v214: the weekly plan's door.
+//   POST { stepLink:{ projectId, stepId, done?, week?, day?, slot?, check? } }  v214: the weekly plan's door.
 //         The WEEKLY page calls this, and it is deliberately the narrowest thing that could
 //         work: it can tick one step off, and it can note which week and day that step has
 //         been pulled into. It cannot rename anything, add anything, delete anything or
@@ -20,7 +20,7 @@
 //
 // There is no delete route. Archiving a project and flagging a step are ordinary saves.
 import { cleanProject, listProjects, readProject, writeProject, readFile, writeFile,
-         applyStepDone, applyStepWeek,
+         applyStepDone, applyStepWeek, applyStepCheck,
          newId, clip, json, CAP, MIMES } from "../lib/projects.js";
 
 export default async (req) => {
@@ -94,6 +94,10 @@ export default async (req) => {
       let changed = false;
       if ("done" in body.stepLink) changed = !!applyStepDone(project, sid, body.stepLink.done) || changed;
       if ("week" in body.stepLink) changed = !!applyStepWeek(project, sid, body.stepLink.week, body.stepLink.day, body.stepLink.slot) || changed;
+      // v218: { check: { id, done } } — one checklist item, ticked from the weekly plan
+      if (body.stepLink.check && body.stepLink.check.id) {
+        changed = !!applyStepCheck(project, sid, clip(body.stepLink.check.id, 40), body.stepLink.check.done) || changed;
+      }
       // nothing to say is not a reason to write — a no-op must not bump lastUpdated
       if (!changed) return json({ ok: true, step: null, unchanged: true });
       const cleaned = cleanProject(project);

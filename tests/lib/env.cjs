@@ -64,6 +64,18 @@ async function boot(opts = {}) {
   Object.keys(opts.monthPriorities || {}).forEach((ym) => { monthRec(ym).priorities = cloneList(opts.monthPriorities[ym]); });
   const posts = [];
   const els = new Map();
+  /* v218: the PROJECTS store, served and mutable. opts.projects is a list of project
+     records; the weekly page reads it at week load to offer their steps, and writes to it
+     through exactly one narrow route (stepLink). Applying those writes here — rather than
+     just recording them — is what lets a test assert that ticking a task off in the week
+     actually reached the board, which is the claim, instead of that a request was sent.
+     Defaults to [], which is what every test that never sets it already got. */
+  const projects = (opts.projects || []).map((p) => JSON.parse(JSON.stringify(p)));
+  const findStep = (pid, sid) => {
+    const proj = projects.find((x) => x && x.id === pid);
+    const step = proj && (proj.steps || []).find((x) => x && x.id === sid && !x.del);
+    return step ? { proj, step } : null;
+  };
 
   // v71: the two weekly notes editors are addressed by wpSyncFromDom via
   // body.querySelector('[data-field="notes"|"foodNotes"]'). The stub DOM has no real
@@ -140,8 +152,38 @@ async function boot(opts = {}) {
         checkins[body.checkin.date] = entry;
         return reply({ ok: true, checkin: entry });
       }
+      // v218: the one write the weekly page makes to a project. Mirrors
+      // netlify/lib/projects.js: done moves the card to the stage marked done (remembering
+      // where it came from), week/day/slot record the plan, check flips one checklist item.
+      if (body.stepLink && body.stepLink.projectId && body.stepLink.stepId) {
+        const hit = findStep(body.stepLink.projectId, body.stepLink.stepId);
+        if (!hit) return Promise.resolve({ ok: false, status: 404, json: async () => ({ error: "No such project" }) });
+        const { proj, step } = hit;
+        const L = body.stepLink;
+        if ("done" in L) {
+          const want = L.done === true;
+          if (step.done !== want) {
+            step.done = want;
+            const dc = (proj.columns || []).find((c) => c.done === true);
+            if (want) { if (dc && step.col !== dc.id) { step.colBefore = step.col; step.col = dc.id; } }
+            else { if (dc && step.col === dc.id && step.colBefore) step.col = step.colBefore; step.colBefore = ""; }
+          }
+        }
+        if ("week" in L) {
+          step.week = typeof L.week === "string" && /^\d{4}-\d{2}-\d{2}$/.test(L.week) ? L.week : "";
+          step.day = step.week ? (L.day || "") : "";
+          step.slot = step.week ? (L.slot || "6-9") : "";
+        }
+        if (L.check && L.check.id) {
+          const c = (step.checklist || []).find((x) => x && x.id === L.check.id);
+          if (c) c.done = L.check.done === true;
+        }
+        return reply({ ok: true, step: JSON.parse(JSON.stringify(step)) });
+      }
       return reply({ ok: true });
     }
+    // v218: the project list the weekly page offers steps from
+    if (u.includes("/functions/projects") && u.includes("list=1")) return reply({ ok: true, projects });
     if (u.includes("trainingdefaults=1")) return reply({ defaults: training });
     if (u.includes("checkins=1")) return reply({ checkins });
     if (u.includes("locationdefaults=1")) return reply({ locations });
@@ -235,6 +277,8 @@ async function boot(opts = {}) {
     " get anchorNotesOpen(){ return wpAnchorNotesOpen; }," +
     // v117: which recurring task's notes editor is open ("" = closed)
     " get recurNotesId(){ return wpRecurNotesId; }, set recurNotesId(v){ wpRecurNotesId = v; }," +
+    // v218: which pulled step's notes/checklist panel is open ("" = closed)
+    " get stepNotesId(){ return wpStepNotesId; }," +
     // v119: the guided End-of-Week Review's session state. READ-ONLY — a test drives the
     // flow through its own functions (wpEowOpen/wpEowNext/…), never by poking the step.
     " get eowOpen(){ return wpEowIsOpen; }, get eowStep(){ return wpEowStep; }," +
@@ -258,7 +302,10 @@ async function boot(opts = {}) {
 
   // `monthly` is the served monthly-plan record, keyed by ym — the same object the fetch stub
   // reads and the weekly write-back writes. A test asserts against it to prove a tick landed.
-  return { ctx: sandbox, posts, settle, monthly };
+  // `projects` is the served project list — the same objects the fetch stub reads and the
+  // weekly page's stepLink writes land on, so a test asserts against it to prove a tick
+  // reached the board.
+  return { ctx: sandbox, posts, settle, monthly, projects };
 }
 
 // v114: the recurring card starts COLLAPSED, so a test that asserts on what is inside it

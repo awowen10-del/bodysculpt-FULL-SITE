@@ -255,6 +255,22 @@ export function applyStepDone(project, stepId, done) {
   s.updatedAt = nowIso();
   return s;
 }
+/* v218: one item on one step's checklist, flipped. The weekly page shows a pulled step's
+   checklist so Ash does not have to go back to the board to read it — and a checklist that
+   can be read but not ticked would send him back to the board anyway, which was the whole
+   complaint. Narrow in exactly the same way as the rest of this route: it can reach one
+   boolean on one item, and it cannot add, rename or remove anything. */
+export function applyStepCheck(project, stepId, checkId, done) {
+  const s = (project.steps || []).find((x) => x.id === stepId && !x.del);
+  if (!s) return null;
+  const c = (s.checklist || []).find((x) => x.id === checkId);
+  if (!c) return null;
+  done = !!done;
+  if (c.done === done) return null;
+  c.done = done;
+  s.updatedAt = nowIso();
+  return s;
+}
 export function applyStepWeek(project, stepId, week, day, slot) {
   const s = (project.steps || []).find((x) => x.id === stepId && !x.del);
   if (!s) return null;
