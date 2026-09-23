@@ -119,7 +119,8 @@ function fullStep() {
     col: "todo", urgency: "critical", due: "2026-10-01", tags: ["ghl", "data"],
     checklist: [{ id: "c_1", text: "Download the CSV", done: true }],
     files: [{ id: "f_1", name: "contacts.pdf", mime: "application/pdf", size: 1200, addedAt: "2026-09-20T09:00:00.000Z" }],
-    done: false, del: false, order: 3,
+    done: false, week: "2026-09-27", day: "mon", slot: "6-9", colBefore: "",
+    del: false, order: 3,
     createdAt: "2026-09-20T09:00:00.000Z", updatedAt: "2026-09-20T09:00:00.000Z",
   };
 }

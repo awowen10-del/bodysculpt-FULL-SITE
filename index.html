@@ -1271,6 +1271,69 @@
     box-shadow:0 24px 70px rgba(var(--shadow-rgb),.6);overflow:hidden;
     transform:scale(.96) translateY(10px);transition:transform .18s ease;}
   .wp-today-overlay.open .wp-today-modal{transform:scale(1) translateY(0);}
+  /* ===================== v214: PULL FROM A PROJECT =====================
+     Borrows the v67 overlay shell. A project's accent paints its dot DIRECTLY from a palette
+     token, one rule per accent — not through a custom property of its own, because v121's
+     audit requires every var() in this stylesheet to resolve in :root and the palette block
+     is byte-identical across three pages, so it is not the place to add page-local names. */
+  .wp-pp-orange .wp-pp-dot{background:var(--orange);}
+  .wp-pp-teal   .wp-pp-dot{background:var(--teal);}
+  .wp-pp-blue   .wp-pp-dot{background:var(--blue);}
+  .wp-pp-green  .wp-pp-dot{background:var(--green);}
+  .wp-pp-amber  .wp-pp-dot{background:var(--amber);}
+  .wp-pp-red    .wp-pp-dot{background:var(--red);}
+  .wp-pp-modal{width:min(660px,100%);display:flex;flex-direction:column;max-height:86vh;}
+  .wp-pp-body{flex:1;min-height:0;overflow-y:auto;gap:14px;}
+  /* the same trap as the step drawer: a column flex box shrinks its children before it
+     scrolls, so a long list of steps would squash instead of scrolling */
+  .wp-pp-body > *{flex:0 0 auto;}
+  .wp-pp-proj{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card);}
+  .wp-pp-ph{display:flex;align-items:center;gap:8px;padding:10px 13px;background:var(--navy-2);
+    border-bottom:1px solid var(--line);font-size:13px;font-weight:700;color:var(--ink-strong);}
+  .wp-pp-dot{width:9px;height:9px;border-radius:999px;background:var(--ink-faint);flex:none;}
+  .wp-pp-count{margin-left:auto;font-size:10.5px;font-weight:700;color:var(--ink-faint);
+    text-transform:uppercase;letter-spacing:.06em;}
+  .wp-pp-row{display:flex;align-items:center;gap:9px;padding:9px 13px;cursor:pointer;
+    border-top:1px solid var(--line);font-size:13px;color:var(--ink);}
+  .wp-pp-proj .wp-pp-row:first-of-type{border-top:0;}
+  .wp-pp-row:hover{background:var(--card-2);}
+  .wp-pp-row.is-on{background:rgba(var(--orange-rgb),.07);}
+  .wp-pp-row.is-in{opacity:.55;cursor:default;}
+  .wp-pp-row input{flex:none;width:17px;height:17px;accent-color:var(--orange);}
+  .wp-pp-urg{width:3px;align-self:stretch;border-radius:999px;background:var(--ink-faint);flex:none;}
+  .wp-pp-u-critical{background:var(--red);} .wp-pp-u-high{background:var(--amber);}
+  .wp-pp-u-normal{background:var(--blue);} .wp-pp-u-low{background:var(--line);}
+  .wp-pp-t{flex:1;min-width:0;line-height:1.35;}
+  .wp-pp-stage,.wp-pp-due,.wp-pp-in{flex:none;font-size:10.5px;font-weight:700;padding:2px 7px;
+    border-radius:6px;background:var(--navy-2);color:var(--ink-dim);white-space:nowrap;}
+  .wp-pp-due.late{color:var(--tint-red);background:rgba(var(--red-rgb),.12);}
+  .wp-pp-in{color:var(--tint-green);background:rgba(var(--green-rgb),.12);}
+  .wp-pp-foot{flex:none;border-top:1px solid var(--line);background:var(--navy-2);
+    padding:12px 18px;display:flex;flex-direction:column;gap:9px;}
+  .wp-pp-pick{display:flex;align-items:center;gap:10px;}
+  .wp-pp-lbl{flex:none;width:38px;font-size:10px;font-weight:800;text-transform:uppercase;
+    letter-spacing:.09em;color:var(--ink-faint);}
+  .wp-pp-btns{display:flex;gap:4px;flex-wrap:wrap;}
+  .wp-pp-b{font-family:inherit;font-size:12px;font-weight:600;color:var(--ink-dim);
+    background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 11px;cursor:pointer;}
+  .wp-pp-b:hover{border-color:var(--ink-faint);color:var(--ink);}
+  .wp-pp-b.on{background:var(--orange);border-color:var(--orange);color:var(--on-accent);}
+  .wp-pp-go{display:flex;justify-content:flex-end;gap:8px;margin-top:2px;}
+  .wp-pp-cancel,.wp-pp-add{font-family:inherit;font-size:13px;font-weight:600;border-radius:9px;
+    padding:9px 16px;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink-dim);}
+  .wp-pp-cancel:hover{color:var(--ink);border-color:var(--ink-faint);}
+  .wp-pp-add{background:var(--orange);border-color:var(--orange);color:var(--on-accent);font-weight:700;}
+  .wp-pp-add:hover{background:var(--orange-soft);border-color:var(--orange-soft);}
+  .wp-pp-add:disabled{opacity:.45;cursor:default;background:var(--card);color:var(--ink-faint);
+    border-color:var(--line);}
+  .wp-pull-projbtn{margin-left:6px;}
+  /* the tag on a pulled row, in the brand — it is a link to the board it came from */
+  .wp-from-project{color:var(--orange-soft);background:rgba(var(--orange-rgb),.1);text-decoration:none;}
+  .wp-from-project:hover{background:rgba(var(--orange-rgb),.18);}
+  @media(max-width:700px){
+    .wp-pp-lbl{width:100%;}
+    .wp-pp-pick{flex-direction:column;align-items:flex-start;gap:5px;}
+  }
   .wp-today-h{background:var(--navy-2);border-bottom:1px solid var(--line);padding:13px 18px;
     display:flex;align-items:center;justify-content:space-between;gap:12px;}
   .wp-today-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--orange-soft);}
@@ -1868,6 +1931,23 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
      backdrop — but there is no editor and no save path: the Monthly Plan stays the only
      place these notes are written. Lives outside #wpBody so a weekly re-render can't
      disturb an open viewer. -->
+<!-- v214: pull steps out of a project and onto a day of this week. A panel rather than a
+     dropdown because the thing being described was "three of them, on Monday" — one
+     decision, not three. -->
+<div id="wpProjPullOverlay" class="wp-today-overlay wp-pp-overlay" hidden onclick="if(event.target===this)wpProjPullClose()">
+  <div class="wp-today-modal wp-pp-modal">
+    <div class="wp-today-h">
+      <div>
+        <div class="wp-today-title">From a project</div>
+        <div class="wp-today-date">Pick the steps you want in this week</div>
+      </div>
+      <button class="wp-today-close" onclick="wpProjPullClose()" aria-label="Close"><svg class="ic"><use href="#ic-close"/></svg></button>
+    </div>
+    <div class="wp-today-body wp-pp-body" id="wpProjPullBody"></div>
+    <div class="wp-pp-foot" id="wpProjPullFoot"></div>
+  </div>
+</div>
+
 <div id="wpAnchorNotesOverlay" class="wp-today-overlay" hidden onclick="if(event.target===this)wpCloseAnchorNotes()">
   <div class="wp-today-modal" role="dialog" aria-modal="true" aria-labelledby="wpAnchorNotesTitle">
     <div class="wp-today-h">
@@ -2418,6 +2498,11 @@ function goToCurrentWeek(){
 
 /* ===================== WEEKLY PLAN (spreadsheet-style) ===================== */
 const WP_STORE = "/.netlify/functions/kpi-store";
+// v214: the Projects page's store. This page READS the project list (to offer its steps)
+// and writes to exactly one narrow route on it (stepLink — one step's done-state, or the
+// note of which week it was pulled into). It never sends a whole project, so nothing here
+// can overwrite a board.
+const WP_PROJECTS = "/.netlify/functions/projects";
 const WP_TIME_ROWS = [["6-9","6 – 9"],["10-12","9 – 11.30"],["1-3","12 – 3"],["5-8","5 – 8"],["notes","Notes"]];
 // v64: Sunday restored as a grid column — recurrence day-checkboxes cover the full week,
 // so a task ticked for Sun must have a real cell to land in.
@@ -2446,6 +2531,10 @@ let wpTraining = null;      // v71: personal training list — SEPARATE collecti
                             // same days+slot engine as recurring, never mixed into wpDefaults
 let wpWeekEnding = null;
 let wpMonthFocus = null;   // this month's focus items (read-only anchor from Monthly)
+// v214: the live projects, read once when the week loads, so the Projects box can offer
+// their open steps. Read-only here apart from the stepLink route; if the fetch fails the
+// list is empty, the picker does not appear, and nothing else on this page notices.
+let wpProjects = { list: [], loaded: false };
 let wpMonthProjects = { ym:"", projects:[] };  // v61: this month's projects, for the weekly picker
 let wpAnchorNotesOpen = false;      // v104: the anchor's read-only monthly-notes viewer
 let wpAnchorNotesCloseTimer = null; //       (declared up here so the render path is never in its TDZ)
@@ -3288,6 +3377,17 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
     }catch(e){ wpMonthProjects = { ym, projects:[] }; }
   }catch(e){ wpMonthFocus = null; }
 
+  // v214: the projects, for the Projects box's step picker. Deliberately AFTER the monthly
+  // anchor and in its own try — a projects store that is slow, empty or broken must cost
+  // this page nothing but the picker.
+  wpProjects = { list: [], loaded: false };
+  try{
+    const pr = await fetch(WP_PROJECTS + "?list=1").then(x=>x.json());
+    const all = (pr && Array.isArray(pr.projects)) ? pr.projects : [];
+    wpProjects = { loaded: true,
+      list: all.filter(p=>p && p.id && p.name && !p.archived && p.status !== "done") };
+  }catch(e){ wpProjects = { list: [], loaded: false }; }
+
   // Migrate old timeBlocks (plain strings) into {text} form so free text is preserved.
   const tb = {};
   WP_TIME_ROWS.forEach(([rk])=>{
@@ -3555,6 +3655,7 @@ function wpDragRow(source, it){
       onkeydown="wpItemKey(event)" onblur="wpItemBlur('${source}')">
     ${placed?`<span class="wp-txt-tag">${placed}</span>`:""}
     ${it.source==="monthly-project"?`<span class="wp-txt-tag wp-from-monthly" title="Pushed from the Monthly plan${it.sourceYm?(" ("+it.sourceYm+")"):""}">↳ Monthly</span>`:""}
+    ${it.source==="project-step"?`<a class="wp-txt-tag wp-from-project" href="/projects.html#board" title="Pulled from the project &quot;${wpEsc(it.sourceProjectName||"")}&quot; — ticking this off marks it done on the board">↳ ${wpEsc(it.sourceProjectName||"Project")}</a>`:""}
     <button class="wp-txt-del" title="Remove" onclick="wpRemoveItem('${source}','${it.id}')"><svg class="ic"><use href="#ic-close"/></svg></button>
   </div>`;
 }
@@ -3683,7 +3784,8 @@ function wpListBox(title, sectionKey, source, items, addFn, addLabel){
     ? `<div class="wp-box-h"><span>${title}</span></div>`
     : wpBoxHeader(title, sectionKey);
   // v61: the Projects box also offers a "Pull from Monthly" dropdown next to its add button.
-  const extraControl = (source==="project") ? wpMonthlyPickerHtml() : "";
+  // v61: a "Pull from Monthly" dropdown. v214: and a "Pull from a project" panel.
+  const extraControl = (source==="project") ? (wpMonthlyPickerHtml() + wpProjectPickerHtml()) : "";
   return `<div class="wp-box">
     ${header}
     <div class="wp-box-body">
@@ -5227,6 +5329,222 @@ function wpPullMonthlyProject(value){
   renderWeeklyPlan();
   wpSaveSection("project");
 }
+/* =====================================================================
+   v214: PULLING STEPS OUT OF A PROJECT
+   Ash: "I decide on a Sunday review I want to focus on 3 of them on Monday, how do I
+   seamlessly move them from the Project to the Weekly Plan?"
+
+   The same shape as the v61 monthly pull, with one difference that matters: the monthly
+   picker is a dropdown and takes one item at a time, and what he described is three at
+   once, onto a named day. So this is a panel — tick several, choose the day and the time
+   block, done — and the items arrive ALREADY PLACED on the grid rather than sitting in the
+   list waiting to be dragged.
+
+   WHAT TRAVELS: the title, and a link home. The notes, checklist, tags, files, due date and
+   stage stay on the board. The week is a schedule, not a second copy of the project.
+
+   ONE TICK, NOT TWO: ticking a pulled step off in this week marks the step done on the
+   board, and (Ash's call) moves its card to the Done stage. The rule for that lives
+   server-side in netlify/lib/projects.js so there is one implementation of it, and it
+   remembers which stage the card came from so unticking puts it back rather than leaving
+   it stranded in Done.
+
+   IF THE PROJECT CHANGES UNDER IT: the weekly task survives. A step deleted on the board
+   leaves the week holding a perfectly good plain task — a change to a project must never
+   damage a week that has already been planned.
+   ===================================================================== */
+// "projstep:<projectId>:<stepId>:<weekEnding>" — the same belt-and-braces as the monthly
+// link: the explicit fields are the answer, the linkId is the fallback for any row that
+// lost them.
+function wpProjectStepIdOf(it){
+  if(!it) return "";
+  if(it.sourceStepId) return String(it.sourceStepId);
+  const m = /^projstep:[^:]+:(.+):\d{4}-\d{2}-\d{2}$/.exec(String(it.linkId||""));
+  return m ? m[1] : "";
+}
+function wpProjectIdOf(it){
+  if(!it) return "";
+  if(it.sourceProjectId && it.source === "project-step") return String(it.sourceProjectId);
+  const m = /^projstep:([^:]+):.+:\d{4}-\d{2}-\d{2}$/.exec(String(it.linkId||""));
+  return m ? m[1] : "";
+}
+const WP_PROJ_ACCENTS = ["orange","teal","blue","green","amber","red"];
+function wpProjAccent(p){ return WP_PROJ_ACCENTS.includes(p && p.accent) ? p.accent : "orange"; }
+// every step that could sensibly be pulled: alive, not finished, and titled. Ordered the way
+// the BOARD reads — left-hand stage first, then down the column — because `order` is a
+// position WITHIN a column and sorting on it alone interleaves the stages into nonsense.
+function wpProjOpenSteps(p){
+  const colAt = {};
+  (p.columns||[]).forEach((c,i)=>{ colAt[c.id] = i; });
+  return (p.steps||[]).filter(st=>st && st.id && !st.del && !st.done && String(st.title||"").trim())
+    .sort((a,b)=>{
+      const ca = colAt[a.col]==null ? 99 : colAt[a.col];
+      const cb = colAt[b.col]==null ? 99 : colAt[b.col];
+      return ca!==cb ? ca-cb : (a.order||0)-(b.order||0);
+    });
+}
+// the ones already in THIS week — a duplicate is not a plan
+function wpProjStepsAlready(){
+  return new Set(((wpPlan && wpPlan.projectItems) || []).map(wpProjectStepIdOf).filter(Boolean));
+}
+function wpProjectPickerHtml(){
+  const any = (wpProjects.list||[]).some(p=>wpProjOpenSteps(p).length);
+  if(!any) return "";
+  return `<button type="button" class="wp-rec-addbtn wp-pull-projbtn" onclick="wpProjPullOpen()">+ Pull from a project</button>`;
+}
+
+let wpProjPullState = { day:"mon", slot:"6-9", picked:{} };
+function wpProjPullOpen(){
+  wpSyncFromDom();
+  // Sunday review → Monday. Any other day, the day you are on, because that is the one you
+  // are most likely to be planning.
+  const t = wpTodayInfo();
+  const dk = t && t.dayKey;
+  wpProjPullState = {
+    day: (dk && dk !== "sun" && WP_DAYS.some(d=>d[0]===dk)) ? dk : "mon",
+    slot: "6-9", picked:{}
+  };
+  const ov = document.getElementById("wpProjPullOverlay");
+  if(!ov) return;
+  wpProjPullRender();
+  ov.hidden = false;
+  requestAnimationFrame(()=>ov.classList.add("open"));
+}
+function wpProjPullClose(){
+  const ov = document.getElementById("wpProjPullOverlay");
+  if(!ov) return;
+  ov.classList.remove("open");
+  setTimeout(()=>{ ov.hidden = true; }, 180);
+}
+function wpProjPullToggle(projectId, stepId){
+  const k = projectId + "|" + stepId;
+  if(wpProjPullState.picked[k]) delete wpProjPullState.picked[k];
+  else wpProjPullState.picked[k] = true;
+  wpProjPullRender();
+}
+function wpProjPullSetDay(d){ wpProjPullState.day = d; wpProjPullRender(); }
+function wpProjPullSetSlot(sl){ wpProjPullState.slot = sl; wpProjPullRender(); }
+function wpProjPullRender(){
+  const body = document.getElementById("wpProjPullBody");
+  const foot = document.getElementById("wpProjPullFoot");
+  if(!body || !foot) return;
+  const already = wpProjStepsAlready();
+  const groups = (wpProjects.list||[]).map(p=>({ p, steps: wpProjOpenSteps(p) })).filter(g=>g.steps.length);
+  body.innerHTML = groups.length ? groups.map(({p,steps})=>{
+    const acc = wpProjAccent(p);
+    return `<div class="wp-pp-proj wp-pp-${acc}">
+      <div class="wp-pp-ph"><span class="wp-pp-dot"></span>${wpEsc(p.name)}
+        <span class="wp-pp-count">${steps.length} open</span></div>
+      ${steps.map(st=>{
+        const inWeek = already.has(String(st.id));
+        const k = p.id + "|" + st.id;
+        const on = !!wpProjPullState.picked[k];
+        const col = (p.columns||[]).find(c=>c.id===st.col);
+        const due = st.due ? wpProjDueLabel(st.due) : null;
+        return `<label class="wp-pp-row${inWeek?" is-in":""}${on?" is-on":""}">
+          <input type="checkbox" ${inWeek?"checked disabled":(on?"checked":"")}
+            onchange="wpProjPullToggle('${wpEsc(p.id)}','${wpEsc(st.id)}')">
+          <span class="wp-pp-urg wp-pp-u-${wpEsc(st.urgency||"normal")}" title="${wpEsc(st.urgency||"normal")}"></span>
+          <span class="wp-pp-t">${wpEsc(st.title)}</span>
+          ${col?`<span class="wp-pp-stage">${wpEsc(col.name)}</span>`:""}
+          ${due?`<span class="wp-pp-due${due.late?" late":""}">${wpEsc(due.text)}</span>`:""}
+          ${inWeek?`<span class="wp-pp-in">already in this week</span>`:""}
+        </label>`;
+      }).join("")}
+    </div>`;
+  }).join("") : `<div class="wp-empty">No open steps in any project. Everything is either done or waiting on a project that is finished.</div>`;
+
+  const n = Object.keys(wpProjPullState.picked).length;
+  const dayLabel = (WP_DAYS.find(d=>d[0]===wpProjPullState.day)||["","Monday"])[1];
+  foot.innerHTML = `
+    <div class="wp-pp-pick">
+      <span class="wp-pp-lbl">Day</span>
+      <span class="wp-pp-btns">${WP_DAYS.map(([k,l])=>
+        `<button type="button" class="wp-pp-b${wpProjPullState.day===k?" on":""}" onclick="wpProjPullSetDay('${k}')">${l}</button>`).join("")}</span>
+    </div>
+    <div class="wp-pp-pick">
+      <span class="wp-pp-lbl">Time</span>
+      <span class="wp-pp-btns">${WP_TIME_ROWS.filter(t=>t[0]!=="notes").map(([k,l])=>
+        `<button type="button" class="wp-pp-b${wpProjPullState.slot===k?" on":""}" onclick="wpProjPullSetSlot('${k}')">${l}</button>`).join("")}</span>
+    </div>
+    <div class="wp-pp-go">
+      <button type="button" class="wp-pp-cancel" onclick="wpProjPullClose()">Cancel</button>
+      <button type="button" class="wp-pp-add" ${n?"":"disabled"} onclick="wpProjPullConfirm()">
+        ${n ? `Add ${n} to ${wpEsc(dayLabel)}` : "Pick some steps"}</button>
+    </div>`;
+}
+// a due date, said the way the rest of this page says dates
+function wpProjDueLabel(due){
+  const MN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const parts = String(due).split("-");
+  if(parts.length !== 3) return { text: due, late:false };
+  const today = new Date(); today.setHours(12,0,0,0);
+  const d = new Date(due + "T12:00:00");
+  const n = Math.round((d - today)/86400000);
+  return { text: Number(parts[2]) + " " + MN[Number(parts[1])-1], late: n < 0 };
+}
+async function wpProjPullConfirm(){
+  const keys = Object.keys(wpProjPullState.picked);
+  if(!keys.length) return;
+  wpSyncFromDom();
+  const day = wpProjPullState.day, slot = wpProjPullState.slot, week = wpWeekEnding;
+  wpPlan.projectItems = Array.isArray(wpPlan.projectItems) ? wpPlan.projectItems : [];
+  wpPlan.placements = wpPlan.placements || {};
+  const cellKey = slot + ":" + day;
+  const already = wpProjStepsAlready();
+  const added = [];
+  for(const k of keys){
+    const cut = k.indexOf("|");
+    const projectId = k.slice(0, cut), stepId = k.slice(cut+1);
+    if(already.has(stepId)) continue;                       // belt and braces over the disabled box
+    const p = (wpProjects.list||[]).find(x=>x.id===projectId);
+    if(!p) continue;
+    const st = (p.steps||[]).find(x=>x.id===stepId);
+    if(!st || st.del || st.done) continue;
+    const it = { id:wpUid(), title:String(st.title||"").slice(0,200), done:false,
+      linkId: "projstep:"+projectId+":"+stepId+":"+week,
+      source: "project-step", sourceProjectId: projectId, sourceStepId: stepId,
+      sourceProjectName: String(p.name||"").slice(0,80) };
+    wpPlan.projectItems.push(it);
+    const ref = wpItemRef("project", it.id);
+    wpPlan.placements[cellKey] = wpPlan.placements[cellKey] || [];
+    if(!wpPlan.placements[cellKey].includes(ref)) wpPlan.placements[cellKey].push(ref);
+    added.push({ projectId, stepId });
+  }
+  wpProjPullClose();
+  renderWeeklyPlan();
+  await wpSaveSection("project");
+  // Tell each board which week and day its step went to, so a card can say so. This is a
+  // nicety: it is fired after the week is safely saved, and a failure costs a chip.
+  for(const a of added){
+    try{
+      await fetch(WP_PROJECTS, { method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ stepLink:{ projectId:a.projectId, stepId:a.stepId, week, day, slot } }) });
+      const p = (wpProjects.list||[]).find(x=>x.id===a.projectId);
+      const st = p && (p.steps||[]).find(x=>x.id===a.stepId);
+      if(st){ st.week = week; st.day = day; st.slot = slot; }
+    }catch(e){ /* the week is saved; the chip is not worth an error */ }
+  }
+}
+/* The tick, going the other way. Mirrors wpPropagateMonthlyDone: the week's own save has
+   already happened and is never conditional on this, so a projects store that is down
+   cannot cost Ash the tick he just made. */
+async function wpPropagateProjectDone(item, done){
+  const projectId = wpProjectIdOf(item), stepId = wpProjectStepIdOf(item);
+  if(!projectId || !stepId) return null;
+  try{
+    const r = await fetch(WP_PROJECTS, { method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ stepLink:{ projectId, stepId, done: !!done } }) }).then(x=>x.json());
+    if(r && r.ok && r.step){
+      // keep the copy this page reads from in step, so the picker agrees on the next open
+      const p = (wpProjects.list||[]).find(x=>x.id===projectId);
+      const st = p && (p.steps||[]).find(x=>x.id===stepId);
+      if(st) Object.assign(st, r.step);
+    }
+    return r;
+  }catch(e){ return null; }
+}
+
 function wpAddItem(source){
   wpSyncFromDom();
   const arr = source==="project" ? wpPlan.projectItems : wpPlan.bufferItems;
@@ -6234,6 +6552,8 @@ async function wpToggleDoneRef(ref, checked, day){
   const section = wpIsDefaultsSource(source) ? "timeBlocks" : source;
   await wpSaveSection(section);
   if(source === "project" && item.source === "monthly-project") await wpPropagateMonthlyDone(item, checked);
+  // v214: a step pulled from a project ticks off on its board too — one tick, not two.
+  if(source === "project" && item.source === "project-step") await wpPropagateProjectDone(item, checked);
   renderWeeklyPlan();
 }
 

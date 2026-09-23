@@ -471,6 +471,9 @@
   .mini.tag{color:var(--tint-blue);background:rgba(var(--blue-rgb),.1);}
   .mini.tag .ic{color:var(--blue);}
   .mini.ok{color:var(--tint-green);background:rgba(var(--green-rgb),.12);}
+  /* v214: "this is on the weekly plan" — the brand, because it is a commitment, not a state */
+  .mini.wk{color:var(--tint-orange);background:rgba(var(--orange-rgb),.12);}
+  .mini.wk .ic{color:var(--orange);}
   .mini.ok .ic{color:var(--green);}
 
   /* ---------- 3. THE STEP, opened ---------- */
@@ -490,7 +493,12 @@
   .dr-h .grow{flex:1;min-width:0;}
   .dr-cap{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--pa-soft);}
   .dr-sub{font-size:12px;color:var(--ink-faint);margin-top:2px;font-weight:600;}
-  .dr-body{flex:1;overflow-y:auto;padding:var(--sp-5);display:flex;flex-direction:column;gap:var(--sp-5);}
+  .dr-body{flex:1;min-height:0;overflow-y:auto;padding:var(--sp-5);display:flex;flex-direction:column;gap:var(--sp-5);}
+  /* A COLUMN FLEX BOX SHRINKS ITS CHILDREN BEFORE IT SCROLLS. Without this the whole step
+     compresses on a short screen instead of scrolling — the title was rendering 14px tall
+     against the 35px it had been given, which looked like the step's name had been cut off.
+     Every child keeps its own height and the body scrolls, which is the point of it. */
+  .dr-body > *{flex:0 0 auto;}
   .dr-foot{border-top:1px solid var(--line);padding:var(--sp-3) var(--sp-5);display:flex;
     align-items:center;justify-content:space-between;gap:var(--sp-3);background:var(--card-2);}
   .dr-title{font-size:18px;font-weight:700;color:var(--ink-strong);letter-spacing:-.35px;line-height:1.3;
@@ -1029,6 +1037,15 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
    added to a step here and not added to cleanStep there is dropped silently on save.
    ===================================================================== */
 const API = "/.netlify/functions/projects";
+/* v214: the weekly plan's store. This page writes ONE thing there — a task in the week's
+   Project list, and where it sits on the grid — and it always does it by reading the week
+   first and sending back what it read plus the change. It touches no other part of a week. */
+const KPI = "/.netlify/functions/kpi-store";
+const WEEK_DAYS = [["mon", "Mon"], ["tue", "Tue"], ["wed", "Wed"], ["thu", "Thu"], ["fri", "Fri"], ["sat", "Sat"], ["sun", "Sun"]];
+/* the weekly grid's four time bands, named exactly as index.html names them — these strings
+   are half of a placement key ("<slot>:<day>") and a typo here would put a task in a cell
+   that does not exist */
+const WEEK_SLOTS = [["6-9", "6 – 9"], ["10-12", "9 – 11.30"], ["1-3", "12 – 3"], ["5-8", "5 – 8"]];
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const ACCENTS = ["orange", "teal", "blue", "green", "amber", "red"];
@@ -1079,6 +1096,21 @@ function dueMeta(due, done) {
   if (n <= 7) return { cls: "soon", text: dLabel(due), long: "in " + n + " days" };
   return { cls: "calm", text: dLabel(due), long: "in " + n + " days" };
 }
+
+/* The week a weekly plan is filed under. index.html calls this "weekEnding" and it is
+   actually the MONDAY that STARTS the week, worked out in UTC — a misnomer inherited from
+   before the grid was Monday-based. Copied here exactly, because a different answer would
+   quietly file tasks into a week Ash is not looking at. */
+function weekKeyNow(when) {
+  const x = new Date(when == null ? Date.now() : when);
+  const back = (x.getUTCDay() + 6) % 7;          // Mon=0 … Sun=6
+  x.setUTCDate(x.getUTCDate() - back);
+  x.setUTCHours(0, 0, 0, 0);
+  return x.toISOString().slice(0, 10);
+}
+// the weekly page's id shape for a task; its grid refs are "project:<this>"
+function wUid() { return "t" + Math.random().toString(36).slice(2, 9); }
+const dayName = (d) => (WEEK_DAYS.find((x) => x[0] === d) || ["", ""])[1];
 
 /* ---------- the toast, and the way back ---------- */
 let toastT = null;
@@ -1387,6 +1419,12 @@ function stepHtml(s) {
   if (dm) meta.push('<span class="mini ' + dm.cls + '"><svg class="ic"><use href="#ic-calendar"/></svg>' + esc(dm.text) + '</span>');
   if (ck) meta.push('<span class="mini' + (ckDone === ck ? " ok" : "") + '"><svg class="ic"><use href="#ic-check"/></svg>' + ckDone + '/' + ck + '</span>');
   if ((s.files || []).length) meta.push('<span class="mini"><svg class="ic"><use href="#ic-paperclip"/></svg>' + s.files.length + '</span>');
+  // v214: what you have already committed to this week, said on the card, so the board
+  // answers "what am I actually doing" without opening anything
+  if (s.week && s.week === weekKeyNow() && s.day) {
+    meta.push('<span class="mini wk"><svg class="ic"><use href="#ic-calendar"/></svg>' +
+      esc((WEEK_DAYS.find((d) => d[0] === s.day) || ["", s.day])[1]) + ' this week</span>');
+  }
   if (s.notes) meta.push('<span class="mini"><svg class="ic"><use href="#ic-note"/></svg></span>');
   (s.tags || []).forEach((t) => meta.push('<span class="mini tag">' + esc(t) + '</span>'));
   return '<button type="button" class="st u-' + esc(s.urgency || "normal") + (s.done ? " isdone" : "") +
@@ -1567,6 +1605,9 @@ function openStep(id) {
   // still hidden left the title one pixel tall.
   $("drScrim").hidden = false; $("drawer").hidden = false;
   renderStep();
+  // always open at the title. On a short screen the body can come up part-scrolled, which
+  // reads as a step whose name has been cut off.
+  $("drBody").scrollTop = 0;
   requestAnimationFrame(() => { $("drScrim").classList.add("open"); $("drawer").classList.add("open"); });
 }
 function closeStep() {
@@ -1580,6 +1621,11 @@ function currentStep() {
   const p = proj();
   return p ? stepById(p, S.openStepId) : null;
 }
+// what the board calls its finished stage, so the drawer can say it by name
+function doneStageName(p) {
+  const c = (p.columns || []).find((x) => x.done === true);
+  return c ? c.name : "Done";
+}
 function renderStep() {
   const p = proj(), s = currentStep();
   if (!p || !s) return;
@@ -1590,11 +1636,23 @@ function renderStep() {
   $("drDone").innerHTML = '<svg class="ic"><use href="#ic-check"/></svg> ' + (s.done ? "Not done after all" : "Mark done");
   const ck = s.checklist || [];
   const ckDone = ck.filter((c) => c.done).length;
+  const inWeek = s.week && s.week === weekKeyNow();
   $("drBody").innerHTML =
     '<textarea class="dr-title" id="stTitle" rows="1" maxlength="240">' + esc(s.title) + '</textarea>' +
     '<div class="fld"><label>Which stage</label><div class="urg" id="stCols">' +
       p.columns.map((c) => '<button type="button" data-c="' + esc(c.id) + '"' + (c.id === s.col ? ' class="on"' : "") + '>' + esc(c.name) + '</button>').join("") +
     '</div></div>' +
+    '<div class="fld"><label>This week</label><div class="urg" id="stWeek">' +
+      WEEK_DAYS.map(([k, w]) => '<button type="button" data-w="' + k + '"' + (inWeek && s.day === k ? ' class="on"' : "") + '>' + w + '</button>').join("") +
+      '<button type="button" data-w=""' + (inWeek ? "" : ' class="on"') + '>Not this week</button>' +
+    '</div>' +
+    (inWeek ? '<div class="urg" id="stSlot" style="margin-top:7px">' +
+      WEEK_SLOTS.map(([k, w]) => '<button type="button" data-s="' + k + '"' + ((s.slot || "6-9") === k ? ' class="on"' : "") + '>' + w + '</button>').join("") +
+    '</div>' : "") +
+    '<div class="hint">' + (inWeek
+      ? 'It is on the weekly plan. Ticking it off there marks it done here — and moves the card to ' + esc(doneStageName(p)) + '.'
+      : 'Put it on a day and it appears on the weekly plan, already placed.') + '</div>' +
+    '</div>' +
     '<div class="fld"><label>How urgent</label><div class="urg" id="stUrg">' +
       URGENCIES.map(([k, w]) => '<button type="button" data-u="' + k + '"' + (k === (s.urgency || "normal") ? ' class="on"' : "") + '><span class="dotc"></span>' + w + '</button>').join("") +
     '</div></div>' +
@@ -1648,6 +1706,13 @@ function wireStep() {
 
   [...$("stCols").querySelectorAll("[data-c]")].forEach((b) => {
     b.onclick = () => { moveStep(s.id, b.dataset.c, null); renderStep(); };
+  });
+  [...$("stWeek").querySelectorAll("[data-w]")].forEach((b) => {
+    b.onclick = () => setStepWeek(s, b.dataset.w, s.slot || "6-9");
+  });
+  const slotRow = $("stSlot");
+  if (slotRow) [...slotRow.querySelectorAll("[data-s]")].forEach((b) => {
+    b.onclick = () => setStepWeek(s, s.day, b.dataset.s);
   });
   [...$("stUrg").querySelectorAll("[data-u]")].forEach((b) => {
     b.onclick = () => { s.urgency = b.dataset.u; s.updatedAt = new Date().toISOString(); pCommit(); renderStep(); };
@@ -1728,12 +1793,27 @@ function wireStep() {
     inp.click();
   };
 }
-function toggleStepDone() {
-  const s = currentStep(); if (!s) return;
-  s.done = !s.done;
-  s.updatedAt = new Date().toISOString();
-  pCommit(); renderStep();
-  toast(s.done ? "Done" : "Back on the board");
+/* v214: ticking a step off means ONE thing, and that one thing is defined server-side in
+   netlify/lib/projects.js — set done, move the card to the finished stage, and remember
+   where it came from so unticking puts it back. The weekly plan's tick goes through the
+   same route, so the two can never drift into two different answers.
+   Pending saves are flushed first: the narrow route works on what is IN the store, and a
+   whole-project write landing after it would put the old column back. */
+async function toggleStepDone() {
+  const p = proj(), s = currentStep();
+  if (!p || !s) return;
+  const want = !s.done;
+  await flush();
+  try {
+    const r = await post({ stepLink: { projectId: p.id, stepId: s.id, done: want } });
+    if (r && r.step) Object.assign(s, r.step);
+    else { s.done = want; s.updatedAt = new Date().toISOString(); pCommit(); }
+  } catch (e) {
+    // the store is unreachable: tick it here and let the ordinary save carry it
+    s.done = want; s.updatedAt = new Date().toISOString(); pCommit();
+  }
+  renderStep(); renderBoard();
+  toast(want ? "Done — moved to " + doneStageName(p) : "Back on the board");
 }
 /* deleting a step keeps it. It is flagged, hidden, and the toast that says so is the way
    back — because the notes on a step are often the only record of why it existed. */
@@ -1748,6 +1828,94 @@ function deleteStep() {
     pCommit();
     renderBoard();
     toast("Back on the board");
+  });
+}
+
+/* =====================================================================
+   3b. INTO THE WEEK
+   "I decide on a Sunday review I want to focus on 3 of them on Monday."
+   The other direction from the weekly page's picker: you are looking at the board, you
+   decide this one is a Monday job, and you say so here.
+
+   What it writes into the week is one task in the Project list plus one grid placement,
+   read-modify-write, and NOTHING else in that week is sent back. What it writes here is the
+   step's note of which week and day it went to, which is what puts the chip on the card.
+
+   THE RULE THAT MATTERS: if the week cannot be read, nothing is written. A failed read
+   followed by a write is how you replace somebody's whole week with one task.
+   ===================================================================== */
+async function readWeek(week) {
+  const r = await fetch(KPI + "?weeklyplan=" + encodeURIComponent(week));
+  if (!r.ok) throw new Error("the weekly plan would not load");
+  const j = await r.json();
+  // a week that has never been opened comes back as a plan with nothing in it; that is a
+  // real answer. A THROW above is not, and never reaches here.
+  const plan = (j && j.plan) || {};
+  return {
+    items: Array.isArray(plan.projectItems) ? plan.projectItems.slice() : [],
+    placements: (plan.placements && typeof plan.placements === "object" && !Array.isArray(plan.placements))
+      ? JSON.parse(JSON.stringify(plan.placements)) : {},
+  };
+}
+async function writeWeek(week, items, placements) {
+  const r = await fetch(KPI, { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ weeklyPlan: { weekEnding: week, projectItems: items, placements } }) });
+  if (!r.ok) throw new Error((await r.text()).slice(0, 200));
+  return r.json();
+}
+/* day === "" means take it out of the week again. */
+async function setStepWeek(step, day, slot) {
+  const p = proj();
+  if (!p || !step) return;
+  const week = weekKeyNow();
+  let before;
+  try { before = await readWeek(week); }
+  catch (e) { toast("Could not reach the weekly plan — nothing was changed."); return; }
+  const items = before.items.slice();
+  const placements = JSON.parse(JSON.stringify(before.placements));
+  const mine = items.find((it) => it && it.sourceStepId === step.id);
+  const refOf = (it) => "project:" + it.id;
+  const stripRef = (ref) => { for (const k of Object.keys(placements)) {
+    placements[k] = (placements[k] || []).filter((r) => r !== ref);
+    if (!placements[k].length) delete placements[k];
+  } };
+
+  if (!day) {
+    if (!mine) { step.week = ""; step.day = ""; pCommit(); renderBoard(); return; }
+    stripRef(refOf(mine));
+    const idx = items.indexOf(mine);
+    items.splice(idx, 1);
+  } else {
+    const cell = (slot || "6-9") + ":" + day;
+    let it = mine;
+    if (!it) {
+      it = { id: wUid(), title: String(step.title || "").slice(0, 200), done: !!step.done,
+        linkId: "projstep:" + p.id + ":" + step.id + ":" + week,
+        source: "project-step", sourceProjectId: p.id, sourceStepId: step.id,
+        sourceProjectName: String(p.name || "").slice(0, 80) };
+      items.push(it);
+    }
+    stripRef(refOf(it));                       // one task, one place — move rather than clone
+    placements[cell] = placements[cell] || [];
+    placements[cell].push(refOf(it));
+  }
+
+  try { await writeWeek(week, items, placements); }
+  catch (e) { toast("Could not save into the weekly plan: " + e.message); return; }
+  step.week = day ? week : "";
+  step.day = day || "";
+  step.slot = day ? (slot || "6-9") : "";
+  pCommit();
+  renderStep(); renderBoard();
+  // the way back, on the confirmation of the thing that just happened
+  toastUndo(day ? "On " + dayName(day) + " this week" : "Taken out of this week", "Undo", async () => {
+    try {
+      await writeWeek(week, before.items, before.placements);
+      step.week = (before.items.find((x) => x && x.sourceStepId === step.id)) ? week : "";
+      step.day = step.week ? (step.day || "") : "";
+      pCommit(); renderStep(); renderBoard();
+      toast("Put back");
+    } catch (e) { toast("Could not undo: " + e.message); }
   });
 }
 

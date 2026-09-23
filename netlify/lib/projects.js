@@ -50,6 +50,10 @@ export const URGENCIES = ["critical", "high", "normal", "low"];
 // value the stylesheet has no colour for.
 export const ACCENTS = ["orange", "teal", "blue", "green", "amber", "red"];
 export const KINDS = ["board", "file"];
+export const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+// the weekly grid's four time bands, by the keys index.html uses. Half of a placement key
+// ("<slot>:<day>") — a value that is not one of these names a cell that does not exist.
+export const SLOTS = ["6-9", "10-12", "1-3", "5-8"];
 // what may be uploaded. Anything else is refused by name, so the answer is never a broken
 // picture — a .docx has no business being a diagram.
 export const MIMES = [
@@ -107,6 +111,17 @@ export function cleanStep(raw, columnIds) {
     files: (Array.isArray(raw.files) ? raw.files : [])
       .map(cleanFileRef).filter(Boolean).slice(0, CAP.files),
     done: raw.done === true,
+    /* v214: the weekly plan. `week` is the week-ending date of the week this step has been
+       pulled into and `day` is which column of that week's grid it sits in — written by the
+       weekly page when it pulls the step, and read back by the board so a card can say "Mon
+       this week". They are a NOTE ABOUT the weekly plan, never the plan itself: the week
+       owns its own copy of the task, and losing these two fields costs a chip on a card. */
+    week: ymd(raw.week),
+    day: DAYS.includes(raw.day) ? raw.day : "",
+    slot: SLOTS.includes(raw.slot) ? raw.slot : "",
+    /* where the card was before a tick in the weekly plan moved it to the Done stage, so
+       unticking puts it back where it came from instead of stranding it in Done */
+    colBefore: id(raw.colBefore),
     // v213: a deleted step is KEPT and flagged. Its notes are often the only record of why
     // something was going to be done; removing the row would throw that away for good.
     del: raw.del === true,
@@ -201,6 +216,51 @@ export function cleanProject(raw) {
     createdAt: str(raw.createdAt, 30) || nowIso(),
     lastUpdated: nowIso(),
   };
+}
+
+/* =====================================================================
+   v214: THE LINK TO THE WEEKLY PLAN
+   A step pulled into the weekly plan is not a copy with its own done-flag — it is the same
+   job, looked at from the week. So ticking it off in the weekly plan has to mean exactly
+   what ticking it off on the board means, and that rule lives HERE, once, server-side,
+   because two implementations of it would be two answers.
+   Ash asked for the card to move to Done as well ("so my board tidies itself"), which
+   leaves one question the asking did not: where does it go if he unticks it? Back where it
+   came from. `colBefore` is what remembers, and it is why untick is not a one-way door.
+   ===================================================================== */
+export function doneColumnOf(project) {
+  return (project.columns || []).find((c) => c.done === true) || null;
+}
+/* Returns the step if anything changed, null if nothing did (so a no-op never costs a write). */
+export function applyStepDone(project, stepId, done) {
+  const s = (project.steps || []).find((x) => x.id === stepId && !x.del);
+  if (!s) return null;
+  done = !!done;
+  if (s.done === done) return null;
+  s.done = done;
+  const dc = doneColumnOf(project);
+  if (done) {
+    // moving is only possible if the board HAS a done stage; a board without one just ticks
+    if (dc && s.col !== dc.id) { s.colBefore = s.col; s.col = dc.id; }
+  } else {
+    // only undo the move we made — a card he dragged into Done himself stays put
+    if (dc && s.col === dc.id && s.colBefore) s.col = s.colBefore;
+    s.colBefore = "";
+  }
+  s.updatedAt = nowIso();
+  return s;
+}
+export function applyStepWeek(project, stepId, week, day, slot) {
+  const s = (project.steps || []).find((x) => x.id === stepId && !x.del);
+  if (!s) return null;
+  const w = (typeof week === "string" && /^\d{4}-\d{2}-\d{2}$/.test(week)) ? week : "";
+  // a day without a week, or a time without a day, is not an answer — they clear together
+  const d = w && DAYS.includes(day) ? day : "";
+  const sl = d && SLOTS.includes(slot) ? slot : (d ? "6-9" : "");
+  if (s.week === w && s.day === d && s.slot === sl) return null;
+  s.week = w; s.day = d; s.slot = sl;
+  s.updatedAt = nowIso();
+  return s;
 }
 
 /* ---------- reading and writing ---------- */

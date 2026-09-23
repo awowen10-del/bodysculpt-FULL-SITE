@@ -11,9 +11,16 @@
 //   POST ?upload=1&name=&mime=   raw bytes in the body (4 MB cap) -> { file:{id,name,mime,size} }
 //   POST { project:{…} }  save one project, whole. The page always holds the whole project,
 //                         so a partial write can never half-erase a board.
+//   POST { stepLink:{ projectId, stepId, done?, week?, day?, slot? } }  v214: the weekly plan's door.
+//         The WEEKLY page calls this, and it is deliberately the narrowest thing that could
+//         work: it can tick one step off, and it can note which week and day that step has
+//         been pulled into. It cannot rename anything, add anything, delete anything or
+//         touch another step. The weekly page never sends a whole project, so it can never
+//         overwrite a board with a stale copy of one.
 //
 // There is no delete route. Archiving a project and flagging a step are ordinary saves.
 import { cleanProject, listProjects, readProject, writeProject, readFile, writeFile,
+         applyStepDone, applyStepWeek,
          newId, clip, json, CAP, MIMES } from "../lib/projects.js";
 
 export default async (req) => {
@@ -75,13 +82,30 @@ export default async (req) => {
     try { body = await req.json(); }
     catch { return json({ error: "Bad JSON" }, 400); }
 
+    // v214: one step's done-state, or its note of which week it was pulled into. Read,
+    // change that ONE step, clean, write — the whole project never travels from the caller.
+    if (body.stepLink && body.stepLink.projectId && body.stepLink.stepId) {
+      const pid = clip(body.stepLink.projectId, 40), sid = clip(body.stepLink.stepId, 40);
+      const project = await readProject(pid);
+      if (!project) return json({ error: "No such project" }, 404);
+      let changed = false;
+      if ("done" in body.stepLink) changed = !!applyStepDone(project, sid, body.stepLink.done) || changed;
+      if ("week" in body.stepLink) changed = !!applyStepWeek(project, sid, body.stepLink.week, body.stepLink.day, body.stepLink.slot) || changed;
+      // nothing to say is not a reason to write — a no-op must not bump lastUpdated
+      if (!changed) return json({ ok: true, step: null, unchanged: true });
+      const cleaned = cleanProject(project);
+      if (!cleaned) return json({ error: "That project could not be saved" }, 500);
+      await writeProject(cleaned);
+      return json({ ok: true, step: (cleaned.steps || []).find((x) => x.id === sid) || null });
+    }
+
     if (body.project) {
       const project = cleanProject(body.project);
       if (!project) return json({ error: "A project needs an id and a name" }, 400);
       await writeProject(project);
       return json({ ok: true, project });
     }
-    return json({ error: "Send { project: … }, or POST ?upload=1 with the bytes" }, 400);
+    return json({ error: "Send { project: … } or { stepLink: … }, or POST ?upload=1 with the bytes" }, 400);
   }
 
   return new Response("Method not allowed", { status: 405 });
