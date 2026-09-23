@@ -39,21 +39,26 @@ const dstyle = DAILY.slice(DAILY.indexOf("<style>") + 7, DAILY.indexOf("</style>
   }
 
   /* ============ 1. THE MORNING OPENS THE PAGE, side by side ============ */
+  /* v221 COLLAPSED THIS ROW. It was two cards side by side — the questions on the left,
+     Today on the right — and both showed the one thing. The questions are asked by focus
+     mode now, so the row is one compact card: the state of the day, for an afternoon you
+     land here without entering a mode. What v154 is about — that the morning OPENS the
+     page, above the calendar and the inbox — is unchanged and checked here. */
   assert.ok(/<div class="day-top">/.test(DAILY), "there is a top row");
-  assert.ok(/\.day-top\{display:grid;grid-template-columns:minmax\(0,1\.35fr\) minmax\(300px,1fr\)/.test(dstyle),
-    "…two columns, the questions the wider of them while they are still questions");
+  assert.ok(/\.day-top\{display:block/.test(dstyle), "…one card wide now, not two");
   const top = DAILY.slice(DAILY.indexOf('<div class="day-top">'), DAILY.indexOf('id="calCard"'));
-  assert.ok(/id="ckCard"/.test(top) && /class="card today-card"/.test(top),
-    "Start the day and Today are both in it");
-  assert.ok(top.indexOf('id="ckCard"') < top.indexOf("today-card"), "…the questions on the left");
+  assert.ok(/class="card today-card"/.test(top), "Today is in it");
+  assert.ok(!/id="ckCard"/.test(DAILY), "…and the card of question boxes is gone from the page");
+  assert.ok(DAILY.indexOf('<div class="day-top">') < DAILY.indexOf('id="calCard"'),
+    "…and the morning still opens the page, above the calendar");
   // it is genuinely FIRST — nothing but the timer host sits above it
   const before = DAILY.slice(DAILY.indexOf('<div class="day-head">'), DAILY.indexOf('<div class="day-top">'));
   assert.ok(!/<section class="card/.test(before), "nothing else gets between the date and the morning");
   assert.ok(/id="ftHost"/.test(before), "…except the focus bar, which only exists while a block is running");
-  // and when there are no questions left to ask, Today takes the whole row rather than
-  // sitting beside a gap
-  assert.ok(/\.ck-card\[hidden\] \+ \.today-card\{grid-column:1 \/ -1;\}/.test(dstyle),
-    "with no check-in to show, Today spans the row instead of leaving a hole");
+  /* v221: there is no second card to leave a gap beside. The row is one card, always the
+     full width, so the rule that used to stretch Today across an empty column has nothing
+     left to do and is gone with it. */
+  assert.ok(!/\.ck-card/.test(dstyle), "no rule is left describing a card that no longer exists");
 
   /* ============ 2. the money headline sits with the money ============ */
   const moneyCard = DAILY.slice(DAILY.indexOf("Money needing attention") - 400, DAILY.indexOf('id="moneyBody"') + 40);
@@ -98,7 +103,10 @@ const dstyle = DAILY.slice(DAILY.indexOf("<style>") + 7, DAILY.indexOf("</style>
 
   /* ============ 5. everything it did, the daily page does ============ */
   for (const here of [
-    "const CK_FIELDS", "function renderCheckin()", "JSON.stringify({ checkin: next })",
+    /* v221: CK_FIELDS and renderCheckin() named the card the questions arrived in. The
+       questions are still here and still this page's — they are asked in focus mode's
+       morning now, which is what the fm_ ids below check. */
+    "JSON.stringify({ checkin: next })", "id=\"fm_mind\"", "id=\"fm_one\"",
     "const CK_HABITS", "ckToggleHabit", "data-habit",
     "function ftStart(min)", "function ftPause()", "function ftOnTick()", "renderTimerBar",
   ]) {

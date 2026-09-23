@@ -499,10 +499,14 @@ async function loadStripe(env, responder) {
   // — and says something different again once the day has been started without one.
   // v157: while the questions are open beside it the box says nothing at all — the answer
   // arrives when it is given. What is still pinned: nothing sends anyone to another page.
-  assert.ok(/if \(!asking\) \{/.test(js) && !/No check-in yet today/.test(js),
-    "an unanswered check-in shows nothing, and never points at another page");
-  assert.ok(/No one thing set for today/.test(js),
-    "…while a day started WITHOUT one says that instead, and offers to set one");
+  /* v221: the card collapsed into one strip and the questions moved into focus mode, so
+     the wording changed. The claim did not: no blank, and nothing sends you to another
+     page for it — the button opens the questions on this one. */
+  assert.ok(!/No check-in yet today/.test(js), "…and never points at another page for the questions");
+  assert.ok(/Not set — <button type="button" class="tsum-link" id="oneThingAdd">answer the morning questions/.test(js),
+    "a day with no one thing says so, and offers to set one");
+  assert.ok(/on\("oneThingAdd", \(\) => fmShow\("morning"\)\)/.test(js),
+    "…by opening the questions here, not by linking away");
   // with nothing switched on at all, the four Gmail labels are still one click away
   assert.ok(/TIERS\.map\(\(t\) => '<a class="abtn" href="' \+ esc\(labelUrl\(t\.label\)\)/.test(js),
     "…and the unconfigured mail card still links straight into the four Gmail labels");

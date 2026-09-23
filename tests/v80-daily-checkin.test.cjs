@@ -20,8 +20,16 @@ const DAILY = fs.readFileSync(path.join(__dirname, "..", "daily.html"), "utf8");
   for (const gone of ["wpCheckinStart", "wpCheckinSkip", "wpCheckinBlockHtml", "WP_CHECKIN_FIELDS", "wpCheckinSaveFromEditors"]) {
     assert.ok(!WEEKLY.includes(gone), "the weekly page is rid of " + gone);
   }
-  for (const here of ["const CK_FIELDS", "function renderCheckin()", "ckStart", "JSON.stringify({ checkin: next })"]) {
+  /* v221 CHANGED THIS LIST. It named the card the check-in arrived in — CK_FIELDS,
+     renderCheckin(), ckStart. That card is gone: the questions are asked by focus mode's
+     morning now, and asking them twice on one page was the noise Ash described. What v80 is
+     actually about is unchanged and still checked — the check-in belongs to the DAILY page,
+     it is one record per date, and it is written through one payload. */
+  for (const here of ["function ckEntry(", "function ckSave(", "JSON.stringify({ checkin: next })",
+                      "const CK_HABITS", "CK_EVENING_HOUR"]) {
     assert.ok(DAILY.includes(here), "…and the daily page has " + here);
   }
+  assert.ok(/id="fm_mind"/.test(DAILY) && /id="fm_one"/.test(DAILY),
+    "…and the questions themselves are asked in exactly one place, focus mode's morning");
   console.log("v80-daily-checkin: all assertions passed (retired — see v154-the-day-moved)");
 })().catch((e) => { console.error(e); process.exit(1); });

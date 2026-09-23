@@ -33,9 +33,12 @@ const style = DAILY.slice(DAILY.indexOf("<style>") + 7, DAILY.indexOf("</style>"
   }
 
   /* ============ 1. the three questions, unchanged in substance ============ */
-  const fields = [...js.matchAll(/\{ key: "([a-zA-Z]+)",\s+label: "([^"]+)"/g)].map((m) => [m[1], m[2]]);
-  assert.deepStrictEqual(fields.map((f) => f[0]), ["mind", "gratitude", "oneThing"],
-    "the same three questions, in the same order");
+  /* v221: the questions moved from a CK_FIELDS table into focus mode's morning as markup.
+     Same three, same order, same words — read from where they now live. */
+  const fields = [...js.matchAll(/<textarea id="fm_(mind|grat|one)"/g)].map((m) => m[1]);
+  assert.deepStrictEqual(fields, ["mind", "grat", "one"], "the same three questions, in the same order");
+  assert.ok(/What\\u2019s on your mind today\?/.test(js), "…the first, worded as it was");
+  assert.ok(/What are you grateful for\?/.test(js), "…the second");
   assert.ok(/If you only complete one thing today, what is it\?/.test(js),
     "…worded as they were — this is a move, not a redesign");
   assert.ok(/const CK_EVENING_HOUR = 14;/.test(js), "the evening loop-closer still opens at 2pm");
@@ -45,14 +48,20 @@ const style = DAILY.slice(DAILY.indexOf("<style>") + 7, DAILY.indexOf("</style>"
      The modal used the v70 rich editor. Porting it would have meant a SECOND copy of that
      sanitiser, and this codebase already keeps one uneasy pair of them honest with a parity
      test. Three short prose answers never needed bold. */
-  assert.ok(/<textarea id="ck_' \+ f\.key/.test(js), "the answers are plain textareas");
+  /* v221: the three boxes moved from the check-in card into focus mode's morning, and
+     their ids moved with them. The claim is the one that mattered: PLAIN textareas, and no
+     second copy of the rich-text engine anywhere on this page. */
+  assert.ok(/<textarea id="fm_mind"/.test(js) && /<textarea id="fm_grat"/.test(js) && /<textarea id="fm_one"/.test(js),
+    "the answers are plain textareas");
   for (const name of ["wpNotesToEditorHtml", "wpSanitizeNotesHtml", "wp:rich", "contenteditable"]) {
     assert.ok(!js.includes(name), "no second copy of the rich-text engine came along: " + name);
   }
   // …and anything already written WITH formatting still reads correctly
-  assert.ok(/esc\(richToText\(val\)\)/.test(js), "an answer saved with formatting is flattened for editing");
-  assert.ok(/esc\(richToText\(entry\.oneThing\)\)|richToText\(entry\.oneThing\)/.test(js),
-    "…and for display");
+  // v221: the flattening moved with the boxes — same call, at the new ids
+  assert.ok(/esc\(richToText\(e\.mind\)\)/.test(js) && /esc\(richToText\(e\.oneThing\)\)/.test(js),
+    "an answer saved with formatting is flattened for editing");
+  // v221: the entry is named `e` now that the card it belonged to is gone
+  assert.ok(/richToText\(e\.oneThing\)\.trim\(\)/.test(js), "…and for display");
 
   /* ============ 3. the store is untouched ============ */
   assert.ok(/JSON\.stringify\(\{ checkin: next \}\)/.test(js),
@@ -61,9 +70,17 @@ const style = DAILY.slice(DAILY.indexOf("<style>") + 7, DAILY.indexOf("</style>"
     "…merging into the day's existing entry rather than replacing it");
   assert.ok(/if \(back && back\.checkin\) checkinAll\[date\] = back\.checkin;/.test(js),
     "…and taking the server's re-cleaned copy back");
-  // only fields on screen are read, so saving the summary cannot blank hidden answers
-  assert.ok(/const el = \$\("ck_" \+ f\.key\);\s*\n\s*if \(el\) patch\[f\.key\] = el\.value;/.test(js),
-    "only the boxes actually on screen are read — the v80 rule, kept");
+  /* THE v80 RULE, KEPT — by a simpler mechanism. It used to be enforced by sweeping only
+     the boxes that were on screen (ckReadFields); v221 moved the boxes into focus mode and
+     deleted the sweep, so a save from the day strip carries ONLY what it is changing, and
+     ckSave rebuilds the rest from the stored entry. A one-field patch still cannot blank an
+     answer that is not being shown — which is what the rule was ever about. */
+  assert.ok(/try \{ await ckSave\(extra \|\| \{\}\); \}/.test(js),
+    "a save carries only what it is changing");
+  assert.ok(!/ckReadFields/.test(js.replace(/\/\*[\s\S]*?\*\//g, "")),
+    "…there is no screen-sweep left to get wrong");
+  assert.ok(/const next = \{ \.\.\.ckEntry\(date\), \.\.\.patch, date \};/.test(js),
+    "…and the rest of the day comes from the stored entry, so nothing hidden is blanked");
 
   /* ============ 4. the non-negotiables are TICKED here now ============ */
   const habits = [...js.matchAll(/\{ id: "([a-z]+)",\s+short:/g)].map((m) => m[1]);
@@ -103,15 +120,28 @@ const style = DAILY.slice(DAILY.indexOf("<style>") + 7, DAILY.indexOf("</style>"
   assert.ok(/catch \(e\) \{ \/\* a browser that will not make a noise is not a broken timer \*\/ \}/.test(js),
     "…and a browser that refuses is not an error");
 
-  /* ============ 6. the card gets out of the way once the day has started ============ */
-  assert.ok(/card\.classList\.add\("open"\)/.test(js) && /card\.classList\.remove\("open"\)/.test(js),
-    "the questions card opens and closes");
-  assert.ok(/class="ck-sum"/.test(js), "once started it is one line");
-  // v157 removed the strapline — "it's my dashboard, I know what everything is"
-  // and every control on it is wired where it is rendered — the v144 rule
-  const wired = js.slice(js.indexOf("function renderCheckin"));
-  for (const id of ["ckStart", "ckSkip", "ckEdit", "ckYes", "ckNo"]) {
-    assert.ok(new RegExp('on\\("' + id + '"').test(wired), "#" + id + " is wired in the same function that renders it");
+  /* ============ 6. the questions get out of the way once the day has started ============
+     v221: they used to do that by collapsing a card on this page to one line. They do it by
+     not being on this page at all now — they are a step in focus mode, and the dashboard
+     shows the ANSWER. Same behaviour, one fewer place for it to live. */
+  assert.ok(!/class="ck-sum"/.test(js), "the collapsing card is gone");
+  assert.ok(/<span class="tsum-k">One thing/.test(js), "…and the day strip shows the answer instead");
+  assert.ok(/fmStage = "day"; fmQueue = fmBuildQueue\(\); fmRender\(\);/.test(js),
+    "…and answering them moves straight on to the day, rather than back to a card");
+  /* THE v144 RULE, KEPT: every control is wired in the function that renders it, so a
+     render that returns early can never leave a button on screen with nothing behind it.
+     v221 split these across two renderers — the day strip keeps the one-thing yes/no and
+     the habits, focus mode's morning keeps the questions — so both are checked, each
+     against its own function. */
+  const strip = js.slice(js.indexOf("function renderToday"), js.indexOf("/* ---------- freshness"));
+  for (const id of ["ckYes", "ckNo", "oneThingAdd"]) {
+    assert.ok(new RegExp('on\\("' + id + '"').test(strip), "#" + id + " is wired where the day strip renders it");
+  }
+  assert.ok(/data-habit/.test(strip) && /addEventListener\("click", \(\) => ckToggleHabit/.test(strip),
+    "…and so are the habits");
+  const fmwire = js.slice(js.indexOf("function fmWire"));
+  for (const id of ["fmSkipQ", "fmSaveQ", "fmOneYes", "fmOneNo"]) {
+    assert.ok(new RegExp('on\\("' + id + '"').test(fmwire), "#" + id + " is wired where focus mode renders it");
   }
 
   /* ============ 7. …and v154 removed the weekly copy ============

@@ -31,40 +31,51 @@ for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "s
   assert.ok(read(f).includes(text), f + " carries the stamp");
 }
 
-/* ============ 1. the habit rows: detail under the name, no tooltip ============ */
+/* ============ v221 REPLACED THE CARD THIS TEST WAS ABOUT ============
+   v158 was a design pass on the Today card: habit rows with a detail line under the name, a
+   segmented count, the four timer lengths in one bordered box, and the card as a flex column
+   with the timer anchored to its bottom edge so the empty middle read as spacing.
+
+   v221 collapsed that card. The questions that sat beside it moved into focus mode, and what
+   is left is one compact strip: three rows, each a label and its state, for the afternoon you
+   land on the page without entering a mode. There is no empty middle to anchor against any
+   more, and the habits are chips rather than rows.
+
+   So the layout claims are retired. THE FINDINGS ARE NOT — those were about what went wrong
+   on screen, and they are just as true of a strip as of a card. They are re-pinned here
+   against the thing that now exists. */
 const today = fn("renderToday");
-assert.ok(!/data-habit="' \+ esc\(h\.id\) \+\s*'" title=/.test(today), "the habit button carries no title attribute");
-assert.ok(!/title="' \+ esc\(h\.label\)/.test(js), "…and nothing else puts the label in a tooltip");
-assert.ok(/class="nn-txt"><span class="nn-s">' \+ esc\(h\.short\)/.test(today), "the name is the row's first line");
-assert.ok(/h\.sub \? '<span class="nn-sub">' \+ esc\(h\.sub\)/.test(today), "the detail is the second line, when there is one");
+
+/* ---- 1. the finding that started v158: no tooltip over the heading ---- */
+assert.ok(!/data-habit="[^"]*"[^>]*title=/.test(today), "the habit chip carries no title attribute");
+assert.ok(!/title="' \+ esc\(h\.sub/.test(js) && !/title="' \+ esc\(h\.label/.test(js),
+  "…and nothing else puts a habit's long text in a tooltip");
+assert.ok(/NO TITLE ATTRIBUTE/.test(js), "…and why is written down, because it is easy to put back");
+
+/* ---- 2. it is still a toggle, and a done one reads as done ---- */
+assert.ok(/aria-pressed="' \+ \(habits\[h\.id\] === true \? "true" : "false"\)/.test(today),
+  "each habit is still a toggle to a screen reader");
+assert.ok(/\.tsum-hb\.on\{[^}]*line-through/.test(css), "a ticked habit reads as done, not just as green");
+assert.ok(/all \? "All done" : ticked \+ " of " \+ CK_HABITS\.length/.test(today),
+  "three of three still says All done");
 const habits = js.slice(js.indexOf("const CK_HABITS"), js.indexOf("];", js.indexOf("const CK_HABITS")));
-assert.strictEqual((habits.match(/sub: "/g) || []).length, 3, "all three habits have a sub line");
-assert.ok(/aria-pressed="' \+ \(on \? "true" : "false"\)/.test(today), "the row is still a toggle to a screen reader");
-assert.ok(/\.nn\.on \.nn-s\{[^}]*line-through/.test(css), "a done row reads as done");
+assert.strictEqual((habits.match(/sub: "/g) || []).length, 3,
+  "the habits keep their detail text — it is the tooltip that was wrong, not the words");
 
-/* ============ 2. the count is three segments and a number ============ */
-assert.ok(/CK_HABITS\.map\(\(_, i\) => '<span class="nn-seg' \+ \(i < ticked \? " on" : ""\)/.test(today),
-  "one segment per habit, filled left to right");
-assert.ok(/all \? "All done" : ticked \+ " of " \+ CK_HABITS\.length/.test(today), "three of three says so");
-assert.ok(!/nn-count/.test(js) && !/\.nn-count/.test(css), "the floated count is gone, rule and all");
+/* ---- 3. the focus block still works the way it did ---- */
+assert.ok(/#ic-headphones/.test(today) && /<symbol id="ic-headphones"/.test(html), "Dial in keeps its glyph");
+assert.ok(/onclick="return ftDialIn\(this\)"/.test(today) && /rel="noopener noreferrer"/.test(today),
+  "the app-then-web link is unchanged");
+assert.ok(/id="ftGo' \+ m \+ '" data-min="' \+ m \+ '"/.test(today), "each length keeps its id and its minutes");
+assert.ok(/t\.id\.indexOf\("ftGo"\) === 0\) ftStart\(Number\(t\.dataset\.min\)\)/.test(js),
+  "…so the delegated click still starts the timer");
+assert.ok(/A ' \+ ftTimer\.durationMin \+ "-minute block is "/.test(today),
+  "a running block still says so here, rather than the presets pretending nothing is on");
 
-/* ============ 3. the focus block: one heading row, one control ============ */
-assert.ok(/<div class="ft-head"><div class="one-k">Focus block<\/div>' \+\s*'<a class="ft-dial"/.test(today),
-  "Dial in sits on the heading row, right of the title");
-assert.ok(/#ic-headphones/.test(today) && /<symbol id="ic-headphones"/.test(html), "…with a headphones glyph, not a dot");
-assert.ok(/onclick="return ftDialIn\(this\)"/.test(today) && /rel="noopener noreferrer"/.test(today), "the app-then-web link is unchanged");
-assert.ok(/'<button type="button" class="ft-preset" id="ftGo' \+ m \+ '" data-min="' \+ m \+ '">' \+ m \+ "<small>min<\/small><\/button>"/.test(today),
-  "each length is a number over a small unit");
-assert.ok(/\.ft-presets\{display:grid;grid-template-columns:repeat\(4,minmax\(0,1fr\)\);border:1px solid var\(--line\)/.test(css),
-  "the four lengths share one bordered box");
-assert.ok(/\.ft-preset\{[^}]*border:0;border-left:1px solid var\(--line\)/.test(css) && /\.ft-preset:first-child\{border-left:0;\}/.test(css),
-  "…divided by hairlines, not four separate tiles");
-assert.ok(/t\.id\.indexOf\("ftGo"\) === 0\) ftStart\(Number\(t\.dataset\.min\)\)/.test(js), "the delegated click still starts the timer");
+/* ---- 4. the strip itself: three rows, each a label and its state ---- */
+assert.ok(/\.tsum-row\{display:flex/.test(css), "the card is rows");
+assert.ok((today.match(/class="tsum-row"/g) || []).length === 3, "three of them: the one thing, the habits, the focus block");
+assert.ok(/\.tsum-k\{[^}]*flex:0 0 132px/.test(css), "…each led by a label of the same width, so they line up");
+assert.ok(!/\.ft-idle-box\{margin-top:auto/.test(css), "nothing is anchored to a bottom edge any more — there is no slack to take");
 
-/* ============ 4. the card anchors the timer to its bottom edge ============ */
-assert.ok(/\.today-card\{[^}]*display:flex;flex-direction:column;\}/.test(css), "the card is a column");
-assert.ok(/#todayBody\{display:flex;flex-direction:column;flex:1;min-height:0;\}/.test(css), "…and its body fills it");
-assert.ok(/\.ft-idle-box\{margin-top:auto;/.test(css), "the idle focus block takes the slack above it");
-assert.ok(/\.nn-box\{padding-bottom:var\(--sp-4\);\}/.test(css), "…but never closes right up to the checklist");
-
-console.log("v158 the-today-card: ok");
+console.log("v158 the-today-card: ok (layout claims retired in v221 — findings re-pinned)");

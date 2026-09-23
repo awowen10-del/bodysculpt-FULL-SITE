@@ -750,15 +750,6 @@
   /* --- today, read from the check-in the weekly app already keeps --- */
   .one-thing{font-size:15px;font-weight:700;line-height:1.4;color:var(--ink-strong);
     letter-spacing:-.015em;}
-  .one-thing.done{color:var(--tint-green);}
-  .one-k{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;
-    color:var(--ink-faint);margin-bottom:5px;}
-  .nn{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink-dim);
-    padding:6px 0;border-top:1px solid var(--line);line-height:1.4;}
-  .nn:first-of-type{border-top:0;}
-  .nn .ic{width:15px;height:15px;flex:0 0 auto;color:var(--ink-faint);}
-  .nn.on{color:var(--ink);} .nn.on .ic{color:var(--tint-green);}
-  .nn-box{margin-top:var(--sp-4);padding-top:var(--sp-3);border-top:1px solid var(--line);}
 
 
   /* ===================== v136: THE WEEK, ACROSS THE TOP =====================
@@ -974,11 +965,47 @@
      the card shrinks to one line and the two even out on their own. */
   /* v157: stretch, so the two cards share a bottom edge; and no section margin on top of
      the grid gap, so the gap above the calendar is the same gap as everywhere else */
-  .day-top{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,1fr);
-    gap:var(--sp-4);align-items:stretch;margin-bottom:var(--sp-4);}
-  @media(max-width:980px){ .day-top{grid-template-columns:1fr;} }
+  .day-top{display:block;margin-bottom:var(--sp-4);}
+  /* v221: the day at a glance — three rows, each a label and its state. */
+  .today-card{padding:var(--sp-4) var(--sp-5);}
+  .tsum{display:flex;flex-direction:column;}
+  .tsum-row{display:flex;align-items:center;gap:var(--sp-4);padding:11px 0;flex-wrap:wrap;
+    border-top:1px solid var(--line);}
+  .tsum-row:first-child{border-top:0;padding-top:2px;}
+  .tsum-row:last-child{padding-bottom:2px;}
+  .tsum-k{flex:0 0 132px;font-size:10.5px;font-weight:800;text-transform:uppercase;
+    letter-spacing:.1em;color:var(--ink-faint);display:inline-flex;align-items:center;gap:5px;}
+  .tsum-v{flex:1;min-width:180px;font-size:15px;font-weight:700;color:var(--ink-strong);
+    letter-spacing:-.2px;line-height:1.35;}
+  .tsum-v.done{color:var(--ink-faint);text-decoration:line-through;}
+  .tsum-v.none{font-size:13.5px;font-weight:500;color:var(--ink-faint);}
+  .tsum-link{font-family:inherit;font-size:13.5px;font-weight:700;color:var(--orange);
+    background:transparent;border:0;padding:0;cursor:pointer;text-decoration:underline;}
+  .tsum-yn{display:flex;gap:6px;flex:0 0 auto;}
+  .tsum-b{font-family:inherit;font-size:11.5px;font-weight:700;color:var(--ink-dim);
+    background:var(--card);border:1px solid var(--line);border-radius:var(--r-pill);
+    padding:5px 12px;cursor:pointer;}
+  .tsum-b:hover{border-color:var(--ink-faint);color:var(--ink);}
+  .tsum-b.yes{background:rgba(var(--green-rgb),.12);border-color:var(--green);color:var(--tint-green);}
+  .tsum-b.no{background:rgba(var(--red-rgb),.1);border-color:var(--red);color:var(--tint-red);}
+  .tsum-chips{flex:1;display:flex;gap:6px;flex-wrap:wrap;min-width:180px;}
+  .tsum-hb{font-family:inherit;font-size:12px;font-weight:600;color:var(--ink-dim);
+    background:var(--card);border:1px solid var(--line);border-radius:var(--r-pill);
+    padding:6px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+  .tsum-hb .ic{width:12px;height:12px;color:var(--line);}
+  .tsum-hb:hover{border-color:var(--ink-faint);color:var(--ink);}
+  .tsum-hb.on{background:rgba(var(--green-rgb),.12);border-color:var(--green);color:var(--tint-green);
+    text-decoration:line-through;}
+  .tsum-hb.on .ic{color:var(--green);}
+  .tsum-n{flex:0 0 auto;font-size:11px;font-weight:700;color:var(--ink-faint);}
+  .tsum-n.all{color:var(--green);}
+  .tsum-run{font-size:12.5px;color:var(--ink-dim);}
+  .tsum-dial{flex:0 0 auto;}
+  @media(max-width:700px){
+    .tsum-k{flex:0 0 100%;}
+    .tsum-row{gap:var(--sp-2);padding:10px 0;}
+  }
   .day-top .card{margin:0;}
-  .ck-card[hidden] + .today-card{grid-column:1 / -1;}
   /* v158: a column, so the focus block can anchor to the card's bottom edge rather than
      leaving a void under the checklist whenever the questions beside it are open */
   .today-card{padding:16px 20px 18px;display:flex;flex-direction:column;}
@@ -992,68 +1019,12 @@
      was ever about a week. */
 
   /* --- the morning's three questions --- */
-  .ck-card{padding:16px 20px 18px;}
-  .ck-card.open{border-color:rgba(var(--orange-rgb),.35);
-    background:linear-gradient(180deg,rgba(var(--orange-rgb),.05),var(--card) 120px);}
-  .ck-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:var(--sp-4);}
-  .ck-f{display:flex;flex-direction:column;gap:6px;min-width:0;}
-  .ck-q{font-size:12px;font-weight:700;color:var(--ink-dim);line-height:1.4;}
-  .ck-card textarea{font-family:inherit;font-size:13.5px;line-height:1.55;color:var(--ink);
-    background:var(--card-2);border:1px solid var(--line);border-radius:var(--r-md);
-    padding:10px 12px;resize:vertical;width:100%;box-sizing:border-box;}
-  .ck-card textarea:focus{outline:none;border-color:var(--orange);background:var(--card);}
-  .ck-acts{display:flex;gap:var(--sp-2);flex-wrap:wrap;margin-top:var(--sp-4);}
-  .ck-eve{margin-top:var(--sp-4);padding-top:var(--sp-4);border-top:1px solid var(--line);
-    display:flex;flex-direction:column;gap:8px;}
-  .ck-yn{display:flex;gap:var(--sp-2);}
-  .ck-b{font-family:inherit;font-size:13px;font-weight:600;padding:7px 18px;cursor:pointer;
-    border-radius:var(--r-pill);border:1px solid var(--line);background:var(--card);color:var(--ink-dim);}
-  .ck-b.yes{background:rgba(var(--green-rgb),.12);border-color:rgba(var(--green-rgb),.35);color:var(--tint-green);}
-  .ck-b.no{background:rgba(var(--amber-rgb),.12);border-color:rgba(var(--amber-rgb),.35);color:var(--tint-amber);}
-  .ck-b:focus-visible{outline:none;box-shadow:var(--focus);}
-  /* once the day is started it is ONE LINE — the answers have done their job */
-  .ck-sum{display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap;}
-  .ck-sum-k{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;
-    color:var(--ink-faint);flex:0 0 auto;}
-  .ck-sum-v{font-size:15px;font-weight:700;color:var(--ink-strong);letter-spacing:-.015em;
-    min-width:0;flex:1;line-height:1.35;}
-  .ck-sum-v i{color:var(--ink-faint);font-weight:500;}
-  .ck-tag{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;
-    padding:3px 9px;border-radius:var(--r-pill);}
-  .ck-tag.yes{background:rgba(var(--green-rgb),.13);color:var(--tint-green);}
-  .ck-tag.no{background:rgba(var(--amber-rgb),.13);color:var(--tint-amber);}
 
   /* --- the non-negotiables, ticked here ---
      v158: the row is the control. A comfortable row with the detail written under the name
      (not hidden in a browser tooltip that lands on top of the heading), a tick that fills
      green, and a done row that reads as done. The count is a count AND three little segments. */
   .nn-head{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);margin-bottom:4px;}
-  .nn-head .one-k{margin:0;}
-  .nn-prog{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:700;
-    color:var(--ink-dim);letter-spacing:0;}
-  .nn-prog.all{color:var(--tint-green);}
-  .nn-segs{display:inline-flex;gap:3px;}
-  .nn-seg{width:14px;height:5px;border-radius:3px;background:var(--navy-2);transition:background var(--tap);}
-  .nn-seg.on{background:var(--green);}
-  .nn{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font-family:inherit;
-    padding:9px 8px;border:0;border-radius:var(--r-md);background:none;cursor:pointer;
-    transition:background var(--tap);}
-  .nn:hover{background:var(--card-2);}
-  .nn:focus-visible{outline:none;box-shadow:var(--focus);}
-  .nn-tick{flex:0 0 auto;width:20px;height:20px;border-radius:6px;border:1.5px solid var(--ink-faint);
-    background:var(--card);display:inline-flex;align-items:center;justify-content:center;
-    transition:background var(--tap),border-color var(--tap);}
-  .nn-tick .ic{width:12px;height:12px;color:var(--card);}
-  .nn:hover .nn-tick{border-color:var(--green);}
-  .nn-txt{min-width:0;flex:1;display:flex;flex-direction:column;gap:1px;}
-  .nn-s{font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.3;letter-spacing:-.005em;
-    transition:color var(--tap);}
-  .nn-sub{font-size:11.5px;color:var(--ink-faint);line-height:1.3;}
-  .nn.on .nn-tick{background:var(--green);border-color:var(--green);}
-  .nn.on .nn-s{color:var(--ink-faint);text-decoration:line-through;
-    text-decoration-color:rgba(var(--green-rgb),.45);text-decoration-thickness:1.5px;}
-  .nn.on .nn-sub{opacity:.6;}
-  .nn-box{padding-bottom:var(--sp-4);}
 
   /* the timer, idle: one heading row (the playlist link sits on its right, where it belongs)
      and the four lengths as ONE segmented control rather than four loose tiles */
@@ -1111,6 +1082,20 @@
   .fm-b.go{background:var(--orange);border-color:var(--orange);color:var(--on-accent);font-weight:700;}
   .fm-b.go:hover{background:var(--orange-soft);border-color:var(--orange-soft);}
   /* the one job */
+  .fm-one{display:flex;align-items:center;gap:12px;margin-bottom:var(--sp-5);padding:10px 14px;
+    background:var(--card);border:1px solid var(--line);border-left:3px solid var(--orange);
+    border-radius:var(--r-md);}
+  .fm-one.plain{border-left-color:var(--line);margin-bottom:0;}
+  .fm-one.done{border-left-color:var(--green);}
+  .fm-one .ic{width:16px;height:16px;color:var(--green);flex:0 0 auto;}
+  .fm-one-k{flex:0 0 auto;font-size:10px;font-weight:800;text-transform:uppercase;
+    letter-spacing:.11em;color:var(--ink-faint);}
+  .fm-one-v{flex:1;min-width:0;font-size:14px;font-weight:600;color:var(--ink);line-height:1.4;}
+  .fm-one.done .fm-one-v{color:var(--ink-faint);text-decoration:line-through;}
+  .fm-timer{display:flex;gap:var(--sp-2);flex-wrap:wrap;align-items:center;}
+  .fm-clock{font-size:22px;font-weight:800;letter-spacing:-.5px;color:var(--ink-strong);
+    font-variant-numeric:tabular-nums;margin-right:6px;}
+  .fm-nnb.no{background:rgba(var(--red-rgb),.1);border-color:var(--red);color:var(--tint-red);}
   .fm-when{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;
     color:var(--orange-soft);background:rgba(var(--orange-rgb),.12);border-radius:var(--r-pill);
     padding:5px 13px;display:inline-block;margin-bottom:var(--sp-4);}
@@ -1194,21 +1179,6 @@
     .startday{padding:16px 18px;}
     .sd-txt b{font-size:17px;}
   }
-  .ft-idle-box{margin-top:auto;padding-top:var(--sp-4);border-top:1px solid var(--line);}
-  .ft-head{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);margin-bottom:8px;}
-  .ft-head .one-k{margin:0;}
-  .ft-presets{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);
-    border-radius:var(--r-md);overflow:hidden;background:var(--card);}
-  .ft-preset{font-family:inherit;font-size:13.5px;font-weight:700;letter-spacing:-.01em;color:var(--ink);
-    background:none;border:0;border-left:1px solid var(--line);padding:10px 4px;cursor:pointer;
-    transition:background var(--tap),color var(--tap);}
-  .ft-preset:first-child{border-left:0;}
-  .ft-preset:hover{background:rgba(var(--orange-rgb),.08);color:var(--orange);}
-  .ft-preset:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--orange);position:relative;z-index:1;}
-  .ft-preset small{display:block;font-size:10px;font-weight:600;color:var(--ink-faint);letter-spacing:.02em;margin-top:1px;}
-  .ft-preset:hover small{color:inherit;opacity:.8;}
-  .ft-hint{font-size:12px;color:var(--ink-dim);line-height:1.5;padding:10px 12px;
-    background:var(--card-2);border-radius:var(--r-md);}
   .ft-dial{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
     color:var(--teal-bright);text-decoration:none;padding:4px 10px 4px 8px;
     border-radius:var(--r-pill);background:rgba(var(--teal-rgb),.10);transition:background var(--tap);}
@@ -1410,14 +1380,12 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
      Starting the day and running the day are two halves of the same five minutes, and they
      were a full-width card at the top and a card down in the right-hand rail. Now they open
      the page together: the questions on the left, what the day is made of on the right. -->
+<!-- v221: ONE card, not two. The questions used to live in a card beside this one; they are
+     asked by Start today now, and asking them twice on one page was the noise Ash described.
+     What is left is the state of the day at a glance — for the afternoon you land here
+     without entering focus mode at all. -->
 <div class="day-top">
-  <section class="card ck-card" id="ckCard" hidden></section>
   <section class="card today-card">
-    <div class="cardhead">
-      <div>
-        <div class="chead"><svg class="ic"><use href="#ic-target"/></svg> Today</div>
-      </div>
-    </div>
     <div id="todayBody"><div class="loading">Loading…</div></div>
   </section>
 </div>
@@ -2985,11 +2953,6 @@ function renderMoney() {
    POST { checkin }. The weekly page reads the very same entries for its non-negotiables
    tracker, so ticking a habit here shows up there with no syncing of any kind.
    ===================================================================== */
-const CK_FIELDS = [
-  { key: "mind",      label: "What's on your mind today?",                     ph: "Brain dump — clear the head…" },
-  { key: "gratitude", label: "What are you grateful for?",                     ph: "A line or two…" },
-  { key: "oneThing",  label: "If you only complete one thing today, what is it?", ph: "The one thing…" },
-];
 const CK_HABITS = [
   // v158: `sub` is the quiet second line under the name — what actually counts
   { id: "read",     short: "Read 10 pages",              sub: "A self-development book, ten pages minimum" },
@@ -3034,30 +2997,21 @@ async function ckSave(patch) {
   return checkinAll[date];
 }
 
-// Read whatever is in the three boxes right now. Only fields actually ON SCREEN are read,
-// so saving from the summary view can never blank answers that are not being shown.
-function ckReadFields() {
-  const patch = {};
-  for (const f of CK_FIELDS) {
-    const el = $("ck_" + f.key);
-    if (el) patch[f.key] = el.value;
-  }
-  const note = $("ckDoneNote");
-  if (note) patch.doneNote = note.value;
-  return patch;
-}
-
 async function ckCommit(extra) {
   if (ckBusy) return;
   ckBusy = true;
-  try { await ckSave({ ...ckReadFields(), ...(extra || {}) }); }
+  /* v221: this used to sweep the three question boxes off the screen and send them with
+     whatever it was actually saving. Those boxes live in focus mode's morning now and save
+     themselves; there is nothing on this page to sweep. ckSave builds the full entry from
+     the stored record plus the patch, so a patch of one field cannot blank the others. */
+  try { await ckSave(extra || {}); }
   catch (e) { /* the answer stays on screen; the next blur tries again */ }
   ckBusy = false;
-  renderCheckin(); renderToday();
+  renderToday();
 }
-const ckStart = () => ckCommit({ dismissed: true });
-const ckSkip  = () => ckCommit({ dismissed: true });
-const ckEdit  = () => ckCommit({ dismissed: false });
+// v221: ckStart/ckSkip/ckEdit went with the card that hosted them. The questions are asked
+// in one place now — focus mode's morning — and ckSetDone is the only one of the four that
+// was ever about the DAY rather than about that card.
 const ckSetDone = (v) => ckCommit({ oneThingDone: v });
 
 async function ckToggleHabit(id) {
@@ -3065,7 +3019,7 @@ async function ckToggleHabit(id) {
   const habits = { ...ckEntry(ckToday()).habits };
   habits[id] = !habits[id];
   try { await ckSave({ habits }); } catch (e) { /* it flips back on the next render */ }
-  renderToday(); renderCheckin();
+  renderToday();
 }
 
 /* =====================================================================
@@ -3162,6 +3116,9 @@ function ftOnTick() {
   const left = ftRemaining();
   const clock = $("ftClock");
   if (clock) clock.textContent = ftFmt(left);
+  // v221: focus mode has its own clock, because the page's bar is behind that screen
+  const fmc = $("fmClock");
+  if (fmc) fmc.textContent = ftFmt(left);
   const fill = $("ftFill");
   if (fill) fill.style.width = ftPct() + "%";
   const bar = $("ftBar");
@@ -3241,65 +3198,12 @@ document.addEventListener("click", (e) => {
 });
 
 /* ---------- the check-in card ---------- */
-function ckFieldHtml(f, val) {
-  return '<label class="ck-f"><span class="ck-q">' + esc(f.label) + "</span>" +
-    '<textarea id="ck_' + f.key + '" placeholder="' + esc(f.ph) + '" rows="2">' +
-    esc(richToText(val)) + "</textarea></label>";
-}
-function ckEveningHtml(entry) {
-  const yes = entry.oneThingDone === true, no = entry.oneThingDone === false;
-  return '<div class="ck-eve"><span class="ck-q">Did you do the one thing?</span>' +
-    '<div class="ck-yn">' +
-      '<button type="button" class="ck-b' + (yes ? " yes" : "") + '" id="ckYes">Yes</button>' +
-      '<button type="button" class="ck-b' + (no ? " no" : "") + '" id="ckNo">No</button>' +
-    "</div>" +
-    '<textarea id="ckDoneNote" rows="2" placeholder="Anything worth remembering about it…">' +
-    esc(richToText(entry.doneNote)) + "</textarea></div>";
-}
-
-function renderCheckin() {
-  const card = $("ckCard");
-  if (!card) return;
-  if (checkinAll === null) { card.hidden = true; return; }
-  const entry = ckEntry(ckToday());
-  const evening = ckIsEvening();
-
-  card.hidden = false;
-  if (!entry.dismissed) {
-    card.classList.add("open");
-    card.innerHTML =
-      '<div class="cardhead"><div>' +
-        '<div class="chead"><svg class="ic"><use href="#ic-sun"/></svg> Start the day</div>' +
-      "</div></div>" +
-      '<div class="ck-fields">' + CK_FIELDS.map((f) => ckFieldHtml(f, entry[f.key])).join("") + "</div>" +
-      (evening ? ckEveningHtml(entry) : "") +
-      '<div class="ck-acts">' +
-        '<button type="button" class="abtn primary" id="ckStart">Start the day →</button>' +
-        '<button type="button" class="abtn ghost" id="ckSkip">Skip for today</button>' +
-      "</div>";
-  } else {
-    // Started. It becomes one line, because the answers have done their job.
-    card.classList.remove("open");
-    const one = richToText(entry.oneThing);
-    const tag = entry.oneThingDone === true ? '<span class="ck-tag yes">Done</span>'
-      : entry.oneThingDone === false ? '<span class="ck-tag no">Not done</span>' : "";
-    card.innerHTML =
-      '<div class="ck-sum">' +
-        '<span class="ck-sum-k">One thing today</span>' +
-        '<span class="ck-sum-v">' + (one ? esc(one) : "<i>not set</i>") + "</span>" + tag +
-        '<button type="button" class="abtn ghost" id="ckEdit">Edit</button>' +
-      "</div>" +
-      (evening ? ckEveningHtml(entry) : "");
-  }
-
-  // Wired here, for the same reason the mail card's buttons are: a render that can return
-  // early must never leave a control on screen with nothing behind it.
-  const on = (id, fn) => { const el = $(id); if (el) el.addEventListener("click", fn); };
-  on("ckStart", ckStart); on("ckSkip", ckSkip); on("ckEdit", ckEdit);
-  on("ckYes", () => ckSetDone(true)); on("ckNo", () => ckSetDone(false));
-  card.querySelectorAll("textarea").forEach((t) => t.addEventListener("blur", () => ckCommit()));
-}
-
+/* v221: renderCheckin() is gone, and with it the card of question boxes that sat beside
+   Today. The questions are Start today's job now; asking them twice on one page was exactly
+   the noise Ash described. ckCommit / ckSetDone / ckToggleHabit all still exist and still
+   write the same record — they just re-render the one card that is left.
+   ckSave builds the full entry from the stored record plus the patch, so a save from here
+   can never blank an answer that is not on this page any more. */
 /* ---------- today ----------
    Read-only, from the check-in the weekly app already writes. Nothing is stored from here. */
 let checkinState = null;
@@ -3308,68 +3212,69 @@ let checkinAll = null;   // the whole date-keyed map, so a save can merge rather
 function renderToday() {
   const body = $("todayBody");
   if (!body) return;
-  const entry = checkinState || null;
-  const oneThing = entry ? richToText(entry.oneThing) : "";
-  const done = entry ? entry.oneThingDone === true : false;
-
-  let html = "";
-  if (oneThing) {
-    html += '<div class="one-k">Your one thing' + tipBtn("onething") + "</div>" +
-      '<div class="one-thing' + (done ? " done" : "") + '">' +
-      (done ? '<svg class="ic" style="width:16px;height:16px;"><use href="#ic-check"/></svg> ' : "") +
-      esc(oneThing) + "</div>";
-  } else {
-    // v154: this used to send people to the weekly app for the questions. The questions are
-    // in the card immediately to the left of this one now, so saying that would be daft.
-    // v157: while the questions are still open beside this, say nothing — the box arrives
-    // when the answer does. Skipped, one button and no sermon.
-    const asking = !ckEntry(ckToday()).dismissed;
-    if (!asking) {
-      html += '<div class="setup"><b>No one thing set for today.</b>' +
-        '<div class="setup-links"><button type="button" class="abtn" id="oneThingAdd">Set one now</button></div></div>';
-    }
-  }
-
-  // v152: the non-negotiables are TICKED here now, not read here and ticked somewhere else.
-  const habits = ckEntry(ckToday()).habits;
+  const e = ckEntry(ckToday());
+  const one = richToText(e.oneThing).trim();
+  const evening = ckIsEvening();
+  const habits = e.habits;
   const ticked = CK_HABITS.filter((h) => habits[h.id] === true).length;
   const all = ticked === CK_HABITS.length;
-  html += '<div class="nn-box">';
-  html += '<div class="nn-head"><div class="one-k">Daily non-negotiables</div>' +
-    '<div class="nn-prog' + (all ? " all" : "") + '"><span class="nn-segs">' +
-      CK_HABITS.map((_, i) => '<span class="nn-seg' + (i < ticked ? " on" : "") + '"></span>').join("") +
-    "</span>" + (all ? "All done" : ticked + " of " + CK_HABITS.length) + "</div></div>";
-  for (const h of CK_HABITS) {
-    const on = habits[h.id] === true;
-    html += '<button type="button" class="nn' + (on ? " on" : "") + '" data-habit="' + esc(h.id) +
-      '" aria-pressed="' + (on ? "true" : "false") + '">' +
-      '<span class="nn-tick">' + (on ? '<svg class="ic"><use href="#ic-check"/></svg>' : "") + "</span>" +
-      '<span class="nn-txt"><span class="nn-s">' + esc(h.short) + '</span>' +
-      (h.sub ? '<span class="nn-sub">' + esc(h.sub) + "</span>" : "") + "</span></button>";
+
+  /* v221: THE DAY AT A GLANCE, in one strip.
+     This card used to be three stacked blocks — the one thing in large type, three habit
+     buttons with a second line each, and the timer — beside a second card holding the same
+     one thing again and the three morning questions. The questions are Start today's job
+     now; what is left here is the state of things for the afternoon you land on this page
+     without entering focus mode at all. */
+  let html = '<div class="tsum">';
+
+  // the one thing, and the loop it opened
+  html += '<div class="tsum-row"><span class="tsum-k">One thing' + tipBtn("onething") + "</span>";
+  if (one) {
+    html += '<span class="tsum-v' + (e.oneThingDone === true ? " done" : "") + '">' + esc(one) + "</span>";
+    if (evening || e.oneThingDone !== null) {
+      html += '<span class="tsum-yn">' +
+        '<button type="button" class="tsum-b' + (e.oneThingDone === true ? " yes" : "") + '" id="ckYes">Done</button>' +
+        '<button type="button" class="tsum-b' + (e.oneThingDone === false ? " no" : "") + '" id="ckNo">Not yet</button></span>';
+    }
+  } else {
+    html += '<span class="tsum-v none">Not set — <button type="button" class="tsum-link" id="oneThingAdd">answer the morning questions</button></span>';
   }
   html += "</div>";
 
-  // The timer, idle. Running, it is a bar across the top of the page instead.
-  html += '<div class="ft-idle-box"><div class="ft-head"><div class="one-k">Focus block</div>' +
-    '<a class="ft-dial" href="' + esc(FT_PLAYLIST_URL) + '" target="_blank" rel="noopener noreferrer" ' +
+  // the non-negotiables, as chips
+  html += '<div class="tsum-row"><span class="tsum-k">Non-negotiables</span>' +
+    '<span class="tsum-chips">' + CK_HABITS.map((h) =>
+      /* NO TITLE ATTRIBUTE. v158 took the habit's long text out of a tooltip because the
+         tooltip sat on top of the heading above it; putting it back here would bring that
+         straight back. The chip carries the short name, which is what you tick. */
+      '<button type="button" class="tsum-hb' + (habits[h.id] === true ? " on" : "") + '" data-habit="' + esc(h.id) +
+      '" aria-pressed="' + (habits[h.id] === true ? "true" : "false") + '">' +
+      '<svg class="ic"><use href="#ic-check"/></svg>' + esc(h.short) + "</button>").join("") + "</span>" +
+    '<span class="tsum-n' + (all ? " all" : "") + '">' + (all ? "All done" : ticked + " of " + CK_HABITS.length) + "</span></div>";
+
+  // the focus block
+  html += '<div class="tsum-row"><span class="tsum-k">Focus block</span><span class="tsum-chips">';
+  if (ftTimer) {
+    html += '<span class="tsum-run">A ' + ftTimer.durationMin + "-minute block is " +
+      (ftTimer.finished ? "finished" : ftTimer.pausedRemaining != null ? "paused" : "running") +
+      " — see the bar at the top.</span>";
+  } else {
+    html += FT_PRESETS.map((m) => '<button type="button" class="tsum-hb" id="ftGo' + m + '" data-min="' + m + '">' + m + " min</button>").join("");
+  }
+  html += '</span><a class="ft-dial tsum-dial" href="' + esc(FT_PLAYLIST_URL) + '" target="_blank" rel="noopener noreferrer" ' +
     'title="Open the focus playlist in Spotify" onclick="return ftDialIn(this)">' +
     '<svg class="ic"><use href="#ic-headphones"/></svg>Dial in</a></div>';
-  if (ftTimer) {
-    html += '<div class="ft-hint">A ' + ftTimer.durationMin + "-minute block is " +
-      (ftTimer.finished ? "finished" : ftTimer.pausedRemaining != null ? "paused" : "running") +
-      " — see the bar at the top of the page.</div>";
-  } else {
-    html += '<div class="ft-presets">' + FT_PRESETS.map((m) =>
-      '<button type="button" class="ft-preset" id="ftGo' + m + '" data-min="' + m + '">' + m + "<small>min</small></button>").join("") +
-      "</div>";
-  }
-  html += "</div>";
 
+  html += "</div>";
   body.innerHTML = html;
+
   body.querySelectorAll("[data-habit]").forEach((el) =>
     el.addEventListener("click", () => ckToggleHabit(el.dataset.habit)));
-  const add = $("oneThingAdd");
-  if (add) add.addEventListener("click", () => { ckEdit(); setTimeout(() => { const el = $("ck_oneThing"); if (el) el.focus(); }, 60); });
+  const on = (id, fn) => { const el = $(id); if (el) el.addEventListener("click", fn); };
+  on("ckYes", () => ckSetDone(true));
+  on("ckNo", () => ckSetDone(false));
+  // the questions have ONE home now, and it is not this card
+  on("oneThingAdd", () => fmShow("morning"));
 }
 
 /* =====================================================================
@@ -3545,12 +3450,15 @@ function fmMorningHtml() {
     '<div class="fm-h">Right. What kind of day is it?</div>' +
     '<div class="fm-sub">Three questions, then I will put your jobs in front of you one at a time. ' +
     'Skip any of them — none of this is compulsory.</div>' +
-    '<div class="fm-q"><label for="fm_mind">What is on your mind?</label>' +
-      '<textarea id="fm_mind" placeholder="Get it out of your head and onto the page.">' + esc(richToText(e.mind)) + '</textarea></div>' +
+    /* v221: the three questions, WORD FOR WORD as they have always been. They moved from a
+       card into this screen; they were not rewritten. Ash answers these every morning and
+       there was no reason to change what they say. */
+    '<div class="fm-q"><label for="fm_mind">What\u2019s on your mind today?</label>' +
+      '<textarea id="fm_mind" placeholder="Brain dump \u2014 clear the head\u2026">' + esc(richToText(e.mind)) + '</textarea></div>' +
     '<div class="fm-q"><label for="fm_grat">What are you grateful for?</label>' +
-      '<textarea id="fm_grat" placeholder="One thing will do.">' + esc(richToText(e.gratitude)) + '</textarea></div>' +
-    '<div class="fm-q"><label for="fm_one">If only one thing gets done today, what is it?</label>' +
-      '<textarea id="fm_one" placeholder="The one that would make today count.">' + esc(richToText(e.oneThing)) + '</textarea></div>' +
+      '<textarea id="fm_grat" placeholder="A line or two\u2026">' + esc(richToText(e.gratitude)) + '</textarea></div>' +
+    '<div class="fm-q"><label for="fm_one">If you only complete one thing today, what is it?</label>' +
+      '<textarea id="fm_one" placeholder="The one thing\u2026">' + esc(richToText(e.oneThing)) + '</textarea></div>' +
     '<div class="fm-q"><label for="fm_when">When today?</label>' +
       '<select id="fm_when"><option value="">Not saying</option>' +
         FM_BANDS.map(([k, l]) => '<option value="' + k + '"' + (when === k ? " selected" : "") + ">" + esc(l) + "</option>").join("") +
@@ -3584,6 +3492,7 @@ function fmDayHtml() {
   }
   const rest = fmQueue.filter((j) => j !== job);
   return '<div class="fm-sheet">' +
+    fmOneThingHtml() +
     (job.when ? '<div class="fm-when">' + esc(job.when) + "</div>" : "") +
     '<div class="fm-job">' + esc(job.title) + "</div>" +
     (job.from ? '<div class="fm-from">From <b>' + esc(job.from) + "</b> — dated today, not on your plan.</div>" : "") +
@@ -3598,6 +3507,7 @@ function fmDayHtml() {
     (rest.length ? '<div class="fm-rest"><div class="fm-cap">The rest of today' +
       '<button type="button" id="fmToggleAll">' + (fmShowAll ? "hide" : "show all " + rest.length) + "</button></div>" +
       (fmShowAll ? '<div class="fm-list">' + rest.map(fmRowHtml).join("") + "</div>" : "") + "</div>" : "") +
+    fmTimerHtml() +
     fmHabitsHtml() +
     '<div class="fm-btns"><button type="button" class="fm-b" id="fmToEvening">Finish the day</button></div>' +
   "</div>";
@@ -3670,6 +3580,40 @@ function fmHabitsHtml() {
       '<svg class="ic"><use href="#ic-check"/></svg>' + esc(h.short) + "</button>").join("") + "</div></div>";
 }
 
+/* v221: THE ONE THING RIDES WITH YOU.
+   It was shown only on a day with nothing planned — so the moment there were jobs, the most
+   important thing Ash had written down that morning disappeared. One quiet line above the
+   job, ticked when it is done, on every screen of the day. */
+function fmOneThingHtml() {
+  const e = ckEntry(ckToday());
+  const one = richToText(e.oneThing).trim();
+  if (!one) return "";
+  const done = e.oneThingDone === true;
+  return '<div class="fm-one' + (done ? " done" : "") + '">' +
+    '<span class="fm-one-k">Your one thing</span>' +
+    '<span class="fm-one-v">' + esc(one) + "</span>" +
+    (done ? '<svg class="ic"><use href="#ic-check"/></svg>' : "") + "</div>";
+}
+
+/* v221: the focus block, from inside focus mode — which is exactly where you want it, and
+   the one place it was not. The running clock is patched by ftOnTick along with the page's
+   bar (which is behind this screen and cannot be seen from here). */
+function fmTimerHtml() {
+  if (ftTimer) {
+    const state = ftTimer.finished ? "finished" : ftTimer.pausedRemaining != null ? "paused" : "running";
+    return '<div class="fm-rest"><div class="fm-cap">Focus block — ' + state + "</div>" +
+      '<div class="fm-timer"><span class="fm-clock" id="fmClock">' + ftFmt(ftRemaining()) + "</span>" +
+      (ftTimer.finished ? "" :
+        ftTimer.pausedRemaining != null
+          ? '<button type="button" class="fm-nnb" id="fmTResume">Resume</button>'
+          : '<button type="button" class="fm-nnb" id="fmTPause">Pause</button>') +
+      '<button type="button" class="fm-nnb" id="fmTStop">Stop</button></div></div>';
+  }
+  return '<div class="fm-rest"><div class="fm-cap">Focus block</div><div class="fm-timer">' +
+    FT_PRESETS.map((m) => '<button type="button" class="fm-nnb" data-ftmin="' + m + '">' + m + " min</button>").join("") +
+    "</div></div>";
+}
+
 /* ---------- the end ---------- */
 function fmEveningHtml() {
   const e = ckEntry(ckToday());
@@ -3693,6 +3637,16 @@ function fmEveningHtml() {
       left.map(fmRowHtml).join("") + "</div>" +
       '<div class="hint" style="margin-top:9px">These stay where they are — on your weekly plan for today. ' +
       'Move them in the <a href="/index.html">planner</a> if they belong to another day.</div></div>' : "") +
+    /* v221: the loop the day opened. It was asked only on the dashboard's check-in card, so
+       a day run entirely from here never closed it and oneThingDone stayed blank for good. */
+    (richToText(e.oneThing).trim()
+      ? '<div class="fm-rest"><div class="fm-cap">Did you do the one thing?</div>' +
+        '<div class="fm-one plain"><span class="fm-one-v">' + esc(richToText(e.oneThing).trim()) + "</span></div>" +
+        '<div class="fm-timer" style="margin-top:10px">' +
+          '<button type="button" class="fm-nnb' + (e.oneThingDone === true ? " on" : "") + '" id="fmOneYes">Yes</button>' +
+          '<button type="button" class="fm-nnb' + (e.oneThingDone === false ? " no" : "") + '" id="fmOneNo">No</button>' +
+        "</div></div>"
+      : "") +
     '<div class="fm-q"><label for="fm_note">What is carrying into tomorrow?</label>' +
       '<textarea id="fm_note" placeholder="One line. The thing you do not want to have to remember.">' + esc(e.dayNote) + '</textarea></div>' +
     '<div class="fm-btns">' +
@@ -3788,6 +3742,13 @@ function fmWire() {
   on("fmPark", fmParkCurrent);
   on("fmToggleAll", () => { fmShowAll = !fmShowAll; fmRender(); });
   on("fmMore", () => { fmShowNotes = !fmShowNotes; fmRender(); });
+  on("fmOneYes", async () => { await ckSetDone(true); fmRender(); });
+  on("fmOneNo", async () => { await ckSetDone(false); fmRender(); });
+  on("fmTPause", () => { ftPause(); fmRender(); });
+  on("fmTResume", () => { ftResume(); fmRender(); });
+  on("fmTStop", () => { ftReset(); fmRender(); });
+  [...document.querySelectorAll("[data-ftmin]")].forEach((el) =>
+    el.addEventListener("click", () => { ftStart(Number(el.dataset.ftmin)); fmRender(); }));
   [...document.querySelectorAll("[data-ck]")].forEach((el) =>
     el.addEventListener("click", () => { const j = fmCurrent(); if (j) fmTickCheck(j, el.dataset.ck); }));
   on("fmToEvening", async () => { await fmSaveJot(); fmStage = "evening"; fmRender(); });
@@ -4622,7 +4583,6 @@ async function loadAll() {
   renderHead();
   renderMail();
   renderMoney();
-  renderCheckin();
   renderTimerBar();
   renderToday();
   renderStartDay();
