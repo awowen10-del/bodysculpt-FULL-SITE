@@ -1219,11 +1219,27 @@
   .wp-sn-bar{height:5px;border-radius:999px;background:var(--navy-2);overflow:hidden;margin-bottom:9px;}
   .wp-sn-bar i{display:block;height:100%;background:var(--green);border-radius:999px;transition:width .3s ease;}
   .wp-sn-ck{display:flex;flex-direction:column;gap:1px;}
-  .wp-sn-ckrow{display:flex;align-items:flex-start;gap:9px;padding:6px 7px;border-radius:6px;
+  .wp-sn-ckrow{display:flex;align-items:center;gap:6px;border-radius:6px;}
+  .wp-sn-ckrow>label{flex:1;min-width:0;display:flex;align-items:flex-start;gap:9px;padding:6px 7px;
     font-size:13px;line-height:1.45;color:var(--ink);cursor:pointer;}
   .wp-sn-ckrow:hover{background:var(--navy-2);}
   .wp-sn-ckrow.on span{color:var(--ink-faint);text-decoration:line-through;}
-  .wp-sn-ckrow input{flex:none;width:16px;height:16px;margin-top:1px;accent-color:var(--green);}
+  .wp-sn-ckrow input[type=checkbox]{flex:none;width:16px;height:16px;margin-top:1px;accent-color:var(--green);}
+  .wp-sn-ckx{flex:none;background:transparent;border:0;color:var(--ink-faint);cursor:pointer;
+    padding:5px;border-radius:6px;line-height:0;opacity:0;transition:opacity var(--tap),color var(--tap);}
+  .wp-sn-ckx .ic{width:13px;height:13px;}
+  .wp-sn-ckrow:hover .wp-sn-ckx,.wp-sn-ckx:focus-visible{opacity:1;}
+  .wp-sn-ckx:hover{color:var(--red);background:rgba(var(--red-rgb),.09);}
+  @media(hover:none){ .wp-sn-ckx{opacity:.55;} }
+  .wp-sn-ckadd{display:flex;gap:7px;margin-top:8px;}
+  .wp-sn-ckadd input{flex:1;min-width:0;font-family:inherit;font-size:13px;color:var(--ink);
+    background:var(--card);border:1px dashed var(--line);border-radius:8px;padding:8px 10px;}
+  .wp-sn-ckadd input:focus{outline:none;border-style:solid;border-color:var(--orange);
+    box-shadow:0 0 0 3px rgba(var(--orange-rgb),.13);}
+  .wp-sn-ckadd button{flex:none;font-family:inherit;font-size:12.5px;font-weight:700;
+    color:var(--ink-dim);background:var(--card);border:1px solid var(--line);border-radius:8px;
+    padding:8px 14px;cursor:pointer;}
+  .wp-sn-ckadd button:hover{border-color:var(--orange);color:var(--orange-soft);}
   .wp-sn-files{display:flex;flex-wrap:wrap;gap:7px;}
   .wp-sn-files a{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
     color:var(--ink-dim);background:var(--navy-2);border:1px solid var(--line);border-radius:8px;
@@ -5708,21 +5724,30 @@ function wpRenderStepNotes(){
     (d.notes
       ? `<div class="wp-sn-sec"><div class="wp-sn-cap">Notes</div><div class="wp-anchor-notes-view">${wpNotesToEditorHtml(d.step.notes)}</div></div>`
       : `<div class="wp-sn-sec"><div class="wp-sn-cap">Notes</div><div class="wp-sn-none">Nothing written down for this one.</div></div>`) +
-    (d.list.length
-      ? `<div class="wp-sn-sec"><div class="wp-sn-cap">Checklist — ${d.done} of ${d.list.length}</div>
-         <div class="wp-sn-bar"><i style="width:${Math.round(d.done/d.list.length*100)}%"></i></div>
-         <div class="wp-sn-ck">${d.list.map(c=>`
-           <label class="wp-sn-ckrow${c.done?" on":""}">
+    `<div class="wp-sn-sec"><div class="wp-sn-cap">${d.list.length ? `Checklist — ${d.done} of ${d.list.length}` : "Checklist"}</div>
+       ${d.list.length ? `<div class="wp-sn-bar"><i style="width:${Math.round(d.done/d.list.length*100)}%"></i></div>` : ""}
+       <div class="wp-sn-ck">${d.list.map(c=>`
+         <div class="wp-sn-ckrow${c.done?" on":""}">
+           <label>
              <input type="checkbox" ${c.done?"checked":""} onchange="wpStepCheckToggle('${wpEsc(item.id)}','${wpEsc(c.id)}',this.checked)">
              <span>${wpEsc(c.text)}</span>
-           </label>`).join("")}</div></div>`
-      : "") +
+           </label>
+           <button type="button" class="wp-sn-ckx" title="Delete this item" aria-label="Delete ${wpEsc(c.text)}"
+             onclick="wpStepCheckDel('${wpEsc(item.id)}','${wpEsc(c.id)}')"><svg class="ic"><use href="#ic-close"/></svg></button>
+         </div>`).join("")}
+         <div class="wp-sn-ckadd">
+           <input id="wpSnNew" type="text" maxlength="200" placeholder="${d.list.length ? "Add another item" : "Add the first item"}"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();wpStepCheckAdd('${wpEsc(item.id)}');}">
+           <button type="button" onclick="wpStepCheckAdd('${wpEsc(item.id)}')">Add</button>
+         </div>
+       </div></div>` +
     (d.files.length
       ? `<div class="wp-sn-sec"><div class="wp-sn-cap">Files</div><div class="wp-sn-files">${d.files.map(f=>
           `<a href="/.netlify/functions/projects?file=${encodeURIComponent(f.id)}" target="_blank" rel="noopener">
              <svg class="ic"><use href="#ic-note"/></svg>${wpEsc(f.name)}</a>`).join("")}</div></div>`
       : "") +
-    `<div class="wp-sn-foot">Ticking here ticks it on the board too. Notes are written on the board —
+    `<div class="wp-sn-foot">Ticking, adding and deleting here all happen on the board too — this is
+       the same checklist, not a copy of it. The notes are written on the board:
        <a href="/projects.html#board">open it there</a> to change them.</div>`;
 }
 function wpStepDueLabel(due){
@@ -5744,14 +5769,67 @@ async function wpStepCheckToggle(itemId, checkId, checked){
   wpRenderStepNotes();
   renderWeeklyPlan();
   try{
-    const r = await fetch(WP_PROJECTS, { method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ stepLink:{ projectId:f.project.id, stepId:f.step.id,
-        check:{ id:checkId, done:!!checked } } }) }).then(x=>x.json());
-    if(!r || !r.ok) throw new Error((r && r.error) || "the board did not take it");
+    await wpStepLink(f.project.id, f.step.id, { check:{ id:checkId, done:!!checked } });
   }catch(e){
     c.done = was;                       // put it back rather than let the two disagree
     wpRenderStepNotes();
     renderWeeklyPlan();
+  }
+}
+
+/* v222: adding and removing checklist items from the week, which is the other half of
+   being able to read them here. Both go through the same narrow stepLink route, both land on
+   screen before the request, and both put themselves back if the board will not take it —
+   the rule every write on this page follows. */
+async function wpStepLink(projectId, stepId, patch){
+  const r = await fetch(WP_PROJECTS, { method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ stepLink: Object.assign({ projectId, stepId }, patch) }) }).then(x=>x.json());
+  if(!r || !r.ok) throw new Error((r && r.error) || "the board did not take it");
+  return r;
+}
+async function wpStepCheckAdd(itemId){
+  const item = (wpPlan && wpPlan.projectItems || []).find(x=>x && x.id===itemId);
+  const f = wpStepFor(item);
+  const inp = document.getElementById("wpSnNew");
+  if(!f || !inp) return;
+  const text = String(inp.value||"").trim().slice(0,200);
+  if(!text) return;
+  f.step.checklist = Array.isArray(f.step.checklist) ? f.step.checklist : [];
+  if(f.step.checklist.length >= 40){ inp.value = ""; return; }
+  const id = "c_" + Math.random().toString(36).slice(2,9);
+  f.step.checklist.push({ id, text, done:false });
+  inp.value = "";
+  wpRenderStepNotes(); renderWeeklyPlan();
+  const again = document.getElementById("wpSnNew");
+  if(again) again.focus();
+  try{ await wpStepLink(f.project.id, f.step.id, { addCheck:{ id, text } }); }
+  catch(e){
+    f.step.checklist = f.step.checklist.filter(c=>c.id !== id);
+    wpRenderStepNotes(); renderWeeklyPlan();
+  }
+}
+async function wpStepCheckDel(itemId, checkId){
+  const item = (wpPlan && wpPlan.projectItems || []).find(x=>x && x.id===itemId);
+  const f = wpStepFor(item);
+  if(!f || !Array.isArray(f.step.checklist)) return;
+  const i = f.step.checklist.findIndex(c=>c && c.id===checkId);
+  if(i < 0) return;
+  const [gone] = f.step.checklist.splice(i, 1);
+  wpRenderStepNotes(); renderWeeklyPlan();
+  const putBack = async ()=>{
+    f.step.checklist.splice(Math.min(i, f.step.checklist.length), 0, gone);
+    wpRenderStepNotes(); renderWeeklyPlan();
+    try{ await wpStepLink(f.project.id, f.step.id, { addCheck:{ id:gone.id, text:gone.text, index:i } }); }
+    catch(e){ f.step.checklist = f.step.checklist.filter(c=>c.id !== gone.id); wpRenderStepNotes(); renderWeeklyPlan(); }
+  };
+  try{
+    await wpStepLink(f.project.id, f.step.id, { delCheck:{ id: checkId } });
+    // the way back, on the confirmation — and it restores the SAME item, id and place, not
+    // a new one that merely says the same words
+    wpToastUndo('"' + String(gone.text||"Item").slice(0,40) + '" deleted', putBack);
+  }catch(e){
+    f.step.checklist.splice(i, 0, gone);      // the board refused it; it never left
+    wpRenderStepNotes(); renderWeeklyPlan();
   }
 }
 

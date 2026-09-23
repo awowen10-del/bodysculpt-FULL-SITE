@@ -17,6 +17,7 @@
 // complained about.
 const assert = require("assert");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { boot } = require("./lib/env.cjs");
 
@@ -192,20 +193,100 @@ const world = () => ({
     assert.ok(/wpNotesToEditorHtml\(d\.step\.notes\)/.test(render),
       "notes render through the suite's own renderer, so a plain-text note keeps its line breaks and is escaped");
     assert.ok(/Nothing written down for this one\./.test(render), "…and a step with no notes says so rather than showing a gap");
-    assert.ok(/Ticking here ticks it on the board too\./.test(render), "it says what ticking does");
-    assert.ok(/Notes are written on the board/.test(render), "…and that the notes are not editable here");
+    assert.ok(/Ticking, adding and deleting here all happen on the board too/.test(render),
+      "it says that this IS the board's checklist, not a copy of it");
+    assert.ok(/The notes are written on the board/.test(render), "…and that the notes are not editable here");
     assert.ok(/\/projects\.html#board/.test(render), "…with the way there");
     assert.ok(/\/\.netlify\/functions\/projects\?file=/.test(render), "a file on the step opens from here");
 
     // the tick is optimistic, and puts itself back if the board refuses
     const toggle = bodyOf(JS, "wpStepCheckToggle");
-    assert.ok(toggle.indexOf("c.done = !!checked") < toggle.indexOf("await fetch"),
+    // v222: the request goes through wpStepLink now — one door for every write this panel makes
+    assert.ok(toggle.indexOf("c.done = !!checked") < toggle.indexOf("await wpStepLink"),
       "the box moves before the request, so it never feels broken on a phone");
     assert.ok(/c\.done = was;/.test(toggle), "…and goes back if the board would not take it");
     assert.ok(/renderWeeklyPlan\(\);/.test(toggle), "…and the row's counter follows either way");
 
     // the panel is read-only about everything except the checklist
     assert.ok(!/contenteditable/.test(render), "nothing in the panel is editable — the notes live on the board");
+  }
+
+  /* =====================================================================
+     5. v222: ADDING AND DELETING CHECKLIST ITEMS, FROM THE WEEK
+     Ash: "I need the ability to either delete or add another checklist from there — which
+     syncs with the project dashboard."
+     This WIDENS the stepLink route, so what it can and cannot reach is restated here rather
+     than left to drift.
+     ===================================================================== */
+  {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "bodysculpt-v222-"));
+    fs.mkdirSync(path.join(dir, "lib")); fs.mkdirSync(path.join(dir, "functions"));
+    fs.writeFileSync(path.join(dir, "lib", "projects.js"),
+      read("netlify/lib/projects.js").replace(/^import \{ getStore \} from "@netlify\/blobs";$/m,
+        "const getStore = () => globalThis.__fakeStore;"));
+    fs.writeFileSync(path.join(dir, "functions", "projects.js"), read("netlify/functions/projects.js"));
+    const m = new Map();
+    globalThis.__fakeStore = {
+      async get(k, o) { const v = m.get(k); if (v === undefined) return null; return (o && o.type === "json") ? JSON.parse(v) : v; },
+      async set(k, v) { m.set(k, v); },
+      async list(o) { const p = (o && o.prefix) || ""; return { blobs: [...m.keys()].filter((k) => k.startsWith(p)).map((key) => ({ key })), directories: [] }; },
+    };
+    const h = (await import("file://" + path.join(dir, "functions", "projects.js") + "?t=" + Date.now())).default;
+    const POST = (body) => h(new Request("https://x/.netlify/functions/projects",
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
+    await POST({ project: PROJECT() });
+    const link = (patch) => POST({ stepLink: Object.assign({ projectId: "p_ghl", stepId: "s_map" }, patch) });
+
+    // add
+    let step = (await (await link({ addCheck: { text: "Lead sources" } })).json()).step;
+    assert.strictEqual(step.checklist.length, 4, "an item can be added from the week");
+    assert.strictEqual(step.checklist[3].text, "Lead sources", "…at the end, saying what was typed");
+    assert.strictEqual(step.checklist[3].done, false, "…not done");
+    assert.strictEqual((await (await link({ addCheck: { text: "   " } })).json()).step, null,
+      "…and an empty one is not an item");
+
+    // delete, and put back exactly
+    const gone = step.checklist[1];
+    step = (await (await link({ delCheck: { id: gone.id } })).json()).step;
+    assert.strictEqual(step.checklist.length, 3, "an item can be deleted from the week");
+    assert.ok(!step.checklist.some((c) => c.id === gone.id), "…the right one");
+    step = (await (await link({ addCheck: { id: gone.id, text: gone.text, index: 1 } })).json()).step;
+    assert.strictEqual(step.checklist[1].id, gone.id,
+      "…and an undo puts back the SAME item, in its place — not a new one saying the same words");
+    assert.strictEqual(step.checklist.length, 4, "…once");
+    assert.strictEqual((await (await link({ addCheck: { id: gone.id, text: "again" } })).json()).step, null,
+      "…and it cannot be put back twice");
+
+    /* THE BOUNDARY, RESTATED. The route reaches a step's done flag, its plan, and its
+       checklist. It reaches nothing else about the project — not even on the same step. */
+    const before = m.get("proj-p_ghl");
+    const r = await link({ title: "HACKED", notes: "HACKED", due: "2030-01-01", urgency: "critical",
+      col: "done", tags: ["x"], files: [], name: "HACKED", columns: [], steps: [], canvas: [] });
+    assert.strictEqual((await r.json()).unchanged, true, "everything else it might carry changes nothing");
+    assert.strictEqual(m.get("proj-p_ghl"), before, "…and does not even write");
+    const proj = JSON.parse(m.get("proj-p_ghl"));
+    const s2 = proj.steps.find((x) => x.id === "s_map");
+    assert.strictEqual(s2.title, "Build the tag and custom-field map", "the step's title is unreachable");
+    assert.strictEqual(s2.notes, PROJECT().steps[0].notes, "…its notes");
+    assert.strictEqual(s2.due, "2026-03-18", "…its due date");
+    assert.strictEqual(s2.urgency, "high", "…its urgency");
+    assert.strictEqual(s2.col, "doing", "…its stage");
+    assert.strictEqual(proj.name, "Migrate from Ontraport to GoHighLevel", "…and the project's name");
+
+    /* the page's side: on screen first, reverted on refusal, and one door for all of it */
+    const add = bodyOf(JS, "wpStepCheckAdd");
+    assert.ok(add.indexOf("f.step.checklist.push") < add.indexOf("await wpStepLink"), "an added item appears at once");
+    assert.ok(/f\.step\.checklist = f\.step\.checklist\.filter\(c=>c\.id !== id\);/.test(add),
+      "…and is taken back off if the board refuses it");
+    assert.ok(/if\(again\) again\.focus\(\);/.test(add), "…and the box stays ready for the next one");
+    const del = bodyOf(JS, "wpStepCheckDel");
+    assert.ok(del.indexOf("splice(i, 1)") < del.indexOf("await wpStepLink"), "a deleted item goes at once");
+    assert.ok(/wpToastUndo\(/.test(del), "…with the way back on the confirmation");
+    assert.ok(/addCheck:\{ id:gone\.id, text:gone\.text, index:i \}/.test(del),
+      "…restoring the same item, in its place");
+    assert.ok(/f\.step\.checklist\.splice\(i, 0, gone\);\s*\/\/ the board refused it/.test(del),
+      "…and a refusal puts it straight back, because it never really left");
+    assert.ok(/id="wpSnNew"/.test(JS) && /wp-sn-ckx/.test(JS), "the panel has an add box and a delete per row");
   }
 
   console.log("v218-the-step-says-more-than-its-title: all assertions passed");

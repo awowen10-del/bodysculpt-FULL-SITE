@@ -11,16 +11,18 @@
 //   POST ?upload=1&name=&mime=   raw bytes in the body (4 MB cap) -> { file:{id,name,mime,size} }
 //   POST { project:{…} }  save one project, whole. The page always holds the whole project,
 //                         so a partial write can never half-erase a board.
-//   POST { stepLink:{ projectId, stepId, done?, week?, day?, slot?, check? } }  v214: the weekly plan's door.
+//   POST { stepLink:{ projectId, stepId, done?, week?, day?, slot?, check?, addCheck?, delCheck? } }
+//                         v214: the weekly plan's door.
 //         The WEEKLY page calls this, and it is deliberately the narrowest thing that could
 //         work: it can tick one step off, and it can note which week and day that step has
-//         been pulled into. It cannot rename anything, add anything, delete anything or
-//         touch another step. The weekly page never sends a whole project, so it can never
+//         been pulled into, and its checklist (v222). It cannot reach the project's name, its
+//         columns, any other step, or this step's title, notes, files, tags, due date,
+//         urgency or stage. The weekly page never sends a whole project, so it can never
 //         overwrite a board with a stale copy of one.
 //
 // There is no delete route. Archiving a project and flagging a step are ordinary saves.
 import { cleanProject, listProjects, readProject, writeProject, readFile, writeFile,
-         applyStepDone, applyStepWeek, applyStepCheck,
+         applyStepDone, applyStepWeek, applyStepCheck, applyStepAddCheck, applyStepDelCheck,
          newId, clip, json, CAP, MIMES } from "../lib/projects.js";
 
 export default async (req) => {
@@ -97,6 +99,14 @@ export default async (req) => {
       // v218: { check: { id, done } } — one checklist item, ticked from the weekly plan
       if (body.stepLink.check && body.stepLink.check.id) {
         changed = !!applyStepCheck(project, sid, clip(body.stepLink.check.id, 40), body.stepLink.check.done) || changed;
+      }
+      // v222: one item added to, or removed from, that step's checklist
+      if (body.stepLink.addCheck && body.stepLink.addCheck.text) {
+        const a = body.stepLink.addCheck;
+        changed = !!applyStepAddCheck(project, sid, a.text, clip(a.id || "", 40), a.index) || changed;
+      }
+      if (body.stepLink.delCheck && body.stepLink.delCheck.id) {
+        changed = !!applyStepDelCheck(project, sid, clip(body.stepLink.delCheck.id, 40)) || changed;
       }
       // nothing to say is not a reason to write — a no-op must not bump lastUpdated
       if (!changed) return json({ ok: true, step: null, unchanged: true });

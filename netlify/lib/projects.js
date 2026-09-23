@@ -271,6 +271,43 @@ export function applyStepCheck(project, stepId, checkId, done) {
   s.updatedAt = nowIso();
   return s;
 }
+/* v222: adding and removing checklist items, from wherever the step is being looked at.
+   Ash: "I need the ability to either delete or add another checklist from there — which
+   syncs with the project dashboard."
+
+   This WIDENS what stepLink can reach, and it is worth being exact about the new boundary
+   rather than quietly enlarging it. The route can now reach: one step's done flag, its
+   note of which week/day/slot it is planned for, and its checklist. It still cannot reach
+   the project's name, its columns, any other step, or this step's title, notes, files,
+   tags, due date, urgency or stage. That is what makes it safe for a page that is not the
+   board to hold.
+
+   An id may be supplied with an add. That is not a convenience: it is how an undo puts back
+   the item that was deleted rather than a new one that merely says the same thing. */
+export function applyStepAddCheck(project, stepId, text, checkId, index) {
+  const s = (project.steps || []).find((x) => x.id === stepId && !x.del);
+  if (!s) return null;
+  const t = str(text, 200).trim();
+  if (!t) return null;
+  s.checklist = Array.isArray(s.checklist) ? s.checklist : [];
+  if (s.checklist.length >= CAP.checklist) return null;
+  const wanted = id(checkId);
+  if (wanted && s.checklist.some((c) => c && c.id === wanted)) return null;   // already there
+  const item = { id: wanted || newId("c_"), text: t, done: false };
+  const at = Number.isFinite(Number(index)) ? Math.max(0, Math.min(s.checklist.length, Number(index))) : s.checklist.length;
+  s.checklist.splice(at, 0, item);
+  s.updatedAt = nowIso();
+  return s;
+}
+export function applyStepDelCheck(project, stepId, checkId) {
+  const s = (project.steps || []).find((x) => x.id === stepId && !x.del);
+  if (!s || !Array.isArray(s.checklist)) return null;
+  const i = s.checklist.findIndex((c) => c && c.id === checkId);
+  if (i < 0) return null;
+  s.checklist.splice(i, 1);
+  s.updatedAt = nowIso();
+  return s;
+}
 export function applyStepWeek(project, stepId, week, day, slot) {
   const s = (project.steps || []).find((x) => x.id === stepId && !x.del);
   if (!s) return null;
