@@ -60,6 +60,11 @@ export const MIMES = [
   "image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml",
   "application/pdf",
   "application/json",          // an .excalidraw scene — the page turns these into real boards
+  // v215: written notes. Ash: "one of the jobs is 'Write down everything Ontraport
+  // currently does' and you do that for me in another chat… would be nice to link to that
+  // in the file you have access to." So a .md written elsewhere hangs off the step it is
+  // about, is readable on the page, and has an address that can be handed back to Claude.
+  "text/markdown", "text/plain",
 ];
 
 const store = () => getStore({ name: "bodysculpt-kpi", consistency: "strong" });

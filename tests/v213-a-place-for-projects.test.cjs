@@ -204,10 +204,15 @@ function fullStep() {
     assert.deepStrictEqual(Object.keys(project.canvas[0]).sort(), Object.keys(fullProject().canvas[0]).sort(),
       "…including every field of a canvas item");
 
-    // the page's own literals must be exactly what the cleaner knows about
-    const stepLiteral = /p\.steps\.push\(\{([\s\S]*?)\n  \}\);/.exec(JS);
-    assert.ok(stepLiteral, "the page builds a step from one literal (addStep)");
+    // The page's own literals must be exactly what the cleaner knows about. Read out of
+    // addStep() by name rather than by hunting for a `p.steps.push({` anywhere in the file —
+    // there is a second one in the template path, and a regex that finds the wrong literal
+    // reports the wrong fields.
+    const addBody = bodyOf(JS, "addStep");
+    const stepLiteral = /const st = \{([\s\S]*?)\n  \};/.exec(addBody);
+    assert.ok(stepLiteral, "addStep() builds a step from one literal");
     const pageFields = [...stepLiteral[1].matchAll(/(?:^|[\s,{])([a-zA-Z]+)\s*:/g)].map((m) => m[1]);
+    assert.ok(pageFields.length >= 12, "…and it really is the step's whole shape (" + pageFields.length + " fields)");
     for (const f of pageFields) {
       assert.ok(Object.prototype.hasOwnProperty.call(step, f),
         "the page writes step." + f + " and the cleaner keeps it (add it to cleanStep, or it is eaten on save)");

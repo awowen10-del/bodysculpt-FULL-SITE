@@ -411,6 +411,12 @@
     padding:2px 2px var(--sp-4);scroll-snap-type:x proximity;}
   /* Chrome makes any scrolling box keyboard-focusable and draws its OWN ring round it —
      a hard blue rectangle round the whole board, in nobody's palette. Ours, or none. */
+  /* WHILE A CARD IS IN THE AIR, THE BOARD DOES NOT SNAP. Scroll-snap is what makes the
+     columns swipe one at a time on a phone, and it is also what silently ate the
+     auto-scroll: nudging scrollLeft by twenty pixels snaps straight back to the column it
+     came from, so the board looked stuck however long you held at the edge. Snapping is a
+     swipe nicety; a drag wants to travel. */
+  .pb-board.nosnap{scroll-snap-type:none;}
   .pb-board:focus{outline:none;}
   .pb-board:focus-visible{outline:none;box-shadow:var(--focus);border-radius:var(--r-lg);}
   .pb-col{flex:0 0 302px;background:var(--card-2);border:1px solid var(--line);
@@ -437,6 +443,10 @@
     background:var(--card);border:1px solid var(--orange);border-radius:var(--r-md);padding:10px 11px;
     box-shadow:0 0 0 3px rgba(var(--orange-rgb),.13);}
   .pb-newin:focus{outline:none;}
+  /* v215: the box for a step added at the top sits between the head and the cards, which
+     is where the card it is about to become will appear */
+  .pb-newin.attop{margin:10px 10px 0;}
+  .iconbtn.addtop:hover{color:var(--pa-soft);background:rgba(var(--pa-rgb),.1);}
   .pb-colnew{flex:0 0 210px;background:transparent;border-color:transparent;}
   .pb-colnew .pb-add{margin:0;width:100%;padding:14px 9px;}
 
@@ -638,6 +648,32 @@
   .lb-stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;}
   .lb-stage img{max-width:100%;max-height:100%;object-fit:contain;border-radius:var(--r-md);
     background:var(--card);}
+  /* v215: a written note, read on the page. A sheet of paper, not a code window — this is
+     the Ontraport audit, and it is meant to be read. */
+  .lb-doc{width:min(820px,100%);max-height:100%;overflow-y:auto;background:var(--card);
+    border-radius:var(--r-lg);box-shadow:var(--shadow-lift);}
+  .md{padding:var(--sp-6) var(--sp-6) var(--sp-7);font-size:14.5px;line-height:1.7;color:var(--ink);}
+  .md h1,.md h2,.md h3,.md h4,.md h5,.md h6{color:var(--ink-strong);letter-spacing:-.25px;
+    line-height:1.25;margin:var(--sp-5) 0 var(--sp-3);}
+  .md>:first-child{margin-top:0;}
+  .md h1{font-size:25px;font-weight:800;} .md h2{font-size:19.5px;font-weight:750;}
+  .md h3{font-size:16.5px;font-weight:700;} .md h4,.md h5,.md h6{font-size:14.5px;font-weight:700;}
+  .md p{margin:0 0 var(--sp-3);}
+  .md ul,.md ol{margin:0 0 var(--sp-3) 22px;} .md li{margin-bottom:5px;}
+  .md a{color:var(--orange-soft);}
+  .md code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.88em;
+    background:var(--navy-2);border-radius:var(--r-sm);padding:1px 5px;}
+  .md pre{background:var(--navy-2);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:var(--sp-3) var(--sp-4);overflow-x:auto;margin:0 0 var(--sp-3);}
+  .md pre code{background:transparent;padding:0;font-size:12.5px;line-height:1.55;}
+  .md blockquote{border-left:3px solid var(--line);padding-left:var(--sp-4);margin:0 0 var(--sp-3);
+    color:var(--ink-dim);}
+  .md hr{border:0;border-top:1px solid var(--line);margin:var(--sp-5) 0;}
+  .md table{border-collapse:collapse;width:100%;margin:0 0 var(--sp-4);font-size:13.5px;}
+  .md th,.md td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top;}
+  .md th{background:var(--navy-2);font-weight:700;color:var(--ink-strong);}
+  .md tbody tr:nth-child(even){background:var(--card-2);}
+  @media(max-width:700px){ .md{padding:var(--sp-5) var(--sp-4) var(--sp-6);font-size:14px;} }
   .lb-stage object,.lb-stage iframe{width:100%;height:100%;border:0;border-radius:var(--r-md);
     background:var(--card);}
 
@@ -861,7 +897,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
       <button type="button" class="abtn primary" id="newBoardBtn"><svg class="ic"><use href="#ic-pencil"/></svg> New drawing</button>
     </div>
   </div>
-  <input type="file" id="fileInput" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,application/pdf,.excalidraw,application/json" multiple hidden>
+  <input type="file" id="fileInput" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,application/pdf,.excalidraw,application/json,.md,.markdown,.txt,text/markdown,text/plain" multiple hidden>
   <div id="canvasBody"></div>
 </div>
 
@@ -962,13 +998,14 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 <div class="lb" id="lb" hidden>
   <div class="lb-bar">
     <div class="lb-n" id="lbName"></div>
+    <button type="button" class="abtn" id="lbCopy" hidden><svg class="ic"><use href="#ic-link"/></svg> Copy link</button>
     <a class="abtn" id="lbOpen" target="_blank" rel="noopener"><svg class="ic"><use href="#ic-link"/></svg> Open in a tab</a>
     <button type="button" class="abtn" id="lbClose"><svg class="ic"><use href="#ic-close"/></svg> Close</button>
   </div>
   <div class="lb-stage" id="lbStage"></div>
 </div>
 
-<input type="file" id="stepFileInput" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,application/pdf,.excalidraw,application/json" multiple hidden>
+<input type="file" id="stepFileInput" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,application/pdf,.excalidraw,application/json,.md,.markdown,.txt,text/markdown,text/plain" multiple hidden>
 
 <div class="toast" id="toast"></div>
 
@@ -1063,7 +1100,9 @@ const P_TAB_HASH = { projects: "#projects", board: "#board", canvas: "#canvas", 
 const LAST_KEY = "bodysculpt:proj";
 /* what a file may be. The list is repeated in netlify/lib/projects.js, which is the one
    that actually decides — this copy only keeps the picker honest. */
-const OK_MIMES = ["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml", "application/pdf", "application/json"];
+const OK_MIMES = ["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml", "application/pdf", "application/json",
+  "text/markdown", "text/plain"];
+const isText = (m) => m === "text/markdown" || m === "text/plain";
 const MAX_BYTES = 4 * 1024 * 1024;
 
 const S = {
@@ -1163,7 +1202,11 @@ async function uploadBytes(bytes, name, mime) {
 /* a .excalidraw file arrives with no type at all on most machines — the extension is the
    only thing that says what it is. */
 function mimeOf(file) {
+  // these three carry no type of their own on most machines — the extension is the only
+  // thing that says what they are
   if (/\.excalidraw$/i.test(file.name)) return "application/json";
+  if (/\.(md|markdown)$/i.test(file.name)) return "text/markdown";
+  if (/\.txt$/i.test(file.name)) return "text/plain";
   return file.type || "";
 }
 const fileUrl = (id) => API + "?file=" + encodeURIComponent(id);
@@ -1405,6 +1448,9 @@ function colHtml(p, c) {
     '<div class="pb-colh">' +
       '<input class="pb-coln" value="' + esc(c.name) + '" data-rename="' + esc(c.id) + '" maxlength="60" aria-label="Stage name">' +
       '<span class="pb-cnt">' + steps.length + '</span>' +
+      // v215: a step can be added at the TOP as well as the bottom. Ash, with eleven cards
+      // in To do: "saves me scrolling all the way to the bottom".
+      '<button type="button" class="iconbtn addtop" data-addtop="' + esc(c.id) + '" title="Add a step at the top" aria-label="Add a step at the top of ' + esc(c.name) + '"><svg class="ic"><use href="#ic-plus"/></svg></button>' +
       '<button type="button" class="iconbtn danger" data-delcol="' + esc(c.id) + '" title="Remove this stage" aria-label="Remove this stage"><svg class="ic"><use href="#ic-trash"/></svg></button>' +
     '</div>' +
     '<div class="pb-cards" data-drop="' + esc(c.id) + '">' + steps.map(stepHtml).join("") + '</div>' +
@@ -1433,6 +1479,66 @@ function stepHtml(s) {
     '<div class="st-meta">' + meta.join("") + '</div>' +
   '</button>';
 }
+/* =====================================================================
+   v215: SCROLLING WHILE YOU DRAG
+   Ash: "If the column is quite long… if I'm trying to move a job from the bottom to the
+   top, or to any other column where the column isn't obviously there, it doesn't scroll
+   with the screen it just stays stuck and I can't move it."
+
+   He is right, and it is not a small bug: a browser's own drag-and-drop does not scroll
+   anything for you. A card at the bottom of an eleven-card column simply cannot reach the
+   top of that column, or a stage that is off to the right, because neither the page nor
+   the board moves while your finger is down. Everything off-screen is unreachable.
+
+   So while a card is in the air, the pointer near an edge scrolls that edge — the PAGE up
+   and down (the columns are as tall as they need to be and the page is what scrolls), and
+   the BOARD left and right (it is its own horizontal scroller). Speed ramps with how far
+   into the edge you are, so a nudge creeps and a shove moves.
+
+   Holding still at an edge keeps scrolling on purpose: `dragover` only fires when the
+   pointer MOVES, so the loop runs on the last position it was given rather than stalling
+   the moment you stop moving — which is exactly when you are waiting to arrive.
+   ===================================================================== */
+const DRAG_EDGE = 96;      // how close to an edge starts it
+const DRAG_MAX = 26;       // pixels per frame, hard against the edge
+const dragScroll = { on: false, x: 0, y: 0, raf: 0 };
+const dragRamp = (t) => Math.ceil(Math.max(0, Math.min(1, t)) * DRAG_MAX);
+function dragTrack(e) { dragScroll.x = e.clientX; dragScroll.y = e.clientY; }
+function dragScrollStart() {
+  if (dragScroll.on) return;
+  dragScroll.on = true;
+  // capture, so it is heard wherever the pointer is — including over parts of the page
+  // that are not drop targets at all
+  document.addEventListener("dragover", dragTrack, true);
+  const b = $("boardCols");
+  if (b) b.classList.add("nosnap");
+  const tick = () => {
+    if (!dragScroll.on) return;
+    const y = dragScroll.y, x = dragScroll.x, h = window.innerHeight;
+    let dy = 0;
+    if (y < DRAG_EDGE) dy = -dragRamp((DRAG_EDGE - y) / DRAG_EDGE);
+    else if (y > h - DRAG_EDGE) dy = dragRamp((y - (h - DRAG_EDGE)) / DRAG_EDGE);
+    if (dy) window.scrollBy(0, dy);
+    const board = $("boardCols");
+    if (board) {
+      const r = board.getBoundingClientRect();
+      let dx = 0;
+      if (x > r.left && x < r.left + DRAG_EDGE) dx = -dragRamp((r.left + DRAG_EDGE - x) / DRAG_EDGE);
+      else if (x < r.right && x > r.right - DRAG_EDGE) dx = dragRamp((x - (r.right - DRAG_EDGE)) / DRAG_EDGE);
+      if (dx) board.scrollLeft += dx;
+    }
+    dragScroll.raf = requestAnimationFrame(tick);
+  };
+  dragScroll.raf = requestAnimationFrame(tick);
+}
+function dragScrollStop() {
+  dragScroll.on = false;
+  cancelAnimationFrame(dragScroll.raf);
+  document.removeEventListener("dragover", dragTrack, true);
+  const b = $("boardCols");
+  if (b) b.classList.remove("nosnap");
+}
+
 /* the card handlers, on their own, because one column can be redrawn without rebuilding
    the board — and re-running the whole of wireBoard would add a SECOND drop listener to
    every other column, which drops the card twice. */
@@ -1442,9 +1548,11 @@ function wireCards(root) {
     el.addEventListener("dragstart", (e) => {
       S.drag = el.dataset.step;
       el.classList.add("dragging");
+      dragScroll.x = e.clientX; dragScroll.y = e.clientY;
+      dragScrollStart();
       try { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", el.dataset.step); } catch (err) {}
     });
-    el.addEventListener("dragend", () => { el.classList.remove("dragging"); S.drag = null; });
+    el.addEventListener("dragend", () => { el.classList.remove("dragging"); S.drag = null; dragScrollStop(); });
   });
 }
 function wireBoard(p) {
@@ -1458,6 +1566,7 @@ function wireBoard(p) {
     zone.addEventListener("dragleave", (e) => { if (!zone.contains(e.relatedTarget)) col.classList.remove("over"); });
     zone.addEventListener("drop", (e) => {
       e.preventDefault();
+      dragScrollStop();
       col.classList.remove("over");
       const id = S.drag || (e.dataTransfer ? e.dataTransfer.getData("text/plain") : "");
       if (id) moveStep(id, zone.dataset.drop, dropIndex(zone, e.clientY));
@@ -1480,7 +1589,10 @@ function wireBoard(p) {
   });
   // add a step: type the title, Enter keeps the box open for the next one
   [...board.querySelectorAll("[data-addstep]")].forEach((b) => {
-    b.onclick = () => startAddStep(b);
+    b.onclick = () => startAddStep(b.dataset.addstep, false);
+  });
+  [...board.querySelectorAll("[data-addtop]")].forEach((b) => {
+    b.onclick = (e) => { e.stopPropagation(); startAddStep(b.dataset.addtop, true); };
   });
   const ac = $("addColBtn");
   if (ac) ac.onclick = () => addColumn();
@@ -1515,36 +1627,60 @@ function reorder(p, colId, movedId, index) {
   list.splice(at, 0, moved);
   list.forEach((s, i) => { s.order = i; });
 }
-function startAddStep(btn) {
+/* v215: adding a step, at either end of the column.
+   `atTop` is the difference between the two, and it changes one thing besides the order:
+   WHERE THE TYPING BOX GOES. At the bottom it replaces the "Add a step" button, as it
+   always has. At the top it goes ABOVE the cards rather than inside them, because typing a
+   second step redraws the cards and anything living inside that list would be destroyed
+   mid-sentence. */
+function startAddStep(colId, atTop) {
   const p = proj(); if (!p) return;
-  const colId = btn.dataset.addstep;
+  const col = document.querySelector('.pb-col[data-col="' + CSS.escape(colId) + '"]');
+  if (!col) return;
+  // only ever one box open — a second + while one is already waiting just moves the cursor
+  const open = document.querySelector(".pb-newin");
+  if (open) { if (open.closest(".pb-col") === col) { open.focus(); return; } open.remove(); }
+  const zone = col.querySelector(".pb-cards");
   const inp = document.createElement("input");
-  inp.className = "pb-newin"; inp.type = "text"; inp.maxLength = 240;
+  inp.className = "pb-newin" + (atTop ? " attop" : ""); inp.type = "text"; inp.maxLength = 240;
   inp.placeholder = "What has to happen?";
-  btn.replaceWith(inp);
+  if (atTop) col.insertBefore(inp, zone);
+  else {
+    const btn = col.querySelector("[data-addstep]");
+    if (!btn) return;
+    btn.replaceWith(inp);
+  }
   inp.focus();
+  // typing several in a row keeps the order they were typed in, at both ends: each one
+  // goes in just below the last, rather than all of them landing on position 0
+  let at = atTop ? 0 : null;
   const finish = (keepOpen) => {
     const title = inp.value.trim();
     if (title) {
-      addStep(p, colId, title);
+      addStep(p, colId, title, at);
+      if (at != null) at++;
       if (keepOpen) { inp.value = ""; renderColumnCards(colId); inp.focus(); return; }
     }
     renderBoard();
   };
   inp.onkeydown = (e) => {
     if (e.key === "Enter") { e.preventDefault(); finish(true); }
-    if (e.key === "Escape") { e.preventDefault(); renderBoard(); }
+    if (e.key === "Escape") { e.preventDefault(); inp.onblur = null; renderBoard(); }
   };
   inp.onblur = () => finish(false);
 }
-function addStep(p, colId, title) {
+/* index null = at the end, as it always was. Both ends go through reorder(), so the
+   column's order numbers are renumbered 0..n either way and can never drift. */
+function addStep(p, colId, title, index) {
   const n = new Date().toISOString();
-  const order = liveSteps(p).filter((s) => s.col === colId).length;
-  p.steps.push({
+  const st = {
     id: newId("s_"), title, notes: "", col: colId, urgency: "normal", due: "",
-    tags: [], checklist: [], files: [], done: false, del: false, order,
+    tags: [], checklist: [], files: [], done: false, week: "", day: "", slot: "",
+    colBefore: "", del: false, order: 0,
     createdAt: n, updatedAt: n,
-  });
+  };
+  p.steps.push(st);
+  reorder(p, colId, st.id, index);
   pCommit();
 }
 /* redraw one column's cards without rebuilding the board — so the box you are typing in
@@ -1682,9 +1818,9 @@ function renderStep() {
           '<input class="cktext" id="stCkNew" placeholder="Add an item" maxlength="200"></div>' +
       '</div></div>' +
     '<div class="fld"><label>Files</label><div class="fchips" id="stFiles">' +
-      (s.files || []).map((f) => '<a class="fchip" href="' + esc(fileUrl(f.id)) + '" target="_blank" rel="noopener">' +
-        '<svg class="ic"><use href="#' + (String(f.mime).startsWith("image/") ? "ic-image" : "ic-file") + '"/></svg><span>' + esc(f.name) + '</span>' +
-        '</a>').join("") +
+      (s.files || []).map((f, i) => '<button type="button" class="fchip" data-file="' + i + '">' +
+        '<svg class="ic"><use href="#' + fileIcon(f.mime) + '"/></svg><span>' + esc(f.name) + '</span>' +
+        '</button>').join("") +
       '<button type="button" class="fchip" id="stAddFile"><svg class="ic"><use href="#ic-paperclip"/></svg><span>Attach</span></button>' +
     '</div></div>';
   wireStep();
@@ -1774,6 +1910,9 @@ function wireStep() {
     pCommit(); renderStep();
     const again = $("stCkNew"); if (again) again.focus();
   };
+  [...$("stFiles").querySelectorAll("[data-file]")].forEach((b) => {
+    b.onclick = () => openFile((s.files || [])[Number(b.dataset.file)]);
+  });
   $("stAddFile").onclick = () => {
     const inp = $("stepFileInput");
     inp.value = "";
@@ -2010,10 +2149,11 @@ function canvasItemHtml(it) {
     ? '<img src="' + esc(fileUrl(it.thumbId)) + '" alt="' + esc(it.name) + '" loading="lazy">'
     : (String(it.mime).startsWith("image/")
         ? '<img src="' + esc(fileUrl(it.fileId)) + '" alt="' + esc(it.name) + '" loading="lazy">'
-        : '<svg class="ic"><use href="#' + (it.mime === "application/pdf" ? "ic-file" : "ic-pencil") + '"/></svg>');
+        : '<svg class="ic"><use href="#' + (it.kind === "board" ? "ic-pencil" : fileIcon(it.mime)) + '"/></svg>');
   return '<div class="pc-item">' +
     '<button type="button" class="pc-prev" data-open="' + esc(it.id) + '">' + prev +
-      '<span class="pc-kind">' + (it.kind === "board" ? "Drawing" : it.mime === "application/pdf" ? "PDF" : "Picture") + '</span>' +
+      '<span class="pc-kind">' + (it.kind === "board" ? "Drawing" : it.mime === "application/pdf" ? "PDF"
+        : isText(it.mime) ? "Note" : "Picture") + '</span>' +
     '</button>' +
     '<div class="pc-foot">' +
       '<input class="pc-n" value="' + esc(it.name) + '" data-cname="' + esc(it.id) + '" maxlength="160" aria-label="Name">' +
@@ -2082,16 +2222,98 @@ function openCanvasItem(id) {
   if (it.kind === "board") { openBoardEditor(it); return; }
   openLightbox(it);
 }
+const fileIcon = (mime) => String(mime).startsWith("image/") ? "ic-image"
+  : isText(mime) ? "ic-note" : "ic-file";
+// a file hanging off a step, opened in the page rather than thrown into a new tab
+function openFile(f) {
+  if (!f) return;
+  openLightbox({ name: f.name, fileId: f.id, mime: f.mime });
+}
 function openLightbox(it) {
   $("lbName").textContent = it.name;
   $("lbOpen").href = fileUrl(it.fileId);
-  $("lbStage").innerHTML = String(it.mime).startsWith("image/")
-    ? '<img src="' + esc(fileUrl(it.fileId)) + '" alt="' + esc(it.name) + '">'
-    : '<object data="' + esc(fileUrl(it.fileId)) + '" type="' + esc(it.mime) + '"><div class="ex-msg"><div>' +
-      'This browser will not show the file in the page. <strong>Open in a tab</strong> above will open it.</div></div></object>';
+  // v215: the ADDRESS of a note is the point of keeping it here — it is what gets handed
+  // to Claude in another chat ("read this and bring it up to date")
+  const copy = $("lbCopy");
+  copy.hidden = !isText(it.mime);
+  copy.onclick = () => {
+    const url = new URL(fileUrl(it.fileId), location.href).href;
+    navigator.clipboard.writeText(url).then(() => toast("Link copied"), () => toast(url));
+  };
+  if (isText(it.mime)) {
+    $("lbStage").innerHTML = '<div class="lb-doc"><div class="md">Loading…</div></div>';
+    fetch(fileUrl(it.fileId)).then((r) => r.text()).then((t) => {
+      $("lbStage").innerHTML = '<div class="lb-doc"><div class="md">' +
+        (it.mime === "text/markdown" ? mdToHtml(t) : "<pre>" + esc(t) + "</pre>") + '</div></div>';
+    }).catch((e) => {
+      $("lbStage").innerHTML = '<div class="lb-doc"><div class="md"><p>Could not read it: ' + esc(e.message) + '</p></div></div>';
+    });
+  } else {
+    $("lbStage").innerHTML = String(it.mime).startsWith("image/")
+      ? '<img src="' + esc(fileUrl(it.fileId)) + '" alt="' + esc(it.name) + '">'
+      : '<object data="' + esc(fileUrl(it.fileId)) + '" type="' + esc(it.mime) + '"><div class="ex-msg"><div>' +
+        'This browser will not show the file in the page. <strong>Open in a tab</strong> above will open it.</div></div></object>';
+  }
   $("lb").hidden = false;
 }
 function closeLightbox() { $("lb").hidden = true; $("lbStage").innerHTML = ""; }
+
+/* ---------- reading a .md on the page ----------
+   Small on purpose: headings, bold, italic, inline code, fenced code, links, lists, quotes,
+   rules and pipe tables. Anything it does not know about comes out as the words that were
+   written, which is the only failure mode worth having in a reader.
+   EVERYTHING IS ESCAPED FIRST and the markup is added afterwards, so a document can never
+   put HTML into this page — these files come from elsewhere and are not trusted. */
+function mdToHtml(src) {
+  const inline = (t) => esc(t)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  const lines = String(src == null ? "" : src).split(/\r?\n/);
+  const out = [];
+  let inCode = false, list = "";
+  const closeList = () => { if (list) { out.push("</" + list + ">"); list = ""; } };
+  const isDivider = (l) => /^\s*\|?[\s:|-]*-[\s:|-]*\|?\s*$/.test(l) && l.includes("-");
+  const cells = (l) => l.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
+    if (/^\s*```/.test(raw)) { closeList(); inCode = !inCode; out.push(inCode ? "<pre><code>" : "</code></pre>"); continue; }
+    if (inCode) { out.push(esc(raw)); continue; }
+    // a table: a row of pipes with a divider under it
+    if (raw.includes("|") && lines[i + 1] != null && isDivider(lines[i + 1])) {
+      closeList();
+      const head = cells(raw);
+      out.push("<table><thead><tr>" + head.map((c) => "<th>" + inline(c) + "</th>").join("") + "</tr></thead><tbody>");
+      i += 2;
+      while (i < lines.length && lines[i].includes("|")) {
+        out.push("<tr>" + cells(lines[i]).map((c) => "<td>" + inline(c) + "</td>").join("") + "</tr>");
+        i++;
+      }
+      i--;
+      out.push("</tbody></table>");
+      continue;
+    }
+    const h = /^(#{1,6})\s+(.*)$/.exec(raw);
+    if (h) { closeList(); out.push("<h" + h[1].length + ">" + inline(h[2]) + "</h" + h[1].length + ">"); continue; }
+    if (/^\s*(---|\*\*\*|___)\s*$/.test(raw)) { closeList(); out.push("<hr>"); continue; }
+    if (/^\s*[-*+]\s+/.test(raw)) {
+      if (list !== "ul") { closeList(); out.push("<ul>"); list = "ul"; }
+      out.push("<li>" + inline(raw.replace(/^\s*[-*+]\s+/, "")) + "</li>"); continue;
+    }
+    if (/^\s*\d+[.)]\s+/.test(raw)) {
+      if (list !== "ol") { closeList(); out.push("<ol>"); list = "ol"; }
+      out.push("<li>" + inline(raw.replace(/^\s*\d+[.)]\s+/, "")) + "</li>"); continue;
+    }
+    if (/^\s*>/.test(raw)) { closeList(); out.push("<blockquote>" + inline(raw.replace(/^\s*>\s?/, "")) + "</blockquote>"); continue; }
+    if (!raw.trim()) { closeList(); continue; }
+    closeList();
+    out.push("<p>" + inline(raw) + "</p>");
+  }
+  closeList();
+  if (inCode) out.push("</code></pre>");
+  return out.join("\n");
+}
 
 /* =====================================================================
    6. THE DRAWING SURFACE
@@ -2395,7 +2617,8 @@ function saveProjectSheet() {
   if (t) {
     t.steps.forEach(([title, urgency, col, notes], i) => {
       p.steps.push({ id: newId("s_"), title, notes: notes || "", col, urgency, due: "",
-        tags: [], checklist: [], files: [], done: false, del: false, order: i,
+        tags: [], checklist: [], files: [], done: false, week: "", day: "", slot: "",
+        colBefore: "", del: false, order: i,
         createdAt: n, updatedAt: n });
     });
   }

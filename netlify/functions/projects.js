@@ -34,9 +34,12 @@ export default async (req) => {
       const meta = blob.metadata || {};
       const mime = MIMES.includes(meta.mime) ? meta.mime : "application/octet-stream";
       const name = clip(meta.name || "file", 160).replace(/[^\w. -]/g, "_");
+      // text has to say its encoding or a browser guesses, and a .md full of curly quotes
+      // and em-dashes comes back as mojibake
+      const ctype = /^text\//.test(mime) ? mime + "; charset=utf-8" : mime;
       return new Response(blob.data, {
         headers: {
-          "Content-Type": mime,
+          "Content-Type": ctype,
           // inline, so a picture shows and a PDF opens in the page rather than downloading
           "Content-Disposition": 'inline; filename="' + name + '"',
           // the bytes behind an id never change — a new drawing gets a new id
