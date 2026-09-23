@@ -1185,6 +1185,17 @@
   .wp-calnote .ic{width:12px;height:12px;}
   .wp-calnote.off a{color:var(--orange);}
 
+  /* v220: the undo toast */
+  .wp-toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:10002;
+    background:var(--ink);color:var(--card);font-size:13px;font-weight:600;padding:11px 18px;
+    border-radius:var(--r-pill);box-shadow:var(--shadow-lift);opacity:0;pointer-events:none;
+    display:flex;align-items:center;gap:14px;padding-right:8px;max-width:calc(100vw - 32px);
+    transition:opacity .18s ease,transform .18s ease;}
+  .wp-toast.on{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(-4px);}
+  .wp-toast-undo{font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;flex:0 0 auto;
+    background:var(--card);color:var(--ink);border:0;border-radius:var(--r-pill);padding:7px 15px;}
+  .wp-toast-undo:hover{opacity:.85;}
+
   /* ===================== v218: A PULLED STEP'S NOTES, FROM THE WEEK ===================== */
   .wp-step-note{flex:none;font-family:inherit;font-size:10.5px;font-weight:700;cursor:pointer;
     display:inline-flex;align-items:center;gap:4px;padding:2px 7px 2px 5px;border-radius:6px;
@@ -3902,7 +3913,7 @@ function wpChipHtml(ref, dk, mode, cellKey){
   const noteOut = (source==="project" && item.source==="project-step") ? wpStepNoteBtnHtml(item, true) : "";
   const ck = wpValidCellKey(cellKey) || "";
   const delOut = ck
-    ? `<button type="button" class="wp-chip-del" title="Remove from this slot" onclick="wpChipRemove(event,'${ref}','${ck}')"><svg class="ic"><use href="#ic-close"/></svg></button>`
+    ? `<button type="button" class="wp-chip-del" title="${wpIsScheduledRef(ref) ? "Remove from this slot" : "Delete this task"}" onclick="wpChipRemove(event,'${ref}','${ck}')"><svg class="ic"><use href="#ic-close"/></svg></button>`
     : "";
   // v89: a chip is also a drop target for its own cell — dropping a chip from the SAME cell
   // onto it reorders (above/below depending on which half you drop on). A drop from another
@@ -6678,12 +6689,67 @@ async function wpChipRemove(ev, ref, cellKey){
     if(choice === "all")  return (source === "training") ? wpRemoveTraining(id, true) : wpRemoveRecurring(id, true);
     return;
   }
+  /* v220: THE ✕ ON A ONE-OFF CHIP DELETES THE TASK.
+     Ash: "If I add a task manually on to the calendar, it adds it to the 'buffer' list which
+     is great, but when I delete the task off the calendar, the task stays on the buffer.
+     This needs to be fixed."
+
+     It used to take the task off the grid and leave it sitting, unplaced, in the Project or
+     Buffer list. That was defensible when the only way to get a task onto the grid was to
+     type it into the list and drag it — the list was where it came from, so the list was
+     where it went back to. Since v217 a task can be BORN in a block, and for those the block
+     is the only place it has ever lived; leaving a copy behind in a list is just litter.
+
+     One rule for both, rather than an invisible one that depends on where a task was made:
+     the ✕ deletes it. What makes that safe is the way back, offered on the confirmation
+     itself — the v209 rule, arriving on this page for the first time. A SCHEDULED task is
+     untouched by any of this: it still asks "this week / all", above. */
   wpSyncFromDom();
-  const key = wpValidCellKey(cellKey);
-  if(key && (wpPlan.placements[key]||[]).includes(ref)) wpPlan.placements[key] = wpPlan.placements[key].filter(r=>r!==ref);
-  else wpRemoveRefEverywhere(ref);
-  await wpSaveSection("timeBlocks");
+  const arr = source === "project" ? wpPlan.projectItems : wpPlan.bufferItems;
+  const i = Array.isArray(arr) ? arr.findIndex(x => x && x.id === id) : -1;
+  const item = i >= 0 ? arr[i] : null;
+  const where = wpPlacementsOf(ref);                 // every cell it sat in, for the way back
+  if(item) arr.splice(i, 1);
+  wpRemoveRefEverywhere(ref);
+  await wpSaveSection(item ? source : "timeBlocks");
   renderWeeklyPlan();
+  if(item){
+    wpToastUndo('"' + String(item.title || "Task").slice(0, 40) + '" deleted', async () => {
+      wpSyncFromDom();
+      const back = source === "project" ? wpPlan.projectItems : wpPlan.bufferItems;
+      if(!back.some(x => x && x.id === item.id)) back.splice(Math.min(i, back.length), 0, item);
+      where.forEach(k => {
+        wpPlan.placements[k] = wpPlan.placements[k] || [];
+        if(!wpPlan.placements[k].includes(ref)) wpPlan.placements[k].push(ref);
+      });
+      await wpSaveSection(source);
+      renderWeeklyPlan();
+    });
+  }
+}
+
+/* v220: the weekly page's first toast, and it exists for one reason — a delete needs a way
+   back, and the way back belongs on the confirmation of the delete rather than on a chip
+   somewhere else. Eight seconds, because a button you cannot reach in time is not a button. */
+let wpToastTimer = null;
+function wpToastUndo(msg, fn){
+  let el = document.getElementById("wpToast");
+  if(!el){
+    el = document.createElement("div");
+    el.id = "wpToast";
+    el.className = "wp-toast";
+    document.body.appendChild(el);
+  }
+  el.textContent = "";
+  const t = document.createElement("span");
+  t.textContent = msg;
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "wp-toast-undo"; b.textContent = "Undo";
+  b.onclick = () => { el.classList.remove("on"); clearTimeout(wpToastTimer); fn(); };
+  el.appendChild(t); el.appendChild(b);
+  el.classList.add("on");
+  clearTimeout(wpToastTimer);
+  wpToastTimer = setTimeout(() => el.classList.remove("on"), 8000);
 }
 
 /* ---- v82: the "this one / all" question ---- */

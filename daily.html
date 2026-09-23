@@ -1125,6 +1125,30 @@
   .fm-act:hover{border-color:var(--ink-faint);color:var(--ink);}
   .fm-act.done{background:var(--green);border-color:var(--green);color:var(--on-accent);}
   .fm-act.done:hover{background:var(--green-2);border-color:var(--green-2);}
+  /* v220: what is inside the job */
+  .fm-inside{margin-top:var(--sp-5);border-left:3px solid rgba(var(--orange-rgb),.35);padding-left:var(--sp-4);}
+  .fm-bar2{height:5px;border-radius:999px;background:var(--navy-2);overflow:hidden;margin-bottom:10px;max-width:320px;}
+  .fm-bar2 i{display:block;height:100%;background:var(--green);border-radius:999px;transition:width .3s ease;}
+  .fm-ck{display:flex;flex-direction:column;gap:2px;}
+  .fm-ckrow{display:flex;align-items:flex-start;gap:11px;padding:9px 10px;border-radius:var(--r-md);
+    font-family:inherit;font-size:15px;line-height:1.45;color:var(--ink);background:transparent;
+    border:0;cursor:pointer;text-align:left;width:100%;}
+  .fm-ckrow:hover{background:var(--card);}
+  .fm-ckrow.on>span:last-child{color:var(--ink-faint);text-decoration:line-through;}
+  .fm-ckb{flex:0 0 auto;width:20px;height:20px;margin-top:1px;border-radius:var(--r-sm);
+    border:1.6px solid var(--line);background:var(--card);display:inline-flex;align-items:center;
+    justify-content:center;color:transparent;}
+  .fm-ckb .ic{width:13px;height:13px;}
+  .fm-ckrow.on .fm-ckb{background:var(--green);border-color:var(--green);color:var(--on-accent);}
+  .fm-more{margin-top:12px;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--orange);
+    background:transparent;border:0;cursor:pointer;padding:0;}
+  .fm-notes{margin-top:10px;font-size:14px;line-height:1.65;color:var(--ink-dim);white-space:pre-wrap;}
+  .fm-files{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px;}
+  .fm-files a{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;
+    color:var(--ink-dim);background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:6px 10px;text-decoration:none;}
+  .fm-files a:hover{border-color:var(--orange);color:var(--ink);}
+  .fm-files .ic{width:13px;height:13px;color:var(--ink-faint);}
   .fm-jot{margin-top:var(--sp-6);}
   .fm-rest{margin-top:var(--sp-7);border-top:1px solid var(--line);padding-top:var(--sp-4);}
   .fm-cap{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.11em;
@@ -3383,6 +3407,7 @@ let fmOpen = false;
 let fmStage = "morning";      // morning | day | evening
 let fmQueue = [];
 let fmShowAll = false;
+let fmShowNotes = false;      // v220: the step's notes, under the job, when asked for
 
 async function fmLoadProjects() {
   try {
@@ -3405,6 +3430,10 @@ function fmBuildQueue() {
       key: "plan:" + (t.tgt.l || t.tgt.m || "") + ":" + t.tgt.k,
       title: t.title, source: "plan", kind: t.kind, when: t.bandLabel,
       done: !!t.done, tgt: t.tgt, cellKey: t.cellKey, idx: t.idx, from: "",
+      // v220: a job pulled from a project board brings its checklist with it. The agenda row
+      // only carries a title, so the step is found by matching what the BOARD says it is
+      // planned for — the same match the weekly page uses, not a title comparison.
+      step: fmStepForPlanned(t.title, week, dayKey),
     });
   });
   fmProjects.forEach((p) => {
@@ -3416,10 +3445,38 @@ function fmBuildQueue() {
         key: "step:" + p.id + ":" + st.id,
         title: st.title, source: "step", kind: "project", when: "",
         done: !!st.done, projectId: p.id, stepId: st.id, from: p.name,
+        step: { project: p, step: st },
       });
     });
   });
   return out.filter((j) => !parked.has(j.key));
+}
+/* Which project step is this planned row? The agenda carries a title and a tick address and
+   nothing else, so the step is found the way the board itself records the arrangement: the
+   step says which week and day it is planned for. Title matching is the fallback and only
+   the fallback — two steps can share a title, and a renamed step would silently lose its
+   checklist otherwise. */
+function fmStepForPlanned(title, week, dayKey) {
+  const t = String(title || "").trim().toLowerCase();
+  for (const p of fmProjects) {
+    for (const st of (p.steps || [])) {
+      if (!st || st.del) continue;
+      if (st.week === week && st.day === dayKey) {
+        if (String(st.title || "").trim().toLowerCase() === t) return { project: p, step: st };
+      }
+    }
+  }
+  return null;
+}
+// what a job has to show beyond its title: a checklist, notes, files
+function fmDetail(job) {
+  const f = job && job.step;
+  if (!f || !f.step) return null;
+  const list = Array.isArray(f.step.checklist) ? f.step.checklist : [];
+  const notes = String(f.step.notes || "").trim();
+  const files = Array.isArray(f.step.files) ? f.step.files : [];
+  if (!list.length && !notes && !files.length) return null;
+  return { project: f.project, step: f.step, list, notes, files, done: list.filter((c) => c.done).length };
 }
 const fmLeft = () => fmQueue.filter((j) => !j.done);
 const fmCurrent = () => fmLeft()[0] || null;
@@ -3530,6 +3587,7 @@ function fmDayHtml() {
     (job.when ? '<div class="fm-when">' + esc(job.when) + "</div>" : "") +
     '<div class="fm-job">' + esc(job.title) + "</div>" +
     (job.from ? '<div class="fm-from">From <b>' + esc(job.from) + "</b> — dated today, not on your plan.</div>" : "") +
+    fmDetailHtml(job) +
     '<div class="fm-acts">' +
       '<button type="button" class="fm-act done" id="fmDone"><svg class="ic"><use href="#ic-check"/></svg> Done</button>' +
       (fmLeft().length > 1 ? '<button type="button" class="fm-act" id="fmSkip"><svg class="ic"><use href="#ic-arrow-right"/></svg> Not this one</button>' : "") +
@@ -3543,6 +3601,57 @@ function fmDayHtml() {
     fmHabitsHtml() +
     '<div class="fm-btns"><button type="button" class="fm-b" id="fmToEvening">Finish the day</button></div>' +
   "</div>";
+}
+/* v220: what is INSIDE the job on screen. Ash: "if there's a task we're doing that has
+   checklists inside of it, they are being shown as well."
+   The checklist ticks from here, through the same narrow stepLink route the weekly page and
+   the board use — one boolean on one item. The notes are read-only, as they are everywhere
+   outside the board, and they are collapsed by default: the point of this screen is the one
+   job, not a wall of everything known about it. */
+function fmDetailHtml(job) {
+  const d = fmDetail(job);
+  if (!d) return "";
+  let h = '<div class="fm-inside">';
+  if (d.list.length) {
+    h += '<div class="fm-cap">Checklist — ' + d.done + " of " + d.list.length + "</div>" +
+      '<div class="fm-bar2"><i style="width:' + Math.round(d.done / d.list.length * 100) + '%"></i></div>' +
+      '<div class="fm-ck">' + d.list.map((c) =>
+        '<button type="button" class="fm-ckrow' + (c.done ? " on" : "") + '" data-ck="' + esc(c.id) + '">' +
+        '<span class="fm-ckb"><svg class="ic"><use href="#ic-check"/></svg></span>' +
+        "<span>" + esc(c.text) + "</span></button>").join("") + "</div>";
+  }
+  if (d.notes || d.files.length) {
+    h += '<button type="button" class="fm-more" id="fmMore">' +
+      (fmShowNotes ? "Hide" : "Show") + " what the step says" +
+      (d.files.length ? " (" + d.files.length + " file" + (d.files.length === 1 ? "" : "s") + ")" : "") + "</button>";
+    if (fmShowNotes) {
+      h += '<div class="fm-notes">' + (d.notes ? esc(d.notes).replace(/\n/g, "<br>") : "<i>No notes on this one.</i>") + "</div>";
+      if (d.files.length) {
+        h += '<div class="fm-files">' + d.files.map((f) =>
+          '<a href="' + esc(PROJECTS + "?file=" + encodeURIComponent(f.id)) + '" target="_blank" rel="noopener">' +
+          '<svg class="ic"><use href="#ic-note"/></svg>' + esc(f.name) + "</a>").join("") + "</div>";
+      }
+    }
+  }
+  return h + "</div>";
+}
+/* On screen first, then told to the board — and put back if the board will not take it. */
+async function fmTickCheck(job, checkId) {
+  const d = fmDetail(job);
+  if (!d) return;
+  const c = d.list.find((x) => x.id === checkId);
+  if (!c) return;
+  const was = !!c.done;
+  c.done = !was;
+  fmRender();
+  try {
+    const r = await fetch(PROJECTS, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stepLink: { projectId: d.project.id, stepId: d.step.id, check: { id: checkId, done: !was } } }),
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+  } catch (e) { c.done = was; fmRender(); }
 }
 function fmRowHtml(j) {
   return '<div class="fm-row' + (j.done ? " is-done" : "") + '">' +
@@ -3678,6 +3787,9 @@ function fmWire() {
   on("fmSkip", fmSkipCurrent);
   on("fmPark", fmParkCurrent);
   on("fmToggleAll", () => { fmShowAll = !fmShowAll; fmRender(); });
+  on("fmMore", () => { fmShowNotes = !fmShowNotes; fmRender(); });
+  [...document.querySelectorAll("[data-ck]")].forEach((el) =>
+    el.addEventListener("click", () => { const j = fmCurrent(); if (j) fmTickCheck(j, el.dataset.ck); }));
   on("fmToEvening", async () => { await fmSaveJot(); fmStage = "evening"; fmRender(); });
   on("fmBackToDay", () => { fmStage = "day"; fmRender(); });
   on("fmCloseDay", async () => {

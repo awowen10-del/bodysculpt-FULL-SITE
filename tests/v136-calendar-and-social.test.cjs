@@ -191,17 +191,27 @@ async function runIg(env, url, responder, seed) {
   assert.ok(/const PROJECTS = "\/\.netlify\/functions\/projects";/.test(djs),
     "the projects store is a fixed address on this page");
   const projWrites = [...djs.matchAll(/fetch\(PROJECTS, \{[\s\S]{0,400}?\}\);/g)].map((m) => m[0]);
-  assert.strictEqual(projWrites.length, 1, "there is exactly ONE place that writes to the projects store");
-  assert.ok(/method: "POST"/.test(projWrites[0]), "…a POST");
-  assert.ok(/JSON\.stringify\(\{ stepLink:/.test(projWrites[0]), "…and its body can only ever be { stepLink }");
-  // what that one payload may carry, exhaustively
-  const stepFields = [...projWrites[0].matchAll(/([a-zA-Z]+):/g)].map((m) => m[1]).filter((f) =>
+  /* v220 made it two: focus mode shows the checklist inside the job it is putting in front
+     of you, and a checklist you can read but not tick sends you to the board to tick it.
+     Both are the same shape — one boolean, at one address, on one step. */
+  assert.strictEqual(projWrites.length, 2, "there are exactly TWO places that write to the projects store");
+  for (const w of projWrites) {
+    assert.ok(/method: "POST"/.test(w), "…both POSTs");
+    assert.ok(/JSON\.stringify\(\{ stepLink:/.test(w), "…and both bodies can only ever be { stepLink }");
+  }
+  // what those payloads may carry, exhaustively and between them
+  const fieldsOf = (w) => [...w.matchAll(/([a-zA-Z]+):/g)].map((m) => m[1]).filter((f) =>
     !["method", "headers", "body", "stepLink"].includes(f) && f !== "Type");
-  assert.deepStrictEqual(stepFields.sort(), ["done", "projectId", "stepId"],
-    "…naming one project, one step and one boolean — it cannot rename, move, add or remove anything");
-  for (const payload of ["project", "week", "day", "slot", "check", "columns", "steps", "canvas", "archived"]) {
-    assert.ok(!new RegExp("\\b" + payload + "\\s*:").test(projWrites[0]),
-      "the projects write on the daily page cannot carry " + payload);
+  // order-independent: which of the two comes first in the file is not the guarantee
+  const shapes = projWrites.map((w) => fieldsOf(w).sort().join(",")).sort();
+  assert.deepStrictEqual(shapes,
+    ["check,done,id,projectId,stepId", "done,projectId,stepId"].sort(),
+    "between them: finishing a step, and ticking one item on its checklist — one boolean each, and nothing else");
+  for (const w of projWrites) {
+    for (const payload of ["project", "week", "day", "slot", "columns", "steps", "canvas", "archived", "title", "notes"]) {
+      assert.ok(!new RegExp("\\b" + payload + "\\s*:").test(w),
+        "no projects write on the daily page can carry " + payload);
+    }
   }
   // and the projects store is READ the same way everything else here is read
   assert.ok(/jget\(PROJECTS \+ "\?list=1"\)/.test(djs), "…while reading it goes through jget, with no options");

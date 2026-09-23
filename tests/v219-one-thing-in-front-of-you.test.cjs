@@ -59,7 +59,7 @@ function bodyOf(js, name) {
     const TODAY = "2026-03-18";            // a Wednesday
     const WEEK = "2026-03-16";             // the Monday that starts it
     const build = new Function(
-      "agendaForDay", "agendaDayKey", "agendaWeekOf", "ckEntry", "ckToday", "fmProjects",
+      "agendaForDay", "agendaDayKey", "agendaWeekOf", "ckEntry", "ckToday", "fmProjects", "fmStepForPlanned",
       "return (function fmBuildQueue()" + bodyOf(JS, "fmBuildQueue") + ")");
 
     const agenda = [
@@ -82,7 +82,8 @@ function bodyOf(js, name) {
       step("s_done", { title: "Already finished", due: TODAY, done: true }),
     ] }];
     const entry = { parked: [] };
-    const run = () => build(() => agenda, () => "wed", () => WEEK, () => entry, () => TODAY, projects)();
+    const stepForPlanned = new Function("fmProjects", "return (function fmStepForPlanned(title, week, dayKey)" + bodyOf(JS, "fmStepForPlanned") + ")")(projects);
+    const run = () => build(() => agenda, () => "wed", () => WEEK, () => entry, () => TODAY, projects, stepForPlanned)();
 
     let q = run();
     assert.deepStrictEqual(q.map((j) => j.title),
@@ -117,7 +118,7 @@ function bodyOf(js, name) {
     assert.strictEqual(q.length, 3, "…and only that one");
 
     // a week with no plan at all is empty, not broken
-    const empty = build(() => [], () => "wed", () => WEEK, () => ({ parked: [] }), () => TODAY, [])();
+    const empty = build(() => [], () => "wed", () => WEEK, () => ({ parked: [] }), () => TODAY, [], () => null)();
     assert.deepStrictEqual(empty, [], "no plan and no dated steps is an empty day, not an error");
   }
 
@@ -252,6 +253,50 @@ function bodyOf(js, name) {
     assert.deepStrictEqual(new Function("return " + bands[1])(),
       new Function("return " + pageBands[1])().map((b) => b[0]),
       "the bands the page offers are exactly the bands the store keeps");
+  }
+
+  /* =====================================================================
+     7. v220: WHAT IS INSIDE THE JOB
+     Ash: "if there's a task we're doing that has checklists inside of it, they are being
+     shown as well." A job pulled from a board brings its checklist with it, and that
+     checklist ticks from here — reading one you cannot tick sends you to the board, which is
+     the friction this whole mode exists to remove.
+     ===================================================================== */
+  {
+    const projects = [{ id: "p1", name: "Migrate from Ontraport to GoHighLevel", steps: [
+      { id: "s1", title: "Build the tag map", del: false, done: false, due: "", week: "2026-03-16", day: "wed",
+        notes: "Old name left, new name right.", files: [{ id: "f1", name: "audit.md" }],
+        checklist: [{ id: "c1", text: "Tags", done: true }, { id: "c2", text: "Custom fields", done: false }] },
+      { id: "s2", title: "Build the tag map", del: false, done: false, due: "", week: "", day: "",
+        notes: "", files: [], checklist: [] },                      // same title, NOT planned today
+    ] }];
+    const find = new Function("fmProjects", "return (function fmStepForPlanned(title, week, dayKey)" + bodyOf(JS, "fmStepForPlanned") + ")")(projects);
+    const hit = find("Build the tag map", "2026-03-16", "wed");
+    assert.ok(hit && hit.step.id === "s1",
+      "a planned row finds its step by WHERE IT IS PLANNED first — two steps can share a title");
+    assert.strictEqual(find("Build the tag map", "2026-03-16", "thu"), null, "…and a different day is a different job");
+    assert.strictEqual(find("Something else", "2026-03-16", "wed"), null, "…and an unmatched title is no step at all");
+
+    const detail = new Function("return (function fmDetail(job)" + bodyOf(JS, "fmDetail") + ")")();
+    const d = detail({ step: hit });
+    assert.strictEqual(d.list.length, 2, "the checklist comes through");
+    assert.strictEqual(d.done, 1, "…with its state");
+    assert.strictEqual(d.notes, "Old name left, new name right.", "…and the notes");
+    assert.strictEqual(d.files.length, 1, "…and the files");
+    assert.strictEqual(detail({ step: { project: {}, step: { checklist: [], notes: "", files: [] } } }), null,
+      "a step with nothing inside it shows nothing — no empty panel under the job");
+    assert.strictEqual(detail({}), null, "and a job that is not a step at all shows nothing");
+
+    // it renders as ticks, and the notes stay out of the way until asked for
+    const html = bodyOf(JS, "fmDetailHtml");
+    assert.ok(/Checklist — ' \+ d\.done \+ " of " \+ d\.list\.length/.test(html), "the checklist is counted");
+    assert.ok(/data-ck="/.test(html), "…and every item is a tick");
+    assert.ok(/id="fmMore"/.test(html) && /fmShowNotes \?/.test(html),
+      "the notes are behind one click — the point of the screen is the job, not everything known about it");
+    // ticking is optimistic and reverts, like every other tick in the suite
+    const tick = bodyOf(JS, "fmTickCheck");
+    assert.ok(tick.indexOf("c.done = !was") < tick.indexOf("await fetch"), "the box moves before the request");
+    assert.ok(/c\.done = was; fmRender\(\);/.test(tick), "…and goes back if the board will not take it");
   }
 
   console.log("v219-one-thing-in-front-of-you: all assertions passed");

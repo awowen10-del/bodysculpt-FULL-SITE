@@ -294,7 +294,15 @@ function stubAsk(ctx, answer) {
     assert.strictEqual(asks.length, 0, "one-off remove never prompts");
     P = ctx.__wpState.plan.placements;
     assert.ok(!Object.values(P).flatMap((v) => Array.from(v)).includes("buffer:b1"), "taken off the grid");
-    assert.ok(ctx.__wpState.plan.bufferItems.some((i) => i.id === "b1"), "…but still in the Buffer list");
+    /* v220 CHANGED THIS LINE, deliberately. It used to read "…but still in the Buffer list",
+       which was right while the only way onto the grid was to type a task into a list and
+       drag it: the list was where it came from, so the list was where it went back to. Since
+       v217 a task can be BORN in a block, and Ash: "when I delete the task off the calendar,
+       the task stays on the buffer. This needs to be fixed." The ✕ deletes it now, with an
+       Undo on the confirmation. What this test is actually about — that a ONE-OFF never
+       prompts and never writes an exception — is unchanged and still checked either side. */
+    assert.ok(!ctx.__wpState.plan.bufferItems.some((i) => i.id === "b1"),
+      "…and gone from the Buffer list too (v220: the ✕ deletes the task)");
     assert.strictEqual(Object.keys(ctx.__wpState.plan.exceptions).length, 0);
   }
 
