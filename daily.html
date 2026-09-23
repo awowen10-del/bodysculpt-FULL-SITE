@@ -1057,6 +1057,119 @@
 
   /* the timer, idle: one heading row (the playlist link sits on its right, where it belongs)
      and the four lengths as ONE segmented control rather than four loose tiles */
+  /* ===================== v219: FOCUS MODE ===================== */
+  .startday{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4);
+    width:100%;margin:0 0 var(--sp-4);padding:18px 22px;cursor:pointer;font-family:inherit;
+    text-align:left;border:1px solid var(--orange);border-radius:var(--r-lg);
+    background:linear-gradient(180deg,var(--card) 0%,rgba(var(--orange-rgb),.07) 100%);
+    box-shadow:var(--shadow);transition:box-shadow var(--tap),transform var(--tap);}
+  .startday:hover{box-shadow:var(--shadow-lift);transform:translateY(-1px);}
+  .startday:focus-visible{outline:none;box-shadow:var(--focus);}
+  .sd-in{display:flex;align-items:center;gap:15px;min-width:0;}
+  .sd-ic{width:26px;height:26px;color:var(--orange);flex:0 0 auto;}
+  .sd-txt{display:flex;flex-direction:column;min-width:0;}
+  .sd-txt b{font-size:19px;font-weight:800;letter-spacing:-.4px;color:var(--ink-strong);line-height:1.15;}
+  .sd-txt small{font-size:12.5px;color:var(--ink-dim);margin-top:3px;line-height:1.4;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sd-go{width:20px;height:20px;color:var(--orange);flex:0 0 auto;}
+  /* the mode itself: the whole screen, and nothing else on it */
+  .fm{position:fixed;inset:0;z-index:500;background:var(--navy);display:flex;flex-direction:column;}
+  .fm[hidden]{display:none;}
+  .fm-bar{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4);
+    padding:14px 20px;border-bottom:1px solid var(--line);background:var(--card);}
+  .fm-where{display:flex;align-items:center;gap:12px;font-size:11px;font-weight:800;
+    text-transform:uppercase;letter-spacing:.12em;color:var(--ink-faint);}
+  .fm-prog{color:var(--orange-soft);background:rgba(var(--orange-rgb),.12);border-radius:var(--r-pill);
+    padding:3px 10px;letter-spacing:.04em;}
+  .fm-prog:empty{display:none;}
+  .fm-x{font-family:inherit;font-size:13px;font-weight:600;color:var(--ink-dim);background:transparent;
+    border:1px solid var(--line);border-radius:var(--r-md);padding:7px 13px;cursor:pointer;
+    display:inline-flex;align-items:center;gap:7px;}
+  .fm-x:hover{border-color:var(--ink-faint);color:var(--ink);}
+  .fm-x .ic{width:14px;height:14px;}
+  .fm-body{flex:1;min-height:0;overflow-y:auto;display:flex;justify-content:center;
+    padding:var(--sp-6) 20px var(--sp-7);}
+  .fm-body > *{flex:0 0 auto;}
+  .fm-sheet{width:min(680px,100%);}
+  /* the morning */
+  .fm-h{font-size:27px;font-weight:800;letter-spacing:-.7px;color:var(--ink-strong);line-height:1.15;}
+  .fm-sub{font-size:14px;color:var(--ink-dim);margin-top:8px;line-height:1.6;}
+  .fm-q{margin-top:var(--sp-5);}
+  .fm-q label{display:block;font-size:11px;font-weight:800;text-transform:uppercase;
+    letter-spacing:.1em;color:var(--ink-faint);margin-bottom:7px;}
+  .fm-q textarea,.fm-q select{width:100%;font-family:inherit;font-size:15px;color:var(--ink);
+    background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);
+    padding:12px 14px;line-height:1.6;resize:vertical;}
+  .fm-q textarea{min-height:92px;}
+  .fm-q textarea:focus,.fm-q select:focus{outline:none;border-color:var(--orange);
+    box-shadow:0 0 0 3px rgba(var(--orange-rgb),.13);}
+  .fm-q .hint{font-size:12px;color:var(--ink-faint);margin-top:6px;line-height:1.5;}
+  .fm-btns{display:flex;gap:var(--sp-2);justify-content:flex-end;margin-top:var(--sp-5);flex-wrap:wrap;}
+  .fm-b{font-family:inherit;font-size:14px;font-weight:600;border-radius:var(--r-md);
+    padding:11px 18px;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink-dim);}
+  .fm-b:hover{border-color:var(--ink-faint);color:var(--ink);}
+  .fm-b.go{background:var(--orange);border-color:var(--orange);color:var(--on-accent);font-weight:700;}
+  .fm-b.go:hover{background:var(--orange-soft);border-color:var(--orange-soft);}
+  /* the one job */
+  .fm-when{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;
+    color:var(--orange-soft);background:rgba(var(--orange-rgb),.12);border-radius:var(--r-pill);
+    padding:5px 13px;display:inline-block;margin-bottom:var(--sp-4);}
+  .fm-job{font-size:34px;font-weight:800;letter-spacing:-1px;line-height:1.2;color:var(--ink-strong);
+    word-break:break-word;}
+  .fm-from{font-size:13.5px;color:var(--ink-dim);margin-top:12px;}
+  .fm-acts{display:flex;gap:var(--sp-3);flex-wrap:wrap;margin-top:var(--sp-6);}
+  .fm-act{font-family:inherit;font-size:15px;font-weight:700;border-radius:var(--r-md);
+    padding:14px 22px;cursor:pointer;border:1px solid var(--line);background:var(--card);
+    color:var(--ink-dim);display:inline-flex;align-items:center;gap:9px;}
+  .fm-act .ic{width:17px;height:17px;}
+  .fm-act:hover{border-color:var(--ink-faint);color:var(--ink);}
+  .fm-act.done{background:var(--green);border-color:var(--green);color:var(--on-accent);}
+  .fm-act.done:hover{background:var(--green-2);border-color:var(--green-2);}
+  .fm-jot{margin-top:var(--sp-6);}
+  .fm-rest{margin-top:var(--sp-7);border-top:1px solid var(--line);padding-top:var(--sp-4);}
+  .fm-cap{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.11em;
+    color:var(--ink-faint);margin-bottom:10px;display:flex;align-items:center;gap:10px;}
+  .fm-cap button{margin-left:auto;font-family:inherit;font-size:11px;font-weight:700;
+    text-transform:none;letter-spacing:0;color:var(--orange);background:transparent;border:0;cursor:pointer;}
+  .fm-list{display:flex;flex-direction:column;gap:3px;}
+  .fm-row{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:var(--r-md);
+    font-size:14px;color:var(--ink);background:var(--card);border:1px solid var(--line);}
+  .fm-row.is-done{opacity:.55;}
+  .fm-row.is-done .fm-rt{text-decoration:line-through;}
+  .fm-row.now{border-color:var(--orange);box-shadow:0 0 0 2px rgba(var(--orange-rgb),.14);}
+  .fm-rt{flex:1;min-width:0;}
+  .fm-rw{flex:0 0 auto;font-size:11px;font-weight:700;color:var(--ink-faint);}
+  .fm-tick{flex:0 0 auto;width:20px;height:20px;border-radius:var(--r-sm);border:1.6px solid var(--line);
+    background:var(--card);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+    color:transparent;padding:0;}
+  .fm-tick .ic{width:13px;height:13px;}
+  .fm-tick.on{background:var(--green);border-color:var(--green);color:var(--on-accent);}
+  .fm-tick:hover{border-color:var(--green);}
+  /* the non-negotiables, along the bottom */
+  .fm-nn{display:flex;gap:var(--sp-2);flex-wrap:wrap;margin-top:12px;}
+  .fm-nnb{font-family:inherit;font-size:12.5px;font-weight:600;color:var(--ink-dim);background:var(--card);
+    border:1px solid var(--line);border-radius:var(--r-pill);padding:8px 14px;cursor:pointer;
+    display:inline-flex;align-items:center;gap:8px;}
+  .fm-nnb.on{background:rgba(var(--green-rgb),.12);border-color:var(--green);color:var(--tint-green);}
+  .fm-nnb .ic{width:13px;height:13px;}
+  /* the end */
+  .fm-tally{display:flex;gap:var(--sp-3);flex-wrap:wrap;margin:var(--sp-5) 0;}
+  .fm-tile{flex:1 1 150px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);
+    padding:16px 18px;}
+  .fm-tile b{display:block;font-size:30px;font-weight:800;letter-spacing:-.8px;color:var(--ink-strong);line-height:1;}
+  .fm-tile span{display:block;font-size:12px;color:var(--ink-dim);margin-top:6px;}
+  .fm-tile.good b{color:var(--green);}
+  .fm-empty{font-size:14px;color:var(--ink-dim);line-height:1.7;background:var(--card);
+    border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--sp-5);}
+  .fm-empty a{color:var(--orange);}
+  @media(max-width:700px){
+    .fm-body{padding:var(--sp-5) 16px var(--sp-6);}
+    .fm-job{font-size:26px;}
+    .fm-h{font-size:22px;}
+    .fm-act{flex:1 1 100%;justify-content:center;}
+    .startday{padding:16px 18px;}
+    .sd-txt b{font-size:17px;}
+  }
   .ft-idle-box{margin-top:auto;padding-top:var(--sp-4);border-top:1px solid var(--line);}
   .ft-head{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);margin-bottom:8px;}
   .ft-head .one-k{margin:0;}
@@ -1242,6 +1355,28 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
     <div class="day-fresh" id="dayFresh"><span class="loading">Checking…</span></div>
   </div>
   <button type="button" class="abtn" id="btnRefresh"><svg class="ic"><use href="#ic-refresh"/></svg> Refresh</button>
+</div>
+
+<!-- v219: THE WAY IN. Ash: "I genuinely struggle to focus unless what I need to focus on is
+     in front of me… it's like tunnel vision, remove all the noise & then just focus on what's
+     in front of you." The button says where the day is up to, so it is never just an
+     ornament: Start today → Focus on today → Close the day. -->
+<button type="button" class="startday" id="fmStart" hidden>
+  <span class="sd-in">
+    <svg class="ic sd-ic"><use href="#ic-target"/></svg>
+    <span class="sd-txt"><b id="fmStartT">Start today</b><small id="fmStartS"></small></span>
+  </span>
+  <svg class="ic sd-go"><use href="#ic-arrow-right"/></svg>
+</button>
+
+<!-- Everything else on this page is still here, underneath. Focus mode never hides the day
+     from you — it puts one thing in front of you, and closing it puts you back. -->
+<div class="fm" id="fmWrap" hidden>
+  <div class="fm-bar">
+    <div class="fm-where"><span id="fmStepLabel"></span><span class="fm-prog" id="fmProg"></span></div>
+    <button type="button" class="fm-x" id="fmCloseBtn"><svg class="ic"><use href="#ic-close"/></svg> Close</button>
+  </div>
+  <div class="fm-body" id="fmBody"></div>
 </div>
 
 <!-- The focus timer lives here when one is running, and nowhere at all when one is not. -->
@@ -2847,8 +2982,11 @@ function ckEntry(date) {
   return {
     date, mind: "", gratitude: "", oneThing: "", doneNote: "",
     oneThingDone: null, dismissed: false, habitsAsked: false,
+    // v219: the day, as focus mode runs it
+    oneThingWhen: "", parked: [], dayNote: "", closedAt: "",
     ...(e || {}),
     habits: (e && e.habits) || {},
+    parked: Array.isArray(e && e.parked) ? e.parked : [],
   };
 }
 const ckIsEvening = () => new Date().getHours() >= CK_EVENING_HOUR;
@@ -3209,6 +3347,363 @@ function renderToday() {
   const add = $("oneThingAdd");
   if (add) add.addEventListener("click", () => { ckEdit(); setTimeout(() => { const el = $("ck_oneThing"); if (el) el.focus(); }, 60); });
 }
+
+/* =====================================================================
+   v219: FOCUS MODE
+   Ash: "there's nothing on there that's obvious what has to get done today… I need a big
+   button that says 'start today' which asks me the daily questions, then once I've submitted
+   them it tells me what to focus on… it's like tunnel vision, remove all the noise & then
+   just focus on what's in front of you."
+
+   He was right about the diagnosis before the cure: today's jobs WERE on this page, as a
+   panel inside the calendar card, third down. The page never said "here is today".
+
+   Three stages, and the rules that keep it from becoming a ceremony you resent:
+
+     IT NEVER GATES THE DAY. The questions are skippable and the ordinary dashboard is still
+     underneath, untouched. A morning where he skips everything must not hide his jobs — that
+     is how a thing like this gets abandoned in a fortnight.
+
+     NO DEAD ENDS. If the one job on screen is "waiting on GHL support", a screen with no way
+     out is worse than a list. Every job has Done, Not this one (to the back of today's
+     queue — his call) and Park it.
+
+     PARK IT IS HONEST. It writes to the DAY's record, not the weekly plan: "I decided not to
+     do this today" is a fact about a day, and the plan has no field for it and should not.
+     Nothing here quietly rewrites a week.
+
+   WHAT COUNTS AS TODAY (his call): what is in today's time blocks on the weekly plan, plus
+   any project step dated today that never made it onto the plan — the ones dated on a board
+   and forgotten. Email and money stay where they are; they are not jobs of this kind.
+   ===================================================================== */
+const PROJECTS = "/.netlify/functions/projects";
+const FM_BANDS = [["6-9", "6 – 9"], ["10-12", "9 – 11.30"], ["1-3", "12 – 3"], ["5-8", "5 – 8"]];
+let fmProjects = [];          // the project list, read once (a READ — jget, no options)
+let fmOpen = false;
+let fmStage = "morning";      // morning | day | evening
+let fmQueue = [];
+let fmShowAll = false;
+
+async function fmLoadProjects() {
+  try {
+    const r = await jget(PROJECTS + "?list=1");
+    fmProjects = (r && Array.isArray(r.projects)) ? r.projects.filter((p) => p && !p.archived && p.status !== "done") : [];
+  } catch (e) { fmProjects = []; }
+}
+
+/* Today's jobs, in the order they should be met: the plan first, in band order, then the
+   things dated today that never got planned. A job needs a way to be completed or it does
+   not belong in a queue whose whole point is completing things. */
+function fmBuildQueue() {
+  const dayKey = agendaDayKey(new Date());
+  const week = agendaWeekOf(0);
+  const parked = new Set(ckEntry(ckToday()).parked || []);
+  const out = [];
+  agendaForDay(dayKey).forEach((t) => {
+    if (!t.tgt) return;                       // no tick address — it cannot be finished here
+    out.push({
+      key: "plan:" + (t.tgt.l || t.tgt.m || "") + ":" + t.tgt.k,
+      title: t.title, source: "plan", kind: t.kind, when: t.bandLabel,
+      done: !!t.done, tgt: t.tgt, cellKey: t.cellKey, idx: t.idx, from: "",
+    });
+  });
+  fmProjects.forEach((p) => {
+    (p.steps || []).forEach((st) => {
+      if (!st || st.del || st.due !== ckToday()) return;
+      // already on the plan for today — the loop above has it, and twice is not a queue
+      if (st.week === week && st.day === dayKey) return;
+      out.push({
+        key: "step:" + p.id + ":" + st.id,
+        title: st.title, source: "step", kind: "project", when: "",
+        done: !!st.done, projectId: p.id, stepId: st.id, from: p.name,
+      });
+    });
+  });
+  return out.filter((j) => !parked.has(j.key));
+}
+const fmLeft = () => fmQueue.filter((j) => !j.done);
+const fmCurrent = () => fmLeft()[0] || null;
+const fmAsked = () => { const e = ckEntry(ckToday()); return !!(richToText(e.oneThing).trim() || e.dismissed); };
+const fmClosed = () => !!ckEntry(ckToday()).closedAt;
+
+/* The button that leads the page. It says where the day is up to, so it is never an
+   ornament: three questions, then the work, then the write-up. */
+function renderStartDay() {
+  const btn = $("fmStart"), t = $("fmStartT"), sub = $("fmStartS");
+  if (!btn || !t || !sub) return;
+  btn.hidden = false;
+  fmQueue = fmBuildQueue();
+  const left = fmLeft().length, total = fmQueue.length, done = total - left;
+  if (fmClosed()) {
+    t.textContent = "Today is closed off";
+    sub.textContent = "Open it again to read what you wrote.";
+  } else if (!fmAsked()) {
+    t.textContent = "Start today";
+    sub.textContent = total
+      ? "Three questions, then the " + total + " job" + (total === 1 ? "" : "s") + " you have planned."
+      : "Three questions, then what to focus on.";
+  } else if (left) {
+    const now = fmCurrent();
+    t.textContent = "Focus on today";
+    sub.textContent = done + " of " + total + " done — next: " + (now ? now.title : "");
+  } else if (total) {
+    t.textContent = "Close the day";
+    sub.textContent = "Everything on the list is done. Write it up.";
+  } else {
+    t.textContent = "Focus on today";
+    sub.textContent = "Nothing planned yet — open it to sort that out.";
+  }
+}
+
+function fmShow(stage) {
+  fmQueue = fmBuildQueue();
+  fmStage = stage || (fmClosed() ? "evening" : !fmAsked() ? "morning" : fmLeft().length ? "day" : "evening");
+  fmOpen = true;
+  $("fmWrap").hidden = false;
+  document.body.style.overflow = "hidden";
+  fmRender();
+}
+function fmCloseMode() {
+  if (!fmOpen) return;
+  fmOpen = false;
+  $("fmWrap").hidden = true;
+  document.body.style.overflow = "";
+  renderStartDay(); renderToday(); renderCalendar();
+}
+function fmRender() {
+  const label = $("fmStepLabel"), prog = $("fmProg"), body = $("fmBody");
+  if (!body) return;
+  label.textContent = fmStage === "morning" ? "Starting the day" : fmStage === "day" ? "Today" : "Closing the day";
+  const total = fmQueue.length, done = total - fmLeft().length;
+  prog.textContent = (fmStage === "day" && total) ? done + " of " + total : "";
+  body.innerHTML = fmStage === "morning" ? fmMorningHtml() : fmStage === "day" ? fmDayHtml() : fmEveningHtml();
+  fmWire();
+}
+
+/* ---------- the morning ---------- */
+function fmMorningHtml() {
+  const e = ckEntry(ckToday());
+  const when = e.oneThingWhen || "";
+  return '<div class="fm-sheet">' +
+    '<div class="fm-h">Right. What kind of day is it?</div>' +
+    '<div class="fm-sub">Three questions, then I will put your jobs in front of you one at a time. ' +
+    'Skip any of them — none of this is compulsory.</div>' +
+    '<div class="fm-q"><label for="fm_mind">What is on your mind?</label>' +
+      '<textarea id="fm_mind" placeholder="Get it out of your head and onto the page.">' + esc(richToText(e.mind)) + '</textarea></div>' +
+    '<div class="fm-q"><label for="fm_grat">What are you grateful for?</label>' +
+      '<textarea id="fm_grat" placeholder="One thing will do.">' + esc(richToText(e.gratitude)) + '</textarea></div>' +
+    '<div class="fm-q"><label for="fm_one">If only one thing gets done today, what is it?</label>' +
+      '<textarea id="fm_one" placeholder="The one that would make today count.">' + esc(richToText(e.oneThing)) + '</textarea></div>' +
+    '<div class="fm-q"><label for="fm_when">When today?</label>' +
+      '<select id="fm_when"><option value="">Not saying</option>' +
+        FM_BANDS.map(([k, l]) => '<option value="' + k + '"' + (when === k ? " selected" : "") + ">" + esc(l) + "</option>").join("") +
+      '</select>' +
+      '<div class="hint">Deciding when you will do something is the difference between a list and a plan — ' +
+      'it is the one part of this with real evidence behind it.</div></div>' +
+    '<div class="fm-btns"><button type="button" class="fm-b" id="fmSkipQ">Skip for today</button>' +
+    '<button type="button" class="fm-b go" id="fmSaveQ">Saved — show me the day</button></div>' +
+  '</div>';
+}
+
+/* ---------- the day ---------- */
+function fmDayHtml() {
+  const job = fmCurrent();
+  const e = ckEntry(ckToday());
+  const one = richToText(e.oneThing).trim();
+  if (!fmQueue.length) {
+    return '<div class="fm-sheet">' +
+      (one ? '<div class="fm-when">Your one thing</div><div class="fm-job">' + esc(one) + "</div>" : "") +
+      '<div class="fm-empty" style="margin-top:' + (one ? "28px" : "0") + '"><b>Nothing is planned for today.</b><br>' +
+      'Jobs come from the time blocks on your <a href="/index.html">weekly planner</a>, and from any ' +
+      '<a href="/projects.html">project step</a> dated today. Put something in either and it will be here.' +
+      (wpAgenda ? "" : "<br><br>Your weekly planner has not been opened since it last changed, so today may look emptier than it is — opening it once fixes that for good.") +
+      "</div>" + fmHabitsHtml() + "</div>";
+  }
+  if (!job) {
+    return '<div class="fm-sheet"><div class="fm-h">That is the lot.</div>' +
+      '<div class="fm-sub">Everything you planned for today is done.</div>' +
+      '<div class="fm-btns"><button type="button" class="fm-b go" id="fmToEvening">Close the day</button></div>' +
+      fmHabitsHtml() + "</div>";
+  }
+  const rest = fmQueue.filter((j) => j !== job);
+  return '<div class="fm-sheet">' +
+    (job.when ? '<div class="fm-when">' + esc(job.when) + "</div>" : "") +
+    '<div class="fm-job">' + esc(job.title) + "</div>" +
+    (job.from ? '<div class="fm-from">From <b>' + esc(job.from) + "</b> — dated today, not on your plan.</div>" : "") +
+    '<div class="fm-acts">' +
+      '<button type="button" class="fm-act done" id="fmDone"><svg class="ic"><use href="#ic-check"/></svg> Done</button>' +
+      (fmLeft().length > 1 ? '<button type="button" class="fm-act" id="fmSkip"><svg class="ic"><use href="#ic-arrow-right"/></svg> Not this one</button>' : "") +
+      '<button type="button" class="fm-act" id="fmPark"><svg class="ic"><use href="#ic-close"/></svg> Park it</button>' +
+    "</div>" +
+    '<div class="fm-q fm-jot"><label for="fm_jot">Anything to note?</label>' +
+      '<textarea id="fm_jot" placeholder="Goes into tonight\u2019s write-up. Your notebook is still your notebook.">' + esc(ckEntry(ckToday()).dayNote) + '</textarea></div>' +
+    (rest.length ? '<div class="fm-rest"><div class="fm-cap">The rest of today' +
+      '<button type="button" id="fmToggleAll">' + (fmShowAll ? "hide" : "show all " + rest.length) + "</button></div>" +
+      (fmShowAll ? '<div class="fm-list">' + rest.map(fmRowHtml).join("") + "</div>" : "") + "</div>" : "") +
+    fmHabitsHtml() +
+    '<div class="fm-btns"><button type="button" class="fm-b" id="fmToEvening">Finish the day</button></div>' +
+  "</div>";
+}
+function fmRowHtml(j) {
+  return '<div class="fm-row' + (j.done ? " is-done" : "") + '">' +
+    '<button type="button" class="fm-tick' + (j.done ? " on" : "") + '" data-tick="' + esc(j.key) + '" aria-label="' +
+      (j.done ? "Not done after all" : "Mark done") + '"><svg class="ic"><use href="#ic-check"/></svg></button>' +
+    '<span class="fm-rt">' + esc(j.title) + "</span>" +
+    (j.when ? '<span class="fm-rw">' + esc(j.when) + "</span>" : "") + "</div>";
+}
+function fmHabitsHtml() {
+  const habits = ckEntry(ckToday()).habits;
+  const ticked = CK_HABITS.filter((h) => habits[h.id] === true).length;
+  return '<div class="fm-rest"><div class="fm-cap">Non-negotiables — ' +
+    (ticked === CK_HABITS.length ? "all done" : ticked + " of " + CK_HABITS.length) + "</div>" +
+    '<div class="fm-nn">' + CK_HABITS.map((h) =>
+      '<button type="button" class="fm-nnb' + (habits[h.id] === true ? " on" : "") + '" data-fmhabit="' + esc(h.id) + '">' +
+      '<svg class="ic"><use href="#ic-check"/></svg>' + esc(h.short) + "</button>").join("") + "</div></div>";
+}
+
+/* ---------- the end ---------- */
+function fmEveningHtml() {
+  const e = ckEntry(ckToday());
+  const done = fmQueue.filter((j) => j.done), left = fmQueue.filter((j) => !j.done);
+  const parked = (e.parked || []).length;
+  const habits = e.habits;
+  const hTicked = CK_HABITS.filter((h) => habits[h.id] === true).length;
+  return '<div class="fm-sheet">' +
+    '<div class="fm-h">' + (done.length ? "Here is what today was." : "How did today go?") + "</div>" +
+    '<div class="fm-sub">Two minutes. Writing down what a day held is the best-evidenced part of all this — ' +
+    'people who do it reliably do better afterwards.</div>' +
+    '<div class="fm-tally">' +
+      '<div class="fm-tile' + (done.length ? " good" : "") + '"><b>' + done.length + "</b><span>job" + (done.length === 1 ? "" : "s") + " done</span></div>" +
+      '<div class="fm-tile"><b>' + left.length + "</b><span>left</span></div>" +
+      (parked ? '<div class="fm-tile"><b>' + parked + "</b><span>put aside</span></div>" : "") +
+      '<div class="fm-tile"><b>' + hTicked + "/" + CK_HABITS.length + "</b><span>non-negotiables</span></div>" +
+    "</div>" +
+    (done.length ? '<div class="fm-rest"><div class="fm-cap">Done</div><div class="fm-list">' +
+      done.map(fmRowHtml).join("") + "</div></div>" : "") +
+    (left.length ? '<div class="fm-rest"><div class="fm-cap">Still open</div><div class="fm-list">' +
+      left.map(fmRowHtml).join("") + "</div>" +
+      '<div class="hint" style="margin-top:9px">These stay where they are — on your weekly plan for today. ' +
+      'Move them in the <a href="/index.html">planner</a> if they belong to another day.</div></div>' : "") +
+    '<div class="fm-q"><label for="fm_note">What is carrying into tomorrow?</label>' +
+      '<textarea id="fm_note" placeholder="One line. The thing you do not want to have to remember.">' + esc(e.dayNote) + '</textarea></div>' +
+    '<div class="fm-btns">' +
+      (fmLeft().length ? '<button type="button" class="fm-b" id="fmBackToDay">Back to the jobs</button>' : "") +
+      '<button type="button" class="fm-b go" id="fmCloseDay">' + (fmClosed() ? "Save" : "Close the day") + "</button></div>" +
+  "</div>";
+}
+
+/* ---------- doing things ---------- */
+/* THE ONE THING THIS PAGE WRITES TO A PROJECT, and it is the same narrow route the weekly
+   page uses: one boolean on one step. It cannot rename, move, add or remove anything. */
+async function fmTickStep(job, done) {
+  const r = await fetch(PROJECTS, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ stepLink: { projectId: job.projectId, stepId: job.stepId, done: !!done } }),
+  });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+}
+// on screen first, then told to the store; a tick that lies gets put straight back
+async function fmSetDone(job, want) {
+  const was = job.done;
+  job.done = want;
+  if (job.source === "plan" && wpAgenda && wpAgenda.cells && wpAgenda.cells[job.cellKey]) {
+    const row = wpAgenda.cells[job.cellKey][job.idx];
+    if (row) row.done = want;
+  }
+  if (job.source === "step") {
+    const p = fmProjects.find((x) => x.id === job.projectId);
+    const st = p && (p.steps || []).find((x) => x.id === job.stepId);
+    if (st) st.done = want;
+  }
+  fmRender();
+  try {
+    if (job.source === "plan") await tickTask(job.tgt, want);
+    else await fmTickStep(job, want);
+  } catch (e) {
+    job.done = was;
+    if (job.source === "plan" && wpAgenda && wpAgenda.cells && wpAgenda.cells[job.cellKey]) {
+      const row = wpAgenda.cells[job.cellKey][job.idx];
+      if (row) row.done = was;
+    }
+    if (job.source === "step") {
+      const p = fmProjects.find((x) => x.id === job.projectId);
+      const st = p && (p.steps || []).find((x) => x.id === job.stepId);
+      if (st) st.done = was;
+    }
+    fmRender();
+  }
+}
+// to the back of today's queue (his call) — it comes round again after the others
+function fmSkipCurrent() {
+  const job = fmCurrent();
+  if (!job) return;
+  const i = fmQueue.indexOf(job);
+  fmQueue.splice(i, 1);
+  fmQueue.push(job);
+  fmRender();
+}
+// off today altogether. Written to the DAY, never to the weekly plan.
+async function fmParkCurrent() {
+  const job = fmCurrent();
+  if (!job) return;
+  const parked = (ckEntry(ckToday()).parked || []).slice();
+  if (!parked.includes(job.key)) parked.push(job.key);
+  fmQueue = fmQueue.filter((j) => j !== job);
+  fmRender();
+  try { await ckSave({ parked }); } catch (e) { /* it comes back tomorrow either way */ }
+}
+async function fmSaveJot() {
+  const el = $("fm_jot");
+  if (!el) return;
+  const v = el.value.slice(0, 20000);
+  if (v === ckEntry(ckToday()).dayNote) return;
+  try { await ckSave({ dayNote: v }); } catch (e) {}
+}
+
+function fmWire() {
+  const on = (id, fn) => { const el = $(id); if (el) el.addEventListener("click", fn); };
+  on("fmSkipQ", async () => { try { await ckSave({ dismissed: true }); } catch (e) {} fmStage = "day"; fmQueue = fmBuildQueue(); fmRender(); });
+  on("fmSaveQ", async () => {
+    const patch = {
+      mind: ($("fm_mind") || {}).value || "", gratitude: ($("fm_grat") || {}).value || "",
+      oneThing: ($("fm_one") || {}).value || "", oneThingWhen: ($("fm_when") || {}).value || "",
+      dismissed: true,
+    };
+    try { await ckSave(patch); } catch (e) {}
+    fmStage = "day"; fmQueue = fmBuildQueue(); fmRender();
+  });
+  on("fmDone", () => { const j = fmCurrent(); if (j) fmSetDone(j, true); });
+  on("fmSkip", fmSkipCurrent);
+  on("fmPark", fmParkCurrent);
+  on("fmToggleAll", () => { fmShowAll = !fmShowAll; fmRender(); });
+  on("fmToEvening", async () => { await fmSaveJot(); fmStage = "evening"; fmRender(); });
+  on("fmBackToDay", () => { fmStage = "day"; fmRender(); });
+  on("fmCloseDay", async () => {
+    const note = ($("fm_note") || {}).value || "";
+    try { await ckSave({ dayNote: note, closedAt: new Date().toISOString() }); } catch (e) {}
+    fmCloseMode();
+  });
+  const jot = $("fm_jot");
+  if (jot) jot.addEventListener("blur", fmSaveJot);
+  [...document.querySelectorAll("[data-fmhabit]")].forEach((el) =>
+    el.addEventListener("click", async () => { await ckToggleHabit(el.dataset.fmhabit); fmRender(); }));
+  [...document.querySelectorAll("[data-tick]")].forEach((el) =>
+    el.addEventListener("click", () => {
+      const j = fmQueue.find((x) => x.key === el.dataset.tick);
+      if (j) fmSetDone(j, !j.done);
+    }));
+}
+
+// the button, and Escape — the only two ways in and out
+(function () {
+  const go = document.getElementById("fmStart");
+  if (go) go.addEventListener("click", () => fmShow(null));
+  const x = document.getElementById("fmCloseBtn");
+  if (x) x.addEventListener("click", fmCloseMode);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && fmOpen) fmCloseMode(); });
+})();
 
 /* ---------- freshness ---------- */
 function renderHead() {
@@ -3839,12 +4334,26 @@ async function calRefresh() {
   calError = "";
   calEvents = null;
   renderCalendar();
-  if (!gcalClientId || !gcalReady()) return;
-  // The plan's grid and the calendar are two different services; neither waits on the other.
-  const [evs] = await Promise.allSettled([calLoadWeek(), loadAgenda()]);
-  if (evs.status === "fulfilled") calEvents = evs.value;
-  else calError = (evs.reason && evs.reason.message) || "Could not read the calendar.";
+  /* v219: THE PLAN'S GRID IS OURS, AND IT MUST NOT WAIT ON GOOGLE.
+     It used to: this returned early when the calendar was not connected, and the agenda
+     read was bundled into the same allSettled — so with no Google sign-in the page knew
+     nothing about what Ash had planned for today. That was survivable when today's jobs
+     were a panel inside the calendar card. It is not survivable now that they are the
+     thing the page is about. The agenda comes from the Bodysculpt store and has nothing to
+     do with Google, so it is read on its own, always. */
+  const agenda = loadAgenda().then(() => {
+    renderCalendar();
+    renderStartDay();
+    if (fmOpen) fmRender();
+  }).catch(() => {});
+  if (!gcalClientId || !gcalReady()) { await agenda; return; }
+  const evs = await calLoadWeek().then((v) => ({ ok: true, v }), (r) => ({ ok: false, r }));
+  if (evs.ok) calEvents = evs.v;
+  else calError = (evs.r && evs.r.message) || "Could not read the calendar.";
+  await agenda;
   renderCalendar();
+  renderStartDay();
+  if (fmOpen) fmRender();
 }
 
 /* ---------- making one ---------- */
@@ -4004,7 +4513,12 @@ async function loadAll() {
   renderCheckin();
   renderTimerBar();
   renderToday();
+  renderStartDay();
   if (btn) btn.disabled = false;
+  // v219: the project list, for the steps dated today that never made it onto a plan. A
+  // READ, through jget like every other read on this page. It goes last and alone: focus
+  // mode works without it, it just knows about fewer jobs.
+  fmLoadProjects().then(() => { renderStartDay(); if (fmOpen) fmRender(); });
 
   // The calendar and the inbox go last and on their own: they are a different service with
   // a different sign-in, and a Google outage must not hold up the cards above them. They

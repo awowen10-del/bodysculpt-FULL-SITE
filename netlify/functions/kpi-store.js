@@ -211,6 +211,9 @@ function cleanHabits(raw) {
 }
 // Whitelist + coerce one check-in entry to the clean, consistent shape. Free-text fields hold
 // client-sanitised rich-text HTML (re-sanitised again on render), capped here defensively.
+// v219: the four bands of the weekly grid, by the keys index.html uses. A band that is not
+// one of these names a row of the grid that does not exist.
+const CHECKIN_BANDS = ["6-9", "10-12", "1-3", "5-8"];
 function cleanCheckin(raw) {
   const str = (v) => (typeof v === "string" ? v.slice(0, 20000) : "");
   return {
@@ -221,6 +224,21 @@ function cleanCheckin(raw) {
     oneThingDone: (raw.oneThingDone === true || raw.oneThingDone === false) ? raw.oneThingDone : null,
     doneNote: str(raw.doneNote),
     dismissed: !!raw.dismissed,
+    /* v219: the day, run from the Daily Dashboard's focus mode.
+         oneThingWhen  which of the weekly grid's four bands the one thing is for ("" = unsaid).
+                       Saying WHEN you will do something is the difference between a list and
+                       a plan, so it is stored beside the thing itself.
+         parked        keys of today's jobs deliberately put aside. Not "not done" — decided
+                       against, for today. The weekly plan has no field for that and should
+                       not: it is a fact about a day, and it lives with the day.
+         dayNote       the one line written at the end of the day.
+         closedAt      when the day was closed off ("" = still open). */
+    oneThingWhen: CHECKIN_BANDS.includes(raw.oneThingWhen) ? raw.oneThingWhen : "",
+    parked: Array.isArray(raw.parked)
+      ? raw.parked.filter((k) => typeof k === "string" && k.length <= 120).slice(0, 60)
+      : [],
+    dayNote: str(raw.dayNote),
+    closedAt: str(raw.closedAt).slice(0, 30),
     habits: cleanHabits(raw.habits),        // v88: { habitId: boolean }, known ids only
     habitsAsked: !!raw.habitsAsked,         // v88: yesterday's catch-up already answered today
     updatedAt: new Date().toISOString(),

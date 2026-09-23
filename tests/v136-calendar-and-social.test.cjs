@@ -137,9 +137,12 @@ async function runIg(env, url, responder, seed) {
      closed table) and MENTOR (the Anthropic proxy that writes a reply). Neither is the store.
      v161 added GAUTH: the sign-in keeper, which takes a one-time Google code or a device key
      and answers with an access token. It is not the store, and it cannot reach the store. */
+  /* v219 added PROJECTS: the projects store, for ONE thing — ticking a step off from focus
+     mode. It is the same narrow route the weekly page uses, and it is pinned below in the
+     same way the store's two writes are. */
   for (const target of methodSites) {
-    assert.ok(/^GCAL_BASE \+ path$/.test(target) || /^GMAIL_BASE \+ /.test(target) || target === "API" || target === "MENTOR" || target === "GAUTH",
-      "every request carrying a method goes to a fixed Google base, the AI proxy, the sign-in keeper, or the store: " + target);
+    assert.ok(/^GCAL_BASE \+ path$/.test(target) || /^GMAIL_BASE \+ /.test(target) || target === "API" || target === "MENTOR" || target === "GAUTH" || target === "PROJECTS",
+      "every request carrying a method goes to a fixed Google base, the AI proxy, the sign-in keeper, or one of the two stores: " + target);
   }
   /* v150 added the store to that list, for ONE thing: ticking a task off. So the claim gets
      narrower rather than looser — it is no longer "the page cannot write to the store", it
@@ -179,6 +182,29 @@ async function runIg(env, url, responder, seed) {
   assert.ok(!/GCAL_BASE\s*=\s*[a-zA-Z]/.test(djs.replace(/const GCAL_BASE = "[^"]*";/, "")),
     "nothing reassigns GCAL_BASE");
   assert.ok(!/\bAPI\b[^\n]*method:/.test(djs), "the store constant is never used with a method");
+
+  /* v219: THE SECOND STORE. Focus mode shows project steps dated today that never made it
+     onto a weekly plan, and a job you cannot finish has no business in a queue whose whole
+     point is finishing things — so this page can now write to the projects store too. The
+     claim is the same shape as the one above, and just as narrow: one place, one payload,
+     one boolean on one step, with no way to express anything else. */
+  assert.ok(/const PROJECTS = "\/\.netlify\/functions\/projects";/.test(djs),
+    "the projects store is a fixed address on this page");
+  const projWrites = [...djs.matchAll(/fetch\(PROJECTS, \{[\s\S]{0,400}?\}\);/g)].map((m) => m[0]);
+  assert.strictEqual(projWrites.length, 1, "there is exactly ONE place that writes to the projects store");
+  assert.ok(/method: "POST"/.test(projWrites[0]), "…a POST");
+  assert.ok(/JSON\.stringify\(\{ stepLink:/.test(projWrites[0]), "…and its body can only ever be { stepLink }");
+  // what that one payload may carry, exhaustively
+  const stepFields = [...projWrites[0].matchAll(/([a-zA-Z]+):/g)].map((m) => m[1]).filter((f) =>
+    !["method", "headers", "body", "stepLink"].includes(f) && f !== "Type");
+  assert.deepStrictEqual(stepFields.sort(), ["done", "projectId", "stepId"],
+    "…naming one project, one step and one boolean — it cannot rename, move, add or remove anything");
+  for (const payload of ["project", "week", "day", "slot", "check", "columns", "steps", "canvas", "archived"]) {
+    assert.ok(!new RegExp("\\b" + payload + "\\s*:").test(projWrites[0]),
+      "the projects write on the daily page cannot carry " + payload);
+  }
+  // and the projects store is READ the same way everything else here is read
+  assert.ok(/jget\(PROJECTS \+ "\?list=1"\)/.test(djs), "…while reading it goes through jget, with no options");
 
   // (c) the scope asked for is the smallest that does the job
   assert.ok(/GCAL_SCOPE = "https:\/\/www\.googleapis\.com\/auth\/calendar\.events"/.test(djs),
