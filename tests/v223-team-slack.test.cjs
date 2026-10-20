@@ -64,6 +64,7 @@ function slackWorld() {
     DGRACE: [{ type: "message", user: "UGRACE", ts: ts.dm, text: "Can I swap Thursday?" }],
     DBOT: [{ type: "message", user: "UBOT", ts: T(10), text: "Your weekly digest" }],
   };
+  const world = {};
   const fetchStub = async (url, o) => {
     const u = new URL(url);
     const method = u.pathname.replace("/api/", "");
@@ -79,7 +80,9 @@ function slackWorld() {
         { id: "UDAN", profile: { real_name: "Dan Baker", display_name: "" } },
         { id: "UBOT", is_bot: true, profile: { real_name: "Digest" } },
       ] });
-      case "users.conversations": return ok({ channels: [
+      case "users.conversations":
+        if (world.noMpim && /mpim/.test(q.types)) return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ ok: false, error: "missing_scope", needed: "mpim:read" }) };
+        return ok({ channels: [
         { id: "CGEN", name: "general", is_channel: true },
         { id: "DGRACE", is_im: true, user: "UGRACE" },
         { id: "DBOT", is_im: true, user: "UBOT" },
@@ -97,7 +100,7 @@ function slackWorld() {
       default: throw new Error("unexpected Slack call " + method);
     }
   };
-  return { calls, posted, ts, fetchStub };
+  return Object.assign(world, { calls, posted, ts, fetchStub });
 }
 
 let claudeAnswer = null;
@@ -148,6 +151,14 @@ async function loadModules() {
   const shift = data.roots.find((r) => r.ref === "CGEN:" + world.ts.shift);
   assert.ok(shift.shift && !data.roots.find((r) => r.ref === "CGEN:" + world.ts.mine).shift, "a Post-Shift Checklist is recognised, and only that");
   assert.strictEqual(shift.link, "https://bodysculpt.slack.com/archives/CGEN/p" + world.ts.shift.replace(".", ""), "Open in Slack goes to the message itself");
+
+  // the first live token had every scope but mpim:read — the read carries on without group DMs
+  world.noMpim = true;
+  const noM = await lib.readWorkspace();
+  assert.ok(noM.channels.some((c) => c.id === "CGEN") && noM.channels.some((c) => c.id === "DGRACE"),
+    "a token without mpim:read still reads every channel and DM");
+  assert.ok(world.calls.some((c) => c.method === "users.conversations" && !/mpim/.test(c.q.types)), "…by asking again without group DMs");
+  world.noMpim = false;
 
   /* ================= 2. the sort ================= */
   claudeAnswer = {

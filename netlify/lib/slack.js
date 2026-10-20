@@ -221,8 +221,18 @@ export async function readWorkspace() {
       deleted: !!u.deleted,
     };
   }
-  const channels = await allPages("users.conversations",
-    { types: "public_channel,private_channel,im,mpim", exclude_archived: true, limit: 200 }, "channels");
+  // Group DMs need mpim:read. A token without it still reads every channel and DM — the
+  // first live token was made without it, and the whole read failing over the one kind of
+  // conversation this gym barely uses would have been the wrong trade.
+  let channels;
+  try {
+    channels = await allPages("users.conversations",
+      { types: "public_channel,private_channel,im,mpim", exclude_archived: true, limit: 200 }, "channels");
+  } catch (e) {
+    if (e.slackError !== "missing_scope") throw e;
+    channels = await allPages("users.conversations",
+      { types: "public_channel,private_channel,im", exclude_archived: true, limit: 200 }, "channels");
+  }
   return { me: me.user_id, team: me.team, teamUrl: me.url, users, channels };
 }
 
