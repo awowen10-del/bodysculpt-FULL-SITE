@@ -430,7 +430,9 @@ export function briefPrompt(data, state, nowMs) {
     "no hashtags, no sign-off. Address the person by first name. " +
     "A session reply is 1 to 4 short lines: thank the coach for the specific thing they did well, picking out one or two members by name; " +
     "where there is a flag, say what happens next or ask the one question that moves it on. Never praise generically ('great job team'). " +
-    "Never promise money, refunds or decisions he has not made; where one is needed, ask the question instead. " +
+    "Never promise money, refunds or decisions he has not made. Where the reply depends on his answer to something " +
+    "(a yes or no, a date, a time, an amount), leave it for him in square brackets, e.g. 'Yes, [1pm / 12pm] works', rather than choosing for him. " +
+    "Automated reports posted from his account (such as a Morning Sales Brief) are information for the summary and know, never something to reply to. " +
     "If a teammate has already handled something, back them rather than redoing it.\n\n" +
     "Only use refs that appear below. If there is nothing for a section, return an empty list.\n\n" +
     "HOW " + name.toUpperCase() + " WRITES (his own recent messages):\n" + (voice || "(none found — keep it short, friendly and direct)") + "\n\n" +
@@ -473,6 +475,10 @@ export function assembleBrief(data, ai, nowMs) {
   for (const a of (ai && ai.actions) || []) {
     const r = byRef.get(a.ref);
     if (!r || seen.has(a.ref) || r.shift) continue;
+    // His own message is only ever a "chase" — never a reply to himself. The first live read
+    // made a "decide" out of his automated Morning Sales Brief in #sales; the prompt forbade
+    // it and was not enough, so the rule lives here too.
+    if (r.mine && a.kind !== "chase") continue;
     seen.add(a.ref);
     actions.push({ id: a.ref, kind: a.kind, urgency: a.urgency, title: clip(a.title, 140), why: clip(a.why, 400), draft: clip(a.draft, 3000), msg: msgView(r) });
   }

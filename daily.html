@@ -4751,7 +4751,7 @@ function slMsgHtml(m, who) {
     (mine ? '<span class="msg-me">you</span>' : "") + '<span class="msg-when">' + esc(slWhen(at)) + "</span></div>";
   const reps = (m.replies || []);
   return '<div class="msg' + (reps.length ? "" : " latest") + '">' + head(who || m.author, false, m.at) +
-      '<div class="msg-body">' + esc(slPlain(m.text)) + "</div></div>" +
+      '<div class="msg-body">' + esc(slPlain(m.text) || "(a file or attachment — open it in Slack to see it)") + "</div></div>" +
     reps.map((r, i) => {
       const h = head(r.author, r.mine, r.at);
       if (i === reps.length - 1) return '<div class="msg latest">' + h + '<div class="msg-body">' + esc(slPlain(r.text)) + "</div></div>";

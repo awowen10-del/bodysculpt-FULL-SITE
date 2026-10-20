@@ -169,6 +169,7 @@ async function loadModules() {
       { ref: "CNOPE:1.0", kind: "reply", urgency: "now", title: "invented", why: "", draft: "" },
       { ref: "CGEN:" + world.ts.shift, kind: "reply", urgency: "today", title: "a checklist sneaking in as an action", why: "", draft: "" },
       { ref: "DGRACE:" + world.ts.dm, kind: "decide", urgency: "this_week", title: "Grace wants to swap Thursday", why: "Needs your yes.", draft: "Yes that's fine" },
+      { ref: "CGEN:" + world.ts.mine, kind: "decide", urgency: "now", title: "reply to his own message", why: "", draft: "Right, this is on me" },
     ],
     sessions: [],
   };
@@ -176,7 +177,8 @@ async function loadModules() {
   assert.ok(/HOW ASHLEY OWEN WRITES[\s\S]*Halloween/.test(claudePrompt), "Claude is shown how he writes");
   assert.ok(claudePrompt.includes("ref CGEN:" + world.ts.q), "…and every conversation with its ref");
   assert.deepStrictEqual(brief.actions.map((a) => a.id), ["CGEN:" + world.ts.q, "DGRACE:" + world.ts.dm],
-    "an invented ref is dropped, a checklist is never an action, and the list runs most urgent first");
+    "an invented ref is dropped, a checklist is never an action, his own message is never answered, and the list runs most urgent first");
+  assert.ok(/leave it for him in square brackets/.test(claudePrompt), "a draft leaves his decisions to him");
   assert.strictEqual(brief.know.length, 1, "a fact pointing at nothing that was read is dropped");
   assert.strictEqual(brief.sessions.length, 2, "EVERY checklist is listed, even with Claude silent about them");
   assert.strictEqual(brief.sessions[0].coach, "Gaz", "…the coach is read off the checklist itself");
