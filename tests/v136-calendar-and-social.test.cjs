@@ -140,8 +140,11 @@ async function runIg(env, url, responder, seed) {
   /* v219 added PROJECTS: the projects store, for ONE thing — ticking a step off from focus
      mode. It is the same narrow route the weekly page uses, and it is pinned below in the
      same way the store's two writes are. */
+  /* v223 added SLACK_FEED: the team Slack card's own function, which keeps its data in its
+     own blob store (`bodysculpt-slack`) and cannot reach this one. Its one funnel, slPost,
+     takes a closed list of operations — pinned in v223's test. */
   for (const target of methodSites) {
-    assert.ok(/^GCAL_BASE \+ path$/.test(target) || /^GMAIL_BASE \+ /.test(target) || target === "API" || target === "MENTOR" || target === "GAUTH" || target === "PROJECTS",
+    assert.ok(/^GCAL_BASE \+ path$/.test(target) || /^GMAIL_BASE \+ /.test(target) || target === "API" || target === "MENTOR" || target === "GAUTH" || target === "PROJECTS" || target === "SLACK_FEED",
       "every request carrying a method goes to a fixed Google base, the AI proxy, the sign-in keeper, or one of the two stores: " + target);
   }
   /* v150 added the store to that list, for ONE thing: ticking a task off. So the claim gets

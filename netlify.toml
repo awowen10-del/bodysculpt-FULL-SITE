@@ -86,3 +86,15 @@
   from = "/api/hooks"
   to = "/.netlify/functions/hooks-api"
   status = 200
+
+# ===================== v223: the team Slack card =====================
+# The Daily Dashboard's Slack card reads the team Slack and has Claude sort it. The read runs
+# in slack-brief-background (15-min wall); this asks for one at 06:00 UTC (last night's
+# Post-Shift Checklists are in) and 14:00 UTC (the morning shift's are).
+[functions."slack-brief-scheduled"]
+  schedule = "0 6,14 * * *"
+
+# "Write it with Claude" on one reply is a single short Claude call — the paid-plan maximum,
+# the same as mentor-ai and hooks-api.
+[functions."slack-feed"]
+  timeout = 26

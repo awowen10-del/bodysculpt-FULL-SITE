@@ -1237,6 +1237,68 @@
      so `<a class="fin-alert" hidden>` would show the money alarm on every load with
      nothing in it. One rule, last in the sheet, so nothing added later can undo it. */
   [hidden]{display:none!important;}
+
+  /* ===================== v223: THE TEAM SLACK =====================
+     The team runs in Slack; Ash runs the team. This card sits second on the page, under
+     the day, because what the team needs from him today frames everything else. It says
+     what he missed in a few sentences, lists the things worth knowing, and splits the rest
+     in two: conversations to step in on, and the coaches' Post-Shift Checklists — every one
+     with a reply already written. The rows are the email card's rows (.mail), so the two
+     lists read and behave alike; only the colour of the rail down the left is its own. */
+  .sl-card{margin:0 0 var(--sp-4);padding:18px 20px 20px;}
+  /* the counts line is one line on a laptop, not two — the 56ch cap is for sentences */
+  .sl-card .csub{max-width:none;}
+  .sl-sum{font-size:13.5px;line-height:1.6;color:var(--ink);max-width:95ch;}
+  .sl-know{list-style:none;margin:var(--sp-3) 0 0;padding:0;display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:6px var(--sp-4);}
+  .sl-know li{display:flex;gap:8px;align-items:baseline;font-size:12.5px;line-height:1.5;
+    color:var(--ink-dim);min-width:0;}
+  .sl-know li::before{content:"";flex:0 0 auto;width:6px;height:6px;border-radius:50%;
+    background:var(--blue);transform:translateY(-1px);}
+  .sl-know a{color:inherit;text-decoration:none;}
+  .sl-know a:hover{color:var(--orange);}
+  .sl-know .sl-ch{color:var(--ink-faint);font-size:11px;white-space:nowrap;margin-left:4px;}
+  .sl-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--sp-5);
+    margin-top:var(--sp-4);padding-top:var(--sp-4);border-top:1px solid var(--line);align-items:start;}
+  @media(max-width:1020px){ .sl-grid{grid-template-columns:1fr;gap:var(--sp-4);} }
+  .sl-col{min-width:0;}
+  .sl-col .tier-h{margin-bottom:2px;}
+  .sl-now .tier-dot{background:var(--red);}        .sl-now .tier-name{color:var(--tint-red);}
+  .sl-shift .tier-dot{background:var(--orange);}   .sl-shift .tier-name{color:var(--tint-orange);}
+  /* each row's rail is its urgency: red now, amber today, blue this week; a checklist is
+     brand orange until it has been answered */
+  .sl-row.u-now{border-left-color:var(--red);}
+  .sl-row.u-today{border-left-color:var(--amber);}
+  .sl-row.u-this_week{border-left-color:var(--blue);}
+  .sl-row.u-shift{border-left-color:var(--orange);}
+  .sl-row.u-done{border-left-color:var(--line);background:var(--card-2);}
+  .sl-row.u-done .mail-subj{font-weight:500;color:var(--ink-dim);}
+  .sl-row .mail-from{max-width:60%;}
+  .sl-row.u-now .mail-act{background:rgba(var(--red-rgb),.09);color:var(--tint-red);border-color:rgba(var(--red-rgb),.24);}
+  .sl-row.u-today .mail-act{background:rgba(var(--amber-rgb),.10);color:var(--tint-amber);border-color:rgba(var(--amber-rgb),.26);}
+  .sl-flags{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;}
+  .sl-flag{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:var(--r-pill);
+    background:rgba(var(--amber-rgb),.10);color:var(--tint-amber);border:1px solid rgba(var(--amber-rgb),.26);
+    max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sl-more{font-family:inherit;font-size:12px;font-weight:600;color:var(--ink-dim);background:none;
+    border:1px dashed var(--line);border-radius:var(--r-md);padding:8px 12px;margin-top:8px;width:100%;
+    cursor:pointer;text-align:left;}
+  .sl-more:hover{background:var(--card-2);color:var(--ink-strong);}
+  .sl-more:focus-visible{outline:none;box-shadow:var(--focus);}
+  .sl-empty{font-size:12.5px;color:var(--ink-faint);padding:10px 2px;line-height:1.5;}
+  .sl-empty .ic{width:14px;height:14px;color:var(--tint-green);vertical-align:-2px;margin-right:5px;}
+  .sl-status{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-faint);
+    margin-bottom:var(--sp-3);}
+  .sl-status.bad{color:var(--tint-red);}
+  .sl-status .ic{width:13px;height:13px;flex:0 0 auto;}
+  .sl-spin{animation:slspin 1s linear infinite;}
+  @keyframes slspin{to{transform:rotate(360deg);}}
+  @media(prefers-reduced-motion:reduce){ .sl-spin{animation:none;} }
+  /* the message being answered, as Slack shows it: the words are the coach's, verbatim */
+  .sl-row .msg-body{max-height:320px;overflow:auto;}
+  .sl-row .undobar{margin:6px 0 0;}
+  .sl-row.sl-gone{padding:0;border:0;background:none;cursor:default;}
+  .sl-row.sl-gone:hover{transform:none;background:none;}
 </style>
 </head>
 <body>
@@ -1296,6 +1358,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 <symbol id="ic-kanban" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3.5" width="5" height="12" rx="1.5"/><rect x="9.5" y="3.5" width="5" height="17" rx="1.5"/><rect x="16" y="3.5" width="5" height="8" rx="1.5"/></symbol>
 <symbol id="ic-chevrons" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 6l-6 6 6 6M18 6l-6 6 6 6"/></symbol>
 <symbol id="ic-megaphone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10.5v3a1.5 1.5 0 0 0 1.5 1.5h2l4.6 3.4c.7.5 1.6 0 1.6-.8V6.4c0-.8-.9-1.3-1.6-.8L7 9H5a1.5 1.5 0 0 0-1.5 1.5z"/><path d="M16.5 9.2a3.6 3.6 0 0 1 0 5.6M18.8 6.6a7 7 0 0 1 0 10.8"/></symbol>
+<symbol id="ic-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12.5a7.5 7.5 0 0 1-10.9 6.7L4.5 20.5l1.3-4.2A7.5 7.5 0 1 1 20 12.5z"/><path d="M9 11.5h6M9 14.5h4"/></symbol>
 </defs></svg>
 <!-- build v176 · out-of-lambda-compatibility-mode -->
 <aside class="sidenav" id="sideNav" aria-label="Pages">
@@ -1389,6 +1452,20 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
     <div id="todayBody"><div class="loading">Loading…</div></div>
   </section>
 </div>
+
+<!-- v223: THE TEAM SLACK. What the team needs from you, under the day and above the week:
+     what you missed, what to know, what to step in on, and every coach's Post-Shift
+     Checklist — each with the reply already written. Posting happens only on Send, as you. -->
+<section class="card sl-card" id="slCard">
+  <div class="cardhead">
+    <div>
+      <div class="chead"><svg class="ic"><use href="#ic-chat"/></svg> Team Slack</div>
+      <div class="csub" id="slSub"></div>
+    </div>
+    <div class="cardhead-r" id="slTools"></div>
+  </div>
+  <div id="slBody"><div class="loading">Reading the team Slack…</div></div>
+</section>
 
 <!-- The week, above everything else: what you are doing today is the frame the email and
      the money hang in. Read-only until you press New event; nothing here touches the
@@ -4536,6 +4613,386 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("evBa
 /* ---------- load ---------- */
 // Three independent reads. One failing must not blank the other two, so they are settled
 // rather than raced: a morning where Stripe is down should still show you your inbox.
+/* =====================================================================
+   THE TEAM SLACK  (v223)
+
+   Ash leads the team in Slack. This card reads it for him — what he missed, what he needs
+   to know, what to step in on — and every reply is already written, in his voice, ready to
+   post AS HIM in the thread it answers. The coaches' Post-Shift Checklists get their own
+   column: each one he has not answered, with an acknowledgement that names the members the
+   coach wrote about.
+
+   The reading and the writing happen on the server (netlify/functions/slack-feed.js and
+   netlify/lib/slack.js) — the Slack token never comes near this page. The page asks for the
+   latest brief; if it is more than SL_STALE_MIN old it asks for a fresh read, which takes
+   about a minute in the background, and polls until it lands.
+
+   What this page can make happen in Slack, the complete list (SL_OPS): post the reply in
+   the box, add a :muscle: reaction, take either back, or mark a row dealt with. Nothing is
+   posted until Send is pressed, and the way back is on the row that just went.
+   ===================================================================== */
+const SLACK_FEED = "/.netlify/functions/slack-feed";
+const SL_OPS = ["refresh", "send", "react", "undo", "done", "restore", "draft"];
+const SL_STALE_MIN = 90;          // older than this on arrival → read Slack again
+const SL_POLL_MS = 5000;
+const SL_POLL_MAX = 48;           // four minutes of polling, then say so
+const SL_SHOW = 3;                // rows per column before "Show n more" — keeps the card under a screen
+const SL_UNDO_MS = 20000;         // how long the Undo stays on the row that went
+const SL_KIND = { reply: "Reply", step_in: "Step in", decide: "Your call", chase: "Chase up", praise: "Shout-out" };
+
+let slReady = null;               // { slack, claude } from the server
+let slBrief = null;
+let slLoading = false;
+let slError = "";
+let slBuilding = false;
+let slOpenId = null;
+let slShowAll = { act: false, ses: false, done: false };
+const slText = new Map();         // id → what is in the box, so a redraw never loses typing
+const slGone = new Map();         // id → { label, kind, timer } — the row that just went, with its Undo
+let slPollTimer = null;
+
+async function slPost(op, payload) {
+  if (!SL_OPS.includes(op)) throw new Error("Unknown Slack operation: " + op);
+  const res = await fetch(SLACK_FEED, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(Object.assign({ op }, payload || {})),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) throw new Error(data.error || ("Slack card: HTTP " + res.status));
+  return data;
+}
+
+async function slackLoad(opts) {
+  const quiet = opts && opts.quiet;
+  if (!quiet) { slLoading = true; renderSlack(); }
+  try {
+    const data = await jget(SLACK_FEED);
+    slReady = data.ready || { slack: false, claude: false };
+    slBrief = data.brief || null;
+    slError = "";
+    slBuilding = !!(slBrief && slBrief.building);
+  } catch (e) {
+    slError = (e && e.message) || "Could not reach the Slack card's server.";
+  }
+  slLoading = false;
+  renderSlack();
+  if (!slReady || !slReady.slack || !slReady.claude) return;
+  const age = slBrief && slBrief.builtAt ? (Date.now() - slBrief.builtAt) / 60000 : Infinity;
+  if (slBuilding) slPoll(slBrief && slBrief.builtAt);
+  else if (!(opts && opts.noAuto) && age > SL_STALE_MIN && !(slBrief && slBrief.buildFailedAt && Date.now() - slBrief.buildFailedAt < 15 * 60000)) slRefresh(false);
+}
+
+async function slRefresh(force) {
+  const before = slBrief && slBrief.builtAt;
+  slBuilding = true; slError = ""; renderSlack();
+  try {
+    const r = await slPost("refresh", { force: !!force });
+    if (r.fresh) { slBuilding = false; renderSlack(); return; }
+  } catch (e) { slBuilding = false; slError = e.message; renderSlack(); return; }
+  slPoll(before);
+}
+
+function slPoll(before) {
+  clearTimeout(slPollTimer);
+  let n = 0;
+  const tick = async () => {
+    n++;
+    try {
+      const data = await jget(SLACK_FEED);
+      const b = data.brief;
+      if (b && !b.building && (b.builtAt !== before || b.buildError)) {
+        slBrief = b; slBuilding = false; renderSlack(); return;
+      }
+    } catch { /* keep polling; a blip is not a failure */ }
+    if (n >= SL_POLL_MAX) { slBuilding = false; slError = "The read is taking longer than usual. Press Read again in a minute."; renderSlack(); return; }
+    slPollTimer = setTimeout(tick, SL_POLL_MS);
+  };
+  slPollTimer = setTimeout(tick, SL_POLL_MS);
+}
+
+function slWhen(ms) { return ms ? ago(new Date(ms).toISOString()) : ""; }
+
+function slSetupHtml() {
+  const missing = [];
+  if (!slReady || !slReady.slack) missing.push("<code>SLACK_USER_TOKEN</code>");
+  if (!slReady || !slReady.claude) missing.push("<code>ANTHROPIC_API_KEY</code>");
+  return '<div class="setup"><b>One setting away from your team Slack on this page.</b><br>' +
+    "This card reads the channels you are in, tells you what you missed and what needs you, and writes every reply — " +
+    "including an answer to each coach’s Post-Shift Checklist — ready for you to post. It posts <b>only when you press Send</b>, as you." +
+    "<br><br>Still to add in Netlify: " + missing.join(" and ") + ". The steps are in SLACK-SETUP.md — about ten minutes, once." +
+    '<div class="setup-links"><a class="abtn primary" href="/SLACK-SETUP.md" target="_blank" rel="noopener">Open the setup steps</a></div></div>';
+}
+
+function slGoneHtml(id) {
+  const g = slGone.get(id);
+  return '<div class="mail sl-row sl-gone"><div class="undobar"><svg class="ic"><use href="#ic-check"/></svg>' +
+    "<span>" + esc(g.label) + "</span>" +
+    (g.kind === "done"
+      ? '<button type="button" class="undobtn" data-sl-restore="' + esc(id) + '">Undo</button>'
+      : '<button type="button" class="undobtn" data-sl-undo="' + esc(id) + '">Undo</button>') +
+    "</div></div>";
+}
+
+// Slack's formatting marks, taken off for reading: *bold*, _italic_, "> " quotes, and the
+// tick/cross codes a Post-Shift Checklist puts before each question (its answer follows).
+function slPlain(text) {
+  return String(text || "")
+    .replace(/:(white_check_mark|heavy_check_mark|x):\s*/g, "")
+    .replace(/^> ?/gm, "")
+    .replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,:;!?]|$)/gm, "$1$2")
+    .replace(/(^|[\s(])_([^_\n]+)_(?=[\s).,:;!?]|$)/gm, "$1$2")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+function slMsgHtml(m, who) {
+  const head = (who, mine, at) => '<div class="msg-h"><span class="msg-from">' + esc(who) + "</span>" +
+    (mine ? '<span class="msg-me">you</span>' : "") + '<span class="msg-when">' + esc(slWhen(at)) + "</span></div>";
+  const reps = (m.replies || []);
+  return '<div class="msg' + (reps.length ? "" : " latest") + '">' + head(who || m.author, false, m.at) +
+      '<div class="msg-body">' + esc(slPlain(m.text)) + "</div></div>" +
+    reps.map((r, i) => {
+      const h = head(r.author, r.mine, r.at);
+      if (i === reps.length - 1) return '<div class="msg latest">' + h + '<div class="msg-body">' + esc(slPlain(r.text)) + "</div></div>";
+      return '<details class="msg"><summary class="msg-h">' + h.replace(/^<div class="msg-h">|<\/div>$/g, "") +
+        '<span class="msg-peek">' + esc(slPlain(r.text).replace(/\s+/g, " ").slice(0, 90)) + "</span></summary>" +
+        '<div class="msg-body">' + esc(slPlain(r.text)) + "</div></details>";
+    }).join("");
+}
+
+function slReplyHtml(it, isShift) {
+  const id = it.id, m = it.msg;
+  const text = slText.has(id) ? slText.get(id) : (it.draft || "");
+  const hasText = !!text.trim();
+  const where = m.dm ? m.channelLabel.replace(/^DM · /, "") : "the thread in " + m.channelLabel;
+  return '<div class="reply">' +
+    '<div class="reply-h">Reply to <b>' + esc(where) + "</b>" +
+      (it.draft && !slText.has(id) ? '<span class="reply-src">written for you</span>' : "") + "</div>" +
+    '<textarea class="reply-text" data-sl-text="' + esc(id) + '" rows="5" ' +
+      'placeholder="Write the reply here, or tell Claude what to say below.">' + esc(text) + "</textarea>" +
+    '<div class="reply-bar">' +
+      '<button type="button" class="abtn primary" data-sl-send="' + esc(id) + '">Post as you</button>' +
+      (isShift ? '<button type="button" class="abtn" data-sl-react="' + esc(id) + '" title="Adds a :muscle: reaction to the checklist, as you">Just react</button>' : "") +
+      '<button type="button" class="abtn" data-sl-done="' + esc(id) + '" title="Take it off the card without posting anything">No reply needed</button>' +
+      '<a class="abtn ghost" href="' + esc(m.link) + '" target="_blank" rel="noopener">Open in Slack</a>' +
+    "</div>" +
+    '<div class="reply-ask">' +
+      '<input type="text" data-sl-ask="' + esc(id) + '" placeholder="' +
+        (hasText ? "What should change? e.g. shorter, ask about Zara" : "What do you want to say? e.g. thanks, I will call him") + '">' +
+      '<button type="button" class="abtn" data-sl-ai="' + esc(id) + '">' + (hasText ? "Rewrite with Claude" : "Write it with Claude") + "</button>" +
+    "</div>" +
+    '<div class="reply-note" data-sl-note="' + esc(id) + '" aria-live="polite"></div>' +
+  "</div>";
+}
+
+function slRowHtml(it, isShift) {
+  if (slGone.has(it.id)) return slGoneHtml(it.id);
+  const m = it.msg, open = slOpenId === it.id;
+  const cls = isShift ? (it.acknowledged ? "u-done" : "u-shift") : "u-" + it.urgency;
+  const who = isShift ? (it.coach || m.author) + (it.shift ? " · " + it.shift : "") : m.author + " · " + m.channelLabel;
+  const subj = isShift ? (it.headline || "Post-Shift Checklist") : it.title;
+  return '<div class="mail sl-row ' + cls + (open ? " open" : "") + '" role="button" tabindex="0" aria-expanded="' + (open ? "true" : "false") +
+      '" data-sl-open="' + esc(it.id) + '">' +
+    '<div class="mail-top"><span class="mail-from">' + esc(who) + "</span>" +
+      '<span class="mail-when">' + esc(slWhen(m.at)) + "</span></div>" +
+    '<div class="mail-subj">' + esc(subj) + "</div>" +
+    (!isShift && it.why && !open ? '<div class="mail-why">' + esc(it.why) + "</div>" : "") +
+    (isShift && it.flags && it.flags.length ? '<div class="sl-flags">' + it.flags.map((f) => '<span class="sl-flag">' + esc(f) + "</span>").join("") + "</div>" : "") +
+    (!isShift && !open ? '<span class="mail-act">' + esc(SL_KIND[it.kind] || "Reply") + "</span>" : "") +
+    (isShift && it.acknowledged
+      ? '<span class="mail-act">' + esc(it.handledHow === "done" ? "Marked done" : "You answered") + "</span>"
+      : (it.draft && !open
+        ? '<span class="mail-draft"><span class="mail-dhead"><svg class="ic"><use href="#ic-check"/></svg>Reply written' +
+            '<span class="mail-dgo">Review and post<svg class="ic"><use href="#ic-arrow-right"/></svg></span></span>' +
+            '<span class="mail-dtext">' + esc(it.draft) + "</span></span>"
+        : "")) +
+    (open ? '<div class="mail-open">' + slMsgHtml(m, isShift ? (it.coach || m.author) + " · Post-Shift Checklist" : "") + (isShift && it.acknowledged ? "" : slReplyHtml(it, isShift)) + "</div>" : "") +
+  "</div>";
+}
+
+function slColHtml(cls, name, rows, isShift, key, emptyText, extra) {
+  const all = slShowAll[key];
+  const shown = all ? rows : rows.slice(0, SL_SHOW);
+  const more = rows.length - shown.length;
+  return '<div class="sl-col ' + cls + '"><div class="tier-h"><span class="tier-dot"></span>' +
+      '<span class="tier-name">' + esc(name) + '</span><span class="tier-n">' + rows.length + "</span></div>" +
+    (rows.length ? shown.map((it) => slRowHtml(it, isShift)).join("") : '<div class="sl-empty"><svg class="ic"><use href="#ic-check"/></svg>' + esc(emptyText) + "</div>") +
+    (more > 0 ? '<button type="button" class="sl-more" data-sl-more="' + key + '">Show ' + more + " more</button>" : "") +
+    (extra || "") +
+  "</div>";
+}
+
+function renderSlack() {
+  const body = $("slBody"), sub = $("slSub"), tools = $("slTools");
+  if (!body) return;
+  // the box being typed in survives the redraw: its text is in slText, and focus goes back
+  const active = document.activeElement;
+  const refocus = active && active.dataset && (active.dataset.slText || active.dataset.slAsk)
+    ? { attr: active.dataset.slText ? "data-sl-text" : "data-sl-ask", id: active.dataset.slText || active.dataset.slAsk, val: active.value, pos: active.selectionStart }
+    : null;
+
+  tools.innerHTML = slReady && slReady.slack && slReady.claude
+    ? '<button type="button" class="abtn" id="slRead"' + (slBuilding ? " disabled" : "") + '><svg class="ic' + (slBuilding ? " sl-spin" : "") + '"><use href="#ic-refresh"/></svg>' +
+      (slBuilding ? "Reading…" : "Read again") + "</button>"
+    : "";
+
+  if (slLoading && !slBrief) { sub.textContent = ""; body.innerHTML = '<div class="loading">Reading the team Slack…</div>'; return; }
+  if (slError && !slBrief && slReady == null) { sub.textContent = ""; body.innerHTML = '<div class="setup"><b>' + esc(slError) + "</b></div>"; return; }
+  if (!slReady || !slReady.slack || !slReady.claude) { sub.textContent = "What the team needs from you, with the replies written"; body.innerHTML = slSetupHtml(); return; }
+
+  const b = slBrief;
+  if (!b || !b.builtAt) {
+    sub.textContent = "";
+    body.innerHTML = (slError ? '<div class="sl-status bad"><svg class="ic"><use href="#ic-alert"/></svg>' + esc(slError) + "</div>" : "") +
+      '<div class="loading">' + (slBuilding ? "Reading the last week of Slack and writing your replies — about a minute the first time…" : "Nothing read yet. Press Read again.") + "</div>";
+    return;
+  }
+
+  const open = (b.sessions || []).filter((s) => !s.acknowledged);
+  const doneS = (b.sessions || []).filter((s) => s.acknowledged);
+  const acts = b.actions || [];
+  sub.textContent = (b.unreadTotal ? b.unreadTotal + " unread · " : "") +
+    acts.length + (acts.length === 1 ? " thing" : " things") + " to step in on · " +
+    open.length + " shift " + (open.length === 1 ? "update" : "updates") + " to answer · read " + slWhen(b.builtAt);
+
+  const status = slError || b.buildError
+    ? '<div class="sl-status bad"><svg class="ic"><use href="#ic-alert"/></svg>' + esc(slError || ("The last read failed: " + b.buildError + " Showing the one before.")) + "</div>"
+    : (slBuilding ? '<div class="sl-status"><svg class="ic sl-spin"><use href="#ic-refresh"/></svg>Reading Slack again — this card updates when it is done.</div>' : "");
+
+  const know = (b.know || []).length
+    ? '<ul class="sl-know">' + b.know.map((k) => '<li><a href="' + esc(k.link) + '" target="_blank" rel="noopener">' + esc(k.text) +
+        '<span class="sl-ch">' + esc(k.channelLabel) + "</span></a></li>").join("") + "</ul>"
+    : "";
+
+  const sesRows = open.concat(slShowAll.done ? doneS : []);
+  body.innerHTML = status +
+    (b.summary ? '<div class="sl-sum">' + esc(b.summary) + "</div>" : "") + know +
+    '<div class="sl-grid">' +
+      slColHtml("sl-now", "Step in", acts, false, "act", "Nothing needs you right now.") +
+      slColHtml("sl-shift", "Post-session updates", sesRows, true, "ses", "Every shift update has an answer from you.",
+        doneS.length ? '<button type="button" class="sl-more" data-sl-more="done">' +
+          (slShowAll.done ? "Hide the " + doneS.length + " already answered" : "Show the " + doneS.length + " already answered") + "</button>" : "") +
+    "</div>";
+
+  if (refocus) {
+    const el = body.querySelector("[" + refocus.attr + '="' + CSS.escape(refocus.id) + '"]');
+    if (el) { el.value = refocus.val; el.focus(); try { el.setSelectionRange(refocus.pos, refocus.pos); } catch {} }
+  }
+}
+
+function slFind(id) {
+  const b = slBrief || {};
+  return (b.actions || []).find((a) => a.id === id) || (b.sessions || []).find((s) => s.id === id) || null;
+}
+function slNote(id, text, tone) {
+  const el = document.querySelector('[data-sl-note="' + CSS.escape(id) + '"]');
+  if (el) { el.textContent = text; el.className = "reply-note" + (tone ? " " + tone : ""); }
+}
+function slBusy(id, on) {
+  document.querySelectorAll('[data-sl-open="' + CSS.escape(id) + '"] button').forEach((b) => { b.disabled = on; });
+}
+
+// The row that went is replaced by a line saying what happened, with Undo on it — the way
+// back is where the mistake was made, not somewhere else on the page.
+function slMarkGone(id, label, kind) {
+  const prev = slGone.get(id);
+  if (prev) clearTimeout(prev.timer);
+  const timer = setTimeout(() => { slGone.delete(id); slDropLocal(id); renderSlack(); }, SL_UNDO_MS);
+  slGone.set(id, { label, kind, timer });
+  if (slOpenId === id) slOpenId = null;
+  renderSlack();
+}
+function slDropLocal(id) {
+  if (!slBrief) return;
+  slBrief.actions = (slBrief.actions || []).filter((a) => a.id !== id);
+  (slBrief.sessions || []).forEach((s) => { if (s.id === id) s.acknowledged = true; });
+}
+
+async function slSend(id) {
+  const it = slFind(id);
+  const box = document.querySelector('[data-sl-text="' + CSS.escape(id) + '"]');
+  const text = box ? box.value.trim() : "";
+  if (!it || !text) { slNote(id, "There is nothing to post yet.", "warn"); return; }
+  slBusy(id, true); slNote(id, "Posting…");
+  try {
+    await slPost("send", { id, text });
+    slText.delete(id);
+    slMarkGone(id, "Posted in " + (it.msg.dm ? "your DM" : it.msg.channelLabel) + ".", "message");
+  } catch (e) { slBusy(id, false); slNote(id, e.message, "warn"); }
+}
+async function slReact(id) {
+  slBusy(id, true); slNote(id, "Reacting…");
+  try { await slPost("react", { id }); slMarkGone(id, "Reacted to the checklist.", "reaction"); }
+  catch (e) { slBusy(id, false); slNote(id, e.message, "warn"); }
+}
+async function slDone(id) {
+  slBusy(id, true);
+  try { await slPost("done", { id }); slMarkGone(id, "Taken off the card. Nothing was posted.", "done"); }
+  catch (e) { slBusy(id, false); slNote(id, e.message, "warn"); }
+}
+async function slUndo(id, restoreOnly) {
+  const g = slGone.get(id);
+  if (g) clearTimeout(g.timer);
+  slGone.delete(id);
+  try {
+    await slPost(restoreOnly ? "restore" : "undo", { id });
+  } catch (e) { slError = e.message; }
+  renderSlack();
+}
+async function slAskClaude(id) {
+  const box = document.querySelector('[data-sl-text="' + CSS.escape(id) + '"]');
+  const ask = document.querySelector('[data-sl-ask="' + CSS.escape(id) + '"]');
+  slBusy(id, true); slNote(id, "Claude is writing…");
+  try {
+    const r = await slPost("draft", { id, ask: ask ? ask.value.trim() : "", current: box ? box.value : "" });
+    slText.set(id, r.text);
+    renderSlack();
+    slNote(id, "Written. Read it, change anything, then post.", "ok");
+  } catch (e) { slBusy(id, false); slNote(id, e.message, "warn"); }
+}
+
+// One listener for the whole card, set once: the card's insides are redrawn often, the card is not.
+function wireSlackCard() {
+  const card = $("slCard");
+  if (!card) return;
+  card.addEventListener("click", (e) => {
+    const t = e.target.closest("[data-sl-send],[data-sl-react],[data-sl-done],[data-sl-undo],[data-sl-restore],[data-sl-ai],[data-sl-more],#slRead");
+    if (t) {
+      e.preventDefault(); e.stopPropagation();
+      const d = t.dataset;
+      if (t.id === "slRead") slRefresh(true);
+      else if (d.slSend) slSend(d.slSend);
+      else if (d.slReact) slReact(d.slReact);
+      else if (d.slDone) slDone(d.slDone);
+      else if (d.slUndo) slUndo(d.slUndo, false);
+      else if (d.slRestore) slUndo(d.slRestore, true);
+      else if (d.slAi) slAskClaude(d.slAi);
+      else if (d.slMore) { slShowAll[d.slMore] = !slShowAll[d.slMore]; renderSlack(); }
+      return;
+    }
+    // inside the unfolded part, clicks are for reading and typing, not for folding the row
+    if (e.target.closest(".mail-open a, .mail-open textarea, .mail-open input, .mail-open details, .mail-open button")) return;
+    const row = e.target.closest("[data-sl-open]");
+    if (!row || e.target.closest(".mail-open")) return;
+    slOpenId = slOpenId === row.dataset.slOpen ? null : row.dataset.slOpen;
+    renderSlack();
+  });
+  card.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const row = e.target.closest("[data-sl-open]");
+    if (!row || e.target !== row) return;
+    e.preventDefault();
+    slOpenId = slOpenId === row.dataset.slOpen ? null : row.dataset.slOpen;
+    renderSlack();
+  });
+  card.addEventListener("input", (e) => {
+    const id = e.target.dataset && e.target.dataset.slText;
+    if (id) slText.set(id, e.target.value);
+  });
+}
+wireSlackCard();
+
 async function loadAll() {
   const btn = $("btnRefresh");
   if (btn) btn.disabled = true;
@@ -4596,6 +5053,8 @@ async function loadAll() {
   // a different sign-in, and a Google outage must not hold up the cards above them. They
   // share one token, so neither waits on the other for anything but that.
   calRefresh();
+  // v223: the team Slack — its own server, its own pace; nothing above waits on it
+  slackLoad({ quiet: !!slBrief });
   if (gcalClientId && gcalReady()) {
     mailLoading = true;
     renderMail();
@@ -4618,6 +5077,7 @@ window.__dayState = {
   get checkin() { return checkinState; },
   get tiers() { return TIERS.map((t) => t.id); },
   get mail() { return { live: mailLive, error: mailError, source: mailItems().source }; },
+  get slack() { return { ready: slReady, brief: slBrief, building: slBuilding, error: slError, open: slOpenId }; },
   get calendar() { return { clientId: gcalClientId, serverReady: gcalServerReady, device: !!gcalDevice, connected: gcalReady(), offset: calWeekOffset, events: calEvents, error: calError }; },
 };
 </script>
