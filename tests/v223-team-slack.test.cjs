@@ -48,7 +48,7 @@ function slackWorld() {
   const calls = [];
   const posted = [];
   const ts = {
-    q: T(300), shift: T(600), shiftOld: T(2000), mine: T(5000), dm: T(100), old: T(60 * 24 * 10),
+    q: T(300), shift: T(600), shiftOld: T(2000), seen: T(2700), mine: T(5000), dm: T(100), old: T(60 * 24 * 10),
   };
   const history = {
     CGEN: [
@@ -57,6 +57,7 @@ function slackWorld() {
         text: ":white_check_mark: Post-Shift Checklist\n*Gaz*  •  Mon 19 Oct, 21:00, Monday - Late\n> Zara put in her notice. Laura's back was sore." },
       { type: "message", subtype: "bot_message", bot_profile: { name: "Workflow" }, ts: ts.shiftOld,
         text: "Post-Shift Checklist\n*grace*  •  Sun 18 Oct, 09:00\n> All good", reactions: [{ name: "muscle", users: [ME], count: 1 }] },
+      { type: "message", user: "UDAN", ts: ts.seen, text: "Plates are on order" },
       { type: "message", user: ME, ts: ts.mine, text: "Morning team, any progress on Halloween?" },
       { type: "message", subtype: "channel_join", user: "UDAN", ts: T(50), text: "joined" },
       { type: "message", user: ME, ts: ts.old, text: "Jesus we need new plates" },
@@ -87,7 +88,7 @@ function slackWorld() {
         { id: "DGRACE", is_im: true, user: "UGRACE" },
         { id: "DBOT", is_im: true, user: "UBOT" },
       ] });
-      case "conversations.info": return ok({ channel: { last_read: q.channel === "CGEN" ? T(400) : "0" } });
+      case "conversations.info": return ok({ channel: { last_read: q.channel === "CGEN" ? T(2500) : "0" } });
       case "conversations.history": return ok({ messages: (history[q.channel] || []).filter((m) => Number(m.ts) >= Number(q.oldest)) });
       case "conversations.replies": return ok({ messages: [
         { ts: q.ts, last_read: T(295) },
@@ -147,6 +148,8 @@ async function loadModules() {
   const q = data.roots.find((r) => r.ref === "CGEN:" + world.ts.q);
   assert.ok(/@Ashley Owen Cal says/.test(q.text), "a mention reads as a name, not an id");
   assert.ok(q.unread, "newer than his read marker = unread");
+  assert.ok(!data.roots.find((r) => r.ref === "CGEN:" + world.ts.seen).unread, "older than his read marker = read");
+  assert.ok(data.roots.find((r) => r.ref === "DGRACE:" + world.ts.dm).unread, "no read marker from Slack counts as unread");
   assert.strictEqual(q.replies.length, 1, "the thread under it is read");
   const shift = data.roots.find((r) => r.ref === "CGEN:" + world.ts.shift);
   assert.ok(shift.shift && !data.roots.find((r) => r.ref === "CGEN:" + world.ts.mine).shift, "a Post-Shift Checklist is recognised, and only that");
@@ -174,6 +177,8 @@ async function loadModules() {
     sessions: [],
   };
   const brief = await lib.buildBrief(Date.now());
+  // v224: only unread. Dan's message he has read in Slack never reaches Claude or the card.
+  assert.ok(!claudePrompt.includes("Plates are on order"), "v224: a message he has read is not put in front of Claude");
   assert.ok(/HOW ASHLEY OWEN WRITES[\s\S]*Halloween/.test(claudePrompt), "Claude is shown how he writes");
   assert.ok(claudePrompt.includes("ref CGEN:" + world.ts.q), "…and every conversation with its ref");
   assert.deepStrictEqual(brief.actions.map((a) => a.id), ["CGEN:" + world.ts.q, "DGRACE:" + world.ts.dm],
@@ -245,6 +250,31 @@ async function loadModules() {
   lib.briefPrompt(data, await lib.readState(), Date.now()).includes("ref CGEN:" + world.ts.q) &&
     assert.fail("a conversation he marked dealt with is not put in front of Claude again");
 
+  /* ================= v224: "I'm caught up" ================= */
+  // the brief in the store still holds everything; the line empties the card at once
+  r = await call("POST", { op: "restore", id: "CGEN:" + world.ts.q });
+  r = await call("GET");
+  assert.ok(r.body.brief.actions.length && r.body.brief.sessions.length && r.body.brief.summary, "before: the card has rows");
+  r = await call("POST", { op: "caughtup" });
+  assert.ok(r.body.ok && r.body.caughtUpAt > 0, "I'm caught up draws the line at now");
+  r = await call("GET");
+  assert.deepStrictEqual([r.body.brief.actions.length, r.body.brief.sessions.length, r.body.brief.know.length, r.body.brief.summary],
+    [0, 0, 0, ""], "…and the card empties straight away, summary and all");
+  r = await call("POST", { op: "caughtup", undo: true });
+  r = await call("GET");
+  assert.ok(r.body.brief.actions.length && r.body.brief.sessions.length, "Undo puts everything back");
+  r = await call("POST", { op: "caughtup" });
+  const quiet = await lib.buildBrief(Date.now() + 1000);
+  assert.deepStrictEqual([quiet.actions.length, quiet.sessions.length], [0, 0], "the next read finds nothing new");
+  claudePrompt = "";
+  await lib.buildBrief(Date.now() + 2000);
+  assert.strictEqual(claudePrompt, "", "…and nothing new costs nothing — Claude is not asked");
+  // something said after the line comes through
+  const later = lib.onlyUnread([{ unread: true, last: Date.now() + 60000 }, { unread: true, last: 1 }, { unread: false, last: Date.now() + 60000 }], Date.now());
+  assert.strictEqual(later.length, 1, "only what is unread AND new since the line");
+  assert.ok(/id="slCaughtUp"/.test(js) && /id="slCaughtUndo">Undo</.test(js), "the button, with its Undo on the card");
+  assert.ok(/Nothing unread in Slack/.test(js), "an empty card says so plainly");
+
   /* ================= 4. isolation ================= */
   assert.strictEqual(globalThis.__storeName, "bodysculpt-slack", "its own blob store");
   for (const [name, src] of [["lib", LIB], ["feed", FEED], ["background", BG]]) {
@@ -255,9 +285,9 @@ async function loadModules() {
   /* ================= 5. the page ================= */
   const slackFetches = js.match(/fetch\(SLACK_FEED/g) || [];
   assert.strictEqual(slackFetches.length, 1, "one funnel posts to the Slack card's function");
-  assert.ok(/const SL_OPS = \["refresh", "send", "react", "undo", "done", "restore", "draft"\];/.test(js), "…with a closed list of operations");
+  assert.ok(/const SL_OPS = \["refresh", "send", "react", "undo", "done", "restore", "draft", "caughtup"\];/.test(js), "…with a closed list of operations");
   assert.ok(/if \(!SL_OPS\.includes\(op\)\) throw/.test(js), "…checked before anything is sent");
-  for (const m of js.matchAll(/slPost\("([a-z]+)"/g)) assert.ok(/refresh|send|react|undo|done|restore|draft/.test(m[1]), "every call names a listed operation: " + m[1]);
+  for (const m of js.matchAll(/slPost\("([a-z]+)"/g)) assert.ok(/refresh|send|react|undo|done|restore|draft|caughtup/.test(m[1]), "every call names a listed operation: " + m[1]);
   assert.ok(!/xoxp|SLACK_USER_TOKEN/.test(js.replace(/<code>SLACK_USER_TOKEN<\/code>/g, "")), "the token never comes near the page");
 
   const iTop = DAILY.indexOf('<div class="day-top">'), iSl = DAILY.indexOf('id="slCard"'), iCal = DAILY.indexOf('id="calCard"');

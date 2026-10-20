@@ -4632,7 +4632,7 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("evBa
    posted until Send is pressed, and the way back is on the row that just went.
    ===================================================================== */
 const SLACK_FEED = "/.netlify/functions/slack-feed";
-const SL_OPS = ["refresh", "send", "react", "undo", "done", "restore", "draft"];
+const SL_OPS = ["refresh", "send", "react", "undo", "done", "restore", "draft", "caughtup"];
 const SL_STALE_MIN = 90;          // older than this on arrival → read Slack again
 const SL_POLL_MS = 5000;
 const SL_POLL_MAX = 48;           // four minutes of polling, then say so
@@ -4650,6 +4650,7 @@ let slShowAll = { act: false, ses: false, done: false };
 const slText = new Map();         // id → what is in the box, so a redraw never loses typing
 const slGone = new Map();         // id → { label, kind, timer } — the row that just went, with its Undo
 let slPollTimer = null;
+let slCaught = null;              // { timer } while "I'm caught up" can still be undone
 
 async function slPost(op, payload) {
   if (!SL_OPS.includes(op)) throw new Error("Unknown Slack operation: " + op);
@@ -4833,7 +4834,9 @@ function renderSlack() {
     : null;
 
   tools.innerHTML = slReady && slReady.slack && slReady.claude
-    ? '<button type="button" class="abtn" id="slRead"' + (slBuilding ? " disabled" : "") + '><svg class="ic' + (slBuilding ? " sl-spin" : "") + '"><use href="#ic-refresh"/></svg>' +
+    ? '<button type="button" class="abtn ghost" id="slCaughtUp" title="Clear the card. Only messages that arrive after now will show."' +
+        (slBuilding ? " disabled" : "") + '><svg class="ic"><use href="#ic-check"/></svg>I\u2019m caught up</button>' +
+      '<button type="button" class="abtn" id="slRead"' + (slBuilding ? " disabled" : "") + '><svg class="ic' + (slBuilding ? " sl-spin" : "") + '"><use href="#ic-refresh"/></svg>' +
       (slBuilding ? "Reading…" : "Read again") + "</button>"
     : "";
 
@@ -4852,9 +4855,10 @@ function renderSlack() {
   const open = (b.sessions || []).filter((s) => !s.acknowledged);
   const doneS = (b.sessions || []).filter((s) => s.acknowledged);
   const acts = b.actions || [];
-  sub.textContent = (b.unreadTotal ? b.unreadTotal + " unread · " : "") +
-    acts.length + (acts.length === 1 ? " thing" : " things") + " to step in on · " +
-    open.length + " shift " + (open.length === 1 ? "update" : "updates") + " to answer · read " + slWhen(b.builtAt);
+  sub.textContent = (!acts.length && !open.length
+    ? "Nothing unread"
+    : acts.length + (acts.length === 1 ? " thing" : " things") + " to step in on · " +
+      open.length + " shift " + (open.length === 1 ? "update" : "updates") + " to answer") + " · read " + slWhen(b.builtAt);
 
   const status = slError || b.buildError
     ? '<div class="sl-status bad"><svg class="ic"><use href="#ic-alert"/></svg>' + esc(slError || ("The last read failed: " + b.buildError + " Showing the one before.")) + "</div>"
@@ -4866,7 +4870,18 @@ function renderSlack() {
     : "";
 
   const sesRows = open.concat(slShowAll.done ? doneS : []);
-  body.innerHTML = status +
+  // v224: the card shows only what is unread. The Undo for "I'm caught up" sits at the top,
+  // where the rows it cleared used to be.
+  const caughtBar = slCaught
+    ? '<div class="undobar"><svg class="ic"><use href="#ic-check"/></svg><span>You\u2019re caught up. Only messages that arrive from now on will show here.</span>' +
+      '<button type="button" class="undobtn" id="slCaughtUndo">Undo</button></div>'
+    : "";
+  if (!acts.length && !sesRows.length && !(b.know || []).length && !b.summary) {
+    body.innerHTML = status + caughtBar +
+      '<div class="allclear"><svg class="ic"><use href="#ic-check"/></svg><span>Nothing unread in Slack. New messages and shift updates appear here as they come in, each with a reply written.</span></div>';
+    return;
+  }
+  body.innerHTML = status + caughtBar +
     (b.summary ? '<div class="sl-sum">' + esc(b.summary) + "</div>" : "") + know +
     '<div class="sl-grid">' +
       slColHtml("sl-now", "Step in", acts, false, "act", "Nothing needs you right now.") +
@@ -4952,16 +4967,31 @@ async function slAskClaude(id) {
   } catch (e) { slBusy(id, false); slNote(id, e.message, "warn"); }
 }
 
+// "I'm caught up" draws a line at now: nothing someone said before it shows again. The server
+// applies the line to the brief it already has, so the card empties at once; Undo puts the
+// line back where it was.
+async function slCaughtUp(undo) {
+  if (slCaught) { clearTimeout(slCaught.timer); slCaught = null; }
+  try {
+    await slPost("caughtup", undo ? { undo: true } : {});
+    if (!undo) slCaught = { timer: setTimeout(() => { slCaught = null; renderSlack(); }, SL_UNDO_MS) };
+    slOpenId = null;
+    await slackLoad({ quiet: true, noAuto: true });
+  } catch (e) { slError = e.message; renderSlack(); }
+}
+
 // One listener for the whole card, set once: the card's insides are redrawn often, the card is not.
 function wireSlackCard() {
   const card = $("slCard");
   if (!card) return;
   card.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-sl-send],[data-sl-react],[data-sl-done],[data-sl-undo],[data-sl-restore],[data-sl-ai],[data-sl-more],#slRead");
+    const t = e.target.closest("[data-sl-send],[data-sl-react],[data-sl-done],[data-sl-undo],[data-sl-restore],[data-sl-ai],[data-sl-more],#slRead,#slCaughtUp,#slCaughtUndo");
     if (t) {
       e.preventDefault(); e.stopPropagation();
       const d = t.dataset;
       if (t.id === "slRead") slRefresh(true);
+      else if (t.id === "slCaughtUp") slCaughtUp(false);
+      else if (t.id === "slCaughtUndo") slCaughtUp(true);
       else if (d.slSend) slSend(d.slSend);
       else if (d.slReact) slReact(d.slReact);
       else if (d.slDone) slDone(d.slDone);

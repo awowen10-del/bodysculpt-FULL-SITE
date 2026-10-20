@@ -277,7 +277,9 @@ export async function readSlack(nowSec) {
       const text = slackText(rawText(m), ws.users);
       if (mine && text.trim()) voice.push({ ts, channel: label, text: clip(text, 700) });
       if (ts < oldestWork) continue;
-      const isUnread = !mine && lastRead > 0 && ts > lastRead;
+      // No read marker from Slack (it can be missing on a DM) counts as unread; the
+      // caught-up line in the brief is what stops that from bringing old messages back.
+      const isUnread = !mine && (lastRead === 0 || ts > lastRead);
       if (isUnread) unread++;
       roots.push({
         ref: c.id + ":" + m.ts,
@@ -292,6 +294,8 @@ export async function readSlack(nowSec) {
         reactions: (m.reactions || []).map((r) => ({ name: r.name, mine: (r.users || []).includes(ws.me), count: r.count || 0 })),
         link: permalink(ws.teamUrl, c.id, m.ts),
         replies: [],
+        // when someone OTHER than him last said something in this conversation
+        last: mine ? 0 : Math.round(ts * 1000),
       });
     }
     channels.push({ id: c.id, label, dm: !!(c.is_im || c.is_mpim), unread });
@@ -313,6 +317,7 @@ export async function readSlack(nowSec) {
       }));
       // a reply he has not read makes the conversation unread, wherever its first message is
       if (threadRead && r.replies.some((x) => !x.mine && Number(x.ts) > threadRead)) r.unread = true;
+      r.last = Math.max(r.last, ...r.replies.filter((x) => !x.mine).map((x) => x.at));
     } catch { /* the root still shows; its replies are one tap away in Slack */ }
   }
 
@@ -400,14 +405,14 @@ export function briefPrompt(data, state, nowMs) {
 
   return (
     "You are the chief of staff for " + name + ", who owns and leads Bodysculpt, a small-group personal training gym in Warrington, UK. " +
-    "Below is everything posted in the last " + LOOK_BACK_DAYS + " days in the team Slack channels and DMs he is in. " +
+    "Below is every conversation in the team Slack channels and DMs he is in that has something he has NOT read yet. " +
     "He reads this on his phone on the Daily Dashboard, often after time away, and he wants to lead his team well: stay on top of what matters, " +
     "back his coaches, and make sure nobody's update goes unanswered.\n\n" +
     "Today is " + stamp(nowMs) + " (UK time).\n\n" +
     "Each conversation starts with '=== ref <ref>'. Flags: UNREAD = he has not opened it in Slack; ASH WROTE THIS = his own message; " +
     "ASH REACTED = he has already reacted to it; POST-SHIFT CHECKLIST = a coach's end-of-shift report. Lines starting ↳ are thread replies; 'ASH' is him.\n\n" +
     "Produce:\n" +
-    "1. summary — what he missed, in 2 to 4 plain sentences, most important first. Name people. Lead with anything that costs money, members or trust. " +
+    "1. summary — what is new since he last looked, in 1 to 4 plain sentences, most important first. Name people. Lead with anything that costs money, members or trust. " +
     "If nothing much happened, say so in one sentence.\n" +
     "2. know — up to 6 facts he needs to carry into his day that need no reply: cancellations and notice periods, injuries, new starters, " +
     "staff availability, payment problems someone has already handled, decisions the team made. One short sentence each, with the ref it came from. " +
@@ -436,7 +441,7 @@ export function briefPrompt(data, state, nowMs) {
     "If a teammate has already handled something, back them rather than redoing it.\n\n" +
     "Only use refs that appear below. If there is nothing for a section, return an empty list.\n\n" +
     "HOW " + name.toUpperCase() + " WRITES (his own recent messages):\n" + (voice || "(none found — keep it short, friendly and direct)") + "\n\n" +
-    "THE LAST " + LOOK_BACK_DAYS + " DAYS:\n\n" + (lines.join("\n") || "(nothing posted)")
+    "WHAT HE HAS NOT READ:\n\n" + (lines.join("\n") || "(nothing)")
   );
 }
 
@@ -464,7 +469,7 @@ export async function askClaude(prompt, schema, opts) {
 export function assembleBrief(data, ai, nowMs) {
   const byRef = new Map(data.roots.map((r) => [r.ref, r]));
   const msgView = (r) => ({
-    ref: r.ref, channel: r.channel, channelLabel: r.channelLabel, dm: r.dm, ts: r.ts, at: r.at,
+    ref: r.ref, channel: r.channel, channelLabel: r.channelLabel, dm: r.dm, ts: r.ts, at: r.at, last: r.last,
     author: r.author, text: r.text, link: r.link, unread: r.unread,
     replies: r.replies.slice(-12).map((x) => ({ author: x.author, mine: x.mine, at: x.at, text: x.text })),
   });
@@ -501,7 +506,7 @@ export function assembleBrief(data, ai, nowMs) {
   }).sort((a, b) => b.msg.at - a.msg.at);
 
   const know = ((ai && ai.know) || []).filter((k) => byRef.has(k.ref)).slice(0, 8)
-    .map((k) => ({ text: clip(k.text, 300), ref: k.ref, link: byRef.get(k.ref).link, channelLabel: byRef.get(k.ref).channelLabel }));
+    .map((k) => ({ text: clip(k.text, 300), ref: k.ref, link: byRef.get(k.ref).link, channelLabel: byRef.get(k.ref).channelLabel, last: byRef.get(k.ref).last }));
 
   return {
     v: 1,
@@ -526,12 +531,26 @@ function coachFromText(text) {
   return m ? m[1].trim() : "";
 }
 
+/* UNREAD ONLY (v224). Ash, once he was up to date: "from this point onwards can we only show
+   unreads." A conversation is on the card when it has something he has not read in Slack
+   (his channel or thread read marker says so) AND someone else said it after the line he
+   drew with "I'm caught up". The first half drops what he reads in Slack; the second drops
+   what was already there when he said he was up to date. */
+export function onlyUnread(roots, caughtUpAt) {
+  const line = Number(caughtUpAt) || 0;
+  return roots.filter((r) => r.unread && r.last > line);
+}
+
 export async function buildBrief(nowMs) {
   const now = nowMs || Date.now();
   const data = await readSlack(now / 1000);
   const state = await readState();
-  const ai = await askClaude(briefPrompt(data, state, now), BRIEF_SCHEMA);
-  return assembleBrief(data, ai, now);
+  data.roots = onlyUnread(data.roots, state.caughtUpAt);
+  // nothing unread is a quiet morning, not a question for Claude
+  const ai = data.roots.length
+    ? await askClaude(briefPrompt(data, state, now), BRIEF_SCHEMA)
+    : { summary: "", know: [], actions: [], sessions: [] };
+  return { ...assembleBrief(data, ai, now), caughtUpAt: Number(state.caughtUpAt) || 0 };
 }
 
 /* ---------------- posting ---------------- */

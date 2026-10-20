@@ -13,6 +13,8 @@
 //   POST { op: "done", id }             "dealt with — no reply needed": off the card
 //   POST { op: "restore", id }          back on the card
 //   POST { op: "draft", id, ask, current }   Claude rewrites the one reply
+//   POST { op: "caughtup" }             "I'm up to date": nothing from before now shows again
+//   POST { op: "caughtup", undo: true } put the line back where it was
 //
 // THE GUARD, because this site has no login: every write names a conversation BY ITS ID IN
 // THE CURRENT BRIEF. The function looks the message up there and posts into that channel,
@@ -40,14 +42,21 @@ function findItem(brief, id) {
 function forPage(brief, state) {
   if (!brief) return null;
   const handled = state.handled || {};
+  // v224: only what someone said after he last said "I'm caught up". Applied here as well as
+  // in the build, so the button empties the card at once rather than at the next read.
+  const line = Number(state.caughtUpAt) || 0;
+  const fresh = (m) => ((m && (m.last || m.at)) || 0) > line;
   const recent = (state.sent || []).filter((s) => Date.now() - s.at < UNDO_SECONDS * 1000 && !s.undone);
   const { voice, ...rest } = brief;
   void voice;
   return {
     ...rest,
-    actions: (brief.actions || []).filter((a) => !handled[a.id]),
-    sessions: (brief.sessions || []).map((s) => (handled[s.id] ? { ...s, acknowledged: true, handledHow: handled[s.id].how } : s)),
+    summary: brief.builtAt > line ? brief.summary : "",
+    know: (brief.know || []).filter((k) => fresh(k)),
+    actions: (brief.actions || []).filter((a) => !handled[a.id] && fresh(a.msg)),
+    sessions: (brief.sessions || []).filter((s) => fresh(s.msg)).map((s) => (handled[s.id] ? { ...s, acknowledged: true, handledHow: handled[s.id].how } : s)),
     handledCount: Object.keys(handled).length,
+    caughtUpAt: line,
     undoable: recent.map((s) => ({ id: s.id, kind: s.kind, at: s.at })),
   };
 }
@@ -81,6 +90,15 @@ export default async (req) => {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trigger: "page" }),
       });
       return json({ ok: res.status < 300, started: res.status < 300, building: res.status < 300 });
+    }
+
+    if (op === "caughtup") {
+      const st = await patchState((s2) => {
+        if (body.undo) { s2.caughtUpAt = Number(s2.prevCaughtUpAt) || 0; delete s2.prevCaughtUpAt; }
+        else { s2.prevCaughtUpAt = Number(s2.caughtUpAt) || 0; s2.caughtUpAt = Date.now(); }
+        return s2;
+      });
+      return json({ ok: true, caughtUpAt: st.caughtUpAt || 0 });
     }
 
     const brief = await readBrief();
