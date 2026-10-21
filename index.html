@@ -991,7 +991,11 @@
   .wp-drag-row[draggable="true"]{cursor:default;}
   .wp-drag-row.dragging{opacity:.4;}
   /* add button + empty */
-  .wp-rec-actions{margin-top:8px;display:flex;flex-direction:column;gap:6px;}
+  /* v235: the add buttons sit on ONE row, sharing it equally (Ash: "same row, instead of two
+     separate rows making the page taller"). They wrap only when the card is too narrow for
+     them side by side — a phone, or Buffer/Training's half-width cards with more than one. */
+  .wp-rec-actions{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;}
+  .wp-rec-actions > *{flex:1 1 170px;min-width:0;}
   .wp-pull-sel{background:var(--navy-2);border:1px solid var(--line);color:var(--green);border-radius:9px;
     padding:8px;width:100%;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;}
   .wp-pull-sel:hover{border-color:var(--green);}
@@ -1421,7 +1425,7 @@
   .wp-pp-add:hover{background:var(--orange-soft);border-color:var(--orange-soft);}
   .wp-pp-add:disabled{opacity:.45;cursor:default;background:var(--card);color:var(--ink-faint);
     border-color:var(--line);}
-  .wp-pull-projbtn{margin-left:6px;}
+  .wp-pull-projbtn{margin-left:0;}   /* v235: the row's gap spaces it; the old 6px pushed it off-line */
   /* the tag on a pulled row, in the brand — it is a link to the board it came from */
   .wp-from-project{color:var(--orange-soft);background:rgba(var(--orange-rgb),.1);text-decoration:none;}
   .wp-from-project:hover{background:rgba(var(--orange-rgb),.18);}
