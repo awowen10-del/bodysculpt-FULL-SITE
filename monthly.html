@@ -336,6 +336,25 @@
   .erow-actions{display:flex;gap:10px;align-items:center;margin-top:16px;flex-wrap:wrap;}
   .save{font-family:inherit;background:var(--orange);border:0;color:var(--on-accent);font-weight:700;font-size:14px;
     border-radius:10px;padding:11px 18px;cursor:pointer;}
+  /* v225: the month's takings, pulled from Stripe / GoCardless / SumUp */
+  .tk-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px;}
+  .tk-review{border:1px solid rgba(var(--orange-rgb),.35);background:rgba(var(--orange-rgb),.05);border-radius:12px;padding:12px 14px;margin:0 0 12px;font-size:13px;}
+  .tk-review h4{margin:0 0 8px;font-size:13px;}
+  .tk-review table{width:100%;border-collapse:collapse;margin:4px 0 8px;}
+  .tk-review th,.tk-review td{text-align:right;padding:4px 6px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;}
+  .tk-review th:first-child,.tk-review td:first-child{text-align:left;}
+  .tk-review th{font-size:11px;color:var(--ink-faint);font-weight:700;}
+  .tk-review td.tk-changed{font-weight:700;color:var(--orange-soft);}
+  .tk-review ul{margin:4px 0 8px;padding-left:18px;color:var(--ink-dim);}
+  .tk-review li{margin:2px 0;}
+  .tk-review .tk-warn{color:var(--red);}
+  .tk-review details{margin:6px 0;}
+  .tk-review summary{cursor:pointer;font-weight:600;}
+  .tk-kind{display:inline-block;font-size:10px;font-weight:700;border-radius:6px;padding:1px 6px;margin-left:6px;}
+  .tk-kind.trial{background:rgba(var(--orange-rgb),.14);color:var(--orange-soft);}
+  .tk-kind.recurring{background:rgba(var(--green-rgb),.12);color:var(--green-2);}
+  .tk-undo{font-family:inherit;background:var(--ink);color:var(--card);border:0;border-radius:10px;padding:9px 14px;font-weight:700;font-size:13px;cursor:pointer;}
+  .tk-ready{margin-top:12px;border:1px solid rgba(var(--orange-rgb),.4);background:rgba(var(--orange-rgb),.06);border-radius:12px;padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;}
   .ghostbtn{font-family:inherit;background:transparent;border:1px solid var(--line);color:var(--ink-dim);
     font-weight:600;font-size:13px;border-radius:10px;padding:10px 14px;cursor:pointer;}
   /* tables */
@@ -750,6 +769,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
       <button class="abtn" id="homeViewToggle">See table</button>
       <span class="msg" id="homeSavedMsg"></span>
     </div>
+    <div class="tk-ready" id="tkReady" hidden></div>
   </div>
 
   <div class="mentor-ai" id="mentorAi">
@@ -820,6 +840,11 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
       <button class="entry-close" id="moneyClose"><svg class="ic"><use href="#ic-close"/></svg></button></div>
 
     <div class="esub">Revenue <span style="text-transform:none;font-weight:600;color:var(--ink-faint);">— Charged, Banked &amp; Avg Transaction Price calculate automatically</span></div>
+    <div class="tk-bar">
+      <button class="abtn" id="tkPull" type="button">Pull from Stripe, GoCardless &amp; SumUp</button>
+      <span class="msg" id="tkMsg"></span>
+    </div>
+    <div class="tk-review" id="tkReview" hidden></div>
     <div class="egrid">
       <label class="f">Recurring Revenue (£)<input type="number" step="0.01" id="m_recurringRev" inputmode="decimal" placeholder="0"></label>
       <label class="f">Trial Revenue (£)<input type="number" step="0.01" id="m_trialRev" inputmode="decimal" placeholder="0"></label>
@@ -1021,6 +1046,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 
 const STORE = "/.netlify/functions/kpi-store";
 const MENTOR = "/.netlify/functions/mentor-ai";
+const TAKINGS = "/.netlify/functions/takings";
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const MONTHS_LONG = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
@@ -1731,6 +1757,7 @@ function openMoney(){
   });
   updateLiveExpenseTotal();
   updateLiveCalcFields();
+  tkReset();
   document.getElementById("moneyPanel").hidden = false;
   document.getElementById("moneyMsg").textContent = "";
   document.getElementById("moneyPanel").scrollIntoView({behavior:"smooth",block:"nearest"});
@@ -1767,6 +1794,7 @@ async function saveMoney(){
   try{
     await saveMonth(rec);
     msg.textContent = "Saved ✓";
+    if(tkReadyYm === curYm) tkHideReady();
     closeMoney();
     document.getElementById("moneySavedMsg").textContent = "Saved ✓";
     setTimeout(()=>document.getElementById("moneySavedMsg").textContent="", 2500);
@@ -1775,6 +1803,115 @@ async function saveMoney(){
     msg.textContent = "Save failed — check connection and try again.";
   }
 }
+
+// ===================== v225: THE MONTH'S TAKINGS =====================
+// "Pull from Stripe, GoCardless & SumUp" fills Recurring, Trial, Other and Processing Fees
+// from netlify/functions/takings and shows where each number came from. It only fills the
+// boxes — nothing is saved until Save figures, exactly as if Ash had typed them — and the
+// review carries a "Put back what was there" button, so a bad pull is one press to undo.
+const TK_FIELDS = [["recurringRev","Recurring Revenue"],["trialRev","Trial Revenue"],
+  ["otherRev","Other Revenue"],["processingFees","Processing Fees"]];
+let tkWas = null;          // what the four boxes held before the pull
+let tkReadyYm = null;      // the month the 4th-of-the-month run has waiting
+function tkReset(){
+  tkWas = null;
+  document.getElementById("tkReview").hidden = true;
+  document.getElementById("tkReview").innerHTML = "";
+  document.getElementById("tkMsg").textContent = "";
+}
+async function tkPull(){
+  const btn = document.getElementById("tkPull"), msg = document.getElementById("tkMsg");
+  const ym = curYm;
+  btn.disabled = true; msg.textContent = "Reading " + ymLabel(ym) + " from Stripe, GoCardless & SumUp… (up to 20 seconds)";
+  try{
+    const res = await fetch(TAKINGS + "?month=" + encodeURIComponent(ym));
+    const pull = await res.json().catch(()=>null);
+    if(ym !== curYm || document.getElementById("moneyPanel").hidden) return;   // moved on meanwhile
+    if(!res.ok || !pull) { msg.textContent = "Couldn't reach the takings function (" + res.status + ") — has v225 deployed?"; return; }
+    if(!pull.ok){ msg.textContent = pull.error || "The pull didn't work."; return; }
+    tkApply(pull);
+    msg.textContent = "";
+  }catch(e){
+    msg.textContent = "Couldn't reach the takings function — check your connection and try again.";
+  }finally{ btn.disabled = false; }
+}
+function tkApply(pull){
+  if(!tkWas){
+    tkWas = {};
+    TK_FIELDS.forEach(([f])=>{ tkWas[f] = document.getElementById(MONEY_INPUTS[f]).value; });
+  }
+  TK_FIELDS.forEach(([f])=>{
+    const v = pull.fields ? pull.fields[f] : null;
+    if(isNum(v)) document.getElementById(MONEY_INPUTS[f]).value = v.toFixed(2);
+  });
+  updateLiveCalcFields();
+  tkRenderReview(pull);
+}
+function tkUndo(){
+  if(!tkWas) return;
+  TK_FIELDS.forEach(([f])=>{ document.getElementById(MONEY_INPUTS[f]).value = tkWas[f]; });
+  updateLiveCalcFields();
+  tkReset();
+  document.getElementById("tkMsg").textContent = "Put back what was there before the pull.";
+}
+function tkRenderReview(pull){
+  const el = document.getElementById("tkReview");
+  const S = pull.sources || {}, st = S.stripe || {}, gc = S.gocardless || {}, su = S.sumup || {};
+  const money = v => isNum(v) ? gbp(v) : "—";
+  const wasNum = f => { const raw = tkWas ? tkWas[f] : ""; return raw === "" || raw == null ? null : Number(raw); };
+  const rows = TK_FIELDS.map(([f,label])=>{
+    const was = wasNum(f), now = pull.fields ? pull.fields[f] : null;
+    const changed = isNum(now) && (!isNum(was) || Math.abs(was-now) >= 0.005);
+    return `<tr><td>${esc(label)}</td><td>${money(was)}</td><td class="${changed?"tk-changed":""}">${isNum(now)?money(now):"left as it was"}</td></tr>`;
+  }).join("");
+  const line = (name, s, body) => s.ok ? `<li><b>${name}:</b> ${body}${(s.notes||[]).length?" — "+esc(s.notes.join("; ")):""}</li>`
+                                       : `<li class="tk-warn"><b>${name}:</b> ${esc(s.error||"didn't answer")}</li>`;
+  const stBody = st.ok ? `memberships ${money(st.gross&&st.gross.recurring)}, trials ${money(st.gross&&st.gross.trial)} (${st.trialCount||0} payment${st.trialCount===1?"":"s"})`
+    + ((st.refunds&&(st.refunds.recurring||st.refunds.trial)) ? `, refunds −${money(st.refunds.recurring+st.refunds.trial)}` : "")
+    + `, fees ${money(st.fees)}` : "";
+  const gcBody = gc.ok ? `memberships ${money(gc.gross)} from ${gc.count||0} payments`
+    + (gc.refunds ? `, refunds −${money(gc.refunds)}` : "") + `, fees ${money(gc.fees)}` : "";
+  const suBody = su.ok ? `meal prep ${money(su.gross)} from ${su.count||0} sales`
+    + (su.refunds ? `, refunds −${money(su.refunds)}` : "") + `, fees ${su.feesKnown?money(su.fees):"not given"}` : "";
+  const names = (st.ok && Array.isArray(st.names) && st.names.length) ? `<details><summary>What Stripe counted as trial and as membership (${st.names.length} name${st.names.length===1?"":"s"})</summary><ul>`
+    + st.names.map(n=>`<li>${esc(n.name)}<span class="tk-kind ${n.kind==="trial"?"trial":"recurring"}">${n.kind==="trial"?"Trial":"Membership"}</span> — ${money(n.amount)} × ${n.count}</li>`).join("")
+    + `</ul><div class="note" style="margin-top:0">A payment is a trial when its name has "6 week", "6-week" or "referral" in it. Anything else on Stripe counts as membership.</div></details>` : "";
+  const when = pull.pulledAt ? new Date(pull.pulledAt).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) : "";
+  const warns = (pull.warnings||[]).filter(w=>!/^(Stripe|GoCardless|SumUp):/.test(w));
+  el.innerHTML = `<h4>${esc(ymLabel(pull.month))} from your payment accounts${pull.partial?" — so far, the month isn't over":""}</h4>
+    <table><thead><tr><th></th><th>Was</th><th>From payments</th></tr></thead><tbody>${rows}</tbody></table>
+    <ul>${line("Stripe",st,stBody)}${line("GoCardless",gc,gcBody)}${line("SumUp",su,suBody)}${warns.map(w=>`<li class="tk-warn">${esc(w)}</li>`).join("")}</ul>
+    ${names}
+    <div class="erow-actions" style="margin-top:8px">
+      <button class="tk-undo" id="tkUndo" type="button">Put back what was there</button>
+      <span class="msg">Nothing is saved yet — check the numbers, then press <b>Save figures</b>.${when?" Pulled "+esc(when)+".":""}</span>
+    </div>`;
+  el.hidden = false;
+  document.getElementById("tkUndo").addEventListener("click", tkUndo);
+}
+// The 4th-of-the-month run keeps last month's pull. If that month has no revenue typed yet,
+// say so on the KPIs view with one button that opens it, filled in, for review.
+async function tkCheckReady(){
+  try{
+    const r = await fetch(TAKINGS + "?ready=1").then(x=>x.json());
+    const pull = r && r.pull;
+    if(!pull || !pull.ok || !pull.month || !YMS.includes(pull.month)) return;
+    const rec = MONTHREC[pull.month] || {};
+    if(["recurringRev","trialRev","otherRev"].some(f=>isNum(rec[f]))) return;
+    tkReadyYm = pull.month;
+    const el = document.getElementById("tkReady");
+    el.innerHTML = `<span><b>${esc(ymLabel(pull.month))}'s takings are ready</b> — pulled from Stripe, GoCardless &amp; SumUp. Check them and save.</span>
+      <button class="abtn primary" id="tkReadyGo" type="button">Review ${esc(ymLabel(pull.month))}</button>`;
+    el.hidden = false;
+    document.getElementById("tkReadyGo").addEventListener("click", ()=>{
+      setMonth(pull.month);
+      showView("money");
+      openMoney();
+      tkApply(pull);
+    });
+  }catch(e){ /* no banner is fine */ }
+}
+function tkHideReady(){ tkReadyYm = null; const el=document.getElementById("tkReady"); el.hidden = true; el.innerHTML = ""; }
 
 // ===================== AI MONTHLY REVIEW =====================
 function buildMentorPrompt(){
@@ -1884,6 +2021,7 @@ function wire(){
   document.getElementById("moneyClose").addEventListener("click", closeMoney);
   document.getElementById("moneyCancel").addEventListener("click", closeMoney);
   document.getElementById("moneySave").addEventListener("click", saveMoney);
+  document.getElementById("tkPull").addEventListener("click", tkPull);
   document.getElementById("mentorHead").addEventListener("click", ()=>{
     const body=document.getElementById("mentorBody"), chev=document.getElementById("mentorChev");
     body.hidden=!body.hidden; chev.classList.toggle("open", !body.hidden);
@@ -1974,6 +2112,7 @@ async function boot(){
   // the landing view — unless the rail's "Monthly KPIs" link brought you here (v165)
   showView(mpViewFromHash());
   window.addEventListener("hashchange", ()=>showView(mpViewFromHash()));
+  tkCheckReady();
 }
 /* ===================== MONTHLY PLAN (cascade middle layer) ===================== */
 let mpPlan = null;

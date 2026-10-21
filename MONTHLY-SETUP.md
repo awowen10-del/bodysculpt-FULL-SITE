@@ -42,6 +42,21 @@ Re-running the seed is safe: existing months are skipped.
 - **Home** or **Expenses** tab → "Edit this month's figures" opens one panel covering the whole month: Revenue, Members & growth, Acquisition, Expense lines (live-summed), Tax & owner.
 - Pick the month from the dropdown top-right first, then edit.
 
+## Pulling revenue from Stripe, GoCardless & SumUp (v225)
+In the figures panel, **Pull from Stripe, GoCardless & SumUp** fills four boxes for the selected month:
+- **Recurring Revenue** = GoCardless + every Stripe payment that is *not* a trial
+- **Trial Revenue** = Stripe payments with "6 week", "6-week" or "referral" in the name
+- **Other Revenue** = SumUp (meal prep)
+- **Processing Fees** = what all three kept
+
+Refunds come off the month they were refunded in. A box is only filled if every account it needs answered. Nothing saves until you press **Save figures**, and **Put back what was there** undoes the pull. On the 4th of each month last month is pulled automatically and the KPIs view offers it for review.
+
+One-time setup, in Netlify → Site configuration → Environment variables:
+1. **Stripe** — `STRIPE_SECRET_KEY` is already there for the Daily Dashboard. In Stripe → Developers → API keys, edit that restricted key and add **Read** for **Balance**, **Invoices** and **Refunds** (keep Charges, Disputes, Subscriptions, Customers).
+2. **GoCardless** — GoCardless → Developers → Create → Access token, **Read-only**. Save it as `GOCARDLESS_ACCESS_TOKEN`.
+3. **SumUp** — SumUp → Settings → For developers → API keys → create one. Save it as `SUMUP_API_KEY`.
+4. Redeploy (Deploys → Trigger deploy) so the functions see the new keys.
+
 ## Tabs
 - **Home** — at-a-glance dashboard (Revenue / Back End / Front End / Retention).
 - **Expenses** — Expense Total, the 15 lines, owner figures.

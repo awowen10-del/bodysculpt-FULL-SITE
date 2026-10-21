@@ -98,3 +98,14 @@
 # the same as mentor-ai and hooks-api.
 [functions."slack-feed"]
   timeout = 26
+
+# ===================== v225: the month's takings =====================
+# The Monthly KPIs page's "Pull from Stripe, GoCardless & SumUp" button reads three
+# providers; GoCardless's fees are one call per payout. The paid-plan maximum.
+[functions."takings"]
+  timeout = 26
+
+# 06:00 UTC on the 4th: last month's takings are pulled and waiting for review. The 4th,
+# not the 1st, so direct debits taken at the end of the month have cleared or bounced.
+[functions."takings-scheduled"]
+  schedule = "0 6 4 * *"
