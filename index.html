@@ -1689,6 +1689,86 @@
     color:var(--ink-dim);border-radius:8px;padding:6px 11px;font-family:inherit;font-size:11.5px;font-weight:700;
     text-decoration:none;cursor:pointer;}
   .wp-dialin:hover{border-color:var(--orange);color:var(--orange-soft);}
+
+  /* ===================== v240: THE WEEK AT A GLANCE =====================
+     The Health page's language, which Ash liked, on the Weekly page: the week as a hero with
+     a ring, this month's focus beside it as a clean card (no orange wash), four numbers, box
+     headings with a tinted icon each, white task cards with their kind's colour down the
+     edge, and the non-negotiables as proper day dots. Everything here restyles; nothing
+     here changes what is stored. */
+  .periodbar{background:var(--card);box-shadow:var(--shadow);border-radius:14px;}
+  .pb-label{font-family:var(--font-display);}
+  .wp-hero-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:16px;margin:16px 0 14px;align-items:stretch;}
+  .wp-hero-row.solo{grid-template-columns:1fr;}
+  .wp-hero{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:20px;
+    background:linear-gradient(120deg,rgba(var(--teal-rgb),.13),rgba(var(--teal-rgb),.04) 55%,var(--card));
+    border:1px solid rgba(var(--teal-rgb),.18);border-radius:16px;padding:22px 24px;box-shadow:var(--shadow);}
+  .wp-hero-eye{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:var(--teal);margin-bottom:6px;}
+  .wp-hero-title{font-family:var(--font-display);font-size:30px;font-weight:800;letter-spacing:-.03em;line-height:1.05;color:var(--ink-strong);}
+  .wp-hero-sub{font-size:13px;color:var(--ink-dim);margin-top:8px;}
+  .wp-ring{position:relative;width:84px;height:84px;display:grid;place-items:center;flex:0 0 auto;}
+  .wp-ring svg{position:absolute;inset:0;width:100%;height:100%;}
+  .wp-ring circle{fill:none;stroke-width:7;}
+  .wp-ring .trk{stroke:rgba(var(--green-rgb),.14);}
+  .wp-ring .val{stroke:var(--green);stroke-linecap:round;transition:stroke-dasharray .6s ease;}
+  .wp-ring > span{position:relative;display:flex;flex-direction:column;align-items:center;line-height:1;}
+  .wp-ring b{font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--ink-strong);letter-spacing:-.02em;}
+  .wp-ring b i{font-style:normal;font-size:13px;color:var(--ink-faint);}
+  .wp-ring small{font-size:10px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.08em;margin-top:3px;}
+  /* the month, beside the week: a clean card, the business half and the personal half */
+  .wp-hero-row .wp-anchor{margin:0;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;box-shadow:var(--shadow);}
+  .wp-anchor-h{font-size:11px;letter-spacing:.1em;color:var(--orange);}
+  .wp-anchor-col + .wp-anchor-col{border-left-color:var(--line);}
+  .wp-anchor-item{font-size:14px;}
+  /* four numbers */
+  .wp-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:16px;}
+  .wp-stat{display:grid;grid-template-columns:auto 1fr;column-gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);
+    border-radius:16px;padding:14px 16px 12px;box-shadow:var(--shadow);}
+  .wp-stat-ic{grid-row:1/3;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;}
+  .wp-stat-ic .ic{width:19px;height:19px;}
+  .wp-stat b{font-family:var(--font-display);font-size:24px;font-weight:800;letter-spacing:-.02em;color:var(--ink-strong);line-height:1.05;}
+  .wp-stat b i{font-style:normal;font-size:15px;color:var(--ink-faint);font-weight:700;}
+  .wp-stat small{font-size:12px;color:var(--ink-faint);}
+  .wp-stat-bar{grid-column:1/-1;height:4px;border-radius:4px;background:var(--navy-2);margin-top:10px;overflow:hidden;}
+  .wp-stat-bar i{display:block;height:100%;border-radius:4px;background:var(--green);}
+  .wp-stat.t-slate .wp-stat-ic,.wp-hico.t-slate{background:rgba(var(--teal-rgb),.12);color:var(--teal);}
+  .wp-stat.t-blue .wp-stat-ic,.wp-hico.t-blue{background:rgba(var(--blue-rgb),.12);color:var(--blue);}
+  .wp-stat.t-info .wp-stat-ic,.wp-hico.t-info{background:rgba(var(--info-rgb),.12);color:var(--info);}
+  .wp-stat.t-green .wp-stat-ic,.wp-hico.t-green{background:rgba(var(--green-rgb),.12);color:var(--green);}
+  .wp-hico.t-orange{background:rgba(var(--orange-rgb),.1);color:var(--orange);}
+  /* box headings: white, the display face, a tinted icon */
+  .wp-box{border-radius:16px;box-shadow:var(--shadow);}
+  .wp-box-h{background:var(--card);font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:-.015em;color:var(--ink-strong);padding:13px 16px;}
+  .wp-box-h > span:first-child,.wp-rec-title{display:inline-flex;align-items:center;gap:10px;}
+  .wp-hico{width:28px;height:28px;border-radius:9px;display:inline-grid;place-items:center;flex:0 0 auto;}
+  .wp-hico .ic{width:15px;height:15px;}
+  /* tasks in the grid: white cards, their kind's colour down the edge */
+  .wp-cellchip{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--ink-faint);
+    box-shadow:0 1px 2px rgba(var(--shadow-rgb),.05);border-radius:8px;}
+  .wp-cellchip.wp-recur{background:var(--card);border-left-color:var(--teal);}
+  .wp-cellchip.wp-train{background:var(--card);border-left-color:var(--green);}
+  .wp-cellchip input:checked{background:var(--green);border-color:var(--green);}
+  .wp-cellchip:hover{border-color:var(--ink-faint);}
+  table.wp-grid th.wp-dayhead.wp-dayhead-today{background:rgba(var(--info-rgb),.08);box-shadow:inset 0 -2px 0 var(--info);}
+  table.wp-grid th.wp-dayhead.wp-dayhead-today:hover{background:rgba(var(--info-rgb),.12);}
+  table.wp-grid th.wp-dayhead-today .wp-dayname{color:var(--info);}
+  .wp-eow-launch{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--orange);box-shadow:var(--shadow);}
+  .wp-hero{background:linear-gradient(120deg,rgba(var(--info-rgb),.10),rgba(var(--teal-rgb),.05) 50%,var(--card) 85%);border-color:rgba(var(--info-rgb),.16);}
+  .wp-hero-eye{color:var(--info);}
+  /* the end of the week: no orange wash */
+  .wp-rc{background:var(--card-2);border-color:var(--line);}
+  .wp-rc-title{color:var(--ink-strong);font-size:11px;letter-spacing:.08em;}
+  /* the non-negotiables: day dots, green when done */
+  .wp-nnw-cell{width:26px;height:26px;border-radius:50%;}
+  .wp-nnw-cell.on{background:var(--green);border-color:var(--green);color:var(--on-accent);}
+  .wp-nnw-name{font-size:13px;}
+  @media(prefers-reduced-motion:reduce){ .wp-ring .val{transition:none;} }
+  @media(max-width:1100px){ .wp-hero-row{grid-template-columns:1fr;} .wp-stats{grid-template-columns:repeat(2,minmax(0,1fr));} }
+  @media(max-width:640px){
+    .wp-hero{padding:18px;} .wp-hero-title{font-size:24px;}
+    .wp-ring{width:66px;height:66px;} .wp-ring b{font-size:17px;}
+    .wp-stat{padding:12px;} .wp-stat b{font-size:20px;} .wp-stat-ic{width:34px;height:34px;}
+  }
 </style>
 <!-- v230: the focus timer, shared by every page so a block follows you between them -->
 <script src="/focus-timer.js"></script>
@@ -2063,7 +2143,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 
   <footer>
     <span class="stage" id="srcPill"><svg class="ic"><use href="#ic-dot"/></svg> Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v239 · the-day-at-a-glance</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v240 · the-week-at-a-glance</span>
   </footer>
 </div>
 
@@ -3990,7 +4070,7 @@ function wpRecurringBox(){
     const summary = WP_RECUR_TABS.filter(([k])=>counts[k]>0).map(([k,l])=>`${l} ${counts[k]}`).join(" \u00b7 ") || "Nothing yet";
     return `<div class="wp-box wp-rec-collapsed">
       <div class="wp-box-h wp-rec-h">
-        <span class="wp-rec-title" onclick="wpToggleRecurCollapsed()">Recurring <span class="wp-rec-summary">${wpEsc(summary)}</span></span>
+        <span class="wp-rec-title" onclick="wpToggleRecurCollapsed()">${wpIco("refresh","slate")}Recurring <span class="wp-rec-summary">${wpEsc(summary)}</span></span>
         ${toggle}
       </div>
     </div>`;
@@ -4779,12 +4859,12 @@ function wpPublishAgenda(placements) {
 function renderWeeklyPlan(){
   const p = wpPlan;
 
-  const projectBox = wpListBox("Project","project","project", p.projectItems, "wpAddItem('project')", "+ Add project task");
+  const projectBox = wpListBox(wpIco("kanban","slate")+"Project","project","project", p.projectItems, "wpAddItem('project')", "+ Add project task");
   const overdueBox = wpOverdueHtml();   // v227: late project steps, above the Project box
   const recurringBox = wpRecurringBox();   // v75: tabbed (Daily/Weekly/Monthly/Quarterly) filter over wpDefaults
-  const bufferBox = wpListBox("Buffer","buffer","buffer", p.bufferItems, "wpAddItem('buffer')", "+ Add buffer task");
+  const bufferBox = wpListBox(wpIco("note","info")+"Buffer","buffer","buffer", p.bufferItems, "wpAddItem('buffer')", "+ Add buffer task");
   // v71: personal Training — its own collection and card, never mixed into Recurring
-  const trainingBox = wpListBox('<svg class="ic"><use href="#ic-lift"/></svg> Training',"training","training", (wpTraining||[]), "wpAddTraining()", "+ Add training");
+  const trainingBox = wpListBox(wpIco("lift","green")+"Training","training","training", (wpTraining||[]), "wpAddTraining()", "+ Add training");
 
   // v70: rich editor instead of the textarea — same field, same save path. The editor
   // div is written with NO whitespace around its content so :empty (placeholder) works.
@@ -4859,7 +4939,7 @@ function renderWeeklyPlan(){
       return `<td class="wp-daycell" data-cell="${key}" ondragover="wpCellDragOver(event)" ondragleave="wpCellDragLeave(event)" ondrop="wpCellDrop(event,'${WP_ANY}','${dk}')"><div class="wp-cellwrap">${chips?`<div class="wp-cellchips">${chips}</div>`:""}</div></td>`;
     }).join("")}</tr>` : "";
   const gridBox = `<div class="wp-box wp-grid-box">
-    ${wpBoxHeader("Time Blocks","timeBlocks",
+    ${wpBoxHeader(wpIco("clock","blue")+"Time Blocks","timeBlocks",
       wpDayViewControlHtml() +
       `<button class="wp-loc-btn" title="Edit the default weekly location pattern" onclick="wpOpenLocDefaultsPopup(this)"><svg class="ic"><use href="#ic-pin"/></svg> Locations</button>` +
       (wpCalEvents ? `<span class="wp-calnote" title="Read from Google Calendar. This page cannot change it."><svg class="ic"><use href="#ic-calendar"/></svg>${wpCalEvents.length} in your calendar</span>` :
@@ -4914,7 +4994,7 @@ function renderWeeklyPlan(){
   </div>`;
 
   const reviewBox = `<div class="wp-box">
-    ${wpBoxHeader("End-of-Week Review","review",`<span class="wp-ssaved" id="wpmsg-copyweek"></span><button type="button" class="wp-copyweek-btn" title="Copy the whole week as plain text (paste into an AI chat for feedback)" onclick="wpCopyWeek()">Copy week</button>`)}
+    ${wpBoxHeader(wpIco("flag","orange")+"End-of-Week Review","review",`<span class="wp-ssaved" id="wpmsg-copyweek"></span><button type="button" class="wp-copyweek-btn" title="Copy the whole week as plain text (paste into an AI chat for feedback)" onclick="wpCopyWeek()">Copy week</button>`)}
     <div class="wp-box-body">
       ${launchBox}
       ${checklistBox}
@@ -4953,7 +5033,70 @@ function renderWeeklyPlan(){
   }
 
   // v119: the non-negotiables card sits between the calendar and the review
-  document.getElementById("wpBody").innerHTML = anchorBox + topRow + gridBox + wpHabitCardHtml() + reviewBox;
+  document.getElementById("wpBody").innerHTML = wpHeroHtml(anchorBox) + topRow + gridBox + wpHabitCardHtml() + reviewBox;
+}
+
+/* v240: THE WEEK AT A GLANCE — the Health page's shape on the Weekly page. The week as a
+   hero with everything planned in it as a ring, this month's focus beside it, and four
+   numbers: project, recurring, buffer and training jobs done out of planned. Counted from
+   the grid as it is drawn (the effective placements), every day of the week, not only the
+   days on screen. Display only. */
+function wpIco(name, tone){
+  return `<span class="wp-hico t-${tone}" aria-hidden="true"><svg class="ic"><use href="#ic-${name}"/></svg></span>`;
+}
+function wpWeekStats(){
+  const by = { project:{d:0,t:0}, recurring:{d:0,t:0}, buffer:{d:0,t:0}, training:{d:0,t:0} };
+  let P = {};
+  try{ P = wpEffectivePlacements() || {}; }catch(e){ P = {}; }
+  Object.keys(P).forEach(key=>{
+    const day = key.split(":")[1];
+    (P[key]||[]).forEach(ref=>{
+      const src = ref.split(":")[0], it = wpResolveRef(ref);
+      if(!it || !by[src]) return;
+      by[src].t++;
+      if(wpIsDone(src, it, day)) by[src].d++;
+    });
+  });
+  return by;
+}
+function wpHeroHtml(anchorBox){
+  const st = wpWeekStats();
+  const all = Object.values(st).reduce((a,x)=>({d:a.d+x.d,t:a.t+x.t}),{d:0,t:0});
+  const MON = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  let title = "This week", eye = "Your week";
+  try{
+    const a = new Date(wpWeekEnding+"T12:00:00"), b = new Date(a); b.setDate(b.getDate()+6);
+    title = a.getMonth()===b.getMonth() ? a.getDate()+" – "+b.getDate()+" "+MON[a.getMonth()]
+      : a.getDate()+" "+MON[a.getMonth()].slice(0,3)+" – "+b.getDate()+" "+MON[b.getMonth()].slice(0,3);
+    const now = new Date(), mon = new Date(now.getFullYear(), now.getMonth(), now.getDate()); mon.setDate(mon.getDate()-((mon.getDay()+6)%7));
+    const diff = Math.round((new Date(wpWeekEnding+"T00:00:00") - mon)/(7*864e5));
+    eye = diff===0 ? "This week" : diff===1 ? "Next week" : diff===-1 ? "Last week" : diff>0 ? "In "+diff+" weeks" : (-diff)+" weeks ago";
+  }catch(e){}
+  const r = 34, c = 2*Math.PI*r, f = all.t ? all.d/all.t : 0;
+  const ring = `<span class="wp-ring" role="img" aria-label="${all.d} of ${all.t} planned jobs done this week"><svg viewBox="0 0 84 84" aria-hidden="true">`+
+    `<circle class="trk" cx="42" cy="42" r="${r}"/><circle class="val" cx="42" cy="42" r="${r}" stroke-dasharray="${(c*f).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 42 42)"/></svg>`+
+    `<span><b>${all.d}<i>/${all.t}</i></b><small>done</small></span></span>`;
+  const left = all.t - all.d;
+  const tile = (key, icon, tone, label)=>{
+    const x = st[key];
+    return `<div class="wp-stat t-${tone}"><span class="wp-stat-ic"><svg class="ic"><use href="#ic-${icon}"/></svg></span>`+
+      `<b>${x.d}<i>/${x.t}</i></b><small>${label}</small>`+
+      `<span class="wp-stat-bar"><i style="width:${x.t?Math.round(x.d/x.t*100):0}%"></i></span></div>`;
+  };
+  return `<div class="wp-hero-row${anchorBox?"":" solo"}">
+      <div class="wp-hero">
+        <div class="wp-hero-main"><div class="wp-hero-eye">${wpEsc(eye)}</div><div class="wp-hero-title">${wpEsc(title)}</div>
+          <div class="wp-hero-sub">${all.t ? (left ? left+" planned job"+(left===1?"":"s")+" still to do" : "Everything planned is done") : "Nothing planned in the grid yet"}</div></div>
+        ${ring}
+      </div>
+      ${anchorBox}
+    </div>
+    <div class="wp-stats">
+      ${tile("project","kanban","slate","project jobs")}
+      ${tile("recurring","refresh","blue","recurring")}
+      ${tile("buffer","note","info","buffer jobs")}
+      ${tile("training","lift","green","training sessions")}
+    </div>`;
 }
 
 // v104: the two anchor lists, derived from the SAME monthly-plan record the anchor renders
@@ -7582,7 +7725,7 @@ function wpHabitTrackerHtml(){
 function wpHabitCardHtml(){
   const st = wpHabitWeekStats();
   return `<div class="wp-box wp-nn-box">
-    <div class="wp-box-h"><span>Daily non-negotiables</span>
+    <div class="wp-box-h"><span>${wpIco("check","green")}Daily non-negotiables</span>
       <span class="wp-sec-save"><span class="wp-nnw-total">${st.total} of ${st.max} this week</span></span></div>
     <div class="wp-box-body">${wpHabitTrackerHtml()}
       <div class="wp-nn-box-hint">Ticked off day by day in the Today check-in.</div>
