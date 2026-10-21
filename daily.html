@@ -193,6 +193,7 @@
     html.nav-collapsed .sn-lbl{display:none;}
     html.nav-collapsed .sn-top{flex-direction:column;gap:var(--sp-3);}
     html.nav-collapsed .sn-fold .ic{transform:rotate(180deg);}
+    html.nav-collapsed .sn-link.active::before{left:-12px;}
   }
   .sidenav{position:fixed;left:0;top:0;bottom:0;width:236px;z-index:90;display:flex;
     flex-direction:column;gap:var(--sp-5);padding:var(--sp-5) var(--sp-4);overflow-y:auto;
@@ -200,13 +201,35 @@
   .sn-brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;
     padding:0 var(--sp-2);border-radius:var(--r-md);}
   .sn-brand:focus-visible{outline:none;box-shadow:var(--focus);}
-  .sn-brand .mark{width:36px;height:36px;border-radius:var(--r-md);overflow:hidden;flex:0 0 auto;
-    border:1px solid var(--line);background:var(--mark-bg);}
-  .sn-brand h1{font-size:14.5px;font-weight:600;letter-spacing:-.012em;line-height:1.15;color:var(--ink-strong);}
+  .sn-brand .mark{width:40px;height:40px;border-radius:var(--r-md);overflow:hidden;flex:0 0 auto;
+    border:1px solid var(--line);background:var(--mark-bg);box-shadow:var(--shadow);}
+  .sn-brand h1{font-family:var(--font-display);font-size:16px;font-weight:800;letter-spacing:-.02em;line-height:1.15;color:var(--ink-strong);}
   .sn-brand .sub{font-size:10.5px;color:var(--ink-faint);font-weight:500;letter-spacing:.05em;
     text-transform:uppercase;margin-top:1px;}
   .sn-nav{display:flex;flex-direction:column;gap:var(--sp-5);}
   .sn-group{display:flex;flex-direction:column;gap:2px;}
+  /* v239: each part of the business has a colour, worn by its icons and by the page you are
+     on — the way the Health page colours its nights. Finances keeps the brand terracotta. */
+  .sn-group:nth-child(1) .sn-link .ic,.sn-group:nth-child(1) .sn-link.active .ic{color:var(--info);}
+  .sn-group:nth-child(1) .sn-link:hover{background:rgba(var(--info-rgb),.07);}
+  .sn-group:nth-child(1) .sn-link.active{background:rgba(var(--info-rgb),.11);}
+  .sn-group:nth-child(1) .sn-link.active::before{background:var(--info);}
+  .sn-group:nth-child(2) .sn-link .ic,.sn-group:nth-child(2) .sn-link.active .ic{color:var(--teal);}
+  .sn-group:nth-child(2) .sn-link:hover{background:rgba(var(--teal-rgb),.07);}
+  .sn-group:nth-child(2) .sn-link.active{background:rgba(var(--teal-rgb),.11);}
+  .sn-group:nth-child(2) .sn-link.active::before{background:var(--teal);}
+  .sn-group:nth-child(3) .sn-link .ic,.sn-group:nth-child(3) .sn-link.active .ic{color:var(--blue);}
+  .sn-group:nth-child(3) .sn-link:hover{background:rgba(var(--blue-rgb),.07);}
+  .sn-group:nth-child(3) .sn-link.active{background:rgba(var(--blue-rgb),.11);}
+  .sn-group:nth-child(3) .sn-link.active::before{background:var(--blue);}
+  .sn-group:nth-child(4) .sn-link .ic,.sn-group:nth-child(4) .sn-link.active .ic{color:var(--red);}
+  .sn-group:nth-child(4) .sn-link:hover{background:rgba(var(--red-rgb),.07);}
+  .sn-group:nth-child(4) .sn-link.active{background:rgba(var(--red-rgb),.11);}
+  .sn-group:nth-child(4) .sn-link.active::before{background:var(--red);}
+  .sn-group:nth-child(5) .sn-link .ic,.sn-group:nth-child(5) .sn-link.active .ic{color:var(--green);}
+  .sn-group:nth-child(5) .sn-link:hover{background:rgba(var(--green-rgb),.07);}
+  .sn-group:nth-child(5) .sn-link.active{background:rgba(var(--green-rgb),.11);}
+  .sn-group:nth-child(5) .sn-link.active::before{background:var(--green);}
   /* the caption: small, grey, spaced — a heading for the rows under it, never a link */
   .sn-cap{font-size:10px;text-transform:uppercase;letter-spacing:.14em;font-weight:700;
     color:var(--ink-faint);padding:0 12px;margin-bottom:6px;white-space:nowrap;}
@@ -214,13 +237,15 @@
      chip — the v127 rule, kept: the accent is for actions, and where you are is stated
      quietly. */
   .sn-link{display:flex;align-items:center;gap:12px;text-decoration:none;font-size:13.5px;
-    font-weight:500;color:var(--ink-dim);padding:9px 12px;border-radius:var(--r-md);
+    font-weight:500;color:var(--ink-dim);padding:9px 12px;border-radius:var(--r-md);position:relative;
     letter-spacing:-.005em;white-space:nowrap;transition:color var(--tap),background var(--tap);}
-  .sn-link .ic{width:19px;height:19px;flex:0 0 auto;color:var(--ink-faint);transition:color var(--tap);}
+  .sn-link .ic{width:19px;height:19px;flex:0 0 auto;color:var(--ink-faint);opacity:.85;transition:color var(--tap),opacity var(--tap);}
   .sn-link:hover{color:var(--ink);background:var(--navy-2);}
-  .sn-link:hover .ic{color:var(--ink);}
+  .sn-link:hover .ic{opacity:1;}
+  /* where you are: a tint of its colour and a bar at the edge — never a solid fill */
   .sn-link.active{background:var(--navy-2);color:var(--ink-strong);font-weight:600;}
-  .sn-link.active .ic{color:var(--ink-strong);}
+  .sn-link.active .ic{opacity:1;}
+  .sn-link.active::before{content:"";position:absolute;left:-16px;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--ink-dim);}
   .sn-link:focus-visible{outline:none;box-shadow:var(--focus);}
   /* Finances carries the brand as COLOUR — caption, label, icon, and a tinted chip when you
      are on it — never as a saturated fill. */
@@ -230,6 +255,7 @@
   .sn-money .sn-link:hover{color:var(--orange-soft);background:rgba(var(--orange-rgb),.09);}
   .sn-money .sn-link.active{background:rgba(var(--orange-rgb),.12);color:var(--orange-soft);}
   .sn-money .sn-link.active .ic{color:var(--orange-soft);}
+  .sn-money .sn-link.active::before{background:var(--orange-soft);}
   /* the fold button: beside the brand at the top (v163.1 — Ash: "move it to the top"),
      quiet until hovered, gone in drawer mode */
   .sn-top{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-2);}
@@ -1490,6 +1516,75 @@
   .sl-row .undobar{margin:6px 0 0;}
   .sl-row.sl-gone{padding:0;border:0;background:none;cursor:default;}
   .sl-row.sl-gone:hover{transform:none;background:none;}
+
+  /* ===================== v239: THE DAY AT A GLANCE =====================
+     The Health page's shape on the page Ash opens first: the date as a hero with today's
+     jobs as a ring, then four numbers that are doors to their cards. Each card's icon sits
+     in a soft circle of its own colour, so the page reads at a glance. */
+  .day-head{display:flex;flex-direction:column;align-items:stretch;gap:14px;margin:26px 0 22px;}
+  .dh-hero{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:24px;
+    background:linear-gradient(120deg,rgba(var(--info-rgb),.12),rgba(var(--teal-rgb),.05) 45%,var(--card) 80%);
+    border:1px solid rgba(var(--info-rgb),.16);border-radius:18px;padding:26px 28px;
+    box-shadow:0 1px 2px rgba(var(--shadow-rgb),.04),0 6px 20px -10px rgba(var(--shadow-rgb),.14);}
+  .dh-hero::after{content:"";position:absolute;right:-60px;top:-80px;width:260px;height:260px;border-radius:50%;
+    background:radial-gradient(circle,rgba(var(--green-rgb),.09),transparent 70%);pointer-events:none;}
+  .dh-main{min-width:0;position:relative;z-index:1;}
+  .day-greet{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:var(--info);margin-bottom:6px;}
+  .day-date{font-size:34px;font-weight:800;letter-spacing:-.03em;line-height:1.05;}
+  .dh-side{display:flex;align-items:center;gap:18px;position:relative;z-index:1;}
+  .dring{position:relative;width:84px;height:84px;display:grid;place-items:center;flex:0 0 auto;}
+  .dring svg{position:absolute;inset:0;width:100%;height:100%;}
+  .dring circle{fill:none;stroke-width:7;}
+  .dring .trk{stroke:rgba(var(--green-rgb),.14);}
+  .dring .val{stroke:var(--green);stroke-linecap:round;transition:stroke-dasharray .6s ease;}
+  .dring > span{position:relative;display:flex;flex-direction:column;align-items:center;line-height:1;}
+  .dring b{font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--ink-strong);letter-spacing:-.02em;}
+  .dring b i{font-style:normal;font-size:14px;color:var(--ink-faint);font-weight:700;}
+  .dring small{font-size:10px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.08em;margin-top:3px;}
+  /* four numbers */
+  .day-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;}
+  .dstat{font:inherit;text-align:left;cursor:pointer;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:12px;align-items:center;
+    background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px;min-height:72px;
+    box-shadow:0 1px 2px rgba(var(--shadow-rgb),.04),0 6px 20px -12px rgba(var(--shadow-rgb),.14);
+    transition:border-color var(--tap),transform var(--tap);}
+  .dstat:hover{border-color:var(--ink-faint);transform:translateY(-1px);}
+  .dstat:active{transform:scale(.98);}
+  .dstat:focus-visible{outline:none;box-shadow:var(--focus);}
+  .dstat-ic{grid-row:1/3;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;}
+  .dstat-ic .ic{width:19px;height:19px;}
+  .dstat b{font-family:var(--font-display);font-size:24px;font-weight:800;letter-spacing:-.02em;color:var(--ink-strong);line-height:1.05;}
+  .dstat small{font-size:12px;color:var(--ink-faint);line-height:1.3;}
+  .dstat.t-jobs .dstat-ic{background:rgba(var(--green-rgb),.12);color:var(--green);}
+  .dstat.t-mail .dstat-ic{background:rgba(var(--info-rgb),.12);color:var(--info);}
+  .dstat.t-slack .dstat-ic{background:rgba(var(--blue-rgb),.12);color:var(--blue);}
+  .dstat.t-money .dstat-ic{background:rgba(var(--orange-rgb),.12);color:var(--orange);}
+  .dstat.clear b{color:var(--ink-faint);}
+  @media(prefers-reduced-motion:reduce){ .dstat:hover{transform:none;} .dring .val{transition:none;} }
+  /* each card's icon in a soft circle of its own colour */
+  .chead > .ic{width:32px;height:32px;padding:7px;border-radius:10px;box-sizing:border-box;flex:0 0 auto;
+    color:var(--orange);background:rgba(var(--orange-rgb),.1);}
+  .tl-card .chead > .ic{color:var(--green);background:rgba(var(--green-rgb),.12);}
+  .cal-card .chead > .ic{color:var(--teal);background:rgba(var(--teal-rgb),.12);}
+  .sl-card .chead > .ic{color:var(--blue);background:rgba(var(--blue-rgb),.12);}
+  .mail-card .chead > .ic{color:var(--info);background:rgba(var(--info-rgb),.12);}
+  .chead{gap:11px;}
+  @media(max-width:1100px){ .day-stats{grid-template-columns:repeat(2,minmax(0,1fr));} }
+  @media(max-width:640px){
+    .dh-hero{padding:20px;align-items:flex-start;}
+    .day-date{font-size:26px;}
+    .dh-side{flex-direction:column-reverse;align-items:flex-end;gap:10px;}
+    .dh-side .abtn{padding:7px 10px;}
+    .dring{width:64px;height:64px;}
+    .dring b{font-size:17px;}
+    .dstat{padding:12px;column-gap:10px;}
+    .dstat-ic{width:34px;height:34px;}
+    .dstat b{font-size:20px;}
+  }
+  /* money: no beige — a white row with an amber edge reads as "needs you" without
+     tinting the whole card the colour of old paper */
+  .mrow.warm{background:var(--card-2);border:1px solid var(--line);border-left:3px solid var(--amber);}
+  .fin-alert{background:rgba(var(--orange-rgb),.06);border-color:rgba(var(--orange-rgb),.25);}
+  .fin-alert:hover{background:rgba(var(--orange-rgb),.1);border-color:rgba(var(--orange-rgb),.45);}
 </style>
 <!-- v230: the focus timer, shared by every page so a block follows you between them -->
 <script src="/focus-timer.js"></script>
@@ -1554,7 +1649,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 <symbol id="ic-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12.5a7.5 7.5 0 0 1-10.9 6.7L4.5 20.5l1.3-4.2A7.5 7.5 0 1 1 20 12.5z"/><path d="M9 11.5h6M9 14.5h4"/></symbol>
 <symbol id="ic-heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/></symbol>
 </defs></svg>
-<!-- build v238 · cupboard-photos -->
+<!-- build v239 · the-day-at-a-glance -->
 <aside class="sidenav" id="sideNav" aria-label="Pages">
   <div class="sn-top">
     <a class="sn-brand" href="/daily.html">
@@ -1604,13 +1699,22 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
   </div>
 </header>
 
+<!-- v239: THE DAY AT A GLANCE. The date as a hero, how far through today's jobs as a ring,
+     and four numbers — jobs left, emails, Slack, money — each a door to its card. The Health
+     page's shape, which Ash liked: lead with the state of things, then the detail. -->
 <div class="day-head">
-  <div>
-    <div class="day-greet" id="dayGreet"></div>
-    <div class="day-date" id="dayDate">Today</div>
-    <div class="day-fresh" id="dayFresh"><span class="loading">Checking…</span></div>
+  <div class="dh-hero">
+    <div class="dh-main">
+      <div class="day-greet" id="dayGreet"></div>
+      <div class="day-date" id="dayDate">Today</div>
+      <div class="day-fresh" id="dayFresh"><span class="loading">Checking…</span></div>
+    </div>
+    <div class="dh-side">
+      <span id="dayRing"></span>
+      <button type="button" class="abtn" id="btnRefresh"><svg class="ic"><use href="#ic-refresh"/></svg> Refresh</button>
+    </div>
   </div>
-  <button type="button" class="abtn" id="btnRefresh"><svg class="ic"><use href="#ic-refresh"/></svg> Refresh</button>
+  <div class="day-stats" id="dayStats" aria-label="Today at a glance"></div>
 </div>
 
 <!-- v219: THE WAY IN. Ash: "I genuinely struggle to focus unless what I need to focus on is
@@ -1703,7 +1807,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 
 <div class="day-grid">
   <div class="day-main">
-    <section class="card">
+    <section class="card mail-card" id="mailCard">
       <div class="cardhead">
         <div>
           <div class="chead"><svg class="ic"><use href="#ic-mail"/></svg> Needs a reply</div>
@@ -1716,7 +1820,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
   </div>
 
   <div class="day-rail">
-    <section class="card">
+    <section class="card money-card" id="moneyCard">
       <div class="cardhead">
         <div>
           <div class="chead"><svg class="ic"><use href="#ic-card"/></svg> Money needing attention</div>
@@ -2244,6 +2348,7 @@ function mailItems() {
 }
 
 function renderMail() {
+  if (typeof renderDayStats === "function") renderDayStats();
   const body = $("mailBody"), right = $("mailHeadRight"), sub = $("mailSub");
   if (!body) return;
   right.innerHTML =
@@ -3193,6 +3298,7 @@ function moneyGroupHtml(title, tip, icon, rows, kind) {
 }
 
 function renderMoney() {
+  if (typeof renderDayStats === "function") renderDayStats();
   const body = $("moneyBody"), alert = $("moneyAlert");
   if (!body) return;
   alert.hidden = true;
@@ -3722,6 +3828,7 @@ function tlRowHtml(j, isParked) {
   return h + "</div>";
 }
 function renderTodayList() {
+  if (typeof renderDayStats === "function") renderDayStats();
   const body = $("tlBody"), sub = $("tlSub");
   if (!body) return;
   tlWireOnce();
@@ -3941,8 +4048,52 @@ function fmWire() {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && fmOpen) fmCloseMode(); });
 })();
 
+/* ---------- v239: the day at a glance — a ring for today's jobs, four numbers ---------- */
+function dayStatsHtml() {
+  let jobs = null, mail = null, slack = null, money = null;
+  try { const { live } = tlJobs(); jobs = { left: live.filter((j) => !j.done).length, done: live.filter((j) => j.done).length, all: live.length }; } catch (e) {}
+  try { if (!(mailLoading && !mailLive)) { const src = mailItems(); mail = src.items.filter((i) => i.tier !== "fyi" && i.tier !== "other").length; } } catch (e) {}
+  try { if (slBrief && slBrief.builtAt) slack = (slBrief.actions || []).length + (slBrief.sessions || []).filter((x) => !x.acknowledged).length; } catch (e) {}
+  try { if (stripeState && stripeState.ok !== false && stripeState.configured !== false) money = (stripeState.disputes || []).length + (stripeState.pastDue || []).length + (stripeState.failed || []).length; } catch (e) {}
+  const tile = (target, icon, n, words, tone) => '<button type="button" class="dstat ' + tone + (n ? "" : " clear") + '" data-go="' + target + '">' +
+    '<span class="dstat-ic"><svg class="ic"><use href="#' + icon + '"/></svg></span>' +
+    "<b>" + (n == null ? "–" : n) + "</b><small>" + words + "</small></button>";
+  return tile("tlCard", "ic-target", jobs ? jobs.left : null, jobs && jobs.left === 1 ? "job left today" : "jobs left today", "t-jobs") +
+    tile("mailCard", "ic-mail", mail, mail === 1 ? "email needs you" : "emails need you", "t-mail") +
+    tile("slCard", "ic-chat", slack, "on Slack to answer", "t-slack") +
+    tile("moneyCard", "ic-card", money, money === 1 ? "payment to sort" : "payments to sort", "t-money");
+}
+function dayRingHtml() {
+  let done = 0, all = 0;
+  try { const { live } = tlJobs(); all = live.length; done = live.filter((j) => j.done).length; } catch (e) {}
+  const r = 34, c = 2 * Math.PI * r, f = all ? done / all : 0;
+  return '<span class="dring" role="img" aria-label="' + done + " of " + all + ' jobs done today"><svg viewBox="0 0 84 84" aria-hidden="true">' +
+    '<circle class="trk" cx="42" cy="42" r="' + r + '"/><circle class="val" cx="42" cy="42" r="' + r + '" stroke-dasharray="' + (c * f).toFixed(1) + " " + c.toFixed(1) + '" transform="rotate(-90 42 42)"/></svg>' +
+    "<span><b>" + done + "<i>/" + all + "</i></b><small>done</small></span></span>";
+}
+let dayStatsTimer = 0;
+function renderDayStats() {
+  clearTimeout(dayStatsTimer);
+  dayStatsTimer = setTimeout(() => {
+    const st = $("dayStats"), rg = $("dayRing");
+    if (st) {
+      st.innerHTML = dayStatsHtml();
+      if (!st.dataset.wired) {
+        st.dataset.wired = "1";
+        st.addEventListener("click", (e) => {
+          const b = e.target.closest && e.target.closest("[data-go]");
+          const el = b && $(b.dataset.go);
+          if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      }
+    }
+    if (rg) rg.innerHTML = dayRingHtml();
+  }, 30);
+}
+
 /* ---------- freshness ---------- */
 function renderHead() {
+  if (typeof renderDayStats === "function") renderDayStats();
   const today = new Date();
   $("dayDate").textContent = dateWords(today);
   // v233: a greeting, by the hour — it is a page he opens first thing and last thing
@@ -4967,6 +5118,7 @@ function slColHtml(cls, name, rows, isShift, key, emptyText, extra) {
 }
 
 function renderSlack() {
+  if (typeof renderDayStats === "function") renderDayStats();
   const body = $("slBody"), sub = $("slSub"), tools = $("slTools");
   if (!body) return;
   // the box being typed in survives the redraw: its text is in slText, and focus goes back

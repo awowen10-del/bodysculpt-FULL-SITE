@@ -529,6 +529,7 @@
     html.nav-collapsed .sn-lbl{display:none;}
     html.nav-collapsed .sn-top{flex-direction:column;gap:var(--sp-3);}
     html.nav-collapsed .sn-fold .ic{transform:rotate(180deg);}
+    html.nav-collapsed .sn-link.active::before{left:-12px;}
   }
   .sidenav{position:fixed;left:0;top:0;bottom:0;width:236px;z-index:90;display:flex;
     flex-direction:column;gap:var(--sp-5);padding:var(--sp-5) var(--sp-4);overflow-y:auto;
@@ -536,13 +537,35 @@
   .sn-brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;
     padding:0 var(--sp-2);border-radius:var(--r-md);}
   .sn-brand:focus-visible{outline:none;box-shadow:var(--focus);}
-  .sn-brand .mark{width:36px;height:36px;border-radius:var(--r-md);overflow:hidden;flex:0 0 auto;
-    border:1px solid var(--line);background:var(--mark-bg);}
-  .sn-brand h1{font-size:14.5px;font-weight:600;letter-spacing:-.012em;line-height:1.15;color:var(--ink-strong);}
+  .sn-brand .mark{width:40px;height:40px;border-radius:var(--r-md);overflow:hidden;flex:0 0 auto;
+    border:1px solid var(--line);background:var(--mark-bg);box-shadow:var(--shadow);}
+  .sn-brand h1{font-family:var(--font-display);font-size:16px;font-weight:800;letter-spacing:-.02em;line-height:1.15;color:var(--ink-strong);}
   .sn-brand .sub{font-size:10.5px;color:var(--ink-faint);font-weight:500;letter-spacing:.05em;
     text-transform:uppercase;margin-top:1px;}
   .sn-nav{display:flex;flex-direction:column;gap:var(--sp-5);}
   .sn-group{display:flex;flex-direction:column;gap:2px;}
+  /* v239: each part of the business has a colour, worn by its icons and by the page you are
+     on — the way the Health page colours its nights. Finances keeps the brand terracotta. */
+  .sn-group:nth-child(1) .sn-link .ic,.sn-group:nth-child(1) .sn-link.active .ic{color:var(--info);}
+  .sn-group:nth-child(1) .sn-link:hover{background:rgba(var(--info-rgb),.07);}
+  .sn-group:nth-child(1) .sn-link.active{background:rgba(var(--info-rgb),.11);}
+  .sn-group:nth-child(1) .sn-link.active::before{background:var(--info);}
+  .sn-group:nth-child(2) .sn-link .ic,.sn-group:nth-child(2) .sn-link.active .ic{color:var(--teal);}
+  .sn-group:nth-child(2) .sn-link:hover{background:rgba(var(--teal-rgb),.07);}
+  .sn-group:nth-child(2) .sn-link.active{background:rgba(var(--teal-rgb),.11);}
+  .sn-group:nth-child(2) .sn-link.active::before{background:var(--teal);}
+  .sn-group:nth-child(3) .sn-link .ic,.sn-group:nth-child(3) .sn-link.active .ic{color:var(--blue);}
+  .sn-group:nth-child(3) .sn-link:hover{background:rgba(var(--blue-rgb),.07);}
+  .sn-group:nth-child(3) .sn-link.active{background:rgba(var(--blue-rgb),.11);}
+  .sn-group:nth-child(3) .sn-link.active::before{background:var(--blue);}
+  .sn-group:nth-child(4) .sn-link .ic,.sn-group:nth-child(4) .sn-link.active .ic{color:var(--red);}
+  .sn-group:nth-child(4) .sn-link:hover{background:rgba(var(--red-rgb),.07);}
+  .sn-group:nth-child(4) .sn-link.active{background:rgba(var(--red-rgb),.11);}
+  .sn-group:nth-child(4) .sn-link.active::before{background:var(--red);}
+  .sn-group:nth-child(5) .sn-link .ic,.sn-group:nth-child(5) .sn-link.active .ic{color:var(--green);}
+  .sn-group:nth-child(5) .sn-link:hover{background:rgba(var(--green-rgb),.07);}
+  .sn-group:nth-child(5) .sn-link.active{background:rgba(var(--green-rgb),.11);}
+  .sn-group:nth-child(5) .sn-link.active::before{background:var(--green);}
   /* the caption: small, grey, spaced — a heading for the rows under it, never a link */
   .sn-cap{font-size:10px;text-transform:uppercase;letter-spacing:.14em;font-weight:700;
     color:var(--ink-faint);padding:0 12px;margin-bottom:6px;white-space:nowrap;}
@@ -550,13 +573,15 @@
      chip — the v127 rule, kept: the accent is for actions, and where you are is stated
      quietly. */
   .sn-link{display:flex;align-items:center;gap:12px;text-decoration:none;font-size:13.5px;
-    font-weight:500;color:var(--ink-dim);padding:9px 12px;border-radius:var(--r-md);
+    font-weight:500;color:var(--ink-dim);padding:9px 12px;border-radius:var(--r-md);position:relative;
     letter-spacing:-.005em;white-space:nowrap;transition:color var(--tap),background var(--tap);}
-  .sn-link .ic{width:19px;height:19px;flex:0 0 auto;color:var(--ink-faint);transition:color var(--tap);}
+  .sn-link .ic{width:19px;height:19px;flex:0 0 auto;color:var(--ink-faint);opacity:.85;transition:color var(--tap),opacity var(--tap);}
   .sn-link:hover{color:var(--ink);background:var(--navy-2);}
-  .sn-link:hover .ic{color:var(--ink);}
+  .sn-link:hover .ic{opacity:1;}
+  /* where you are: a tint of its colour and a bar at the edge — never a solid fill */
   .sn-link.active{background:var(--navy-2);color:var(--ink-strong);font-weight:600;}
-  .sn-link.active .ic{color:var(--ink-strong);}
+  .sn-link.active .ic{opacity:1;}
+  .sn-link.active::before{content:"";position:absolute;left:-16px;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--ink-dim);}
   .sn-link:focus-visible{outline:none;box-shadow:var(--focus);}
   /* Finances carries the brand as COLOUR — caption, label, icon, and a tinted chip when you
      are on it — never as a saturated fill. */
@@ -566,6 +591,7 @@
   .sn-money .sn-link:hover{color:var(--orange-soft);background:rgba(var(--orange-rgb),.09);}
   .sn-money .sn-link.active{background:rgba(var(--orange-rgb),.12);color:var(--orange-soft);}
   .sn-money .sn-link.active .ic{color:var(--orange-soft);}
+  .sn-money .sn-link.active::before{background:var(--orange-soft);}
   /* the fold button: beside the brand at the top (v163.1 — Ash: "move it to the top"),
      quiet until hovered, gone in drawer mode */
   .sn-top{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-2);}
@@ -2037,7 +2063,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 
   <footer>
     <span class="stage" id="srcPill"><svg class="ic"><use href="#ic-dot"/></svg> Your data</span>
-    <span class="stage" style="margin-left:10px;opacity:.5;">build v238 · cupboard-photos</span>
+    <span class="stage" style="margin-left:10px;opacity:.5;">build v239 · the-day-at-a-glance</span>
   </footer>
 </div>
 
