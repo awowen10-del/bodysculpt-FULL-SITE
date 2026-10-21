@@ -53,20 +53,20 @@
   }
   :root{
     color-scheme:light;
-    /* THREE TIERS OF DEPTH, and they must stay three: the page (--navy) is a soft warm
-       paper (v233 — it was a cool grey, which left the terracotta brand looking pasted on);
-       the card (--card) is white and therefore visibly LIFTS off it; --line is a fine warm
-       hairline that draws the card's edge. Tone step + hairline do the
+    /* THREE TIERS OF DEPTH, and they must stay three: the page (--navy) is "Mist", a soft,
+       light cool grey (v234 — Ash chose it from four over v233's warm paper, which read as
+       beige); the card (--card) is white and therefore visibly LIFTS off it; --line is a fine
+       cool hairline that draws the card's edge. Tone step + hairline do the
        work — the shadows below are deliberately soft. --navy-2 is the recessed inset inside
        a card (toolbars, sticky heads, sub-panels), so it sits BELOW the card, not above.
        v121 deepened the page a step and tightened the hairline, so a white card reads as an
        object on the page rather than blending into it. */
-    --navy:#f4f1ec; --navy-2:#ebe7e0; --card:#ffffff; --card-2:#faf8f5;
-    --line:#e4dfd6; --line-rgb:228,223,214;
-    /* dark-but-soft ink — a warm near-black, never #000; --ink-dim/-faint are muted stones.
+    --navy:#f3f5f8; --navy-2:#e9ecf1; --card:#ffffff; --card-2:#f9fafc;
+    --line:#e1e5eb; --line-rgb:225,229,235;
+    /* dark-but-soft ink — a cool near-black, never #000; --ink-dim/-faint are muted greys.
        The ramp runs strong → ink → dim → faint, lightening at every step. */
-    --ink:#1d1a16; --ink-dim:#5c564e; --ink-faint:#787168; --ink-strong:#120f0c;
-    --ink-dim-rgb:92,86,78; --ink-faint-rgb:120,113,104;
+    --ink:#171b22; --ink-dim:#59616f; --ink-faint:#737c8a; --ink-strong:#0b0e14;
+    --ink-dim-rgb:89,97,111; --ink-faint-rgb:115,124,138;
     --on-accent:#fff;
     /* THE BRAND. v108 pointed this at a muted slate-blue, which was safe and completely
        anonymous — near enough the framework default that the app read as unbranded. v121
@@ -79,7 +79,10 @@
        have read as shades of the brand instead of as states. */
     --amber:#96700a; --amber-2:#85620a; --amber-rgb:150,112,10; --amber2-rgb:133,98,10;
     --red:#ab1338; --red-2:#911029; --red-rgb:171,19,56; --red2-rgb:145,16,41;
-    --teal:#0d7d8a; --teal-soft:#0a6873; --teal-bright:#08555e; --teal-rgb:13,125,138;
+    /* "teal" is a NAME, like "orange": it is recurring / from-the-weekly-plan. v234 made it a
+       deep slate — Ash did not like the teal, and slate is terracotta's natural partner on a
+       warm page. Still clear of green (done) and the purples (home, Warrington). */
+    --teal:#3e5c76; --teal-soft:#344f66; --teal-bright:#2b4357; --teal-rgb:62,92,118;
     /* home/buffer is indigo; the Warrington badge moved off copper to plum in v121, because
        copper existed only to dodge a blue brand and now sat right on top of a warm one. */
     --blue:#6247b5; --blue-soft:#513a99; --blue-rgb:98,71,181;
@@ -89,14 +92,14 @@
        hue, so a pale text colour would vanish */
     --tint-red:#8f1030; --tint-amber:#6f5308; --tint-green:#136540;
     --tint-blue:#46337f; --tint-orange:#8f3813;
-    --panel-0:#f8f6f2; --panel-1:#f3f0ea; --panel-2:#ece8e1;
-    --hero-1:#f9f7f3; --hero-2:#f4f1ec; --hero-3:#ebe7df;
-    --mark-bg:#efebe4; --chart-grid:#e6e1d8;
-    /* a warm near-black scrim genuinely dims the page behind a modal; the shadow and the
+    --panel-0:#f6f8fb; --panel-1:#f0f3f7; --panel-2:#e9edf3;
+    --hero-1:#f8f9fc; --hero-2:#f3f5f8; --hero-3:#e9ecf2;
+    --mark-bg:#edf0f5; --chart-grid:#e2e7ee;
+    /* a cool near-black scrim genuinely dims the page behind a modal; the shadow and the
        hover "lift" are the ink tone at low alpha, so a hover DARKENS the surface it sits on. */
-    --backdrop-rgb:30,25,20;
-    --shadow-rgb:46,36,26;
-    --lift-rgb:46,36,26;
+    --backdrop-rgb:20,26,38;
+    --shadow-rgb:23,27,34;
+    --lift-rgb:23,27,34;
     /* TWO shadow steps, not one. A single large soft shadow on every card reads as haze on
        a light page: --shadow just separates a card from the ground, --shadow-lift is for
        things that genuinely float (modals, popovers, the week picker). */
