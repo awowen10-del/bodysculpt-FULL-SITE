@@ -32,7 +32,7 @@ const RETIRED_GLYPHS = ["✕", "▸", "▾", "▲", "▼", "◐", "▶", "×", "
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v237 · food-design-pass";
+  const text = "build v238 · cupboard-photos";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html", "ads.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }

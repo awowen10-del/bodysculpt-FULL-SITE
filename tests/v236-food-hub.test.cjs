@@ -78,10 +78,10 @@ function meal(night, name, extra) {
      ===================================================================== */
   {
     assert.deepStrictEqual({ ...lib.FOOD_MODELS }, { readPhoto: "claude-haiku-5-5", createMenu: "claude-opus-5-5", swapMeal: "claude-opus-5-5", changeMenu: "claude-opus-5-5",
-      useRecipe: "claude-opus-5-5" }, "the model strings live in FOOD_MODELS");
-    assert.deepStrictEqual({ ...lib.FOOD_EFFORT }, { readPhoto: "low", createMenu: "high", swapMeal: "high", changeMenu: "high", useRecipe: "high" },
+      useRecipe: "claude-opus-5-5", readCupboard: "claude-sonnet-5-5" }, "the model strings live in FOOD_MODELS");
+    assert.deepStrictEqual({ ...lib.FOOD_EFFORT }, { readPhoto: "low", createMenu: "high", swapMeal: "high", changeMenu: "high", useRecipe: "high", readCupboard: "low" },
       "…and how hard each job thinks in FOOD_EFFORT");
-    assert.strictEqual((read("netlify/lib/food.js").match(/"claude-[a-z0-9-]+"/g) || []).length, 5, "…named nowhere else in the food lib");
+    assert.strictEqual((read("netlify/lib/food.js").match(/"claude-[a-z0-9-]+"/g) || []).length, 6, "…named nowhere else in the food lib");
     for (const f of ["netlify/functions/food.js", "netlify/functions/food-background.js", "food.js", "food.html"]) {
       assert.ok(!/"claude-[a-z0-9-]+"/.test(read(f)), f + " names no model of its own");
     }
@@ -509,7 +509,7 @@ function meal(night, name, extra) {
     for (const f of ["netlify/functions/food.js", "netlify/functions/food-background.js"]) assert.ok(/process\.env\.ANTHROPIC_API_KEY/.test(read(f)), f + " reads the key on the server");
     assert.ok(!/food\.js|fhHub|food-plan|FOOD_/.test(read("daily.html")), "the Daily page (where the Today view lives now) has nothing of the Food hub");
     assert.ok(/\[functions\."food"\]\s+timeout = 26/.test(read("netlify.toml")), "the photo reader gets the full 26 seconds");
-    for (const f of ["index.html", "daily.html", "health.html"]) assert.ok(read(f).includes("build v237 · food-design-pass"), f + " is stamped health-and-fitness");
+    for (const f of ["index.html", "daily.html", "health.html"]) assert.ok(read(f).includes("build v238 · cupboard-photos"), f + " is stamped health-and-fitness");
   }
 
   /* =====================================================================
@@ -690,6 +690,48 @@ function meal(night, name, extra) {
     r = await run("2026-10-21T08:00:00", { "2026-10-19": bagWeek("2026-10-21", "wed") });
     assert.ok(/Slow cooker:<\/b> 8 hours on LOW, or 4 hours on HIGH/.test(r.els.tonight.innerHTML), "on the day, the slow cooker times");
     assert.ok(r.els.tomorrow.hidden, "…and no reminder when tomorrow has no frozen bag");
+  }
+
+  /* =====================================================================
+     17. CUPBOARD PHOTOS (v238): snap the cupboard, check the list, add it
+     ===================================================================== */
+  {
+    const c = fakeClient([{ items: [
+      { name: "Smoked paprika", category: "spices", qty: 1, unit: "count", storage: "cupboard" },
+      { name: "Tinned chopped tomatoes", category: "cupboard", qty: 4, unit: "count", storage: "cupboard" },
+      { name: "smoked paprika", category: "spices", qty: 1, unit: "count", storage: "cupboard" },
+      { name: "Soy sauce", category: "sauces", qty: 0, unit: "count", storage: "cupboard" },
+      { name: "", category: "fresh", qty: 1, unit: "count", storage: "fridge" }], note: "" }]);
+    const r = await lib.readCupboard(c, { jpegBase64: "AAAA" });
+    assert.ok(r.ok, "a cupboard photo is read");
+    assert.strictEqual(c.calls[0].model, "claude-sonnet-5-5", "…by Sonnet 5.5 — recognising every jar on a shelf needs more than reading a sign");
+    assert.ok(c.calls[0].output_config.effort === "low" && c.calls[0].output_config.format.type === "json_schema", "…quickly, against a schema");
+    assert.ok(/spices \(dried herbs, spices, seasoning blends\), staples \(only: oil, salt, black pepper, stock cubes, plain flour\)/.test(c.calls[0].system),
+      "…told what each category means, staples kept to the never-buy list");
+    assert.deepStrictEqual(r.items.map((i) => [i.name, i.category]), [["Smoked paprika", "spices"], ["Tinned chopped tomatoes", "cupboard"], ["Soy sauce", "sauces"]],
+      "every item sorted into its category — the same thing twice, or a blank, only once or not at all");
+    assert.strictEqual(r.items[2].qty, 1, "an uncounted jar counts as one");
+    const bad = await lib.readCupboard(fakeClient([{ items: "lots" }]), { jpegBase64: "AAAA" });
+    assert.ok(!bad.ok, "an answer in the wrong shape is refused");
+    assert.ok(!(await lib.readCupboard(fakeClient([]), { jpegBase64: "" })).ok, "no photo, no call");
+
+    const fn = read("netlify/functions/food.js");
+    assert.ok(/body\.action === "readPhoto" \|\| body\.action === "readCupboard"/.test(fn), "the quick food function reads cupboard photos too, inside its 26 seconds");
+
+    // the store takes a big cupboard in one go
+    const many = Array.from({ length: 60 }, (_, i) => ({ name: "jar " + i, qty: 1, unit: "count", category: "cupboard", storage: "cupboard" }));
+    const inv2 = (await K.POST({ foodInventory: { op: "add", items: many } })).inventory;
+    assert.strictEqual(inv2.items.filter((i) => /^jar \d+$/.test(i.name)).length, 60, "sixty things from a few photos are all added");
+    for (const it of inv2.items.filter((i) => /^jar \d+$/.test(i.name))) await K.POST({ foodInventory: { op: "remove", id: it.id } });
+
+    // the page: several photos, read one by one, anything already in the kitchen left out, checked before adding
+    const fj = read("food.js");
+    assert.ok(/id="fhPantryPhoto" accept="image\/\*,\.heic,\.heif" multiple/.test(fj), "Read from photos takes several photos at once, iPhone HEIC included");
+    assert.ok(/action: "readCupboard", jpegBase64: await fhToJpeg\(files\[n\]\)/.test(fj), "…each made a small JPEG and read in turn");
+    assert.ok(/if \(have\.has\(k\)\) \{ skipped\+\+; continue; \}/.test(fj), "…leaving out what is already in the kitchen");
+    assert.ok(/onclick="fhPantryAdd\(\)"/.test(fj) && /onchange="fhPantryEdit\(' \+ i \+ ',\\'category\\'/.test(fj), "…and nothing is added until checked, each category changeable");
+    const key = new Function(fj.slice(fj.indexOf("function fhKey"), fj.indexOf("function fhPantryEdit")) + "; return fhKey;")();
+    assert.strictEqual(key("Colman's Mustard Powder (100g)"), lib.productKey("Colman's Mustard Powder (100g)"), "the page matches names the way the server does");
   }
 
   console.log("v236-food-hub: all assertions passed");

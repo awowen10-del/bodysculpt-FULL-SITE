@@ -1284,7 +1284,8 @@ export default async (req) => {
       const inv = (await store.get(FOOD_INVENTORY_KEY, { type: "json" })) || foodDefaultInventory();
       inv.items = Array.isArray(inv.items) ? inv.items : [];
       if (f.op === "add" && Array.isArray(f.items)) {
-        for (const raw of f.items.slice(0, 40)) {
+        // a few cupboard photos can find a lot at once
+        for (const raw of f.items.slice(0, 150)) {
           if (!raw || typeof raw !== "object") continue;
           const it = foodCleanItem(raw, null);
           if (it.name && inv.items.length < 400) inv.items.push(it);

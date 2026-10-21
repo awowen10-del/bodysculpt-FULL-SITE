@@ -36,7 +36,7 @@ const FH_RATERS = [["polly", "Polly"], ["artie", "Artie"], ["adults", "Us"]];
 
 let fhState = { week: "", locations: {}, loading: false, plan: null, inventory: null, settings: null, taste: null, products: {}, defaults: null,
   book: { recipes: [] }, bookOpen: {}, bookFor: "",
-  job: null, busy: "", error: "", note: "", open: {}, productFor: "", photoItems: null, showPaste: false, confirmCreate: false, saveTimer: null };
+  job: null, busy: "", error: "", note: "", open: {}, productFor: "", photoItems: null, pantryItems: null, photoStep: "", showPaste: false, confirmCreate: false, saveTimer: null };
 
 const fhE = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const fhMoney = (n) => "£" + (Number(n) || 0).toFixed(2);
@@ -80,7 +80,7 @@ async function fhCopyText(text) {
 function fhEnsure(week) {
   if (!week || fhState.week === week || fhState.loading === week) return;
   fhState = { ...fhState, week, locations: {}, loading: week, plan: null, job: null, busy: "", error: "", note: "", open: {}, productFor: "",
-    photoItems: null, showPaste: false, confirmCreate: false };
+    photoItems: null, pantryItems: null, photoStep: "", showPaste: false, confirmCreate: false };
   Promise.all([
     fhGet(FH_STORE + "?foodplan=" + encodeURIComponent(week)).catch(() => ({ plan: null })),
     fhGet(FH_STORE + "?foodinventory=1").catch(() => ({ inventory: { items: [] } })),
@@ -147,7 +147,7 @@ function fhInnerHtml() {
   if (fhState.loading || !fhState.plan) return '<div class="fh-loading">Loading this week’s food…</div>';
   const jobNote = fhState.busy && fhState.job && fhState.job.status === "running" && fhState.job.stageNote;
   const working = jobNote || { createMenu: "Writing this week’s menu — meals appear below as each one is written…", swapMeal: "Swapping that meal…",
-    changeMenu: "Making that change…", useRecipe: "Putting that recipe into the week…", photo: "Reading the sign…" }[fhState.busy] || "";
+    changeMenu: "Making that change…", useRecipe: "Putting that recipe into the week…", photo: "Reading the sign…", pantry: fhState.photoStep || "Reading the photo…" }[fhState.busy] || "";
   const tab = fhTabNow();
   const panel = (key, html) => '<div class="fh-panel" role="tabpanel" id="fhp-' + key + '" aria-labelledby="fht-' + key + '"' + (tab === key ? "" : " hidden") + ">" + html + "</div>";
   return (fhState.error ? '<div class="fh-msg bad" role="alert">' + fhE(fhState.error) + "</div>" : "") +
@@ -297,7 +297,10 @@ function fhMeatHtml() {
 }
 /* 2. CUPBOARD & FRIDGE */
 function fhPantryHtml() {
-  return '<section class="fh-sec"><div class="fh-h"><span>Cupboard &amp; fridge</span></div>' +
+  return '<section class="fh-sec"><div class="fh-h"><span>Cupboard &amp; fridge</span>' +
+    '<span class="fh-h-acts"><button type="button" class="fh-b sm" onclick="fhPantryPick()"' + (fhState.busy ? " disabled" : "") + '><svg class="ic"><use href="#ic-camera"/></svg>Read from photos</button></span>' +
+    '<input type="file" id="fhPantryPhoto" accept="image/*,.heic,.heif" multiple hidden onchange="fhPantryChosen(this)"></div>' +
+    (fhState.pantryItems ? fhPantryCheckHtml() : '<div class="fh-small">Snap the cupboard, the fridge or the spice rack — as many photos as you like — and check the list before it’s added.</div>') +
     FH_CATS.map(([cat, label]) => {
       const items = fhItems(cat);
       const body = '<div class="fh-chips">' + items.map((i) => '<span class="fh-chip">' + fhE(i.name) +
@@ -312,6 +315,19 @@ function fhPantryHtml() {
       return fold ? '<details class="fh-cat"><summary>' + label + " <small>" + items.length + "</small></summary>" + body + "</details>"
         : '<div class="fh-cat"><div class="fh-cat-h">' + label + "</div>" + body + "</div>";
     }).join("") + "</section>";
+}
+// what the photos found, sorted, each one editable — nothing is added until "Add these"
+function fhPantryCheckHtml() {
+  const items = fhState.pantryItems;
+  const cats = FH_CATS;
+  return '<div class="fh-check"><div class="fh-small"><b>' + items.length + " found.</b> Check the names and where each one goes, then add them." +
+      (fhState.pantrySkipped ? " " + fhState.pantrySkipped + " you already have " + (fhState.pantrySkipped === 1 ? "was" : "were") + " left out." : "") + "</div>" +
+    items.map((p, i) => '<div class="fh-check-row"><input value="' + fhE(p.name) + '" onchange="fhPantryEdit(' + i + ',\'name\',this.value)" aria-label="Item">' +
+      '<select onchange="fhPantryEdit(' + i + ',\'category\',this.value)" aria-label="Where it goes">' + cats.map(([k, l]) => '<option value="' + k + '"' + (p.category === k ? " selected" : "") + ">" + l + "</option>").join("") + "</select>" +
+      '<button type="button" class="fh-x" aria-label="Leave out ' + fhE(p.name) + '" onclick="fhPantryDrop(' + i + ')">×</button></div>').join("") +
+    '<div class="fh-row"><button type="button" class="fh-b go sm" onclick="fhPantryAdd()"' + (items.length ? "" : " disabled") + ">Add these " + items.length + "</button>" +
+    '<button type="button" class="fh-b ghost sm" onclick="fhPantryPick()">Add another photo</button>' +
+    '<button type="button" class="fh-b ghost sm" onclick="fhPantryCancel()">Cancel</button></div></div>';
 }
 /* 3. THIS WEEK'S SITUATION */
 function fhSituationHtml() {
@@ -586,6 +602,48 @@ async function fhPhotoChosen(input) {
 function fhPhotoEdit(i, f, v) { const p = fhState.photoItems && fhState.photoItems[i]; if (p) p[f] = f === "qty" ? Number(v) || 0 : v; }
 function fhPhotoDrop(i) { fhState.photoItems.splice(i, 1); fhRender(); }
 function fhPhotoCancel() { fhState.photoItems = null; fhRender(); }
+/* cupboard photos: several at once, read one after another, merged — anything already in the kitchen left out */
+function fhPantryPick() { const el = document.getElementById("fhPantryPhoto"); if (el) el.click(); }
+async function fhPantryChosen(input) {
+  const files = Array.from((input && input.files) || []);
+  if (input) input.value = "";
+  if (!files.length) return;
+  fhState.busy = "pantry"; fhState.error = ""; fhState.note = "";
+  const have = new Set(((fhState.inventory && fhState.inventory.items) || []).map((i) => fhKey(i.name)));
+  const found = (fhState.pantryItems || []).slice();
+  const seen = new Set(found.map((p) => fhKey(p.name)));
+  let skipped = fhState.pantrySkipped || 0, failed = 0, lastErr = "";
+  for (let n = 0; n < files.length; n++) {
+    fhState.photoStep = files.length > 1 ? "Reading photo " + (n + 1) + " of " + files.length + "…" : "Reading the photo…";
+    fhRender();
+    try {
+      const r = await fhPost(FH_FN, { action: "readCupboard", jpegBase64: await fhToJpeg(files[n]) });
+      if (!r.ok) throw new Error(r.error || "Couldn’t read that photo.");
+      for (const it of r.items || []) {
+        const k = fhKey(it.name);
+        if (!k || seen.has(k)) continue;
+        seen.add(k);
+        if (have.has(k)) { skipped++; continue; }
+        found.push(it);
+      }
+      if (r.note && !(r.items || []).length) lastErr = r.note;
+    } catch (e) { failed++; lastErr = (e && e.message && !/^HTTP/.test(e.message)) ? e.message : "Couldn’t read that photo."; }
+  }
+  fhState.pantryItems = found; fhState.pantrySkipped = skipped; fhState.photoStep = ""; fhState.busy = "";
+  if (failed || (!found.length && lastErr)) fhState.error = (failed > 1 ? failed + " photos couldn’t be read. " : "") + (lastErr || "") + (found.length ? "" : " Try a closer, brighter photo.");
+  fhRender();
+}
+// the same name key the server uses for products and staples
+function fhKey(name) { return String(name || "").toLowerCase().replace(/\([^)]*\)/g, " ").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim(); }
+function fhPantryEdit(i, f, v) { const p = fhState.pantryItems && fhState.pantryItems[i]; if (p) p[f] = v; }
+function fhPantryDrop(i) { fhState.pantryItems.splice(i, 1); fhRender(); }
+function fhPantryCancel() { fhState.pantryItems = null; fhState.pantrySkipped = 0; fhRender(); }
+function fhPantryAdd() {
+  const items = (fhState.pantryItems || []).filter((p) => p.name).map((p) => ({ name: p.name, qty: p.qty || 1, unit: p.unit || "count",
+    category: p.category, storage: p.storage || (p.category === "fresh" ? "fridge" : "cupboard"), added: fhToday() }));
+  fhState.pantryItems = null; fhState.pantrySkipped = 0;
+  fhAddItems(items, "Added " + items.length + " to the kitchen.");
+}
 function fhPhotoAdd() {
   const items = (fhState.photoItems || []).filter((p) => p.name).map((p) => ({ name: p.name, qty: p.qty, unit: p.unit, category: "meat", storage: "fridge", added: fhToday() }));
   fhState.photoItems = null;

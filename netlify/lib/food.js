@@ -35,6 +35,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 /* ---------- the models, and how hard each thinks: change them here and only here ---------- */
 export const FOOD_MODELS = {
   readPhoto: "claude-haiku-5-5",    // reading a butcher's sign is a simple job
+  readCupboard: "claude-sonnet-5-5", // recognising every jar and packet on a shelf is not — and must answer inside 22 seconds
   createMenu: "claude-opus-5-5",
   swapMeal: "claude-opus-5-5",
   changeMenu: "claude-opus-5-5",
@@ -45,6 +46,7 @@ export const FOOD_MODELS = {
    three menu jobs think hard. "xhigh" is the next step up. */
 export const FOOD_EFFORT = {
   readPhoto: "low",
+  readCupboard: "low",
   createMenu: "high",
   swapMeal: "high",
   changeMenu: "high",
@@ -215,6 +217,8 @@ const Buy = z.object({ name: z.string(), qty: z.string(), aisle: z.string(), nig
 export const MenuOut = z.object({ meals: z.array(Meal), prepSession: Prep, toBuy: z.array(Buy), endLeftovers: z.array(z.string()) });
 export const ChangeOut = z.object({ changedNights: z.array(Day), meals: z.array(Meal), prepSession: Prep, toBuy: z.array(Buy),
   endLeftovers: z.array(z.string()), summary: z.string() });
+export const CupboardOut = z.object({ items: z.array(z.object({ name: z.string(), category: z.enum(["fresh", "cupboard", "sauces", "spices", "staples"]),
+  qty: z.number(), unit: z.enum(UNITS), storage: z.enum(["fridge", "freezer", "cupboard"]) })), note: z.string() });
 export const PhotoOut = z.object({ items: z.array(z.object({ name: z.string(), qty: z.number(), unit: z.enum(UNITS) })), note: z.string() });
 
 /* ---------- the request: everything, every time ---------- */
@@ -513,6 +517,27 @@ export async function readPhoto(client, { jpegBase64 }) {
   if (!c.success) return { ok: false, error: "Could not read that sign." };
   return { ok: true, items: c.data.items.slice(0, 40).map((i) => ({ name: str(i.name, 80), qty: num(i.qty, 0, 100000), unit: i.unit })).filter((i) => i.name),
     note: str(c.data.note, 300) };
+}
+// a photo of a cupboard, the fridge, the spice rack: every food item, sorted into the hub's categories
+export async function readCupboard(client, { jpegBase64 }) {
+  if (!jpegBase64 || jpegBase64.length > 6_000_000) return { ok: false, error: "That photo is missing or too large." };
+  const r = await askClaude(client, {
+    model: FOOD_MODELS.readCupboard, maxTokens: 6000, effort: FOOD_EFFORT.readCupboard, schema: CupboardOut,
+    system: "You list the food in a photo of a UK family's kitchen cupboard, fridge, freezer or spice rack, so it can be added to their kitchen inventory. " +
+      "List every food or cooking item you can identify, by its plain everyday name (\"smoked paprika\", \"tinned chopped tomatoes\", \"soy sauce\", \"basmati rice\"), with the brand only when it IS the product (\"Knorr Aromat\", \"Nando's Peri-Salt\", \"Colman's mustard powder\"). " +
+      "category: fresh (fridge food that goes off: veg, fruit, dairy, eggs, opened jars that need the fridge), cupboard (tins, pasta, rice, grains, jars, baking, snacks), sauces (sauces and condiments: ketchup, soy, mayo, pesto, stock pots), " +
+      "spices (dried herbs, spices, seasoning blends), staples (only: oil, salt, black pepper, stock cubes, plain flour). " +
+      "qty and unit: a count of packs, tins or jars (unit \"count\") unless a weight or volume is clear for something loose or fresh. storage: where the photo shows it. " +
+      "Do not guess at things you cannot make out, and do not list non-food items. If the photo is not of food, return no items and say so in note.",
+    content: [{ type: "image", source: { type: "base64", media_type: "image/jpeg", data: jpegBase64 } }, { type: "text", text: "List the food in this photo." }],
+  });
+  if (!r.ok) return r;
+  const c = CupboardOut.safeParse(r.data);
+  if (!c.success) return { ok: false, error: "Could not read that photo." };
+  const seen = new Set();
+  const items = c.data.items.slice(0, 80).map((i) => ({ name: str(i.name, 80), category: i.category, qty: num(i.qty, 0, 100000) || 1, unit: i.unit, storage: i.storage }))
+    .filter((i) => i.name && !seen.has(productKey(i.name)) && seen.add(productKey(i.name)));
+  return { ok: true, items, note: str(c.data.note, 300) };
 }
 async function getJSON(store, key) { return (await store.get(key, { type: "json" })) || null; }
 async function setJob(store, week, patch) {
