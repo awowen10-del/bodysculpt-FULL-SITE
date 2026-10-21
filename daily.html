@@ -2415,6 +2415,8 @@ async function loadGmail() {
    band rather than a clock time: a job you have given yourself the afternoon for should not
    pretend to be a 14:00 appointment. */
 const WP_BANDS = [
+  // v227: a project step with a day and no time yet — first, because it has no time to wait for
+  ["any",   "Anytime", 0],
   ["6-9",   "6–9",     6],
   ["10-12", "9–11.30", 9],
   ["1-3",   "12–3",   12],
@@ -2435,6 +2437,8 @@ function agendaWeekOf(offset) {
    test asserts that: every request to the store that carries a method posts { weeklyTick }
    and nothing else. Where a task's tick actually LIVES is not known here and must not be. */
 async function tickTask(tgt, done) {
+  // v227: a project step's tick is the step's, through the projects store's stepLink route
+  if (tgt && tgt.p) return fmTickStep({ projectId: tgt.p, stepId: tgt.s }, done);
   const r = await fetch(API, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -2450,16 +2454,31 @@ async function toggleTask(cellKey, idx, want) {
   if (!wpAgenda || !wpAgenda.cells || !wpAgenda.cells[cellKey]) return;
   const row = wpAgenda.cells[cellKey][idx];
   if (!row || !row.tgt) return;
-  const was = row.done;
-  row.done = want;
+  const was = agendaRowDone(row);
+  agendaSetDone(row, want);
   renderCalendar();
   try {
     await tickTask(row.tgt, want);
   } catch (e) {
-    row.done = was;
+    agendaSetDone(row, was);
     calError = "";
     renderCalendar();
   }
+}
+/* v227: which project step an agenda row is, if it is one — matched by projectId + stepId,
+   which the weekly page writes on the row. Never by title. */
+function agendaStepOf(row) {
+  const t = row && row.tgt;
+  if (!t || !t.p || !t.s) return null;
+  const p = fmProjects.find((x) => x.id === t.p);
+  const st = p && (p.steps || []).find((x) => x.id === t.s && !x.del);
+  return st ? { project: p, step: st } : null;
+}
+function agendaRowDone(row) { const f = agendaStepOf(row); return f ? !!f.step.done : !!row.done; }
+function agendaSetDone(row, v) {
+  row.done = !!v;
+  const f = agendaStepOf(row);
+  if (f) f.step.done = !!v;
 }
 
 async function loadAgenda() {
@@ -2479,7 +2498,11 @@ function agendaForDay(dayKey) {
   for (const [slot, label, hour] of WP_BANDS) {
     const cellKey = slot + ":" + dayKey;
     (wpAgenda.cells[cellKey] || []).forEach((row, idx) => {
-      out.push({ ...row, slot, bandLabel: label, hour, cellKey, idx });
+      // v227: a project step's row says WHICH step it is; its title and done-state are read
+      // live from the project list, never from the cache
+      const f = agendaStepOf(row);
+      const live = f ? { title: f.step.title, done: !!f.step.done } : {};
+      out.push({ ...row, ...live, slot, bandLabel: label, hour, cellKey, idx });
     });
   }
   return out;
@@ -3403,52 +3426,48 @@ async function fmLoadProjects() {
    not belong in a queue whose whole point is completing things. */
 function fmBuildQueue() {
   const dayKey = agendaDayKey(new Date());
-  const week = agendaWeekOf(0);
-  const parked = new Set(ckEntry(ckToday()).parked || []);
+  const today = ckToday();
+  const parked = new Set(ckEntry(today).parked || []);
   const out = [];
+  const planned = new Set();     // the steps already on today's plan, by id
   agendaForDay(dayKey).forEach((t) => {
     if (!t.tgt) return;                       // no tick address — it cannot be finished here
+    // v227: a project step on the plan is found by the ids on its row — never by its title
+    const f = agendaStepOf(t);
+    if (t.tgt.p) planned.add(t.tgt.p + ":" + t.tgt.s);
     out.push({
-      key: "plan:" + (t.tgt.l || t.tgt.m || "") + ":" + t.tgt.k,
+      key: t.tgt.p ? "step:" + t.tgt.p + ":" + t.tgt.s : "plan:" + (t.tgt.l || t.tgt.m || "") + ":" + t.tgt.k,
       title: t.title, source: "plan", kind: t.kind, when: t.bandLabel,
       done: !!t.done, tgt: t.tgt, cellKey: t.cellKey, idx: t.idx, from: "",
-      // v220: a job pulled from a project board brings its checklist with it. The agenda row
-      // only carries a title, so the step is found by matching what the BOARD says it is
-      // planned for — the same match the weekly page uses, not a title comparison.
-      step: fmStepForPlanned(t.title, week, dayKey),
+      step: f,
     });
   });
+  // dated today and not on the plan; then (v227) overdue — before today, not done — oldest first
+  const due = [], late = [];
   fmProjects.forEach((p) => {
     (p.steps || []).forEach((st) => {
-      if (!st || st.del || st.due !== ckToday()) return;
-      // already on the plan for today — the loop above has it, and twice is not a queue
-      if (st.week === week && st.day === dayKey) return;
-      out.push({
+      if (!st || st.del || !st.due) return;
+      if (planned.has(p.id + ":" + st.id)) return;   // the plan already has it, and twice is not a queue
+      const job = {
         key: "step:" + p.id + ":" + st.id,
         title: st.title, source: "step", kind: "project", when: "",
         done: !!st.done, projectId: p.id, stepId: st.id, from: p.name,
         step: { project: p, step: st },
-      });
+      };
+      if (st.due === today) due.push(job);
+      else if (st.due < today && !st.done) {
+        const n = fmDaysLate(st.due, today);
+        job.late = n;
+        job.when = n + (n === 1 ? " day late" : " days late");
+        late.push(job);
+      }
     });
   });
-  return out.filter((j) => !parked.has(j.key));
+  late.sort((a, b) => b.late - a.late);
+  return out.concat(due, late).filter((j) => !parked.has(j.key));
 }
-/* Which project step is this planned row? The agenda carries a title and a tick address and
-   nothing else, so the step is found the way the board itself records the arrangement: the
-   step says which week and day it is planned for. Title matching is the fallback and only
-   the fallback — two steps can share a title, and a renamed step would silently lose its
-   checklist otherwise. */
-function fmStepForPlanned(title, week, dayKey) {
-  const t = String(title || "").trim().toLowerCase();
-  for (const p of fmProjects) {
-    for (const st of (p.steps || [])) {
-      if (!st || st.del) continue;
-      if (st.week === week && st.day === dayKey) {
-        if (String(st.title || "").trim().toLowerCase() === t) return { project: p, step: st };
-      }
-    }
-  }
-  return null;
+function fmDaysLate(due, today) {
+  return Math.round((Date.parse(today + "T12:00:00Z") - Date.parse(due + "T12:00:00Z")) / 86400000);
 }
 // what a job has to show beyond its title: a checklist, notes, files
 function fmDetail(job) {
@@ -3572,7 +3591,8 @@ function fmDayHtml() {
     fmOneThingHtml() +
     (job.when ? '<div class="fm-when">' + esc(job.when) + "</div>" : "") +
     '<div class="fm-job">' + esc(job.title) + "</div>" +
-    (job.from ? '<div class="fm-from">From <b>' + esc(job.from) + "</b> — dated today, not on your plan.</div>" : "") +
+    (job.from ? '<div class="fm-from">From <b>' + esc(job.from) + "</b> — " +
+      (job.late ? job.late + (job.late === 1 ? " day" : " days") + " late." : "dated today, not on your plan.") + "</div>" : "") +
     fmDetailHtml(job) +
     '<div class="fm-acts">' +
       '<button type="button" class="fm-act done" id="fmDone"><svg class="ic"><use href="#ic-check"/></svg> Done</button>' +
@@ -3750,7 +3770,7 @@ async function fmSetDone(job, want) {
   job.done = want;
   if (job.source === "plan" && wpAgenda && wpAgenda.cells && wpAgenda.cells[job.cellKey]) {
     const row = wpAgenda.cells[job.cellKey][job.idx];
-    if (row) row.done = want;
+    if (row) agendaSetDone(row, want);
   }
   if (job.source === "step") {
     const p = fmProjects.find((x) => x.id === job.projectId);
@@ -3765,7 +3785,7 @@ async function fmSetDone(job, want) {
     job.done = was;
     if (job.source === "plan" && wpAgenda && wpAgenda.cells && wpAgenda.cells[job.cellKey]) {
       const row = wpAgenda.cells[job.cellKey][job.idx];
-      if (row) row.done = was;
+      if (row) agendaSetDone(row, was);
     }
     if (job.source === "step") {
       const p = fmProjects.find((x) => x.id === job.projectId);
@@ -5077,7 +5097,8 @@ async function loadAll() {
   // v219: the project list, for the steps dated today that never made it onto a plan. A
   // READ, through jget like every other read on this page. It goes last and alone: focus
   // mode works without it, it just knows about fewer jobs.
-  fmLoadProjects().then(() => { renderStartDay(); if (fmOpen) fmRender(); });
+  // v227: and the calendar, whose project-step rows read their title and tick from it
+  fmLoadProjects().then(() => { renderStartDay(); renderCalendar(); if (fmOpen) fmRender(); });
 
   // The calendar and the inbox go last and on their own: they are a different service with
   // a different sign-in, and a Google outage must not hold up the cards above them. They

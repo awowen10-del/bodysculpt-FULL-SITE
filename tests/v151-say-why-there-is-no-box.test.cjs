@@ -268,8 +268,9 @@ const POST = (h, body) => h(new Request("https://x/.netlify/functions/kpi-store"
   assert.ok(!/class="cal-ev[^"]*"[\s\S]{0,200}?role="checkbox"/.test(djs),
     "…and an appointment has no box at all, which is the difference you can see without reading");
   // ticking must feel instant, and must not lie
-  assert.ok(/row\.done = want;\s*\n\s*renderCalendar\(\);/.test(djs), "the tick lands on screen first");
-  assert.ok(/row\.done = was;/.test(djs), "…and is put straight back if the store refuses it");
+  // v227: through agendaSetDone, which also flips a project step's own done-state
+  assert.ok(/agendaSetDone\(row, want\);\s*\n\s*renderCalendar\(\);/.test(djs), "the tick lands on screen first");
+  assert.ok(/agendaSetDone\(row, was\);/.test(djs), "…and is put straight back if the store refuses it");
 
   /* ============ 7. v151: A MISSING BOX MUST SAY WHY ============
      Ash: "I can't see a way to tick on the daily card?"

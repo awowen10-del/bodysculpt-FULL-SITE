@@ -119,8 +119,9 @@ export function cleanStep(raw, columnIds) {
     /* v214: the weekly plan. `week` is the week-ending date of the week this step has been
        pulled into and `day` is which column of that week's grid it sits in — written by the
        weekly page when it pulls the step, and read back by the board so a card can say "Mon
-       this week". They are a NOTE ABOUT the weekly plan, never the plan itself: the week
-       owns its own copy of the task, and losing these two fields costs a chip on a card. */
+       this week". v227: they ARE the plan now, for a step with no due date — the week no
+       longer keeps a copy of the step, it reads where the step says it sits. `slot` may be
+       "" with a day set: that is the grid's Anytime row. */
     week: ymd(raw.week),
     day: DAYS.includes(raw.day) ? raw.day : "",
     slot: SLOTS.includes(raw.slot) ? raw.slot : "",
@@ -308,13 +309,51 @@ export function applyStepDelCheck(project, stepId, checkId) {
   s.updatedAt = nowIso();
   return s;
 }
+/* v227: ONE PLACE FOR A STEP. The weekly and daily pages no longer keep a copy of a step;
+   they read it live and hold only where it sits. A step's due date is what puts it on a day
+   of a week, so moving it on the weekly grid — or dragging an overdue one onto a day — has
+   to be able to move that date. This widens stepLink by exactly one field: the due date.
+   It still cannot reach the title, notes, files, tags, urgency, stage or any other step. */
+export function applyStepDue(project, stepId, due) {
+  const s = (project.steps || []).find((x) => x.id === stepId && !x.del);
+  if (!s) return null;
+  const d = ymd(due);
+  if (s.due === d) return null;
+  s.due = d;
+  s.updatedAt = nowIso();
+  return s;
+}
+/* v227: a Buffer task, handed to a project. It becomes a new step — title only — in the
+   board's To do stage (a column called "To do", else the first stage that is not the done
+   one). It ADDS one step and touches nothing else on the board. An id may be supplied so a
+   retry cannot make two. */
+export function applyAddStep(project, title, stepId) {
+  const t = str(title, 240).trim();
+  if (!t) return null;
+  project.steps = Array.isArray(project.steps) ? project.steps : [];
+  const wanted = id(stepId);
+  if (wanted && project.steps.some((x) => x && x.id === wanted)) return null;   // already there
+  const cols = project.columns || [];
+  const col = cols.find((c) => /^\s*to\s*-?\s*do\s*$/i.test(String(c.name || "")))
+    || cols.find((c) => c.done !== true) || cols[0];
+  if (!col) return null;
+  const order = project.steps.filter((x) => x && x.col === col.id && !x.del)
+    .reduce((m, x) => Math.max(m, Number(x.order) || 0), 0) + 1;
+  const now = nowIso();
+  const step = { id: wanted || newId("s_"), title: t, notes: "", col: col.id, urgency: "normal", due: "",
+    tags: [], checklist: [], files: [], done: false, week: "", day: "", slot: "", colBefore: "",
+    del: false, order, createdAt: now, updatedAt: now };
+  project.steps.push(step);
+  return step;
+}
 export function applyStepWeek(project, stepId, week, day, slot) {
   const s = (project.steps || []).find((x) => x.id === stepId && !x.del);
   if (!s) return null;
   const w = (typeof week === "string" && /^\d{4}-\d{2}-\d{2}$/.test(week)) ? week : "";
   // a day without a week, or a time without a day, is not an answer — they clear together
   const d = w && DAYS.includes(day) ? day : "";
-  const sl = d && SLOTS.includes(slot) ? slot : (d ? "6-9" : "");
+  // v227: a day with no time is a real answer — the weekly grid's "Anytime" row
+  const sl = d && SLOTS.includes(slot) ? slot : "";
   if (s.week === w && s.day === d && s.slot === sl) return null;
   s.week = w; s.day = d; s.slot = sl;
   s.updatedAt = nowIso();

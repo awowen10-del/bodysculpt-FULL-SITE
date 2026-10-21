@@ -11,18 +11,22 @@
 //   POST ?upload=1&name=&mime=   raw bytes in the body (4 MB cap) -> { file:{id,name,mime,size} }
 //   POST { project:{…} }  save one project, whole. The page always holds the whole project,
 //                         so a partial write can never half-erase a board.
-//   POST { stepLink:{ projectId, stepId, done?, week?, day?, slot?, check?, addCheck?, delCheck? } }
+//   POST { stepLink:{ projectId, stepId, done?, due?, week?, day?, slot?, check?, addCheck?, delCheck? } }
 //                         v214: the weekly plan's door.
 //         The WEEKLY page calls this, and it is deliberately the narrowest thing that could
 //         work: it can tick one step off, and it can note which week and day that step has
 //         been pulled into, and its checklist (v222). It cannot reach the project's name, its
 //         columns, any other step, or this step's title, notes, files, tags, due date,
 //         urgency or stage. The weekly page never sends a whole project, so it can never
-//         overwrite a board with a stale copy of one.
+//         overwrite a board with a stale copy of one. v227: and its due date, because the
+//         due date is what puts a step on a day of the week.
+//   POST { addStep:{ projectId, title, id? } }
+//                         v227: a Buffer task handed to a project — one new step, title
+//         only, in the To do stage. Adds; never edits or removes anything.
 //
 // There is no delete route. Archiving a project and flagging a step are ordinary saves.
 import { cleanProject, listProjects, readProject, writeProject, readFile, writeFile,
-         applyStepDone, applyStepWeek, applyStepCheck, applyStepAddCheck, applyStepDelCheck,
+         applyStepDone, applyStepDue, applyStepWeek, applyStepCheck, applyAddStep, applyStepAddCheck, applyStepDelCheck,
          newId, clip, json, CAP, MIMES } from "../lib/projects.js";
 
 export default async (req) => {
@@ -95,6 +99,7 @@ export default async (req) => {
       if (!project) return json({ error: "No such project" }, 404);
       let changed = false;
       if ("done" in body.stepLink) changed = !!applyStepDone(project, sid, body.stepLink.done) || changed;
+      if ("due" in body.stepLink) changed = !!applyStepDue(project, sid, body.stepLink.due) || changed;
       if ("week" in body.stepLink) changed = !!applyStepWeek(project, sid, body.stepLink.week, body.stepLink.day, body.stepLink.slot) || changed;
       // v218: { check: { id, done } } — one checklist item, ticked from the weekly plan
       if (body.stepLink.check && body.stepLink.check.id) {
@@ -116,13 +121,25 @@ export default async (req) => {
       return json({ ok: true, step: (cleaned.steps || []).find((x) => x.id === sid) || null });
     }
 
+    if (body.addStep && body.addStep.projectId && body.addStep.title) {
+      const pid = clip(body.addStep.projectId, 40);
+      const project = await readProject(pid);
+      if (!project) return json({ error: "No such project" }, 404);
+      const step = applyAddStep(project, body.addStep.title, clip(body.addStep.id || "", 40));
+      if (!step) return json({ ok: true, step: null, unchanged: true });
+      const cleaned = cleanProject(project);
+      if (!cleaned) return json({ error: "That project could not be saved" }, 500);
+      await writeProject(cleaned);
+      return json({ ok: true, step: (cleaned.steps || []).find((x) => x.id === step.id) || null });
+    }
+
     if (body.project) {
       const project = cleanProject(body.project);
       if (!project) return json({ error: "A project needs an id and a name" }, 400);
       await writeProject(project);
       return json({ ok: true, project });
     }
-    return json({ error: "Send { project: … } or { stepLink: … }, or POST ?upload=1 with the bytes" }, 400);
+    return json({ error: "Send { project: … }, { stepLink: … } or { addStep: … }, or POST ?upload=1 with the bytes" }, 400);
   }
 
   return new Response("Method not allowed", { status: 405 });

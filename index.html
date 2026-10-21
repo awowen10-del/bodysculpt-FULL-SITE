@@ -1410,6 +1410,23 @@
   /* the tag on a pulled row, in the brand — it is a link to the board it came from */
   .wp-from-project{color:var(--orange-soft);background:rgba(var(--orange-rgb),.1);text-decoration:none;}
   .wp-from-project:hover{background:rgba(var(--orange-rgb),.18);}
+  /* v227: the Overdue strip — project steps past their date. Red, because late is late; the
+     rows are the same draggable rows as the Project box, so dragging one onto a day is the
+     same gesture as placing anything else. */
+  .wp-overdue{border-color:rgba(var(--red-rgb),.45);background:rgba(var(--red-rgb),.05);}
+  .wp-overdue .wp-box-h{color:var(--red);}
+  .wp-od-count{font-size:11px;font-weight:700;color:var(--red);background:rgba(var(--red-rgb),.12);
+    border-radius:999px;padding:1px 8px;margin-left:8px;}
+  .wp-od-row{flex-wrap:wrap;}
+  .wp-od-tick{accent-color:var(--red);flex:none;}
+  .wp-od-t{flex:1 1 140px;min-width:0;font-size:13px;}
+  .wp-od-late{font-size:10px;font-weight:700;color:var(--red);white-space:nowrap;}
+  /* v227: the Anytime row — a step with a day and no time yet. No free text lives here. */
+  table.wp-grid tr.wp-grid-any td.wp-rowlabel{font-size:11px;}
+  table.wp-grid tr.wp-grid-any td.wp-daycell{min-height:0;}
+  /* v227: Buffer → project. A native select, so on a phone it is the phone's own picker. */
+  .wp-to-proj{flex:none;max-width:96px;font:inherit;font-size:10px;font-weight:700;color:var(--orange-soft);
+    background:rgba(var(--orange-rgb),.1);border:0;border-radius:999px;padding:2px 6px;cursor:pointer;}
   @media(max-width:700px){
     .wp-pp-lbl{width:100%;}
     .wp-pp-pick{flex-direction:column;align-items:flex-start;gap:5px;}
@@ -2600,6 +2617,11 @@ const WP_STORE = "/.netlify/functions/kpi-store";
 // can overwrite a board.
 const WP_PROJECTS = "/.netlify/functions/projects";
 const WP_TIME_ROWS = [["6-9","6 – 9"],["10-12","9 – 11.30"],["1-3","12 – 3"],["5-8","5 – 8"],["notes","Notes"]];
+// v227: the row above them for a project step that has a day but no time yet. It is NOT one
+// of WP_TIME_ROWS — it holds no free text, no recurring or training task, and is never
+// stored in a week's placements; only a project step read live from its board lands in it.
+const WP_ANY = "any";
+const WP_STEP_SLOTS = ["6-9","10-12","1-3","5-8"];
 // v64: Sunday restored as a grid column — recurrence day-checkboxes cover the full week,
 // so a task ticked for Sun must have a real cell to land in.
 const WP_DAYS = [["mon","Mon"],["tue","Tue"],["wed","Wed"],["thu","Thu"],["fri","Fri"],["sat","Sat"],["sun","Sun"]];
@@ -2791,7 +2813,7 @@ function wpDefaultsOf(source){ return source === "training" ? wpTraining : wpDef
 // their own defaults collections).
 function wpResolveRef(ref){
   const [source, id] = ref.split(":");
-  if(source === "project") return (wpPlan.projectItems||[]).find(x=>x.id===id) || null;
+  if(source === "project") return wpProjItemById(id);
   if(source === "buffer")  return (wpPlan.bufferItems||[]).find(x=>x.id===id) || null;
   if(source === "recurring") return (wpDefaults||[]).find(x=>x.id===id) || null;
   if(source === "training")  return (wpTraining||[]).find(x=>x.id===id) || null;
@@ -3191,7 +3213,7 @@ function wpValidCellKey(k){
   if(typeof k !== "string" || !k) return null;
   const parts = k.split(":");
   if(parts.length !== 2) return null;
-  return (WP_TIME_ROWS.some(t=>t[0]===parts[0]) && WP_DAYS.some(d=>d[0]===parts[1])) ? k : null;
+  return ((WP_TIME_ROWS.some(t=>t[0]===parts[0]) || parts[0]===WP_ANY) && WP_DAYS.some(d=>d[0]===parts[1])) ? k : null;
 }
 // The week's exception map, created lazily (an untouched week keeps no field at all until
 // something is actually excepted).
@@ -3419,6 +3441,8 @@ function wpRecDone(id, set, day, source){
 }
 function wpIsDone(source, item, day){
   if(!item) return false;
+  // v227: a project step's tick is the step's own — read from the board, never the week
+  if(item.derived){ const f = wpStepFor(item); return f ? !!f.step.done : !!item.done; }
   if(!wpIsDefaultsSource(source)) return !!item.done;
   if(wpMultiDay(item)){
     if(day) return wpRecDone(item.id, undefined, day, source);
@@ -3429,6 +3453,7 @@ function wpIsDone(source, item, day){
 }
 function wpSetDone(source, item, val, day){
   if(!item) return;
+  if(item.derived){ const f = wpStepFor(item); if(f) f.step.done = !!val; item.done = !!val; return; }
   if(!wpIsDefaultsSource(source)){ item.done = !!val; return; }
   if(wpMultiDay(item)){
     if(day) wpRecDone(item.id, val, day, source);
@@ -3539,6 +3564,9 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
 
   wpPlan = norm;
   await wpSeedRecurringPlacements(wk);
+  // v227: project steps are read live from their boards. Old weeks that hold copies of them
+  // are turned into nothing-but-a-pointer first (once), then the week's steps are laid out.
+  if(wpProjects.loaded){ await wpMigrateStepCopies(); wpStepsSync(); }
   renderWeeklyPlan();
 
   /* v148: then the calendar, on its own and last. It is a different service with a
@@ -3746,16 +3774,21 @@ function wpDragRow(source, it){
   const ref = wpItemRef(source, it.id);
   const placed = wpPlacedLabel(ref);
   const done = wpIsDone(source, it);
+  // v227: a project step's title is written on its board — shown here, not edited here
+  const nameIn = it.derived
+    ? `<input class="wp-drag-name${done?" wp-done":""}" value="${wpEsc(it.title)}" readonly title="Written on the board — change it there">`
+    : `<input class="wp-drag-name${done?" wp-done":""}" data-item-title="${source}:${it.id}" value="${wpEsc(it.title)}" placeholder="Task"
+      onkeydown="wpItemKey(event)" onblur="wpItemBlur('${source}')">`;
   return `<div class="wp-drag-row${done?" wp-item-done":""}" draggable="true"
       ondragstart="wpDragStart(event,'${source}','${it.id}')" ondragend="wpDragEnd(event)">
     <span class="wp-drag-handle" title="Drag onto a time block">⠿</span>
-    <input class="wp-drag-name${done?" wp-done":""}" data-item-title="${source}:${it.id}" value="${wpEsc(it.title)}" placeholder="Task"
-      onkeydown="wpItemKey(event)" onblur="wpItemBlur('${source}')">
+    ${nameIn}
     ${placed?`<span class="wp-txt-tag">${placed}</span>`:""}
     ${it.source==="monthly-project"?`<span class="wp-txt-tag wp-from-monthly" title="Pushed from the Monthly plan${it.sourceYm?(" ("+it.sourceYm+")"):""}">↳ Monthly</span>`:""}
     ${it.source==="project-step"?`<a class="wp-txt-tag wp-from-project" href="/projects.html#board" title="Pulled from the project &quot;${wpEsc(it.sourceProjectName||"")}&quot; — ticking this off marks it done on the board">↳ ${wpEsc(it.sourceProjectName||"Project")}</a>`:""}
     ${it.source==="project-step"?wpStepNoteBtnHtml(it,false):""}
-    <button class="wp-txt-del" title="Remove" onclick="wpRemoveItem('${source}','${it.id}')"><svg class="ic"><use href="#ic-close"/></svg></button>
+    ${source==="buffer"?wpToProjectHtml(it):""}
+    ${(it.derived && it.due)?"":`<button class="wp-txt-del" title="${it.derived?"Take it off this week":"Remove"}" onclick="wpRemoveItem('${source}','${it.id}')"><svg class="ic"><use href="#ic-close"/></svg></button>`}
   </div>`;
 }
 // v73: auto-detect a training title's icon from WP_TRAIN_EMOJI_RULES. Tokenises on
@@ -3928,7 +3961,8 @@ function wpChipHtml(ref, dk, mode, cellKey){
   // v218: a pulled step carries its notes and checklist with it — the chip opens them
   const noteOut = (source==="project" && item.source==="project-step") ? wpStepNoteBtnHtml(item, true) : "";
   const ck = wpValidCellKey(cellKey) || "";
-  const delOut = ck
+  // v227: a dated step is on its day because of its date — it has no ✕ here; drag it instead
+  const delOut = (ck && !(item.derived && item.due))
     ? `<button type="button" class="wp-chip-del" title="${wpIsScheduledRef(ref) ? "Remove from this slot" : "Delete this task"}" onclick="wpChipRemove(event,'${ref}','${ck}')"><svg class="ic"><use href="#ic-close"/></svg></button>`
     : "";
   // v89: a chip is also a drop target for its own cell — dropping a chip from the SAME cell
@@ -4574,6 +4608,8 @@ let wpAgendaLast = "";     // the last payload written, so an unchanged grid wri
 // in the test rather than being remembered.
 function wpDoneTarget(source, item, day) {
   if (!item || !item.id) return null;
+  // v227: a project step's tick lives on the step, so the daily page is told WHICH step
+  if (item.derived) return { p: wpProjectIdOf(item), s: wpProjectStepIdOf(item) };
   if (!wpIsDefaultsSource(source)) return { l: source + "Items", k: String(item.id) };
   const m = source === "training" ? "trainingDone" : "recurringDone";
   return { m, k: wpMultiDay(item) && day ? item.id + ":" + day : String(item.id) };
@@ -4622,6 +4658,7 @@ function renderWeeklyPlan(){
   const p = wpPlan;
 
   const projectBox = wpListBox("Project","project","project", p.projectItems, "wpAddItem('project')", "+ Add project task");
+  const overdueBox = wpOverdueHtml();   // v227: late project steps, above the Project box
   const recurringBox = wpRecurringBox();   // v75: tabbed (Daily/Weekly/Monthly/Quarterly) filter over wpDefaults
   const bufferBox = wpListBox("Buffer","buffer","buffer", p.bufferItems, "wpAddItem('buffer')", "+ Add buffer task");
   // v71: personal Training — its own collection and card, never mixed into Recurring
@@ -4649,7 +4686,7 @@ function renderWeeklyPlan(){
   // narrow screens) so adding Training no longer pushes the calendar down the page.
   const bufferTrainRow = `<div class="wp-side-row">${bufferBox}${trainingBox}</div>`;
   const topRow = `<div class="wp-top">
-    <div class="wp-left-col">${projectBox}${recurringBox}${bufferTrainRow}</div>
+    <div class="wp-left-col">${overdueBox}${projectBox}${recurringBox}${bufferTrainRow}</div>
     <div class="wp-right-col">${notesPanel}</div>
   </div>`;
 
@@ -4689,6 +4726,14 @@ function renderWeeklyPlan(){
     }).join("");
     return `<tr class="${notesRow}"><td class="wp-rowlabel">${rlbl}</td>${cells}</tr>`;
   }).join("");
+  // v227: Anytime — a project step with a day and no time yet. Drawn only when one exists,
+  // so a week without any looks exactly as it always has. Drag a chip down to give it a time.
+  const anyOn = visDays.some(([dk])=>(gridPlacements[WP_ANY+":"+dk]||[]).length);
+  const anyRow = anyOn ? `<tr class="wp-grid-any"><td class="wp-rowlabel">Anytime</td>${visDays.map(([dk])=>{
+      const key = WP_ANY+":"+dk;
+      const chips = (gridPlacements[key]||[]).map(ref=>wpChipHtml(ref, dk, "", key)).join("");
+      return `<td class="wp-daycell" data-cell="${key}" ondragover="wpCellDragOver(event)" ondragleave="wpCellDragLeave(event)" ondrop="wpCellDrop(event,'${WP_ANY}','${dk}')"><div class="wp-cellwrap">${chips?`<div class="wp-cellchips">${chips}</div>`:""}</div></td>`;
+    }).join("")}</tr>` : "";
   const gridBox = `<div class="wp-box wp-grid-box">
     ${wpBoxHeader("Time Blocks","timeBlocks",
       wpDayViewControlHtml() +
@@ -4699,7 +4744,7 @@ function renderWeeklyPlan(){
       // focus timer — lives on the Daily Dashboard now, which is where a day belongs. This
       // page is for deciding what a WEEK looks like.
       `<a class="wp-today-btn" href="/daily.html" title="The day itself lives on the Daily Dashboard">Today <svg class="ic"><use href="#ic-arrow-right"/></svg></a>`)}
-    <div class="wp-box-body"><div class="wp-grid-wrap"><table class="wp-grid wp-cols-${wpDayCount}"><thead>${gridHead}</thead><tbody>${gridBody}</tbody></table></div></div>
+    <div class="wp-box-body"><div class="wp-grid-wrap"><table class="wp-grid wp-cols-${wpDayCount}"><thead>${gridHead}</thead><tbody>${anyRow}${gridBody}</tbody></table></div></div>
   </div>`;
 
   const r = p.review;
@@ -4950,7 +4995,7 @@ async function wpSaveSection(sectionKey){
   const msg = document.getElementById("wpmsg-"+sectionKey);
   if(msg){ msg.textContent = "Saving…"; msg.className = "wp-ssaved"; }
   const patch = { weekEnding: wpWeekEnding };
-  (WP_SECTION_FIELDS[sectionKey]||[]).forEach(f=>{ patch[f] = wpPlan[f]; });
+  (WP_SECTION_FIELDS[sectionKey]||[]).forEach(f=>{ patch[f] = wpPersistable(f, wpPlan[f]); });
   try{
     const r = await fetch(WP_STORE, {method:"POST",headers:{"Content-Type":"application/json"},
       body: JSON.stringify({ weeklyPlan: patch })}).then(x=>x.json());
@@ -5483,7 +5528,8 @@ function wpProjAccent(p){ return WP_PROJ_ACCENTS.includes(p && p.accent) ? p.acc
 function wpProjOpenSteps(p){
   const colAt = {};
   (p.columns||[]).forEach((c,i)=>{ colAt[c.id] = i; });
-  return (p.steps||[]).filter(st=>st && st.id && !st.del && !st.done && String(st.title||"").trim())
+  // v227: a dated step is already on its day — the picker is for the ones with no date
+  return (p.steps||[]).filter(st=>st && st.id && !st.del && !st.done && !st.due && String(st.title||"").trim())
     .sort((a,b)=>{
       const ca = colAt[a.col]==null ? 99 : colAt[a.col];
       const cb = colAt[b.col]==null ? 99 : colAt[b.col];
@@ -5595,42 +5641,18 @@ async function wpProjPullConfirm(){
   if(!keys.length) return;
   wpSyncFromDom();
   const day = wpProjPullState.day, slot = wpProjPullState.slot, week = wpWeekEnding;
-  wpPlan.projectItems = Array.isArray(wpPlan.projectItems) ? wpPlan.projectItems : [];
-  wpPlan.placements = wpPlan.placements || {};
-  const cellKey = slot + ":" + day;
   const already = wpProjStepsAlready();
-  const added = [];
+  wpProjPullClose();
+  // v227: pulling writes ONE thing — where the step sits, on the step. The week keeps no
+  // copy of it; it shows up because the step now says it belongs to this week.
   for(const k of keys){
     const cut = k.indexOf("|");
     const projectId = k.slice(0, cut), stepId = k.slice(cut+1);
     if(already.has(stepId)) continue;                       // belt and braces over the disabled box
     const p = (wpProjects.list||[]).find(x=>x.id===projectId);
-    if(!p) continue;
-    const st = (p.steps||[]).find(x=>x.id===stepId);
+    const st = p && (p.steps||[]).find(x=>x.id===stepId);
     if(!st || st.del || st.done) continue;
-    const it = { id:wpUid(), title:String(st.title||"").slice(0,200), done:false,
-      linkId: "projstep:"+projectId+":"+stepId+":"+week,
-      source: "project-step", sourceProjectId: projectId, sourceStepId: stepId,
-      sourceProjectName: String(p.name||"").slice(0,80) };
-    wpPlan.projectItems.push(it);
-    const ref = wpItemRef("project", it.id);
-    wpPlan.placements[cellKey] = wpPlan.placements[cellKey] || [];
-    if(!wpPlan.placements[cellKey].includes(ref)) wpPlan.placements[cellKey].push(ref);
-    added.push({ projectId, stepId });
-  }
-  wpProjPullClose();
-  renderWeeklyPlan();
-  await wpSaveSection("project");
-  // Tell each board which week and day its step went to, so a card can say so. This is a
-  // nicety: it is fired after the week is safely saved, and a failure costs a chip.
-  for(const a of added){
-    try{
-      await fetch(WP_PROJECTS, { method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ stepLink:{ projectId:a.projectId, stepId:a.stepId, week, day, slot } }) });
-      const p = (wpProjects.list||[]).find(x=>x.id===a.projectId);
-      const st = p && (p.steps||[]).find(x=>x.id===a.stepId);
-      if(st){ st.week = week; st.day = day; st.slot = slot; }
-    }catch(e){ /* the week is saved; the chip is not worth an error */ }
+    await wpStepLinkWrite(p, st, { week, day, slot });
   }
 }
 /* =====================================================================
@@ -5682,7 +5704,7 @@ function wpStepNoteBtnHtml(item, compact){
     onclick="wpOpenStepNotes('${wpEsc(item.id)}')"><svg class="ic"><use href="#ic-note"/></svg>${count?`<span>${count}</span>`:""}</button>`;
 }
 function wpOpenStepNotes(itemId){
-  const item = (wpPlan && wpPlan.projectItems || []).find(x=>x && x.id===itemId);
+  const item = wpProjItemById(itemId);
   if(!wpStepDetail(item)) return;
   const ov = document.getElementById("wpStepNotesOverlay");
   if(!ov) return;
@@ -5702,7 +5724,7 @@ function wpCloseStepNotes(){
   wpStepNotesTimer = setTimeout(()=>{ ov.hidden = true; wpStepNotesTimer = null; }, 200);
 }
 function wpRenderStepNotes(){
-  const item = (wpPlan && wpPlan.projectItems || []).find(x=>x && x.id===wpStepNotesId);
+  const item = wpProjItemById(wpStepNotesId);
   const d = item && wpStepDetail(item);
   if(!d){ wpCloseStepNotes(); return; }
   const kick = document.getElementById("wpStepNotesKicker");
@@ -5759,7 +5781,7 @@ function wpStepDueLabel(due){
    broken on a phone, and the board is the one place this cannot silently disagree with —
    so a failed write puts the box back and says so. */
 async function wpStepCheckToggle(itemId, checkId, checked){
-  const item = (wpPlan && wpPlan.projectItems || []).find(x=>x && x.id===itemId);
+  const item = wpProjItemById(itemId);
   const f = wpStepFor(item);
   if(!f) return;
   const c = (f.step.checklist||[]).find(x=>x.id===checkId);
@@ -5788,7 +5810,7 @@ async function wpStepLink(projectId, stepId, patch){
   return r;
 }
 async function wpStepCheckAdd(itemId){
-  const item = (wpPlan && wpPlan.projectItems || []).find(x=>x && x.id===itemId);
+  const item = wpProjItemById(itemId);
   const f = wpStepFor(item);
   const inp = document.getElementById("wpSnNew");
   if(!f || !inp) return;
@@ -5809,7 +5831,7 @@ async function wpStepCheckAdd(itemId){
   }
 }
 async function wpStepCheckDel(itemId, checkId){
-  const item = (wpPlan && wpPlan.projectItems || []).find(x=>x && x.id===itemId);
+  const item = wpProjItemById(itemId);
   const f = wpStepFor(item);
   if(!f || !Array.isArray(f.step.checklist)) return;
   const i = f.step.checklist.findIndex(c=>c && c.id===checkId);
@@ -5850,6 +5872,282 @@ async function wpPropagateProjectDone(item, done){
     }
     return r;
   }catch(e){ return null; }
+}
+
+/* =====================================================================
+   v227: ONE PLACE FOR A PROJECT STEP
+   Ash: "The planning pages don't work as one system."
+
+   They did not, because there were three copies of every step that reached the week: the
+   step on its board, a task in the week's Project list (with its own done flag), and a row
+   in the daily page's agenda cache (with another). v214 and v216 kept them in step by
+   writing to each other in every direction — and any write that missed left two pages
+   telling two stories.
+
+   Now there is one. A step and its done-state live in the projects store and only there.
+   This page keeps NO copy of a step: every time the week is laid out, the steps that belong
+   to it are read off the project list already loaded and placed on the grid —
+     • a step with a due date sits on that date's day, whether or not anybody pulled it;
+     • a step with no date sits where it was pulled to (its own week/day/slot);
+     • a step with a day but no time sits in the Anytime row;
+     • a step past its date and not done sits in the Overdue strip instead.
+   The items that put them on screen are marked `derived`, rebuilt on every change, and
+   stripped from every save (wpPersistable) — so nothing about a step can ever be written
+   into a week again. Ticking, moving and taking one off all write to the step (stepLink).
+
+   OLD WEEKS hold copies. wpMigrateStepCopies turns them into nothing once, on load: the
+   step's own state wins every disagreement, a pulled undated step has where-it-was-pulled
+   written onto the step, and a copy whose step has gone is kept as a plain task. It only
+   runs when the project list actually loaded — a store that is down converts nothing.
+   ===================================================================== */
+const wpPad2 = (n)=>String(n).padStart(2,"0");
+function wpLocalToday(){ const d = new Date(); return d.getFullYear()+"-"+wpPad2(d.getMonth()+1)+"-"+wpPad2(d.getDate()); }
+// which week (its Monday) and which column a date falls in — the same UTC Monday maths as NAV_WEEKS
+function wpWeekOfYmd(ymd){ const d = new Date(String(ymd)+"T00:00:00Z"); return isNaN(d) ? "" : mondayOf(d).toISOString().slice(0,10); }
+function wpDayOfYmd(ymd){ const d = new Date(String(ymd)+"T00:00:00Z"); return isNaN(d) ? "" : WP_DAY_OF[d.getUTCDay()]; }
+function wpDateOfDay(week, dk){
+  const d = new Date(week+"T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + Math.max(0, WP_DAYS.findIndex(x=>x[0]===dk)));
+  return d.toISOString().slice(0,10);
+}
+function wpStepIsOverdue(st, today){ return !!(st && !st.del && st.due && !st.done && st.due < today); }
+// where a step sits in a given week: { day, slot } or null. slot WP_ANY = Anytime.
+function wpStepCell(st, week){
+  if(st.due){
+    if(wpWeekOfYmd(st.due) !== week) return null;
+    const day = wpDayOfYmd(st.due);
+    // the time it was given counts only while it is still noted for THIS day — a date moved
+    // on the board lands in Anytime on its new day rather than keeping a stale time
+    const slot = (st.week === week && st.day === day && WP_STEP_SLOTS.includes(st.slot)) ? st.slot : WP_ANY;
+    return { day, slot };
+  }
+  if(st.week === week && WP_DAYS.some(d=>d[0]===st.day))
+    return { day: st.day, slot: WP_STEP_SLOTS.includes(st.slot) ? st.slot : WP_ANY };
+  // pulled into this week's Project list but not onto a day yet
+  if(st.week === week) return { day: "", slot: "" };
+  return null;
+}
+let wpOverdueItems = [];     // the Overdue strip's steps — derived, like the week's
+function wpProjItemById(id){
+  return (wpPlan && wpPlan.projectItems || []).find(x=>x && x.id===id) || wpOverdueItems.find(x=>x.id===id) || null;
+}
+function wpIsDerivedRef(ref){ return /^project:ps-/.test(String(ref)); }
+function wpStepItemOf(p, st, extra){
+  return Object.assign({ id:"ps-"+st.id, derived:true, title:String(st.title||""), done:!!st.done, due:st.due||"",
+    source:"project-step", sourceProjectId:p.id, sourceStepId:st.id, sourceProjectName:String(p.name||"") }, extra||{});
+}
+// what a save may send: never a derived step, never a placement of one
+function wpPersistable(field, v){
+  if(field === "projectItems") return (v||[]).filter(it=>it && !it.derived);
+  if(field === "placements"){
+    const out = {};
+    Object.keys(v||{}).forEach(k=>{ if(k.split(":")[0] !== WP_ANY) out[k] = (v[k]||[]).filter(r=>!wpIsDerivedRef(r)); });
+    return out;
+  }
+  return v;
+}
+// lay this week's steps out from the live project list. Safe to call any number of times.
+function wpStepsSync(){
+  if(!wpPlan) return;
+  wpPlan.projectItems = (wpPlan.projectItems||[]).filter(it=>!it.derived);
+  wpPlan.placements = wpPlan.placements || {};
+  Object.keys(wpPlan.placements).forEach(k=>{
+    if(k.split(":")[0] === WP_ANY){ delete wpPlan.placements[k]; return; }
+    wpPlan.placements[k] = (wpPlan.placements[k]||[]).filter(r=>!wpIsDerivedRef(r));
+  });
+  wpOverdueItems = [];
+  if(!wpProjects.loaded) return;
+  const today = wpLocalToday(), week = wpWeekEnding, rows = [];
+  (wpProjects.list||[]).forEach(p=>(p.steps||[]).forEach(st=>{
+    if(!st || !st.id || st.del || !String(st.title||"").trim()) return;
+    if(wpStepIsOverdue(st, today)){ wpOverdueItems.push(wpStepItemOf(p, st, { overdue:true })); return; }
+    const at = wpStepCell(st, week);
+    if(at) rows.push({ it: wpStepItemOf(p, st), at });
+  }));
+  const dayAt = (d)=>d ? WP_DAYS.findIndex(x=>x[0]===d) : 99;
+  const slotAt = (sl)=>sl === WP_ANY ? -1 : WP_STEP_SLOTS.indexOf(sl);
+  rows.sort((a,b)=>dayAt(a.at.day)-dayAt(b.at.day) || slotAt(a.at.slot)-slotAt(b.at.slot));
+  rows.forEach(({it, at})=>{
+    wpPlan.projectItems.push(it);
+    if(!at.day) return;                       // in the list, not on the grid
+    const key = at.slot + ":" + at.day;
+    (wpPlan.placements[key] = wpPlan.placements[key] || []).push(wpItemRef("project", it.id));
+  });
+  wpOverdueItems.sort((a,b)=>a.due.localeCompare(b.due));
+}
+async function wpStepLinkPost(projectId, stepId, fields){
+  try{
+    const r = await fetch(WP_PROJECTS, { method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ stepLink: Object.assign({ projectId, stepId }, fields) }) });
+    if(!r.ok) return null;
+    const j = await r.json();
+    return (j && j.ok) ? j : null;
+  }catch(e){ return null; }
+}
+/* One write to one step, on screen first. A failed write puts the step back as it was and
+   says so — the board is the one place this must never quietly disagree with. */
+async function wpStepLinkWrite(p, st, fields){
+  if(wpPlan) wpSyncFromDom();
+  const before = { done:st.done, due:st.due, week:st.week, day:st.day, slot:st.slot, col:st.col, colBefore:st.colBefore };
+  if("done" in fields) st.done = !!fields.done;
+  if("due" in fields) st.due = fields.due || "";
+  if("week" in fields){
+    st.week = fields.week || "";
+    st.day = st.week ? (fields.day || "") : "";
+    st.slot = st.day && WP_STEP_SLOTS.includes(fields.slot) ? fields.slot : "";
+  }
+  wpStepsSync(); renderWeeklyPlan();
+  const r = await wpStepLinkPost(p.id, st.id, fields);
+  if(r){
+    if(r.step) Object.assign(st, r.step);
+    wpStepsSync(); renderWeeklyPlan();
+    return true;
+  }
+  Object.assign(st, before);
+  wpStepsSync(); renderWeeklyPlan();
+  wpToast("Couldn't reach the project board — nothing was changed.");
+  return false;
+}
+async function wpStepTick(item, checked){
+  const f = wpStepFor(item);
+  if(!f) return;
+  await wpStepLinkWrite(f.project, f.step, { done: !!checked });
+}
+// dropped on a cell: the step's day and time — and, for a dated step, its date
+async function wpStepMoveTo(item, time, day){
+  const f = wpStepFor(item);
+  if(!f || time === "notes") return;
+  const week = wpWeekEnding;
+  const fields = { week, day, slot: time === WP_ANY ? "" : time };
+  if(f.step.due){
+    const nd = wpDateOfDay(week, day);
+    if(nd !== f.step.due) fields.due = nd;
+  }
+  await wpStepLinkWrite(f.project, f.step, fields);
+}
+// the ✕ on a pulled (undated) step: off this week, still on its board, with the way back
+async function wpStepTakeOff(item){
+  const f = wpStepFor(item);
+  if(!f || f.step.due) return;        // a dated step is here because of its date — drag it instead
+  const was = { week: f.step.week, day: f.step.day, slot: f.step.slot };
+  if(await wpStepLinkWrite(f.project, f.step, { week:"" })){
+    wpToastUndo('"' + String(f.step.title||"Step").slice(0, 40) + '" taken off this week', ()=>wpStepLinkWrite(f.project, f.step, was));
+  }
+}
+async function wpMigrateStepCopies(){
+  if(!wpPlan || !wpProjects.loaded) return;
+  const copies = (wpPlan.projectItems||[]).filter(it=>it && !it.derived && it.source === "project-step");
+  if(!copies.length) return;
+  const week = wpWeekEnding, log = [];
+  let changed = false;
+  for(const it of copies){
+    const ref = wpItemRef("project", it.id);
+    const cell = wpPlacementOf(ref);
+    const [cTime, cDay] = cell ? cell.split(":") : ["", ""];
+    const pid = wpProjectIdOf(it), sid = wpProjectStepIdOf(it);
+    const p = (wpProjects.list||[]).find(x=>x.id===pid);
+    const st = p && (p.steps||[]).find(x=>x.id===sid && !x.del);
+    if(!st){
+      // the step has gone (deleted, or its project finished) — what was planned stays, as a
+      // plain task, which is what v214 always promised a week
+      ["source","sourceProjectId","sourceStepId","sourceProjectName","linkId"].forEach(k=>{ delete it[k]; });
+      log.push({ title: it.title, result: "step not found — kept as a plain task" });
+      changed = true;
+      continue;
+    }
+    const note = { title: st.title, project: p.name };
+    if(!!it.done !== !!st.done)
+      note.done = "week said " + (it.done ? "done" : "not done") + ", step says " + (st.done ? "done" : "not done") + " — step wins";
+    // an undated step is in this week because it was pulled here: say so ON THE STEP —
+    // on the day and time it sat in, or (never placed) just in this week's list
+    if(!st.due && (!st.week || st.week === week)){
+      const day = WP_DAYS.some(d=>d[0]===cDay) ? cDay : "";
+      const slot = day && WP_STEP_SLOTS.includes(cTime) ? cTime : "";
+      if(st.week !== week || (st.day||"") !== day || (st.slot||"") !== slot){
+        const r = await wpStepLinkPost(p.id, st.id, { week, day, slot });
+        if(!r){ note.result = "board unreachable — copy kept, tried again next load"; log.push(note); continue; }
+        Object.assign(st, r.step || { week, day, slot });
+        note.placed = day ? day + " " + (slot || "anytime") : "this week's list";
+      }
+    }
+    // a dated step's copy that sat in a time on its own due day keeps that time
+    if(st.due && wpWeekOfYmd(st.due) === week && cDay === wpDayOfYmd(st.due) && WP_STEP_SLOTS.includes(cTime)
+       && (st.week !== week || st.day !== cDay || st.slot !== cTime)){
+      const r = await wpStepLinkPost(p.id, st.id, { week, day: cDay, slot: cTime });
+      if(!r){ note.result = "board unreachable — copy kept, tried again next load"; log.push(note); continue; }
+      Object.assign(st, r.step || { week, day: cDay, slot: cTime });
+      note.placed = cDay + " " + cTime;
+    }
+    wpRemoveRefEverywhere(ref);
+    wpPlan.projectItems.splice(wpPlan.projectItems.indexOf(it), 1);
+    note.result = "converted to a reference";
+    log.push(note);
+    changed = true;
+  }
+  console.info("[v227] week " + week + ": " + copies.length + " project-step cop" + (copies.length === 1 ? "y" : "ies") + " found", log);
+  if(changed) await wpSaveSection("project");
+}
+// the Overdue strip: past their date, not done. Tick = done; drag onto a day = new date.
+function wpOverdueHtml(){
+  if(!wpOverdueItems.length) return "";
+  const today = Date.parse(wpLocalToday() + "T12:00:00Z");
+  const rows = wpOverdueItems.map(it=>{
+    const late = Math.round((today - Date.parse(it.due + "T12:00:00Z")) / 86400000);
+    const ref = wpItemRef("project", it.id);
+    return `<div class="wp-drag-row wp-od-row" draggable="true"
+        ondragstart="wpDragStart(event,'project','${wpEsc(it.id)}')" ondragend="wpDragEnd(event)">
+      <span class="wp-drag-handle" title="Drag onto a day to move its date">⠿</span>
+      <input type="checkbox" class="wp-od-tick" onchange="wpToggleDoneRef('${wpEsc(ref)}',this.checked)" aria-label="Mark ${wpEsc(it.title)} done">
+      <span class="wp-od-t">${wpEsc(it.title)}</span>
+      <a class="wp-txt-tag wp-from-project" href="/projects.html#board">↳ ${wpEsc(it.sourceProjectName||"Project")}</a>
+      <span class="wp-od-late">${wpEsc(wpProjDueLabel(it.due).text)} · ${late} day${late===1?"":"s"} late</span>
+      ${wpStepNoteBtnHtml(it, false)}
+    </div>`;
+  }).join("");
+  return `<div class="wp-box wp-overdue">
+    <div class="wp-box-h"><span>Overdue</span><span class="wp-od-count">${wpOverdueItems.length}</span></div>
+    <div class="wp-box-body">${rows}</div>
+  </div>`;
+}
+// Buffer → project: the task becomes a To do step on the chosen board, then leaves the buffer
+function wpToProjectHtml(it){
+  const list = wpProjects.list || [];
+  if(!wpProjects.loaded || !list.length || !String(it.title||"").trim()) return "";
+  return `<select class="wp-to-proj" title="Move this task onto a project's To do" aria-label="Move ${wpEsc(it.title)} to a project"
+      onchange="wpBufferToProject('${wpEsc(it.id)}',this.value);this.value=''">
+    <option value="">→ project</option>${list.map(p=>`<option value="${wpEsc(p.id)}">${wpEsc(p.name)}</option>`).join("")}
+  </select>`;
+}
+async function wpBufferToProject(itemId, projectId){
+  if(!projectId || !wpPlan) return;
+  wpSyncFromDom();
+  const it = (wpPlan.bufferItems||[]).find(x=>x && x.id===itemId);
+  const p = (wpProjects.list||[]).find(x=>x.id===projectId);
+  const title = it ? String(it.title||"").trim() : "";
+  if(!it || !p || !title) return;
+  // the board first — the buffer task only goes once the step is safely on the board. The id
+  // is derived from the task's, so a retry after a dropped reply cannot make two steps.
+  let r = null;
+  try{
+    r = await fetch(WP_PROJECTS, { method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ addStep:{ projectId: p.id, title, id: "s_" + it.id } }) }).then(x=>x.ok ? x.json() : null);
+  }catch(e){ r = null; }
+  if(!r || !r.ok){ wpToast("Couldn't reach the project board — the task is still in Buffer."); return; }
+  if(r.step){ p.steps = p.steps || []; if(!p.steps.some(x=>x.id===r.step.id)) p.steps.push(r.step); }
+  wpRemoveRefEverywhere(wpItemRef("buffer", it.id));
+  const i = wpPlan.bufferItems.indexOf(it);
+  if(i >= 0) wpPlan.bufferItems.splice(i, 1);
+  renderWeeklyPlan();
+  await wpSaveSection("buffer");
+  wpToast('"' + title.slice(0, 40) + '" is now a To do step on ' + p.name);
+}
+function wpToast(msg){
+  let el = document.getElementById("wpToast");
+  if(!el){ el = document.createElement("div"); el.id = "wpToast"; el.className = "wp-toast"; document.body.appendChild(el); }
+  el.textContent = msg;
+  el.classList.add("on");
+  clearTimeout(wpToastTimer);
+  wpToastTimer = setTimeout(()=>el.classList.remove("on"), 6000);
 }
 
 /* =====================================================================
@@ -5989,6 +6287,7 @@ async function wpRemoveItem(source, id){
   const arr = source==="project" ? wpPlan.projectItems : wpPlan.bufferItems;
   const i = arr.findIndex(x=>x.id===id);
   if(i<0) return;
+  if(arr[i].derived) return wpStepTakeOff(arr[i]);   // v227: off the week; the step stays on its board
   // also unplace it from the grid
   const ref = wpItemRef(source, id);
   const key = wpPlacementOf(ref);
@@ -6028,6 +6327,7 @@ async function wpCarryDrop(ev){
   if(i<0) return;
   const it = arr[i];
   if(!String(it.title||"").trim()) return; // ignore empty rows
+  if(it.derived) return;   // v227: a project step is carried by its due date, not by the tray
   // unplace from the grid if placed
   const key = wpPlacementOf(ref);
   if(key) wpPlan.placements[key] = (wpPlan.placements[key]||[]).filter(r=>r!==ref);
@@ -6296,6 +6596,7 @@ async function wpPlaceRefAt(ref, time, day){
   wpSyncFromDom();
   const [source] = ref.split(":");
   const item = wpResolveRef(ref);
+  if(item && item.derived) return wpStepMoveTo(item, time, day);   // v227: the step moves, not a copy
   wpRemoveRefEverywhere(ref); // clears the old slot(s) — single or the whole day set
   const addTo = (key)=>{
     wpPlan.placements[key] = wpPlan.placements[key] || [];
@@ -6630,6 +6931,8 @@ async function wpCellDrop(ev, time, day){
   const from = wpDragFrom;
   wpDragRef = null; wpDragFrom = null;
   if(!ref) return;
+  // v227: only a project step goes in the Anytime row
+  if(time === WP_ANY){ const it = wpResolveRef(ref); if(!it || !it.derived) return; }
   const to = time + ":" + day;
   // v82: moving a SCHEDULED task's chip (recurring or training — the same shared path) asks
   // whether this is a one-week exception or a real schedule change. One-off chips, and drags
@@ -6761,6 +7064,7 @@ async function wpChipRemove(ev, ref, cellKey){
   if(!wpPlan || !ref) return;
   const parts = String(ref).split(":");
   const source = parts[0], id = parts[1];
+  { const it = wpResolveRef(ref); if(it && it.derived) return wpStepTakeOff(it); }   // v227
   if(wpIsScheduledRef(ref)){
     const choice = await wpAskRemove(ref);
     if(choice === "week") return wpSkipThisWeek(ref, cellKey);
@@ -6867,7 +7171,7 @@ function wpAsk(opts){
     requestAnimationFrame(()=>{ const el = document.getElementById("wpAskOverlay"); if(el && el.classList) el.classList.add("open"); });
   });
 }
-function wpSlotLabel(timeKey){ return (WP_TIME_ROWS.find(t=>t[0]===timeKey)||[])[1] || timeKey; }
+function wpSlotLabel(timeKey){ return timeKey === WP_ANY ? "Anytime" : ((WP_TIME_ROWS.find(t=>t[0]===timeKey)||[])[1] || timeKey); }
 function wpDayLabel(dayKey){ return (WP_DAYS.find(d=>d[0]===dayKey)||[])[1] || dayKey; }
 function wpCellLabel(key){
   const parts = String(key||"").split(":");
@@ -6971,6 +7275,7 @@ async function wpToggleDoneRef(ref, checked, day){
   const [source] = ref.split(":");
   const item = wpResolveRef(ref);
   if(!item) return;
+  if(item.derived) return wpStepTick(item, checked);   // v227: the step's tick, nothing in the week
   wpSyncFromDom();
   wpSetDone(source, item, checked, day);
   // defaults-source ticks live on the plan (recurringDone/trainingDone) — the

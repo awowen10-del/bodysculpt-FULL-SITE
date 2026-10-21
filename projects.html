@@ -1082,10 +1082,9 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
    added to a step here and not added to cleanStep there is dropped silently on save.
    ===================================================================== */
 const API = "/.netlify/functions/projects";
-/* v214: the weekly plan's store. This page writes ONE thing there — a task in the week's
-   Project list, and where it sits on the grid — and it always does it by reading the week
-   first and sending back what it read plus the change. It touches no other part of a week. */
-const KPI = "/.netlify/functions/kpi-store";
+/* v227: this page writes NOTHING to the weekly plan. A step and its done-state live here,
+   in the projects store, and the weekly and daily pages read them live — so putting a step
+   on a day is a change to the step, and nothing else has to be told. */
 const WEEK_DAYS = [["mon", "Mon"], ["tue", "Tue"], ["wed", "Wed"], ["thu", "Thu"], ["fri", "Fri"], ["sat", "Sat"], ["sun", "Sun"]];
 /* the weekly grid's four time bands, named exactly as index.html names them — these strings
    are half of a placement key ("<slot>:<day>") and a typo here would put a task in a cell
@@ -1158,8 +1157,6 @@ function weekKeyNow(when) {
   x.setUTCHours(0, 0, 0, 0);
   return x.toISOString().slice(0, 10);
 }
-// the weekly page's id shape for a task; its grid refs are "project:<this>"
-function wUid() { return "t" + Math.random().toString(36).slice(2, 9); }
 const dayName = (d) => (WEEK_DAYS.find((x) => x[0] === d) || ["", ""])[1];
 
 /* ---------- the toast, and the way back ---------- */
@@ -2001,8 +1998,6 @@ async function toggleStepDone() {
   }
   renderStep(); renderBoard();
   toast(want ? "Done — moved to " + doneStageName(p) : "Back on the board");
-  // the week is showing this task too, and must not go on showing it as outstanding
-  syncWeekDone(s);
 }
 /* deleting a step keeps it. It is flagged, hidden, and the toast that says so is the way
    back — because the notes on a step are often the only record of why it existed. */
@@ -2026,33 +2021,13 @@ function deleteStep() {
    The other direction from the weekly page's picker: you are looking at the board, you
    decide this one is a Monday job, and you say so here.
 
-   What it writes into the week is one task in the Project list plus one grid placement,
-   read-modify-write, and NOTHING else in that week is sent back. What it writes here is the
-   step's note of which week and day it went to, which is what puts the chip on the card.
-
-   THE RULE THAT MATTERS: if the week cannot be read, nothing is written. A failed read
-   followed by a write is how you replace somebody's whole week with one task.
+   v227: and saying so is a change to the STEP — its week, day and slot — and nothing more.
+   v214 and v216 wrote a copy of the step into the week (and into the daily page's cache),
+   then spent three functions keeping the copies' ticks in line with this one. The weekly
+   and daily pages now read the step itself, so there is nothing to copy and nothing to
+   reconcile: a step dated on this board is on the plan for that date, and one put on a day
+   here is on that day.
    ===================================================================== */
-async function readWeek(week) {
-  const r = await fetch(KPI + "?weeklyplan=" + encodeURIComponent(week));
-  if (!r.ok) throw new Error("the weekly plan would not load");
-  const j = await r.json();
-  // a week that has never been opened comes back as a plan with nothing in it; that is a
-  // real answer. A THROW above is not, and never reaches here.
-  const plan = (j && j.plan) || {};
-  return {
-    items: Array.isArray(plan.projectItems) ? plan.projectItems.slice() : [],
-    placements: (plan.placements && typeof plan.placements === "object" && !Array.isArray(plan.placements))
-      ? JSON.parse(JSON.stringify(plan.placements)) : {},
-  };
-}
-async function writeWeek(week, items, placements) {
-  const r = await fetch(KPI, { method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ weeklyPlan: { weekEnding: week, projectItems: items, placements } }) });
-  if (!r.ok) throw new Error((await r.text()).slice(0, 200));
-  return r.json();
-}
-/* day === "" means take it out of the week again. */
 /* which week a date belongs to, and which column of it — the same UTC Monday maths the
    weekly page uses, applied to a date rather than to now */
 function weekKeyOf(ymdStr) {
@@ -2080,163 +2055,24 @@ function planLabel(step) {
   return WEEK_DAYS[i][1] + " " + d.getUTCDate() + " " + MONTHS[d.getUTCMonth()];
 }
 
-const weekRefOf = (it) => "project:" + it.id;
-function weekStripRef(st, ref) {
-  for (const k of Object.keys(st.placements)) {
-    st.placements[k] = (st.placements[k] || []).filter((r) => r !== ref);
-    if (!st.placements[k].length) delete st.placements[k];
-  }
-}
-// take a step's task out of a week. Returns the id it had there, or "".
-function weekRemoveStep(st, stepId) {
-  const mine = st.items.find((it) => it && it.sourceStepId === stepId);
-  if (!mine) return "";
-  weekStripRef(st, weekRefOf(mine));
-  st.items.splice(st.items.indexOf(mine), 1);
-  return mine.id;
-}
-// put it in, on a given day and band. Returns the id it now has there.
-function weekAddStep(st, step, p, week, day, slot) {
-  const it = { id: wUid(), title: String(step.title || "").slice(0, 200), done: !!step.done,
-    linkId: "projstep:" + p.id + ":" + step.id + ":" + week,
-    source: "project-step", sourceProjectId: p.id, sourceStepId: step.id,
-    sourceProjectName: String(p.name || "").slice(0, 80) };
-  st.items.push(it);
-  const cell = (slot || "6-9") + ":" + day;
-  st.placements[cell] = st.placements[cell] || [];
-  st.placements[cell].push(weekRefOf(it));
-  return it.id;
-}
-
-/* ---------- the daily dashboard ----------
-   The daily page does NOT read the weekly plan. It reads `weekly-agenda-<week>`, a cache the
-   WEEKLY page publishes from its own placement engine — so a task written straight into a
-   plan is invisible there until somebody opens the weekly planner. This puts the row in the
-   cache as well, at the same address the weekly page would give it.
-
-   IT NEVER INVENTS ONE. If a week has no agenda yet, the daily page says "open the weekly
-   plan" and shows nothing; a cache holding only this one task would instead claim the day
-   holds only this one task, hiding every recurring and training item. So: update an agenda
-   that exists, and otherwise say plainly that the planner needs opening once. The weekly
-   page rewrites the whole thing from its own engine on its next render either way. */
-async function syncAgenda(week, changes) {
-  try {
-    const r = await fetch(KPI + "?weeklyagenda=" + encodeURIComponent(week));
-    if (!r.ok) return false;
-    const j = await r.json();
-    const agenda = j && j.agenda;
-    if (!agenda || !agenda.cells) return false;      // never invent one
-    const cells = agenda.cells;
-    const drop = (id) => { for (const k of Object.keys(cells)) {
-      cells[k] = (cells[k] || []).filter((row) => !(row && row.tgt && row.tgt.l === "projectItems" && row.tgt.k === id));
-      if (!cells[k].length) delete cells[k];
-    } };
-    (changes.remove || []).forEach(drop);
-    if (changes.add) {
-      const a = changes.add;
-      drop(a.itemId);
-      const key = (a.slot || "6-9") + ":" + a.day;
-      cells[key] = cells[key] || [];
-      // the same row the weekly page's engine would derive, tick address and all
-      cells[key].push({ title: a.title, kind: "project", done: !!a.done,
-        tgt: { l: "projectItems", k: a.itemId } });
-    }
-    const w = await fetch(KPI, { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ weeklyAgenda: { weekEnding: week, cells } }) });
-    return w.ok;
-  } catch (e) { return false; }
-}
-
 /* Put a step on the plan, take it off, or move it — including to a different week, which is
-   what a due date three weeks out means. day === "" takes it off altogether.
-   EVERY WEEK INVOLVED IS READ FIRST. A failed read writes nothing, anywhere. */
-async function setStepWeek(step, day, slot, week) {
+   what a due date three weeks out means. day === "" takes it off altogether. One ordinary
+   save of this project; the way back is on the confirmation. */
+function setStepWeek(step, day, slot, week) {
   const p = proj();
   if (!p || !step) return;
   const target = day ? (week || weekKeyNow()) : "";
-  const oldWeek = step.week || "";
-  const weeks = [...new Set([oldWeek, target].filter(Boolean))];
-  if (!weeks.length) { step.week = ""; step.day = ""; step.slot = ""; pCommit(); renderBoard(); return; }
-  const state = {};
-  try { for (const w of weeks) state[w] = await readWeek(w); }
-  catch (e) { toast("Could not reach the weekly plan — nothing was changed."); return; }
-  const before = JSON.parse(JSON.stringify(state));
-  const removedIds = {};
-  for (const w of weeks) removedIds[w] = weekRemoveStep(state[w], step.id);
-  const newId = target ? weekAddStep(state[target], step, p, target, day, slot || "6-9") : "";
-  try { for (const w of weeks) await writeWeek(w, state[w].items, state[w].placements); }
-  catch (e) { toast("Could not save into the weekly plan: " + e.message); return; }
-
+  const before = { week: step.week || "", day: step.day || "", slot: step.slot || "" };
   step.week = target; step.day = target ? day : ""; step.slot = target ? (slot || "6-9") : "";
+  step.updatedAt = new Date().toISOString();
   pCommit();
   renderStep(); renderBoard();
-
-  // and the daily dashboard's cache, for every week that changed
-  let onDaily = true;
-  for (const w of weeks) {
-    const ok = await syncAgenda(w, {
-      remove: removedIds[w] ? [removedIds[w]] : [],
-      add: (w === target) ? { itemId: newId, day, slot: slot || "6-9", title: step.title, done: !!step.done } : null,
-    });
-    if (w === target && !ok) onDaily = false;
-  }
-  const where = target ? planLabel({ week: target, day }) : "";
-  toastUndo(target
-      ? (onDaily ? "On your plan for " + where : "On your plan for " + where + " — open the weekly planner once and it will show on your day too")
-      : "Taken off the plan",
-    "Undo", async () => {
-      try {
-        for (const w of weeks) await writeWeek(w, before[w].items, before[w].placements);
-        for (const w of weeks) await syncAgenda(w, { remove: [newId].filter(Boolean),
-          add: (before[w].items.find((x) => x && x.sourceStepId === step.id) && w === oldWeek)
-            ? { itemId: removedIds[w], day: step.day || dayKeyOf(step.due), slot: step.slot, title: step.title, done: !!step.done } : null });
-        step.week = oldWeek;
-        step.day = oldWeek ? (before[oldWeek].items.find((x) => x && x.sourceStepId === step.id) ? step.day : "") : "";
-        pCommit(); renderStep(); renderBoard();
-        toast("Put back");
-      } catch (e) { toast("Could not undo: " + e.message); }
-    });
-}
-
-/* The week has to hear about a tick made HERE, or it shows a task that is already done.
-   The other direction (a tick made in the weekly plan) already comes back through the
-   stepLink route; the third (a tick made on the daily dashboard, which can only write to a
-   plan) is picked up by reconcileWeek() when this page next loads. */
-async function syncWeekDone(step) {
-  if (!step || !step.week) return;
-  try {
-    const st = await readWeek(step.week);
-    const mine = st.items.find((it) => it && it.sourceStepId === step.id);
-    if (!mine || !!mine.done === !!step.done) return;
-    mine.done = !!step.done;
-    await writeWeek(step.week, st.items, st.placements);
-    await syncAgenda(step.week, { add: { itemId: mine.id, day: step.day, slot: step.slot,
-      title: step.title, done: !!step.done } });
-  } catch (e) { /* the board is right either way; the week catches up when it is opened */ }
-}
-
-/* A tick made on the DAILY dashboard can only reach the weekly plan — that page is allowed
-   one write and it is a single boolean. So when this page loads, this week's plan is read
-   once and anything it says is finished that the board still shows open is ticked off here.
-   ONE DIRECTION ONLY: done in the plan → done on the board. The reverse cannot happen,
-   because a tick made here writes to the week as it goes (syncWeekDone). */
-async function reconcileWeek() {
-  const week = weekKeyNow();
-  let st;
-  try { st = await readWeek(week); } catch (e) { return; }
-  const ticked = st.items.filter((it) => it && it.source === "project-step" && it.done && it.sourceStepId);
-  if (!ticked.length) return;
-  let changed = false;
-  for (const it of ticked) {
-    const p = S.projects.find((x) => x.id === it.sourceProjectId);
-    const step = p && (p.steps || []).find((x) => x.id === it.sourceStepId && !x.del);
-    if (!step || step.done) continue;
-    try {
-      const r = await post({ stepLink: { projectId: p.id, stepId: step.id, done: true } });
-      if (r && r.step) { Object.assign(step, r.step); changed = true; }
-    } catch (e) { /* leave it; nothing is lost by trying again next time */ }
-  }
-  if (changed) { renderBoard(); renderProjects(); }
+  toastUndo(target ? "On your plan for " + planLabel({ week: target, day }) : "Taken off the plan", "Undo", () => {
+    Object.assign(step, before);
+    step.updatedAt = new Date().toISOString();
+    pCommit(); renderStep(); renderBoard();
+    toast("Put back");
+  });
 }
 
 /* =====================================================================
@@ -2884,9 +2720,6 @@ async function init() {
   const live = S.projects.filter((p) => !p.archived);
   S.currentId = (live.find((p) => p.id === last) || live[0] || {}).id || "";
   showView(viewFromHash(), { hash: false });
-  // after the first paint, never before it: one read of this week, to pick up anything
-  // ticked off on the daily dashboard since this page was last open
-  reconcileWeek();
 }
 init();
 </script>

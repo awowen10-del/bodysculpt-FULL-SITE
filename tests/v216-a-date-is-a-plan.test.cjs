@@ -144,72 +144,34 @@ function bodyOf(js, name) {
   }
 
   /* =====================================================================
-     3. THE DAILY DASHBOARD'S CACHE
+     3. v227: THE BOARD NO LONGER WRITES INTO A WEEK OR THE DAILY CACHE
+     v216 copied a dated step into the week and into the daily page's agenda, then kept the
+     copies' ticks in line from three directions. v227 replaced all of it with one rule: the
+     weekly and daily pages read the step itself. So the board writes the step and nothing
+     else, and there is nothing left to reconcile.
      ===================================================================== */
   {
-    const sync = bodyOf(JS, "syncAgenda");
-    assert.ok(/weeklyagenda=/.test(sync), "it reads the week's agenda");
-    assert.ok(/if \(!agenda \|\| !agenda\.cells\) return false;\s*\/\/ never invent one/.test(sync),
-      "IT NEVER INVENTS ONE — a cache holding one task would claim the day holds one task, hiding the rest of it");
-    assert.ok(/tgt: \{ l: "projectItems", k: a\.itemId \}/.test(sync),
-      "the row carries the tick address the daily page needs, so it can be ticked off from there");
-    assert.ok(/kind: "project"/.test(sync), "…and is the same kind of row the weekly page's engine would derive");
-    assert.ok(/weeklyAgenda: \{ weekEnding: week, cells \}/.test(sync), "…and it writes only that week's cache");
-    // the honest message when there is no cache to update
-    assert.ok(/open the weekly planner once and it will show on your day too/.test(JS),
-      "when there is no agenda yet, the confirmation says so rather than implying it is on the daily page");
-    const setWeek = bodyOf(JS, "setStepWeek");
-    assert.ok(setWeek.indexOf("writeWeek") < setWeek.indexOf("syncAgenda"),
-      "the plan is written before the cache — the cache is a convenience, the plan is the record");
+    const bare = JS.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    for (const gone of ["syncAgenda", "syncWeekDone", "reconcileWeek", "readWeek", "writeWeek", "weeklyAgenda", "weeklyPlan"]) {
+      assert.ok(!new RegExp("\\b" + gone + "\\b").test(bare), "the board no longer has " + gone);
+    }
+    assert.ok(!/syncWeekDone|reconcileWeek/.test(bodyOf(JS, "toggleStepDone") + bodyOf(JS, "init")),
+      "ticking on the board is one stepLink write, and loading the board reads no week");
 
-    /* what the store will accept, so the row is not silently dropped */
-    const store = read("netlify/functions/kpi-store.js");
-    assert.ok(/const AGENDA_KINDS = \["project", "buffer", "recurring", "training"\]/.test(store),
-      '"project" is a kind the store keeps');
-    assert.ok(/const TICK_LISTS = \["projectItems", "bufferItems"\]/.test(store),
-      '"projectItems" is a tick address the store keeps');
-  }
-
-  /* =====================================================================
-     4. THREE PLACES TO TICK, ONE DIRECTION EACH
-     ===================================================================== */
-  {
-    // the board tells the week
-    const tog = bodyOf(JS, "toggleStepDone");
-    assert.ok(/syncWeekDone\(s\)/.test(tog), "ticking on the board tells the week");
-    const swd = bodyOf(JS, "syncWeekDone");
-    assert.ok(/if \(!mine \|\| !!mine\.done === !!step\.done\) return;/.test(swd),
-      "…and says nothing when the week already agrees, so it never writes for the sake of it");
-    assert.ok(/syncAgenda\(step\.week/.test(swd), "…updating the daily cache with it");
-    // the daily dashboard can only write to a plan, so the board picks it up on load
-    const rec = bodyOf(JS, "reconcileWeek");
-    assert.ok(/it\.done && it\.sourceStepId/.test(rec), "the board reads this week for anything finished there");
-    assert.ok(/if \(!step \|\| step\.done\) continue;/.test(rec), "…and only acts where the two disagree");
-    assert.ok(/done: true/.test(rec) && !/done: false/.test(rec),
-      "ONE DIRECTION ONLY: done in the plan ticks the board, never the reverse — the reverse is syncWeekDone's job");
-    assert.ok(/reconcileWeek\(\);/.test(bodyOf(JS, "init")), "it runs when the page loads");
-    const init = bodyOf(JS, "init");
-    assert.ok(init.indexOf("showView(") < init.indexOf("reconcileWeek()"),
-      "…after the first paint, never before it");
-    assert.ok(/catch \(e\) \{ return; \}/.test(rec), "a plan that will not load costs the board nothing");
-    /* The daily page's own rule is untouched, and the rule is narrower than "it writes one
-       thing" — it also saves its own check-in, which is its own data. The claim that matters
-       here is that its ONLY way into a weekly plan is a single tick: it cannot write a plan,
-       and it cannot write the agenda cache this release now puts rows into. */
+    /* the daily page's own rule is unchanged: its only way into a weekly plan is one tick */
     const daily = read("daily.html");
     const dailyJs = daily.slice(daily.lastIndexOf("<script>") + 8, daily.lastIndexOf("</script>"));
-    const bare = dailyJs.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-    assert.ok(/weeklyTick/.test(bare), "the daily page ticks through the weeklyTick route");
-    assert.ok(!/weeklyPlan\s*:/.test(bare), "…and can never write a weekly plan itself");
-    assert.ok(!/weeklyAgenda\s*:/.test(bare), "…nor the agenda cache it reads");
+    const dbare = dailyJs.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    assert.ok(/weeklyTick/.test(dbare), "the daily page ticks plan tasks through the weeklyTick route");
+    assert.ok(!/weeklyPlan\s*:/.test(dbare), "…and can never write a weekly plan itself");
+    assert.ok(!/weeklyAgenda\s*:/.test(dbare), "…nor the agenda cache it reads");
   }
 
   /* =====================================================================
-     5. THE WHOLE CHAIN, AGAINST THE REAL STORE
-     Every assertion above reads code. This one replays the exact three payloads the page
-     sends into the REAL kpi-store handler and then asks, as the daily dashboard would, what
-     is on Thursday — because "it appears on the daily dashboard" is the claim Ash made and
-     the only way to be sure of it is to look.
+     4. A STEP ON THE AGENDA, AGAINST THE REAL STORE
+     The weekly page now publishes a project step's agenda row with WHICH step it is
+     ({ p, s }) instead of an address in the plan. The store has to keep that row — and the
+     plan-tick route has to refuse it, because a step's tick is not a plan's to hold.
      ===================================================================== */
   {
     const SRC = path.join(__dirname, "..", "netlify", "functions", "kpi-store.js");
@@ -231,65 +193,21 @@ function bodyOf(js, name) {
     const GET = (qs) => h(new Request("https://x/.netlify/functions/kpi-store?" + qs));
 
     const WEEK = "2026-09-21";
-    // the week already has a plan and a published agenda — a Monday recurring task on it,
-    // so we can see whether adding ours keeps it
-    m.set("weekly-plan-" + WEEK, JSON.stringify({ weekEnding: WEEK,
-      projectItems: [{ id: "tOld", title: "Something already planned", done: false }],
-      placements: { "6-9:mon": ["project:tOld"] } }));
-    m.set("weekly-agenda-" + WEEK, JSON.stringify({ weekEnding: WEEK, cells: {
-      "6-9:mon": [{ title: "Something already planned", kind: "project", done: false, tgt: { l: "projectItems", k: "tOld" } }],
+    m.set("weekly-plan-" + WEEK, JSON.stringify({ weekEnding: WEEK, projectItems: [], placements: {} }));
+    let r = await POST({ weeklyAgenda: { weekEnding: WEEK, cells: {
       "6-9:thu": [{ title: "Team huddle", kind: "recurring", done: false, tgt: { m: "recurringDone", k: "r1:thu" } }],
-    } }));
-
-    // 1. the page writes the plan
-    let r = await POST({ weeklyPlan: { weekEnding: WEEK,
-      projectItems: [
-        { id: "tOld", title: "Something already planned", done: false },
-        { id: "tNew", title: "Point the website forms and ads at GoHighLevel", done: false,
-          linkId: "projstep:p1:s8:" + WEEK, source: "project-step",
-          sourceProjectId: "p1", sourceStepId: "s8", sourceProjectName: "Migrate from Ontraport to GoHighLevel" },
-      ],
-      placements: { "6-9:mon": ["project:tOld"], "1-3:thu": ["project:tNew"] } } });
-    assert.strictEqual(r.status, 200, "the plan takes the new task");
-    const plan = (await r.json()).plan;
-    assert.strictEqual(plan.projectItems.length, 2, "…alongside what was already there");
-    assert.deepStrictEqual(plan.placements["1-3:thu"], ["project:tNew"], "…placed on Thursday afternoon");
-    assert.deepStrictEqual(plan.placements["6-9:mon"], ["project:tOld"], "…and Monday is untouched");
-    assert.strictEqual(plan.projectItems[1].sourceStepId, "s8", "…keeping its link back to the step");
-
-    // 2. the page updates the daily dashboard's cache
-    r = await POST({ weeklyAgenda: { weekEnding: WEEK, cells: {
-      "6-9:mon": [{ title: "Something already planned", kind: "project", done: false, tgt: { l: "projectItems", k: "tOld" } }],
-      "6-9:thu": [{ title: "Team huddle", kind: "recurring", done: false, tgt: { m: "recurringDone", k: "r1:thu" } }],
-      "1-3:thu": [{ title: "Point the website forms and ads at GoHighLevel", kind: "project", done: false,
-        tgt: { l: "projectItems", k: "tNew" } }],
+      "any:thu": [{ title: "Point the website forms and ads at GoHighLevel", kind: "project", done: false,
+        tgt: { p: "p1", s: "s8" } }],
     } } });
-    assert.strictEqual(r.status, 200, "the cache takes the row");
-
-    // 3. …and now: what does the DAILY DASHBOARD see on Thursday?
+    assert.strictEqual(r.status, 200, "the cache takes a step row");
     const agenda = (await (await GET("weeklyagenda=" + WEEK)).json()).agenda;
-    const thursday = [].concat(agenda.cells["6-9:thu"] || [], agenda.cells["1-3:thu"] || []);
-    assert.strictEqual(thursday.length, 2, "Thursday holds two things");
-    assert.ok(thursday.some((t) => t.title === "Team huddle"),
-      "…the recurring task that was already there is STILL there — the cache was updated, not replaced");
-    const mine = thursday.find((t) => t.title === "Point the website forms and ads at GoHighLevel");
-    assert.ok(mine, "…and the step Ash dated is on it");
-    assert.deepStrictEqual(mine.tgt, { l: "projectItems", k: "tNew" }, "…with the address the daily page ticks through");
-    assert.strictEqual(mine.done, false, "…not done yet");
+    assert.deepStrictEqual(agenda.cells["any:thu"][0].tgt, { p: "p1", s: "s8" },
+      "…keeping which step it is, so the daily page can tick the STEP");
+    assert.ok(agenda.cells["6-9:thu"], "…and the Anytime row sits beside the others, not instead of them");
 
-    // 4. tick it off from the daily dashboard, the only write that page can make
-    r = await POST({ weeklyTick: { weekEnding: WEEK, tgt: { l: "projectItems", k: "tNew" }, done: true } });
-    assert.strictEqual(r.status, 200, "the daily page can tick it");
-    const after = JSON.parse(m.get("weekly-plan-" + WEEK));
-    assert.strictEqual(after.projectItems.find((i) => i.id === "tNew").done, true, "…and the plan says so");
-    const ag2 = JSON.parse(m.get("weekly-agenda-" + WEEK));
-    assert.strictEqual(ag2.cells["1-3:thu"][0].done, true, "…and the cache with it");
-    // which is exactly the state reconcileWeek() looks for when the board next loads:
-    // done in the plan, still open on the board.
-    assert.strictEqual(after.projectItems.find((i) => i.id === "tNew").sourceStepId, "s8",
-      "…and the row still knows which step it was, so the board can pick the tick up");
-
-    // nothing else in the store moved
+    r = await POST({ weeklyTick: { weekEnding: WEEK, tgt: { p: "p1", s: "s8" }, done: true } });
+    assert.strictEqual(r.status, 400, "a step's tick is refused by the plan-tick route — it is not the plan's to hold");
+    assert.deepStrictEqual(JSON.parse(m.get("weekly-plan-" + WEEK)).projectItems, [], "…and the plan is untouched");
     assert.ok(!m.has("proj-p1"), "the weekly store still holds nothing of the projects store's");
   }
 

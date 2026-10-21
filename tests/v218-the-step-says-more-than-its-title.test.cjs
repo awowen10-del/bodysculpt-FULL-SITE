@@ -81,7 +81,11 @@ const world = () => ({
     const { ctx } = await boot(world());
     await ctx.loadWeeklyPlan(WEEK);
     const S = ctx.__wpState;
-    const item = S.plan.projectItems.find((i) => i.id === "t_map");
+    // v227: the week's copy is gone — the step is read live, under an id of its own
+    // (s_map is dated 18 Mar — past, so it sits in the Overdue strip; either way it is found)
+    const item = ctx.wpProjItemById("ps-s_map");
+    assert.ok(item && item.derived, "the step is on the page, read from its board rather than copied");
+    assert.ok(!S.plan.projectItems.some((i) => i.id === "t_map"), "…and the week's old copy of it is gone");
 
     const found = ctx.wpStepFor(item);
     assert.ok(found, "the weekly task finds the step it came from");
@@ -96,7 +100,8 @@ const world = () => ({
     assert.strictEqual(arr(d.files).length, 1, "and the files");
 
     // a step with nothing on it offers nothing — no empty panel, no button
-    const bare = S.plan.projectItems.find((i) => i.id === "t_bare");
+    const bare = ctx.wpProjItemById("ps-s_bare");
+    assert.ok(bare && S.plan.projectItems.includes(bare), "a pulled step never placed on a day stays in this week's list");
     assert.strictEqual(ctx.wpStepDetail(bare), null,
       "a step with no notes, no checklist and no files has nothing to open");
     assert.strictEqual(ctx.wpStepNoteBtnHtml(bare, false), "", "…so it gets no button on its row");
@@ -116,10 +121,10 @@ const world = () => ({
   {
     const { ctx, posts, projects, settle } = await boot(world());
     await ctx.loadWeeklyPlan(WEEK);
-    ctx.wpOpenStepNotes("t_map");
-    assert.strictEqual(ctx.__wpState.stepNotesId, "t_map", "the panel opens on that task");
+    ctx.wpOpenStepNotes("ps-s_map");
+    assert.strictEqual(ctx.__wpState.stepNotesId, "ps-s_map", "the panel opens on that task");
 
-    await ctx.wpStepCheckToggle("t_map", "c2", true);
+    await ctx.wpStepCheckToggle("ps-s_map", "c2", true);
     await settle();
 
     const onBoard = projects[0].steps.find((s) => s.id === "s_map");
@@ -137,7 +142,7 @@ const world = () => ({
       "…and nothing else — it cannot finish a step or move it by accident");
 
     // untick it again
-    await ctx.wpStepCheckToggle("t_map", "c2", false);
+    await ctx.wpStepCheckToggle("ps-s_map", "c2", false);
     await settle();
     assert.strictEqual(projects[0].steps.find((s) => s.id === "s_map").checklist.find((c) => c.id === "c2").done, false,
       "unticking unticks it on the board too");
@@ -156,24 +161,25 @@ const world = () => ({
     assert.strictEqual(before.col, "doing", "…in Doing");
 
     // tick the chip on the grid, which is where a pulled task is ticked
-    await ctx.wpToggleDoneRef("project:t_map", true, "wed");
+    const nPostsBefore = posts.length;
+    await ctx.wpToggleDoneRef("project:ps-s_map", true, "wed");
     await settle();
 
     const step = projects[0].steps.find((s) => s.id === "s_map");
     assert.strictEqual(step.done, true, "ticking it off in the week finishes it on the board");
     assert.strictEqual(step.col, "done", "…AND moves its card to the finished stage, which is what Ash asked for");
     assert.strictEqual(step.colBefore, "doing", "…remembering where it came from");
-    assert.strictEqual(ctx.__wpState.plan.projectItems.find((i) => i.id === "t_map").done, true,
-      "…and the week says so too");
+    assert.strictEqual(ctx.wpIsDone("project", ctx.wpProjItemById("ps-s_map")), true,
+      "…and the week says so too, because it reads the step");
 
-    // the week saved its own tick BEFORE telling the board — a board that is down must
-    // never cost Ash the tick he just made
-    const order = posts.map((p) => (p.body && p.body.weeklyPlan) ? "week" : (p.body && p.body.stepLink) ? "board" : "other");
-    assert.ok(order.indexOf("week") >= 0 && order.indexOf("board") >= 0, "both writes happened");
-    assert.ok(order.indexOf("week") < order.lastIndexOf("board"), "…the week first");
+    // v227: ONE tick, in ONE place. The week keeps no done flag for a step, so the tick is a
+    // stepLink and nothing is written into the week at all.
+    const tickPosts = posts.slice(nPostsBefore);
+    assert.ok(tickPosts.some((p) => p.body && p.body.stepLink && p.body.stepLink.done === true), "the tick went to the step");
+    assert.ok(!tickPosts.some((p) => p.body && p.body.weeklyPlan), "…and nothing about it was written into the week");
 
     // and untick puts the card back rather than stranding it in Done
-    await ctx.wpToggleDoneRef("project:t_map", false, "wed");
+    await ctx.wpToggleDoneRef("project:ps-s_map", false, "wed");
     await settle();
     const back = projects[0].steps.find((s) => s.id === "s_map");
     assert.strictEqual(back.done, false, "unticking it in the week reopens it on the board");
@@ -260,7 +266,9 @@ const world = () => ({
     /* THE BOUNDARY, RESTATED. The route reaches a step's done flag, its plan, and its
        checklist. It reaches nothing else about the project — not even on the same step. */
     const before = m.get("proj-p_ghl");
-    const r = await link({ title: "HACKED", notes: "HACKED", due: "2030-01-01", urgency: "critical",
+    // (v227: the due date IS reachable now — it is what puts a step on a day — so it is not
+    // in this list; tests/v227 covers it)
+    const r = await link({ title: "HACKED", notes: "HACKED", urgency: "critical",
       col: "done", tags: ["x"], files: [], name: "HACKED", columns: [], steps: [], canvas: [] });
     assert.strictEqual((await r.json()).unchanged, true, "everything else it might carry changes nothing");
     assert.strictEqual(m.get("proj-p_ghl"), before, "…and does not even write");
@@ -268,7 +276,6 @@ const world = () => ({
     const s2 = proj.steps.find((x) => x.id === "s_map");
     assert.strictEqual(s2.title, "Build the tag and custom-field map", "the step's title is unreachable");
     assert.strictEqual(s2.notes, PROJECT().steps[0].notes, "…its notes");
-    assert.strictEqual(s2.due, "2026-03-18", "…its due date");
     assert.strictEqual(s2.urgency, "high", "…its urgency");
     assert.strictEqual(s2.col, "doing", "…its stage");
     assert.strictEqual(proj.name, "Migrate from Ontraport to GoHighLevel", "…and the project's name");

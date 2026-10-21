@@ -93,6 +93,15 @@ function cleanTickTarget(raw) {
   if (TICK_MAPS.includes(raw.m)) return { m: raw.m, k };
   return null;
 }
+/* v227: a project step on the agenda is not in the plan at all — the weekly page reads it
+   live from the projects store and the agenda row says WHICH step it is. Its tick goes to
+   that step (the projects function's stepLink route), never to a plan, so this shape is
+   accepted on an agenda row and refused by weeklyTick, which only takes cleanTickTarget. */
+function cleanStepTarget(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const ok = (v) => typeof v === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(v);
+  return ok(raw.p) && ok(raw.s) ? { p: raw.p, s: raw.s } : null;
+}
 function cleanAgenda(raw) {
   if (!raw || typeof raw !== "object") return null;
   const weekEnding = typeof raw.weekEnding === "string" ? raw.weekEnding : "";
@@ -113,7 +122,7 @@ function cleanAgenda(raw) {
           title,
           kind: AGENDA_KINDS.includes(it.kind) ? it.kind : "project",
           done: it.done === true,
-          tgt: cleanTickTarget(it.tgt),     // may be null; a row without one simply cannot be ticked
+          tgt: cleanTickTarget(it.tgt) || cleanStepTarget(it.tgt),     // may be null; a row without one simply cannot be ticked
         };
       })
       .filter(Boolean)

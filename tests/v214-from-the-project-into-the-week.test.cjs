@@ -167,7 +167,8 @@ function boardProject(extra) {
     step = (await r.json()).step;
     assert.strictEqual(step.week, "2026-09-21", "the step records the week it was pulled into");
     assert.strictEqual(step.day, "mon", "…and the day");
-    assert.strictEqual(step.slot, "6-9", "…and which time band, defaulted when none was named");
+    // v227: a day with no time named is the Anytime row, not a guessed 6–9
+    assert.strictEqual(step.slot, "", "…and no time band when none was named (Anytime)");
     r = await POST(h, { stepLink: { projectId: "p_ghl", stepId: "s_map", week: "2026-09-21", day: "mon", slot: "1-3" } });
     assert.strictEqual((await r.json()).step.slot, "1-3", "…or the one that was named");
     r = await POST(h, { stepLink: { projectId: "p_ghl", stepId: "s_map", week: "", day: "mon" } });
@@ -198,7 +199,8 @@ function boardProject(extra) {
     assert.ok(posts.length >= 2, "it does talk to the projects store (" + posts.length + " calls)");
     for (const call of posts) {
       if (!/method\s*:\s*"POST"/.test(call)) continue;
-      assert.ok(/stepLink/.test(call), "every POST the weekly page makes to the projects store is a stepLink");
+      // v227: plus addStep — a Buffer task handed to a project, which can only ADD one step
+      assert.ok(/stepLink|addStep/.test(call), "every POST the weekly page makes to the projects store is a stepLink (or v227's addStep)");
       assert.ok(!/\bproject\s*:/.test(call), "…and never carries a whole project");
     }
     assert.ok(/WP_PROJECTS \+ "\?list=1"/.test(bare), "it reads the list of projects to offer their steps");
@@ -208,23 +210,12 @@ function boardProject(extra) {
       "the Projects box offers both pulls — from Monthly, and from a project");
     assert.ok(/onclick="wpProjPullOpen\(\)"/.test(WJS), "…and the new one opens the picker");
 
-    // what a pulled task carries: the title and a link home, and nothing else
+    // v227: pulling writes WHERE THE STEP SITS, on the step — and nothing into the week
     const confirm = bodyOf(WJS, "wpProjPullConfirm");
-    for (const f of ["linkId", "sourceProjectId", "sourceStepId", 'source: "project-step"']) {
-      assert.ok(confirm.includes(f), "a pulled task carries " + f);
-    }
-    for (const f of ["notes", "checklist", "tags", "files", "due"]) {
-      assert.ok(!new RegExp("\\b" + f + "\\s*:").test(confirm),
-        "a pulled task does NOT carry the step's " + f + " — the week is a schedule, not a second copy");
-    }
-    // it arrives PLACED, which is the whole point of picking a day
-    assert.ok(/wpPlan\.placements\[cellKey\]/.test(confirm), "…and lands on the grid cell that was chosen");
-    assert.ok(/const cellKey = slot \+ ":" \+ day;/.test(confirm), "…keyed the way every other placement is");
-    assert.ok(/await wpSaveSection\("project"\)/.test(confirm), "the week is saved");
-    // the board is told afterwards, and a failure there cannot cost the week
-    assert.ok(confirm.indexOf('wpSaveSection("project")') < confirm.indexOf("WP_PROJECTS"),
-      "the week is saved BEFORE the board is told, so a projects store that is down cannot lose the plan");
-
+    assert.ok(/await wpStepLinkWrite\(p, st, \{ week, day, slot \}\)/.test(confirm),
+      "a pull is one stepLink write of the step's week, day and time");
+    assert.ok(!/projectItems\.push|wpPlan\.placements\[/.test(confirm),
+      "…and the week keeps no copy of the step at all");
     // no duplicates: a step already in this week cannot be pulled twice
     assert.ok(/function wpProjStepsAlready\(\)/.test(WJS), "it knows what is already in this week");
     assert.ok(/if\(already\.has\(stepId\)\) continue;/.test(confirm), "…and refuses to add one twice");
@@ -253,33 +244,14 @@ function boardProject(extra) {
      ===================================================================== */
   {
     const setWeek = bodyOf(PJS, "setStepWeek");
-    // v216: a due date can land in ANY week, so a move can touch two of them — every week
-    // involved is read before a single one of them is written
-    assert.ok(/for \(const w of weeks\) state\[w\] = await readWeek\(w\);/.test(setWeek),
-      "it reads every week it is going to touch, first");
-    assert.ok(/catch \(e\) \{ toast\("Could not reach the weekly plan — nothing was changed\."\); return; \}/.test(setWeek),
-      "A FAILED READ IS NEVER FOLLOWED BY A WRITE — that is how a whole week gets replaced by one task");
-    assert.ok(setWeek.indexOf("readWeek") < setWeek.indexOf("writeWeek"), "…read, then write, in that order");
-    assert.ok(/const before = JSON\.parse\(JSON\.stringify\(state\)\);/.test(setWeek),
-      "…and keeps a copy of what it read, for the way back");
-    const readW = bodyOf(PJS, "readWeek");
-    assert.ok(/if \(!r\.ok\) throw new Error/.test(readW), "a non-OK read throws rather than returning an empty week");
-    const writeW = bodyOf(PJS, "writeWeek");
-    assert.ok(/weeklyPlan: \{ weekEnding: week, projectItems: items, placements \}/.test(writeW),
-      "it sends back only the two parts of a week it touched");
-    for (const f of ["timeBlocks", "notes", "foodNotes", "recurringDone", "exceptions", "reviewChecklist"]) {
-      assert.ok(!writeW.includes(f), "it never sends the week's " + f);
-    }
-    // one task, one place — including across a week boundary
-    assert.ok(/for \(const w of weeks\) removedIds\[w\] = weekRemoveStep\(state\[w\], step\.id\);/.test(setWeek),
-      "it comes out of wherever it was before it goes anywhere — a move, never a clone");
-    assert.ok(/const newId = target \? weekAddStep\(/.test(setWeek), "…and only then does it go in");
-    assert.ok(/weekStripRef/.test(bodyOf(PJS, "weekRemoveStep")), "…taking its grid placement with it");
-    assert.ok(/if \(!day\)/.test(bodyOf(PJS, "offerFor")) || /const target = day \? /.test(setWeek),
-      '"Not this week" takes it back out again');
+    // v227: putting a step on a day is a change to the STEP. The board never reads or writes
+    // a week any more — the weekly and daily pages read the step itself.
+    assert.ok(!/readWeek|writeWeek|syncAgenda|KPI/.test(PJS.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "")),
+      "the board has no route into a weekly plan or the daily cache");
+    assert.ok(/pCommit\(\);/.test(setWeek), "it is one ordinary save of the project");
+    assert.ok(/const target = day \? /.test(setWeek), '"Not this week" takes it back out again');
     assert.ok(/toastUndo\(/.test(setWeek), "and the way back is on the confirmation, as everywhere else");
-    assert.ok(/for \(const w of weeks\) await writeWeek\(w, before\[w\]\.items, before\[w\]\.placements\);/.test(setWeek),
-      "…undo puts back exactly what was read, in every week it touched, not a guess at it");
+    assert.ok(/Object\.assign\(step, before\);/.test(setWeek), "…and undo puts back exactly where it was");
 
     // the drawer offers the days, and the card says what was chosen
     assert.ok(/"This week" \) \+ '<\/label>/.test(PJS) || /\? "On the plan" : "This week"/.test(PJS),

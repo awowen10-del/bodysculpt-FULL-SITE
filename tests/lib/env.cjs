@@ -169,10 +169,12 @@ async function boot(opts = {}) {
             else { if (dc && step.col === dc.id && step.colBefore) step.col = step.colBefore; step.colBefore = ""; }
           }
         }
+        // v227: the due date travels too, and a day with no time is the Anytime row
+        if ("due" in L) step.due = typeof L.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(L.due) ? L.due : "";
         if ("week" in L) {
           step.week = typeof L.week === "string" && /^\d{4}-\d{2}-\d{2}$/.test(L.week) ? L.week : "";
           step.day = step.week ? (L.day || "") : "";
-          step.slot = step.week ? (L.slot || "6-9") : "";
+          step.slot = step.day ? (L.slot || "") : "";
         }
         if (L.check && L.check.id) {
           const c = (step.checklist || []).find((x) => x && x.id === L.check.id);
@@ -180,10 +182,24 @@ async function boot(opts = {}) {
         }
         return reply({ ok: true, step: JSON.parse(JSON.stringify(step)) });
       }
+      // v227: a Buffer task handed to a project — mirrors applyAddStep: one new step, title
+      // only, in the "To do" stage (else the first stage that is not the done one)
+      if (body.addStep && body.addStep.projectId && body.addStep.title) {
+        const proj = projects.find((x) => x && x.id === body.addStep.projectId);
+        if (!proj) return Promise.resolve({ ok: false, status: 404, json: async () => ({ error: "No such project" }) });
+        if (body.addStep.id && (proj.steps || []).some((x) => x.id === body.addStep.id)) return reply({ ok: true, step: null, unchanged: true });
+        const cols = proj.columns || [];
+        const col = cols.find((c) => /^\s*to\s*-?\s*do\s*$/i.test(c.name || "")) || cols.find((c) => c.done !== true) || cols[0];
+        const step = { id: body.addStep.id || "s_new", title: String(body.addStep.title), col: col.id, due: "", done: false,
+          del: false, week: "", day: "", slot: "", notes: "", checklist: [], files: [], tags: [], urgency: "normal", order: 99 };
+        (proj.steps = proj.steps || []).push(step);
+        return reply({ ok: true, step: JSON.parse(JSON.stringify(step)) });
+      }
       return reply({ ok: true });
     }
     // v218: the project list the weekly page offers steps from
-    if (u.includes("/functions/projects") && u.includes("list=1")) return reply({ ok: true, projects });
+    // a copy, as the network would give — the page must never be holding the store's own objects
+    if (u.includes("/functions/projects") && u.includes("list=1")) return reply({ ok: true, projects: JSON.parse(JSON.stringify(projects)) });
     if (u.includes("trainingdefaults=1")) return reply({ defaults: training });
     if (u.includes("checkins=1")) return reply({ checkins });
     if (u.includes("locationdefaults=1")) return reply({ locations });

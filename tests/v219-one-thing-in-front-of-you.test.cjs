@@ -58,15 +58,19 @@ function bodyOf(js, name) {
   {
     const TODAY = "2026-03-18";            // a Wednesday
     const WEEK = "2026-03-16";             // the Monday that starts it
-    const build = new Function(
-      "agendaForDay", "agendaDayKey", "agendaWeekOf", "ckEntry", "ckToday", "fmProjects", "fmStepForPlanned",
-      "return (function fmBuildQueue()" + bodyOf(JS, "fmBuildQueue") + ")");
+    // v227: a planned project step is matched by the ids on its row (agendaStepOf), never by
+    // title — and steps past their date come after today's
+    const build = (agendaForDay, agendaDayKey, agendaWeekOf, ckEntry, ckToday, fmProjects) => new Function(
+      "agendaForDay", "agendaDayKey", "agendaWeekOf", "ckEntry", "ckToday", "fmProjects",
+      "function agendaStepOf(row)" + bodyOf(JS, "agendaStepOf") + "\n" +
+      "function fmDaysLate(due, today)" + bodyOf(JS, "fmDaysLate") + "\n" +
+      "return (function fmBuildQueue()" + bodyOf(JS, "fmBuildQueue") + ")")(agendaForDay, agendaDayKey, agendaWeekOf, ckEntry, ckToday, fmProjects);
 
     const agenda = [
       { title: "Team huddle", kind: "recurring", done: true, bandLabel: "6 – 9",
         tgt: { m: "recurringDone", k: "r1:wed" }, cellKey: "6-9:wed", idx: 0 },
       { title: "Build the tag map", kind: "project", done: false, bandLabel: "12 – 3",
-        tgt: { l: "projectItems", k: "t_map" }, cellKey: "1-3:wed", idx: 0 },
+        tgt: { p: "p1", s: "s_planned" }, cellKey: "1-3:wed", idx: 0 },
       // a row published before v150 has no tick address — it cannot be finished from here
       { title: "An old row with no address", kind: "project", done: false, bandLabel: "12 – 3",
         tgt: null, cellKey: "1-3:wed", idx: 1 },
@@ -80,15 +84,25 @@ function bodyOf(js, name) {
       step("s_none", { title: "No date at all" }),
       step("s_del", { title: "Deleted", due: TODAY, del: true }),
       step("s_done", { title: "Already finished", due: TODAY, done: true }),
+      step("s_late", { title: "Should have been Monday", due: "2026-03-16" }),
+      step("s_later", { title: "Should have been last week", due: "2026-03-11" }),
+      step("s_latedone", { title: "Late but finished", due: "2026-03-16", done: true }),
     ] }];
     const entry = { parked: [] };
-    const stepForPlanned = new Function("fmProjects", "return (function fmStepForPlanned(title, week, dayKey)" + bodyOf(JS, "fmStepForPlanned") + ")")(projects);
-    const run = () => build(() => agenda, () => "wed", () => WEEK, () => entry, () => TODAY, projects, stepForPlanned)();
+    const run = () => build(() => agenda, () => "wed", () => WEEK, () => entry, () => TODAY, projects)();
 
     let q = run();
     assert.deepStrictEqual(q.map((j) => j.title),
-      ["Team huddle", "Build the tag map", "Point the website forms at GoHighLevel", "Already finished"],
-      "today is the plan's blocks in band order, then the things dated today that never got planned");
+      ["Team huddle", "Build the tag map", "Point the website forms at GoHighLevel", "Already finished",
+       "Should have been last week", "Should have been Monday"],
+      "today is the plan's blocks in band order, then the things dated today that never got planned, then the overdue, oldest first");
+    // v227: overdue says how late
+    assert.strictEqual(q.find((j) => j.title === "Should have been Monday").when, "2 days late", "an overdue step says how late it is");
+    assert.strictEqual(q.find((j) => j.title === "Should have been last week").late, 7, "…in days");
+    assert.ok(!q.some((j) => j.title === "Late but finished"), "a late step that is done is not overdue");
+    // the planned step is matched by ID, so its checklist comes with it
+    assert.strictEqual(q.find((j) => j.title === "Build the tag map").step.step.id, "s_planned",
+      "a planned row finds its step by projectId + stepId");
     assert.ok(!q.some((j) => j.title === "An old row with no address"),
       "a row with no tick address is left out — a job you cannot finish has no place in a queue about finishing");
     assert.ok(!q.some((j) => j.title === "Dated another day"), "a step dated another day is not today");
@@ -115,10 +129,10 @@ function bodyOf(js, name) {
     entry.parked = [q.find((j) => j.title === "Build the tag map").key];
     q = run();
     assert.ok(!q.some((j) => j.title === "Build the tag map"), "a job put aside is off today's list");
-    assert.strictEqual(q.length, 3, "…and only that one");
+    assert.strictEqual(q.length, 5, "…and only that one");
 
     // a week with no plan at all is empty, not broken
-    const empty = build(() => [], () => "wed", () => WEEK, () => ({ parked: [] }), () => TODAY, [], () => null)();
+    const empty = build(() => [], () => "wed", () => WEEK, () => ({ parked: [] }), () => TODAY, [])();
     assert.deepStrictEqual(empty, [], "no plan and no dated steps is an empty day, not an error");
   }
 
@@ -270,12 +284,13 @@ function bodyOf(js, name) {
       { id: "s2", title: "Build the tag map", del: false, done: false, due: "", week: "", day: "",
         notes: "", files: [], checklist: [] },                      // same title, NOT planned today
     ] }];
-    const find = new Function("fmProjects", "return (function fmStepForPlanned(title, week, dayKey)" + bodyOf(JS, "fmStepForPlanned") + ")")(projects);
-    const hit = find("Build the tag map", "2026-03-16", "wed");
-    assert.ok(hit && hit.step.id === "s1",
-      "a planned row finds its step by WHERE IT IS PLANNED first — two steps can share a title");
-    assert.strictEqual(find("Build the tag map", "2026-03-16", "thu"), null, "…and a different day is a different job");
-    assert.strictEqual(find("Something else", "2026-03-16", "wed"), null, "…and an unmatched title is no step at all");
+    // v227: matched by the ids the weekly page writes on the row — never by title
+    assert.ok(!/function fmStepForPlanned/.test(JS), "the title-match fallback is gone");
+    const find = new Function("fmProjects", "return (function agendaStepOf(row)" + bodyOf(JS, "agendaStepOf") + ")")(projects);
+    const hit = find({ title: "Build the tag map", tgt: { p: "p1", s: "s1" } });
+    assert.ok(hit && hit.step.id === "s1", "a planned row finds its step by projectId + stepId — two steps can share a title");
+    assert.strictEqual(find({ title: "Build the tag map", tgt: { p: "p1", s: "s2" } }).step.id, "s2", "…so the same title finds the other step when the ids say so");
+    assert.strictEqual(find({ title: "Build the tag map", tgt: { l: "projectItems", k: "t1" } }), null, "…and a row with no step ids is no step at all");
 
     const detail = new Function("return (function fmDetail(job)" + bodyOf(JS, "fmDetail") + ")")();
     const d = detail({ step: hit });
