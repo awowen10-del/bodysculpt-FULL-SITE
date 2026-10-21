@@ -491,8 +491,11 @@
   .day-fresh .stale{color:var(--tint-amber);font-weight:600;}
 
   /* main column carries the long list; the rail carries the short, usually-empty ones */
+  /* v232: Needs a reply and Money needing attention line up — same top, same bottom */
   .day-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(330px,1fr);
-    gap:var(--sp-4);align-items:start;}
+    gap:var(--sp-4);align-items:stretch;}
+  .day-main{display:flex;flex-direction:column;min-width:0;}
+  .day-main > .card,.day-rail > .card:last-child{flex:1 1 auto;}
   @media(max-width:1020px){ .day-grid{grid-template-columns:1fr;} }
   .day-rail{display:flex;flex-direction:column;gap:var(--sp-4);min-width:0;}
   .day-grid .card{padding:18px 20px 20px;}
@@ -779,22 +782,36 @@
      reads right over today's tinted panel too; slimmer on the left, where the past is. (A
      mask only reads how solid a colour is, so any solid token does — no literal colour.) */
   .cal-strip{--fl:0px;--fr:0px;}
-  .cal-strip.can-left{--fl:16px;}
+  /* no left fade: on this week Today is pinned there, and it must never be dimmed */
   .cal-strip.can-right{--fr:44px;}
   .cal-track{-webkit-mask-image:linear-gradient(90deg,transparent 0,var(--ink) var(--fl),var(--ink) calc(100% - var(--fr)),transparent 100%);
     mask-image:linear-gradient(90deg,transparent 0,var(--ink) var(--fl),var(--ink) calc(100% - var(--fr)),transparent 100%);}
-  .cal-nav{position:absolute;top:calc(50% - 21px);z-index:2;width:32px;height:32px;border-radius:50%;
+  /* the strip's own ‹ › — NOT .cal-nav, which is the header's week-before / week-after pair */
+  .cal-snav{position:absolute;top:calc(50% - 22px);z-index:3;width:32px;height:32px;border-radius:50%;
     border:1px solid var(--line);background:var(--card);color:var(--ink-dim);box-shadow:var(--shadow);
     display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;
     font:inherit;font-size:18px;line-height:1;opacity:0;pointer-events:none;
     transition:opacity .2s ease,color var(--tap),border-color var(--tap);}
-  .cal-nav.prev{left:-17px;} .cal-nav.next{right:-17px;}   /* out in the card's own margin */
-  .cal-strip.can-left .cal-nav.prev,.cal-strip.can-right .cal-nav.next{opacity:1;pointer-events:auto;}
-  .cal-nav:hover{color:var(--orange);border-color:rgba(var(--orange-rgb),.5);}
-  .cal-nav:focus-visible{outline:none;box-shadow:var(--focus);}
-  @media(hover:none){ .cal-nav{display:none;} }        /* a finger swipes; it needs no buttons */
+  .cal-snav.prev{left:-17px;} .cal-snav.next{right:-17px;}   /* out in the card's own margin */
+  /* on this week ‹ sits on the seam beside the pinned Today panel, never on top of it */
+  .cal-strip.has-today .cal-snav.prev{left:calc(276px - 12px);}
+  .cal-strip.can-left .cal-snav.prev,.cal-strip.can-right .cal-snav.next{opacity:1;pointer-events:auto;}
+  .cal-snav:hover{color:var(--orange);border-color:rgba(var(--orange-rgb),.5);}
+  .cal-snav:focus-visible{outline:none;box-shadow:var(--focus);}
+  @media(hover:none){ .cal-snav{display:none;} }        /* a finger swipes; it needs no buttons */
+  /* v232: TODAY IS ALWAYS IN VIEW. Ash: "always make sure 'today' is visible in the 'this
+     week'". The panel is pinned to the strip's left edge: the days after it slide underneath
+     as you scroll, so it can never be scrolled off, faded or half-hidden. Solid behind its
+     tint, so a day passing under it does not show through; a soft shadow once it is pinned. */
+  .cal-slide.is-today{position:sticky;left:0;z-index:2;background:var(--card);border-radius:var(--r-md);
+    transition:box-shadow .2s ease;}
+  .cal-strip.stuck .cal-slide.is-today{box-shadow:var(--shadow);}
+  /* …and a day snaps to the seam beside it, not to the edge it covers */
+  .cal-strip.has-today .cal-track{scroll-padding-left:calc(276px + var(--sp-2));}
   @media(prefers-reduced-motion:reduce){ .cal-track{scroll-behavior:auto;} }
-  @media(max-width:560px){ .cal-slide{flex-basis:150px;} .cal-slide.is-today{flex-basis:84%;} }
+  @media(max-width:560px){ .cal-slide{flex-basis:150px;} .cal-slide.is-today{flex-basis:62%;}
+    .cal-strip.has-today .cal-snav.prev{left:calc(62% - 12px);}
+    .cal-strip.has-today .cal-track{scroll-padding-left:calc(62% + var(--sp-2));} }
   .cal-day{border:1px solid var(--line);border-radius:var(--r-md);padding:10px;
     background:var(--card);min-height:132px;display:flex;flex-direction:column;min-width:0;}
   .cal-day.today{border-color:rgba(var(--orange-rgb),.4);background:rgba(var(--orange-rgb),.05);}
@@ -1208,8 +1225,10 @@
   /* v230: the Today list. The rows reuse focus mode's tick box and checklist pieces. */
   .tl-card{margin-top:var(--sp-4);}
   /* v231: Today's jobs and the week, one row */
+  /* v232: the two cards are one row and read as a pair — the same height, tops and bottoms
+     level, whichever has more in it */
   .day-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:var(--sp-4);
-    align-items:start;margin:0 0 var(--sp-4);}
+    align-items:stretch;margin:0 0 var(--sp-4);}
   .day-row > .card{margin:0;}
   @media(max-width:1180px){ .day-row{grid-template-columns:minmax(0,1fr);} }
   .tl-list{display:flex;flex-direction:column;gap:4px;}
@@ -3846,10 +3865,13 @@ function calStripWire() {
   const track = $("calTrack");
   if (!track) return;
   const strip = track.parentNode;
+  const todayEl = track.querySelector("[data-today]");
   const edges = () => {
     const max = track.scrollWidth - track.clientWidth;
     strip.classList.toggle("can-left", track.scrollLeft > 4);
     strip.classList.toggle("can-right", track.scrollLeft < max - 4);
+    // Today has days sliding under it — give it its shadow
+    strip.classList.toggle("stuck", !!todayEl && track.scrollLeft > todayEl.offsetLeft + 2);
   };
   // place it without animating — it should simply BE on today when the card appears
   const was = track.style.scrollBehavior;
@@ -3857,8 +3879,7 @@ function calStripWire() {
   if (calStripWeek === calWeekOffset && calStripX != null) {
     track.scrollLeft = calStripX;
   } else {
-    const today = track.querySelector("[data-today]");
-    track.scrollLeft = today ? Math.max(0, today.offsetLeft - 2) : 0;
+    track.scrollLeft = todayEl ? Math.max(0, todayEl.offsetLeft - 2) : 0;
     calStripWeek = calWeekOffset;
   }
   track.style.scrollBehavior = was;
@@ -4404,10 +4425,10 @@ function renderCalendar() {
         ? '<div class="cal-slide is-today" data-today="1">' + calTodayHtml(calEvents) + "</div>"
         : '<div class="cal-slide">' + calDayHtml(d, calEvents, todayKey) + "</div>";
     }
-    body.innerHTML = '<div class="cal-strip">' +
-      '<button type="button" class="cal-nav prev" data-calnav="-1" aria-label="Earlier in the week">‹</button>' +
+    body.innerHTML = '<div class="cal-strip' + (calWeekOffset === 0 ? " has-today" : "") + '">' +
+      '<button type="button" class="cal-snav prev" data-calnav="-1" aria-label="Earlier in the week">‹</button>' +
       '<div class="cal-track" id="calTrack">' + slides + "</div>" +
-      '<button type="button" class="cal-nav next" data-calnav="1" aria-label="Later in the week">›</button></div>';
+      '<button type="button" class="cal-snav next" data-calnav="1" aria-label="Later in the week">›</button></div>';
     calStripWire();
   }
 

@@ -21,12 +21,27 @@ assert.ok(/@media\(max-width:1180px\)\{ \.day-row\{grid-template-columns:minmax\
 // the strip: scrolls, snaps, fades only where there is more, arrows only for a mouse
 assert.ok(/scroll-snap-type:x mandatory/.test(css) && /\.cal-slide\{[^}]*scroll-snap-align:start/.test(css), "it snaps to a day");
 assert.ok(/mask-image:linear-gradient/.test(css) && /\.cal-strip\.can-right\{--fr:44px;\}/.test(css), "the edge fades only on a side with more to see");
-assert.ok(/@media\(hover:none\)\{ \.cal-nav\{display:none;\} \}/.test(css), "a phone swipes; it shows no arrows");
+assert.ok(/@media\(hover:none\)\{ \.cal-snav\{display:none;\} \}/.test(css), "a phone swipes; it shows no arrows");
+
+/* v232: Ash — "fix the alignment on both tables… make sure they're the same", "always make sure
+   'today' is visible", "always make sure 'money needing attention' is aligned with 'needs a reply'" */
+// the strip's arrows have their own class: .cal-nav is the header's week arrows, and v231 hid them
+assert.ok(/<span class="cal-nav">/.test(js) && /\.cal-nav\{display:inline-flex;/.test(css), "the header keeps its week-before / week-after arrows");
+assert.ok(!/\.cal-nav\{position:absolute/.test(css) && /class="cal-snav prev"/.test(js), "…the strip's own arrows never restyle them");
+// today: pinned, never faded, never covered, and days snap beside it rather than under it
+assert.ok(/\.cal-slide\.is-today\{position:sticky;left:0;z-index:2;background:var\(--card\)/.test(css), "Today is pinned to the strip's left edge, solid behind");
+assert.ok(!/\.cal-strip\.can-left\{--fl:/.test(css), "…the left edge is never faded");
+assert.ok(/\.cal-strip\.has-today \.cal-snav\.prev\{left:calc\(276px - 12px\);\}/.test(css), "…‹ sits on the seam beside it, not on it");
+assert.ok(/\.cal-strip\.has-today \.cal-track\{scroll-padding-left:calc\(276px \+ var\(--sp-2\)\);\}/.test(css), "…and a day snaps to that seam, not under Today");
+// both pairs of cards are the same height
+assert.ok(/\.day-row\{[^}]*align-items:stretch;/.test(css), "Today and This week are the same height");
+assert.ok(/\.day-grid\{[^}]*align-items:stretch;\}/.test(css) && /\.day-main > \.card,\.day-rail > \.card:last-child\{flex:1 1 auto;\}/.test(css),
+  "Needs a reply and Money needing attention are the same height");
 assert.ok(/prefers-reduced-motion:reduce\)\{ \.cal-track\{scroll-behavior:auto;\}/.test(css), "no glide for somebody who asked for less motion");
 
 // it opens on today, and a redraw leaves it where you put it
 const wire = js.slice(js.indexOf("function calStripWire"), js.indexOf("\n}\n", js.indexOf("function calStripWire")));
-assert.ok(/track\.querySelector\("\[data-today\]"\)/.test(wire) && /today\.offsetLeft/.test(wire), "this week opens scrolled to today");
+assert.ok(/const todayEl = track\.querySelector\("\[data-today\]"\)/.test(wire) && /todayEl\.offsetLeft - 2/.test(wire), "this week opens scrolled to today");
 assert.ok(/if \(calStripWeek === calWeekOffset && calStripX != null\)/.test(wire), "a tick or refresh does not jump it back");
 assert.ok(/calStripWire\(\);/.test(js.slice(js.indexOf("function renderCalendar"))), "every render wires it");
 
