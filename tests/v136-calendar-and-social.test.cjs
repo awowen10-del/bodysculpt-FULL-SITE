@@ -235,8 +235,9 @@ async function runIg(env, url, responder, seed) {
   assert.ok(DAILY.indexOf('id="calCard"') < DAILY.indexOf('<div class="day-grid">'),
     "…and it sits above the email and the money, framing them");
   const dstyle = styleOf(DAILY);
-  assert.ok(/\.cal-week\{display:grid;grid-template-columns:repeat\(7,minmax\(0,1fr\)\)/.test(dstyle),
-    "the week is seven columns across, not a list down");
+  // v231: one strip of seven days that scrolls sideways, rather than a fixed grid
+  assert.ok(/\.cal-track\{position:relative;display:flex;[^}]*overflow-x:auto;[^}]*scroll-snap-type:x mandatory/.test(dstyle),
+    "the week is a row of days across, not a list down — and it scrolls and snaps");
 
   /* v141: TODAY IS ITS OWN THING. Ash: "I asked for Today's schedule at a glance with a
      horizontal week view … I don't have that, I just have weekly glance." He was right — a
@@ -244,9 +245,9 @@ async function runIg(env, url, responder, seed) {
      today's square coloured in. The panel below answers the question the morning actually
      asks, and the strip beside it still answers the other one. */
   assert.ok(/function calTodayHtml\(events\)/.test(djs), "today has its own panel, built from today's events");
-  assert.ok(/\.cal-split\{display:grid;grid-template-columns:minmax\(230px,290px\) minmax\(0,1fr\)/.test(dstyle),
-    "…beside the week strip, not instead of it");
-  assert.ok(/calWeekOffset === 0\s*\?\s*'<div class="cal-split">' \+ calTodayHtml/.test(djs),
+  assert.ok(/'<div class="cal-slide is-today" data-today="1">' \+ calTodayHtml\(calEvents\)/.test(djs),
+    "…as a card IN the week strip, at today's place in it, not instead of the week");
+  assert.ok(/calWeekOffset === 0 && ymd\(d\) === todayKey/.test(djs),
     "…and only on the week that actually contains today");
   assert.ok(/\.ct-item\.now\{/.test(dstyle) && /live \? " now"/.test(djs),
     "what is on RIGHT NOW is marked in the list");

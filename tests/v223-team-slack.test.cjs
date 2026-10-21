@@ -291,7 +291,8 @@ async function loadModules() {
   assert.ok(!/xoxp|SLACK_USER_TOKEN/.test(js.replace(/<code>SLACK_USER_TOKEN<\/code>/g, "")), "the token never comes near the page");
 
   const iTop = DAILY.indexOf('<div class="day-top">'), iSl = DAILY.indexOf('id="slCard"'), iCal = DAILY.indexOf('id="calCard"');
-  assert.ok(iTop > 0 && iTop < iSl && iSl < iCal, "the card sits second: under the day, above the week");
+  // v231: Ash moved the week above Slack, beside the Today list
+  assert.ok(iTop > 0 && iTop < iCal && iCal < iSl, "the card sits under the day and the week");
   assert.ok(/\.sl-card\{margin:0 0 var\(--sp-4\);padding:18px 20px 20px;\}/.test(DAILY) && /\.cal-card\{margin:0 0 var\(--sp-4\);padding:18px 20px 20px;\}/.test(DAILY),
     "…with exactly the week card's spacing, so the column lines up");
   assert.ok(/@media\(max-width:1020px\)\{ \.sl-grid\{grid-template-columns:1fr;/.test(DAILY), "two columns on a wide screen, one on a phone — the same break as the page's grid");

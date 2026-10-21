@@ -32,12 +32,11 @@ for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "s
 
 /* ============ 1. today is drawn once ============ */
 const render = fn("renderCalendar");
-assert.ok(/if \(calWeekOffset === 0 && ymd\(d\) === todayKey\) continue;/.test(render),
-  "on this week, today's column is skipped — the panel is today");
-assert.ok(/'<div class="cal-week' \+ \(calWeekOffset === 0 \? " rest" : ""\) \+ '">'/.test(render),
-  "…and the strip says it holds the rest of the week");
-assert.ok(/\.cal-week\.rest\{grid-template-columns:repeat\(6,minmax\(0,1fr\)\);\}/.test(css), "six columns, not seven, beside the panel");
-assert.ok(/calWeekOffset === 0\s*\?\s*'<div class="cal-split">' \+ calTodayHtml/.test(render), "on another week it is seven, and no panel");
+// v231: one strip; on this week today's slot IS the panel, so today is still drawn once
+assert.ok(/\(calWeekOffset === 0 && ymd\(d\) === todayKey\)\s*\?\s*'<div class="cal-slide is-today" data-today="1">' \+ calTodayHtml\(calEvents\)/.test(render),
+  "on this week, today's slot is the panel — never a column as well");
+assert.ok(/: '<div class="cal-slide">' \+ calDayHtml\(d, calEvents, todayKey\)/.test(render), "…and every other day is a column");
+assert.ok(/\.cal-slide\.is-today\{flex-basis:276px;\}/.test(css), "the panel is wider than a day column");
 
 /* ============ 2. one rule for the task chip, and it is a row with a gap ============ */
 assert.strictEqual(count(/\n  \.cal-task\{/g, css), 1, ".cal-task is declared exactly once");

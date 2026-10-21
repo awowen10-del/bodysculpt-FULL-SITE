@@ -759,13 +759,42 @@
      v159: on the week you are in, today is the PANEL on the left and the strip holds the
      other six days — it used to hold all seven, so today appeared twice, side by side. */
   .cal-card{margin:0 0 var(--sp-4);padding:18px 20px 20px;}
-  .cal-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:var(--sp-2);}
-  .cal-week.rest{grid-template-columns:repeat(6,minmax(0,1fr));}
-  @media(max-width:900px){
-    .cal-week,.cal-week.rest{grid-template-columns:repeat(3,minmax(0,1fr));}
-    .cal-day{min-height:0;}
-  }
-  @media(max-width:560px){ .cal-week,.cal-week.rest{grid-template-columns:repeat(2,minmax(0,1fr));} }
+  /* v231: THE WEEK AS ONE STRIP. Today's panel and the days either side of it sit in a row
+     that scrolls sideways — a swipe on a phone, a trackpad or the ‹ › on a desk — and snaps to
+     a day so it never stops halfway across one. It opens on today. The edges fade (and the
+     arrows appear) only on the side there is more to see, so a strip that fits shows neither. */
+  .cal-strip{position:relative;}
+  .cal-track{position:relative;display:flex;gap:var(--sp-2);overflow-x:auto;overflow-y:hidden;
+    scroll-snap-type:x mandatory;scroll-behavior:smooth;overscroll-behavior-x:contain;
+    -webkit-overflow-scrolling:touch;padding:2px 2px 12px;
+    scrollbar-width:thin;scrollbar-color:rgba(var(--line-rgb),.9) transparent;}
+  .cal-track::-webkit-scrollbar{height:6px;}
+  .cal-track::-webkit-scrollbar-track{background:transparent;}
+  .cal-track::-webkit-scrollbar-thumb{background:rgba(var(--line-rgb),.9);border-radius:999px;}
+  .cal-track:hover::-webkit-scrollbar-thumb{background:rgba(var(--orange-rgb),.35);}
+  .cal-slide{flex:0 0 172px;display:flex;min-width:0;scroll-snap-align:start;}
+  .cal-slide > *{flex:1;min-width:0;}
+  .cal-slide.is-today{flex-basis:276px;}
+  /* the fade dissolves the days themselves rather than laying a white wash over them, so it
+     reads right over today's tinted panel too; slimmer on the left, where the past is. (A
+     mask only reads how solid a colour is, so any solid token does — no literal colour.) */
+  .cal-strip{--fl:0px;--fr:0px;}
+  .cal-strip.can-left{--fl:16px;}
+  .cal-strip.can-right{--fr:44px;}
+  .cal-track{-webkit-mask-image:linear-gradient(90deg,transparent 0,var(--ink) var(--fl),var(--ink) calc(100% - var(--fr)),transparent 100%);
+    mask-image:linear-gradient(90deg,transparent 0,var(--ink) var(--fl),var(--ink) calc(100% - var(--fr)),transparent 100%);}
+  .cal-nav{position:absolute;top:calc(50% - 21px);z-index:2;width:32px;height:32px;border-radius:50%;
+    border:1px solid var(--line);background:var(--card);color:var(--ink-dim);box-shadow:var(--shadow);
+    display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;
+    font:inherit;font-size:18px;line-height:1;opacity:0;pointer-events:none;
+    transition:opacity .2s ease,color var(--tap),border-color var(--tap);}
+  .cal-nav.prev{left:-17px;} .cal-nav.next{right:-17px;}   /* out in the card's own margin */
+  .cal-strip.can-left .cal-nav.prev,.cal-strip.can-right .cal-nav.next{opacity:1;pointer-events:auto;}
+  .cal-nav:hover{color:var(--orange);border-color:rgba(var(--orange-rgb),.5);}
+  .cal-nav:focus-visible{outline:none;box-shadow:var(--focus);}
+  @media(hover:none){ .cal-nav{display:none;} }        /* a finger swipes; it needs no buttons */
+  @media(prefers-reduced-motion:reduce){ .cal-track{scroll-behavior:auto;} }
+  @media(max-width:560px){ .cal-slide{flex-basis:150px;} .cal-slide.is-today{flex-basis:84%;} }
   .cal-day{border:1px solid var(--line);border-radius:var(--r-md);padding:10px;
     background:var(--card);min-height:132px;display:flex;flex-direction:column;min-width:0;}
   .cal-day.today{border-color:rgba(var(--orange-rgb),.4);background:rgba(var(--orange-rgb),.05);}
@@ -876,9 +905,7 @@
      column plus a one-line summary was me pretending it did. Today gets its own panel,
      beside the week rather than instead of it: the day read down in time order, what is on
      now marked, what has gone dimmed. */
-  .cal-split{display:grid;grid-template-columns:minmax(230px,290px) minmax(0,1fr);
-    gap:var(--sp-4);align-items:start;}
-  @media(max-width:1080px){ .cal-split{grid-template-columns:1fr;} }
+  /* v231: the panel is the first card of the week strip now, not a column beside a grid */
   .cal-today{border:1px solid rgba(var(--orange-rgb),.34);border-radius:var(--r-md);
     background:rgba(var(--orange-rgb),.05);padding:12px 13px 13px;min-width:0;}
   .ct-head{display:flex;align-items:center;gap:8px;margin-bottom:2px;}
@@ -1180,6 +1207,11 @@
   }
   /* v230: the Today list. The rows reuse focus mode's tick box and checklist pieces. */
   .tl-card{margin-top:var(--sp-4);}
+  /* v231: Today's jobs and the week, one row */
+  .day-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:var(--sp-4);
+    align-items:start;margin:0 0 var(--sp-4);}
+  .day-row > .card{margin:0;}
+  @media(max-width:1180px){ .day-row{grid-template-columns:minmax(0,1fr);} }
   .tl-list{display:flex;flex-direction:column;gap:4px;}
   .tl-row{border:1px solid var(--line);border-radius:var(--r-md);background:var(--card);padding:9px 11px;}
   .tl-line{display:flex;align-items:center;gap:11px;min-width:0;}
@@ -1442,6 +1474,11 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
   </section>
 </div>
 
+<!-- v231: TODAY AND THE WEEK, SIDE BY SIDE. Ash: "move 'this week' above 'team slack'…
+     have 'today' and 'this week' on the same row but have the 'this week' scrollable".
+     The jobs on the left; the week on the right as one strip that scrolls sideways, opening
+     on today. On a narrower screen they stack, jobs first. -->
+<div class="day-row">
 <!-- v230: TODAY'S JOBS, ON THE PAGE. The list the one-at-a-time screen used to walk you
      through, as a plain list you can see and do in any order. -->
 <section class="card tl-card" id="tlCard">
@@ -1452,20 +1489,6 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
     </div>
   </div>
   <div id="tlBody"><div class="loading">Loading today’s jobs…</div></div>
-</section>
-
-<!-- v223: THE TEAM SLACK. What the team needs from you, under the day and above the week:
-     what you missed, what to know, what to step in on, and every coach's Post-Shift
-     Checklist — each with the reply already written. Posting happens only on Send, as you. -->
-<section class="card sl-card" id="slCard">
-  <div class="cardhead">
-    <div>
-      <div class="chead"><svg class="ic"><use href="#ic-chat"/></svg> Team Slack</div>
-      <div class="csub" id="slSub"></div>
-    </div>
-    <div class="cardhead-r" id="slTools"></div>
-  </div>
-  <div id="slBody"><div class="loading">Reading the team Slack…</div></div>
 </section>
 
 <!-- The week, above everything else: what you are doing today is the frame the email and
@@ -1483,6 +1506,22 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
   </div>
   <div id="calBody"></div>
 </section>
+</div>
+
+<!-- v223: THE TEAM SLACK. What the team needs from you, under the day and above the week:
+     what you missed, what to know, what to step in on, and every coach's Post-Shift
+     Checklist — each with the reply already written. Posting happens only on Send, as you. -->
+<section class="card sl-card" id="slCard">
+  <div class="cardhead">
+    <div>
+      <div class="chead"><svg class="ic"><use href="#ic-chat"/></svg> Team Slack</div>
+      <div class="csub" id="slSub"></div>
+    </div>
+    <div class="cardhead-r" id="slTools"></div>
+  </div>
+  <div id="slBody"><div class="loading">Reading the team Slack…</div></div>
+</section>
+
 
 <div class="day-grid">
   <div class="day-main">
@@ -3800,6 +3839,53 @@ let gcalToken = null;        // { token, expires }
 let gcalDevice = "";         // this browser's device key, or ""
 let gcalCodeClient = null;   // the GIS code client, made once, used only on a click
 let calWeekOffset = 0;       // 0 = this week, -1 = last, +1 = next
+// v231: where the week strip is scrolled to, so a redraw (a tick, a refresh) leaves it there.
+// A different week starts afresh: on today for this week, on Monday for any other.
+let calStripX = null, calStripWeek = null;
+function calStripWire() {
+  const track = $("calTrack");
+  if (!track) return;
+  const strip = track.parentNode;
+  const edges = () => {
+    const max = track.scrollWidth - track.clientWidth;
+    strip.classList.toggle("can-left", track.scrollLeft > 4);
+    strip.classList.toggle("can-right", track.scrollLeft < max - 4);
+  };
+  // place it without animating — it should simply BE on today when the card appears
+  const was = track.style.scrollBehavior;
+  track.style.scrollBehavior = "auto";
+  if (calStripWeek === calWeekOffset && calStripX != null) {
+    track.scrollLeft = calStripX;
+  } else {
+    const today = track.querySelector("[data-today]");
+    track.scrollLeft = today ? Math.max(0, today.offsetLeft - 2) : 0;
+    calStripWeek = calWeekOffset;
+  }
+  track.style.scrollBehavior = was;
+  calStripX = track.scrollLeft;
+  edges();
+  let raf = 0;
+  track.addEventListener("scroll", () => {
+    calStripX = track.scrollLeft;
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; edges(); });
+  }, { passive: true });
+  strip.querySelectorAll("[data-calnav]").forEach((b) => b.addEventListener("click", () => {
+    const slide = track.querySelector(".cal-slide:not(.is-today)") || track.firstElementChild;
+    const step = slide ? slide.getBoundingClientRect().width + 8 : track.clientWidth * 0.6;
+    track.scrollBy({ left: Number(b.dataset.calnav) * step * 2, behavior: "smooth" });
+  }));
+  // a resize can change whether there is anything to scroll to at all
+  if (!calStripWire.resized) {
+    calStripWire.resized = true;
+    window.addEventListener("resize", () => {
+      const t = $("calTrack");
+      if (!t) return;
+      const st = t.parentNode, max = t.scrollWidth - t.clientWidth;
+      st.classList.toggle("can-left", t.scrollLeft > 4);
+      st.classList.toggle("can-right", t.scrollLeft < max - 4);
+    }, { passive: true });
+  }
+}
 let calEvents = null;        // the loaded week, or null
 let calError = "";
 
@@ -4309,18 +4395,20 @@ function renderCalendar() {
       } else if (warn) warn.remove();
     }
     const todayKey = ymd(new Date());
-    let cols = "";
+    // v231: one strip, Monday to Sunday. On this week today is the PANEL, in its own place in
+    // the week (v159: it does not get a column as well); on any other week, seven days.
+    let slides = "";
     for (let i = 0; i < 7; i++) {
       const d = new Date(start); d.setDate(d.getDate() + i);
-      // v159: on this week, today IS the panel — it does not get a column as well
-      if (calWeekOffset === 0 && ymd(d) === todayKey) continue;
-      cols += calDayHtml(d, calEvents, todayKey);
+      slides += (calWeekOffset === 0 && ymd(d) === todayKey)
+        ? '<div class="cal-slide is-today" data-today="1">' + calTodayHtml(calEvents) + "</div>"
+        : '<div class="cal-slide">' + calDayHtml(d, calEvents, todayKey) + "</div>";
     }
-    // Today beside the rest of the week, never instead of it — and only on the week you are in.
-    const weekHtml = '<div class="cal-week' + (calWeekOffset === 0 ? " rest" : "") + '">' + cols + "</div>";
-    body.innerHTML = calWeekOffset === 0
-      ? '<div class="cal-split">' + calTodayHtml(calEvents) + weekHtml + "</div>"
-      : weekHtml;
+    body.innerHTML = '<div class="cal-strip">' +
+      '<button type="button" class="cal-nav prev" data-calnav="-1" aria-label="Earlier in the week">‹</button>' +
+      '<div class="cal-track" id="calTrack">' + slides + "</div>" +
+      '<button type="button" class="cal-nav next" data-calnav="1" aria-label="Later in the week">›</button></div>';
+    calStripWire();
   }
 
   const on = (id, fn) => { const el = $(id); if (el) el.addEventListener("click", fn); };
