@@ -403,8 +403,14 @@ function meal(night, name, extra) {
     }
     assert.ok(/<b>Tuesday: Chicken curry<\/b>/.test(html) && /Tip into the slow cooker frozen/.test(html), "the prep session card lists the bags and the morning-of step");
     assert.ok(/<details class="fh-sec fh-settings">/.test(html), "settings are folded away by default");
-    assert.ok(html.indexOf("Create a new weekly menu") < html.indexOf('</div><div class="fh-col">') && html.indexOf('</div><div class="fh-col">') < html.indexOf("This week’s menu"),
-      "two columns: what we have and the week on the left, the menu, prep and shopping on the right");
+    // v237: tonight first, the week as tiles, four numbers, then one tab at a time
+    assert.ok(html.indexOf('class="fh-hero') >= 0 && html.indexOf('class="fh-hero') < html.indexOf('class="fh-tabs"'), "the page leads with a hero card, above the tabs");
+    assert.strictEqual((html.match(/class="fh-tile /g) || []).length, 7, "the week is seven tiles");
+    assert.strictEqual((html.match(/<button type="button" class="fh-stat[ "]/g) || []).length, 4, "four headline numbers");
+    assert.deepStrictEqual([...html.matchAll(/role="tab" id="fht-([a-z]+)"/g)].map((m) => m[1]), ["menu", "shop", "kitchen", "plan", "book"], "five tabs");
+    assert.ok(/id="fhp-menu" aria-labelledby="fht-menu">/.test(html) && /id="fhp-plan" aria-labelledby="fht-plan" hidden>/.test(html),
+      "with a menu, the Menu tab shows and the others wait (drawn, hidden — nothing typed is lost)");
+    assert.ok(/fhRing\(/.test(read("food.js")) && /role="img" aria-label="' \+ p \+ "g protein per adult serving/.test(read("food.js")), "protein shows as a ring, with words for a screen reader");
     assert.ok(pg.posts.every((p) => !p.weeklyPlan && !p.locationDefaults), "it never writes to the weekly plan");
 
     // next week: a fresh week — Warrington evenings (usual pattern, plus this week's override) start as Chloe solo
@@ -503,7 +509,7 @@ function meal(night, name, extra) {
     for (const f of ["netlify/functions/food.js", "netlify/functions/food-background.js"]) assert.ok(/process\.env\.ANTHROPIC_API_KEY/.test(read(f)), f + " reads the key on the server");
     assert.ok(!/food\.js|fhHub|food-plan|FOOD_/.test(read("daily.html")), "the Daily page (where the Today view lives now) has nothing of the Food hub");
     assert.ok(/\[functions\."food"\]\s+timeout = 26/.test(read("netlify.toml")), "the photo reader gets the full 26 seconds");
-    for (const f of ["index.html", "daily.html", "health.html"]) assert.ok(read(f).includes("build v236 · health-and-fitness"), f + " is stamped health-and-fitness");
+    for (const f of ["index.html", "daily.html", "health.html"]) assert.ok(read(f).includes("build v237 · food-design-pass"), f + " is stamped health-and-fitness");
   }
 
   /* =====================================================================

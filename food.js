@@ -124,22 +124,145 @@ function fhMount(hostId, week) {
   fhRender();
 }
 
-/* ---------- the hub, top to bottom ---------- */
+/* ---------- the hub ----------
+   v237 design pass — Ash: "a lot of text and I'm not excited to be on here". So the page leads
+   with what matters tonight, the week at a glance, four numbers, and then ONE tab at a time:
+     hero (tonight, or what's next) · four numbers · the week strip ·
+     tabs: Menu · Shopping · Kitchen · Plan the week · Recipe book
+   Every tab is drawn (hidden when not chosen), so nothing typed is lost switching tabs. */
+const FH_TABS = [["menu", "Menu", "ic-utensils"], ["shop", "Shopping", "ic-cart"], ["kitchen", "Kitchen", "ic-fridge"],
+  ["plan", "Plan the week", "ic-calendar"], ["book", "Recipe book", "ic-book"]];
+const FH_TYPE_ICON = { family: "ic-users", solo: "ic-pot", busy: "ic-bolt", none: "ic-moon" };
+function fhTabNow() {
+  if (fhState.busy === "createMenu") return "menu";
+  return fhState.tab || ((fhState.plan.meals || []).length ? "menu" : "plan");
+}
+function fhSetTab(t) { fhState.tab = t; fhRender(); }
+// open a meal on the Menu tab and bring it into view
+function fhGoMeal(id) {
+  fhState.tab = "menu"; fhState.open[id] = true; fhRender();
+  setTimeout(() => { const el = document.getElementById("fhm-" + id); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 30);
+}
 function fhInnerHtml() {
   if (fhState.loading || !fhState.plan) return '<div class="fh-loading">Loading this week’s food…</div>';
   const jobNote = fhState.busy && fhState.job && fhState.job.status === "running" && fhState.job.stageNote;
   const working = jobNote || { createMenu: "Writing this week’s menu — meals appear below as each one is written…", swapMeal: "Swapping that meal…",
     changeMenu: "Making that change…", useRecipe: "Putting that recipe into the week…", photo: "Reading the sign…" }[fhState.busy] || "";
+  const tab = fhTabNow();
+  const panel = (key, html) => '<div class="fh-panel" role="tabpanel" id="fhp-' + key + '" aria-labelledby="fht-' + key + '"' + (tab === key ? "" : " hidden") + ">" + html + "</div>";
   return (fhState.error ? '<div class="fh-msg bad" role="alert">' + fhE(fhState.error) + "</div>" : "") +
     (working ? '<div class="fh-msg busy" role="status"><span class="fh-spin"></span>' + fhE(working) + "</div>" : "") +
     (fhState.note ? '<div class="fh-msg ok" role="status">' + fhE(fhState.note) + "</div>" : "") +
-    // two columns on a wide screen — what we have and the week on the left, what to cook and buy
-    // on the right; one column on a phone, in the same top-to-bottom order
-    '<div class="fh-cols"><div class="fh-col">' +
-    fhMeatHtml() + fhPantryHtml() + fhSituationHtml() +
-    '<button type="button" class="fh-create" onclick="fhCreateClick()"' + (fhState.busy ? " disabled" : "") + ">" +
+    '<div class="fh-top">' + fhHeroHtml() + fhStatsHtml() + "</div>" +
+    fhStripHtml() +
+    fhTabsHtml(tab) +
+    panel("menu", fhMenuHtml() + fhPrepHtml()) +
+    panel("shop", fhBuyHtml() || fhEmptyHtml("ic-cart", "Nothing to buy yet", "The shopping list writes itself with the menu — whole Tesco packs, by aisle.")) +
+    panel("kitchen", fhMeatHtml() + fhPantryHtml()) +
+    panel("plan", fhSituationHtml() +
+      '<button type="button" class="fh-create" onclick="fhCreateClick()"' + (fhState.busy ? " disabled" : "") + ">" +
+      '<svg class="ic"><use href="#ic-sparkle"/></svg>' +
       (fhState.confirmCreate ? "Replace this week’s menu?" : (fhState.plan.meals || []).length ? "Create a new weekly menu" : "Create weekly menu") + "</button>" +
-    '</div><div class="fh-col">' + fhMenuHtml() + fhPrepHtml() + fhBuyHtml() + fhBookHtml() + "</div></div>" + fhSettingsHtml();
+      fhSettingsHtml()) +
+    panel("book", fhBookHtml());
+}
+function fhEmptyHtml(icon, title, words, btn) {
+  return '<div class="fh-empty"><span class="fh-empty-ic"><svg class="ic"><use href="#' + icon + '"/></svg></span><b>' + title + "</b><p>" + words + "</p>" + (btn || "") + "</div>";
+}
+// a ring that fills to the protein target: green inside the range, amber outside it
+function fhRing(protein, t, flag, size) {
+  const p = Math.round(Number(protein) || 0), sz = size || 76, r = sz / 2 - 6, c = 2 * Math.PI * r;
+  const fill = Math.max(0, Math.min(1, p / (t.min || 30)));
+  const off = flag || p < t.min || p > t.max;
+  return '<span class="fh-ring' + (off ? " off" : "") + '" style="width:' + sz + "px;height:" + sz + 'px" role="img" aria-label="' + p + "g protein per adult serving, target " + t.min + " to " + t.max + 'g">' +
+    '<svg viewBox="0 0 ' + sz + " " + sz + '" aria-hidden="true"><circle class="trk" cx="' + sz / 2 + '" cy="' + sz / 2 + '" r="' + r + '"/>' +
+    '<circle class="val" cx="' + sz / 2 + '" cy="' + sz / 2 + '" r="' + r + '" stroke-dasharray="' + (c * fill).toFixed(1) + " " + c.toFixed(1) + '" transform="rotate(-90 ' + sz / 2 + " " + sz / 2 + ')"/></svg>' +
+    "<span><b>" + p + "g</b><small>protein</small></span></span>";
+}
+/* the hero: tonight's meal — or what's next, or the way in when there is no menu yet */
+function fhHeroHtml() {
+  const p = fhState.plan, meals = p.meals || [], today = fhToday(), t = p.proteinTarget || fhTarget();
+  if (fhState.busy === "createMenu") {
+    return '<section class="fh-hero"><div class="fh-hero-main"><div class="fh-eyebrow">This week</div><div class="fh-hero-name">Writing your menu…</div>' +
+      '<p class="fh-hero-sum">Each evening appears in the Menu tab the moment it’s written.</p></div><span class="fh-hero-art"><svg class="ic"><use href="#ic-utensils"/></svg></span></section>';
+  }
+  if (!meals.length) {
+    return '<section class="fh-hero"><div class="fh-hero-main"><div class="fh-eyebrow">This week</div><div class="fh-hero-name">No menu yet</div>' +
+      '<p class="fh-hero-sum">Set the week’s evenings, then one tap writes every meal — and the shopping list.</p>' +
+      '<div class="fh-hero-acts"><button type="button" class="fh-b go" onclick="fhSetTab(\'plan\')">Plan this week</button></div></div>' +
+      '<span class="fh-hero-art"><svg class="ic"><use href="#ic-utensils"/></svg></span></section>';
+  }
+  const tonight = meals.find((m) => m.date === today);
+  const show = tonight || meals.filter((m) => m.date > today && m.status !== "skipped")[0];
+  if (!show) {
+    return '<section class="fh-hero"><div class="fh-hero-main"><div class="fh-eyebrow">This week</div><div class="fh-hero-name">That’s the week done</div>' +
+      '<p class="fh-hero-sum">Rate anything you haven’t yet — it shapes next week’s menu.</p></div><span class="fh-hero-art"><svg class="ic"><use href="#ic-check"/></svg></span></section>';
+  }
+  const bag = ((p.prepSession || {}).bags || []).find((b) => b.night === show.night);
+  // tomorrow's frozen dump bag goes in the fridge tonight
+  const tmr = (() => { const d = new Date(today + "T12:00:00"); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })();
+  const tm = meals.find((m) => m.date === tmr && m.dumpBag);
+  const tbag = tm && ((p.prepSession || {}).bags || []).find((b) => b.night === tm.night && b.storage !== "fridge");
+  return '<section class="fh-hero t-' + fhE(show.type) + '"><div class="fh-hero-main">' +
+      '<div class="fh-eyebrow">' + (tonight ? "Tonight" : "Next up · " + fhDayLabel(show.night)) + "</div>" +
+      '<div class="fh-hero-name">' + fhE(show.name) + "</div>" +
+      '<p class="fh-hero-sum">' + fhE(show.summary) + "</p>" +
+      '<div class="fh-chips">' + fhTypeChip(show.type) + (show.dumpBag ? '<span class="fh-chip bag"><svg class="ic"><use href="#ic-pot"/></svg>Dump bag</span>' : "") +
+        (show.minutes ? '<span class="fh-chip"><svg class="ic"><use href="#ic-clock"/></svg>' + fhMins(show.minutes) + "</span>" : "") +
+        (show.status === "cooked" ? '<span class="fh-chip done"><svg class="ic"><use href="#ic-check"/></svg>Cooked</span>' : "") + "</div>" +
+      (tonight && bag && bag.morningOf ? '<div class="fh-hero-note"><b>This morning:</b> ' + fhE(bag.morningOf) + "</div>" : "") +
+      (tbag ? '<div class="fh-hero-note warn"><b>Before bed:</b> move tomorrow’s ' + fhE(tbag.name || tm.name) + " bag from the freezer to the fridge.</div>" : "") +
+      '<div class="fh-hero-acts"><button type="button" class="fh-b go" onclick="fhGoMeal(\'' + show.id + '\')">See the recipe</button>' +
+        (tonight && (!show.status || show.status === "planned") ? '<button type="button" class="fh-b" onclick="fhCooked(\'' + show.id + '\')"><svg class="ic"><use href="#ic-check"/></svg>Cooked it</button>' : "") +
+      "</div></div>" + fhRing((show.perAdult || {}).protein, t, show.proteinFlag, 96) + "</section>";
+}
+function fhMins(n) { return n >= 120 ? Math.round(n / 60) + " hrs" : n + " min"; }
+function fhTypeChip(type) {
+  return '<span class="fh-chip t-' + fhE(type || "family") + '"><svg class="ic"><use href="#' + (FH_TYPE_ICON[type] || "ic-users") + '"/></svg>' + fhE(fhTypeLabel(type)) + "</span>";
+}
+/* four numbers: protein, cooked, shopping, meat — each one a door to its tab */
+function fhStatsHtml() {
+  const p = fhState.plan, meals = p.meals || [], t = p.proteinTarget || fhTarget();
+  const onT = meals.filter((m) => { const v = (m.perAdult || {}).protein || 0; return v >= t.min && v <= t.max; }).length;
+  const cooked = meals.filter((m) => m.status === "cooked").length;
+  const buy = (p.toBuy || []).filter((b) => !b.ticked);
+  let est = 0;
+  for (const b of buy) { const pr = fhState.products[b.key]; est += pr && pr.lastPrice ? pr.lastPrice : (Number(b.estPrice) || 0); }
+  const meat = fhItems("meat").length;
+  const tile = (tab, icon, big, small, tone) => '<button type="button" class="fh-stat' + (tone ? " " + tone : "") + '" onclick="fhSetTab(\'' + tab + '\')">' +
+    '<span class="fh-stat-ic"><svg class="ic"><use href="#' + icon + '"/></svg></span><b>' + big + "</b><small>" + small + "</small></button>";
+  return '<div class="fh-stats">' +
+    tile("menu", "ic-target", meals.length ? onT + "/" + meals.length : "–", "meals on protein target", meals.length && onT < meals.length ? "warn" : "good") +
+    tile("menu", "ic-check", meals.length ? cooked + "/" + meals.length : "–", "cooked this week", "") +
+    tile("shop", "ic-cart", buy.length ? String(buy.length) : "0", buy.length ? "to buy · about " + fhMoney(est) : "nothing to buy", "") +
+    tile("kitchen", "ic-fridge", String(meat), meat === 1 ? "meat in stock" : "meats in stock", "") + "</div>";
+}
+/* the week at a glance: seven tiles, today ringed; tap one to open its meal */
+function fhStripHtml() {
+  const p = fhState.plan, meals = p.meals || [], today = fhToday(), s = p.schedule || {}, t = p.proteinTarget || fhTarget();
+  const drafts = fhState.busy === "createMenu" && fhState.job && Array.isArray(fhState.job.partial) ? fhState.job.partial : [];
+  return '<div class="fh-strip" role="list" aria-label="The week">' + FH_DAYS.map(([d, l]) => {
+    const date = fhDateOf(fhState.week, d), type = s[d] || "family";
+    const m = fhState.busy === "createMenu" ? drafts.find((x) => x.night === d) : meals.find((x) => x.night === d);
+    const pr = m && m.perAdult ? Math.round(m.perAdult.protein || 0) : 0;
+    const off = m && m.perAdult && (m.proteinFlag || pr < t.min || pr > t.max);
+    const inner = '<span class="fh-tile-d"><b>' + l + "</b> " + fhShortDate(date).split(" ")[0] + "</span>" +
+      '<span class="fh-tile-ic"><svg class="ic"><use href="#' + (m && m.dumpBag ? "ic-pot" : FH_TYPE_ICON[type] || "ic-users") + '"/></svg></span>' +
+      '<span class="fh-tile-n">' + (m ? fhE(m.name) : type === "none" ? "No cooking" : fhState.busy === "createMenu" ? "Writing…" : "Not planned") + "</span>" +
+      (m && m.perAdult ? '<span class="fh-tile-p' + (off ? " off" : "") + '">' + pr + "g</span>" : "") +
+      (m && m.status === "cooked" ? '<span class="fh-tile-done" aria-label="Cooked"><svg class="ic"><use href="#ic-check"/></svg></span>' : "");
+    const cls = "fh-tile t-" + type + (date === today ? " today" : "") + (m ? "" : " empty") + (m && m.status === "skipped" ? " skipped" : "");
+    return m && m.id ? '<button type="button" role="listitem" class="' + cls + '" onclick="fhGoMeal(\'' + m.id + '\')"' + (date === today ? ' aria-current="date"' : "") + ">" + inner + "</button>"
+      : '<div role="listitem" class="' + cls + '"' + (date === today ? ' aria-current="date"' : "") + ">" + inner + "</div>";
+  }).join("") + "</div>";
+}
+function fhTabsHtml(tab) {
+  const p = fhState.plan;
+  const counts = { menu: (p.meals || []).length, shop: (p.toBuy || []).filter((b) => !b.ticked).length, kitchen: fhItems("meat").length,
+    book: ((fhState.book && fhState.book.recipes) || []).length };
+  return '<div class="fh-tabs" role="tablist" aria-label="Food">' + FH_TABS.map(([k, label, icon]) =>
+    '<button type="button" role="tab" id="fht-' + k + '" aria-controls="fhp-' + k + '" aria-selected="' + (tab === k) + '" class="' + (tab === k ? "on" : "") + '" onclick="fhSetTab(\'' + k + '\')">' +
+    '<svg class="ic"><use href="#' + icon + '"/></svg><span>' + label + "</span>" + (counts[k] ? "<small>" + counts[k] + "</small>" : "") + "</button>").join("") + "</div>";
 }
 
 /* 1. MEAT */
@@ -214,15 +337,16 @@ function fhMenuHtml() {
   const partial = fhState.busy === "createMenu" && fhState.job && Array.isArray(fhState.job.partial) ? fhState.job.partial : [];
   if (fhState.busy === "createMenu") {
     return '<section class="fh-sec"><div class="fh-h"><span>This week’s menu</span><small>being written</small></div>' +
-      (partial.length ? partial.map((m) => '<article class="fh-meal draft"><div class="fh-meal-top"><span class="fh-day">' + fhE(fhDayLabel(m.night)) + "</span>" +
+      (partial.length ? '<div class="fh-meals">' + partial.map((m) => '<article class="fh-meal draft"><div class="fh-meal-top"><span class="fh-day">' + fhE(fhDayLabel(m.night)) + "</span>" +
         (m.dumpBag ? '<span class="fh-type bag">Dump bag</span>' : "") + '</div><b class="fh-meal-name">' + fhE(m.name) + '</b><span class="fh-meal-sum">' + fhE(m.summary) + "</span>" +
-        (m.perAdult ? fhMacrosHtml(m.perAdult) : "") + "</article>").join("") : '<div class="fh-small">The first meal will appear here as soon as it is written.</div>') + "</section>";
+        (m.perAdult ? fhMacrosHtml(m.perAdult) : "") + "</article>").join("") + "</div>" : '<div class="fh-small">The first meal will appear here as soon as it is written.</div>') + "</section>";
   }
-  if (!(p.meals || []).length) return "";
+  if (!(p.meals || []).length) return fhEmptyHtml("ic-utensils", "No menu yet", "Set the week’s evenings in Plan the week, then Create weekly menu.",
+    '<button type="button" class="fh-b go sm" onclick="fhSetTab(\'plan\')">Plan this week</button>');
   const today = fhToday();
   const t = p.proteinTarget || fhTarget();
   return '<section class="fh-sec"><div class="fh-h"><span>This week’s menu</span><small>' + (p.people || 4) + " eating · per adult serving · protein target " + t.min + "–" + t.max + "g</small></div>" +
-    p.meals.map((m) => fhMealHtml(m, today)).join("") +
+    '<div class="fh-meals">' + p.meals.map((m) => fhMealHtml(m, today)).join("") + "</div>" +
     '<div class="fh-change"><label class="fh-lab">Change something<textarea class="fh-ta" id="fhChange" rows="2" placeholder="e.g. Artie won’t eat curry, swap Saturday · make Tuesday quicker"></textarea></label>' +
     '<button type="button" class="fh-b sm" onclick="fhChangeClick()"' + (fhState.busy ? " disabled" : "") + ">Apply the change</button>" +
     '<div class="fh-small">Only what you ask changes — every other meal stays as it is.</div></div></section>';
@@ -240,9 +364,9 @@ function fhMacrosHtml(pa, flag) {
 const fhFlagWords = { below: "Below protein target", above: "Above protein target" };
 function fhMealHtml(m, today) {
   const open = m.id in fhState.open ? fhState.open[m.id] : m.date === today;
-  return '<article class="fh-meal' + (m.status === "cooked" ? " cooked" : m.status === "skipped" ? " skipped" : "") + (m.date === today ? " tonight" : "") + '">' +
+  return '<article class="fh-meal t-' + fhE(m.type || "family") + (m.status === "cooked" ? " cooked" : m.status === "skipped" ? " skipped" : "") + (m.date === today ? " tonight" : "") + '" id="fhm-' + m.id + '">' +
     '<div class="fh-meal-top"><span class="fh-day">' + fhE(fhDayLabel(m.night)) + " <small>" + fhShortDate(m.date) + "</small></span>" +
-      '<span class="fh-type ' + fhE(m.type) + '">' + fhE(fhTypeLabel(m.type)) + "</span>" + (m.dumpBag ? '<span class="fh-type bag">Dump bag</span>' : "") +
+      fhTypeChip(m.type) + (m.dumpBag ? '<span class="fh-chip bag"><svg class="ic"><use href="#ic-pot"/></svg>Dump bag</span>' : "") +
       (m.recipeId ? '<span class="fh-type book">Recipe book</span>' : "") +
       (m.status === "cooked" ? '<span class="fh-status">Cooked</span>' : m.status === "skipped" ? '<span class="fh-status off">Skipped</span>' : "") +
       '<span class="fh-mins">' + (m.minutes ? m.minutes + " min" : "") + "</span></div>" +
@@ -521,7 +645,7 @@ async function fhCreateClick() {
   if ((p.meals || []).length && !fhState.confirmCreate) { fhState.confirmCreate = true; fhRender(); return; }
   fhState.confirmCreate = false;
   await fhSaveNow();
-  fhState.busy = "createMenu"; fhRender();
+  fhState.busy = "createMenu"; fhState.tab = "menu"; fhRender();
   fhStart({ action: "createMenu", inputs: { schedule: p.schedule, situation: p.situation || "", people: p.people } });
 }
 function fhSwap(night) { fhState.busy = "swapMeal"; fhRender(); fhStart({ action: "swapMeal", night }); }
