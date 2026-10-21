@@ -39,9 +39,11 @@ const planSaves = (posts, key) => posts.filter((p) => p.body.weeklyPlan && key i
     assert.ok(/^"Inter",/.test(m[1]), label + " puts Inter at the front of the stack");
     assert.ok(m[1].includes("-apple-system") && m[1].includes("sans-serif"), label + " keeps the system fallback behind it");
     // everything else on the page inherits — no second font-family stack anywhere
-    const stacks = (src.match(/font-family:(?!inherit)/g) || []).length;
+    // v233: …except the one named display face for headings, which is a token, not a stack
+    const stacks = (src.match(/font-family:(?!inherit|var\(--font-display\))/g) || []).length;
     const mono = (src.match(/font-family:ui-monospace/g) || []).length;
     assert.strictEqual(stacks - mono, 1, label + " declares exactly one non-inherited, non-mono stack");
+    assert.ok(/--font-display:"Plus Jakarta Sans","Inter",/.test(src), label + " names its display face once, as a token, with Inter behind it");
   }
 
   /* ================= 2. the non-negotiables card sits under the calendar ================= */

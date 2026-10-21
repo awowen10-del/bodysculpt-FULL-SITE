@@ -10,7 +10,7 @@
      as the fallback, so an offline/blocked load renders exactly as it did before. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
 <!-- v136: Google Identity Services. It supplies the "sign in with Google" token flow and
      nothing else — no secret is involved, only the public client id served by ?webconfig=1.
      Loaded async: if Google is unreachable the calendar card says so and the rest of the
@@ -48,22 +48,27 @@
     --tap:.12s ease;
     --chev-mask:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>');
     --focus:0 0 0 2px var(--card), 0 0 0 4px rgba(var(--orange-rgb),.55);
+    /* v233: two faces. Plus Jakarta Sans for headings — warmer and more characterful than
+       Inter at display sizes — and Inter kept for everything read at small sizes, where it
+       is hard to beat. */
+    --font-display:"Plus Jakarta Sans","Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   }
   :root{
     color-scheme:light;
-    /* THREE TIERS OF DEPTH, and they must stay three: the page (--navy) is a soft, slightly
-       cool grey; the card (--card) is near-white and therefore visibly LIFTS off it; --line
-       is a fine neutral hairline that draws the card's edge. Tone step + hairline do the
+    /* THREE TIERS OF DEPTH, and they must stay three: the page (--navy) is a soft warm
+       paper (v233 — it was a cool grey, which left the terracotta brand looking pasted on);
+       the card (--card) is white and therefore visibly LIFTS off it; --line is a fine warm
+       hairline that draws the card's edge. Tone step + hairline do the
        work — the shadows below are deliberately soft. --navy-2 is the recessed inset inside
        a card (toolbars, sticky heads, sub-panels), so it sits BELOW the card, not above.
        v121 deepened the page a step and tightened the hairline, so a white card reads as an
        object on the page rather than blending into it. */
-    --navy:#eef0f4; --navy-2:#e4e8ef; --card:#ffffff; --card-2:#f6f8fb;
-    --line:#d9dee7; --line-rgb:217,222,231;
-    /* dark-but-soft ink — a cool near-black, never #000; --ink-dim/-faint are muted greys.
+    --navy:#f4f1ec; --navy-2:#ebe7e0; --card:#ffffff; --card-2:#faf8f5;
+    --line:#e4dfd6; --line-rgb:228,223,214;
+    /* dark-but-soft ink — a warm near-black, never #000; --ink-dim/-faint are muted stones.
        The ramp runs strong → ink → dim → faint, lightening at every step. */
-    --ink:#171b22; --ink-dim:#59616f; --ink-faint:#737c8a; --ink-strong:#0b0e14;
-    --ink-dim-rgb:89,97,111; --ink-faint-rgb:115,124,138;
+    --ink:#1d1a16; --ink-dim:#5c564e; --ink-faint:#787168; --ink-strong:#120f0c;
+    --ink-dim-rgb:92,86,78; --ink-faint-rgb:120,113,104;
     --on-accent:#fff;
     /* THE BRAND. v108 pointed this at a muted slate-blue, which was safe and completely
        anonymous — near enough the framework default that the app read as unbranded. v121
@@ -86,14 +91,14 @@
        hue, so a pale text colour would vanish */
     --tint-red:#8f1030; --tint-amber:#6f5308; --tint-green:#136540;
     --tint-blue:#46337f; --tint-orange:#8f3813;
-    --panel-0:#f4f6fa; --panel-1:#eff2f8; --panel-2:#e8ecf4;
-    --hero-1:#f6f8fc; --hero-2:#eef0f4; --hero-3:#e6eaf2;
-    --mark-bg:#eaedf4; --chart-grid:#dfe4ee;
-    /* a cool near-black scrim genuinely dims the page behind a modal; the shadow and the
+    --panel-0:#f8f6f2; --panel-1:#f3f0ea; --panel-2:#ece8e1;
+    --hero-1:#f9f7f3; --hero-2:#f4f1ec; --hero-3:#ebe7df;
+    --mark-bg:#efebe4; --chart-grid:#e6e1d8;
+    /* a warm near-black scrim genuinely dims the page behind a modal; the shadow and the
        hover "lift" are the ink tone at low alpha, so a hover DARKENS the surface it sits on. */
-    --backdrop-rgb:20,26,38;
-    --shadow-rgb:23,27,34;
-    --lift-rgb:23,27,34;
+    --backdrop-rgb:30,25,20;
+    --shadow-rgb:46,36,26;
+    --lift-rgb:46,36,26;
     /* TWO shadow steps, not one. A single large soft shadow on every card reads as haze on
        a light page: --shadow just separates a card from the ground, --shadow-lift is for
        things that genuinely float (modals, popovers, the week picker). */
@@ -103,6 +108,8 @@
   /* v121: every icon in the suite. Sized in em so it always matches its text, and drawn
      in currentColor so it always matches its colour — the whole reason the emoji went. */
   .ic{width:1em;height:1em;display:inline-block;vertical-align:-.135em;flex:0 0 auto;}
+  /* v233: headings in the display face */
+  h1,h2,h3,.chead,.day-date{font-family:var(--font-display);}
   .ic-lg{width:1.25em;height:1.25em;}
   /* v121: there was no :focus-visible styling anywhere in the suite. One ring, everywhere. */
   a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,
@@ -1270,6 +1277,149 @@
   /* v230: the focus bar, Dial in and the playlist picker are styled by /focus-timer.js,
      which carries its own look so every page draws the same bar. */
 
+
+  /* =====================================================================
+     v233: THE DESIGN PASS
+     Ash: "turn this dashboard into an absolute delight… colour theme (but keep it light),
+     font pairing, alignment, spacing… I aim to spend a lot of time on here."
+     The palette went warm and the headings got their own face (both shared, in the token
+     blocks at the top of every page). What is below is this page's half, in order of how
+     much each part does:
+       1. FEWER BOXES. Inside a card, things are separated by space, a hairline or a soft
+          fill — never a border of their own. Boxes inside boxes was most of what made the
+          page read as an admin panel rather than somewhere to spend a day.
+          Two kinds of inner thing, two treatments: a LIST you tick through (Today) is rows
+          on hairlines; an ITEM you read (an email, a payment, a day) is a soft filled tile.
+       2. ONE RHYTHM. Every card 24px in, 20px apart, 16px round; every card head the same
+          shape; every row the same height.
+       3. HEADINGS THAT READ AS HEADINGS — the display face, a size up, the card's icon in
+          the brand colour.
+       4. THE BRAND IS FOR ACTION. The start strip is a calm card with a terracotta mark, not
+          an orange outline fighting the buttons.
+     All of it is here, after everything it adjusts, so the pass can be read — or undone —
+     in one place.
+     ===================================================================== */
+  body{line-height:1.45;padding:0 28px 80px;}
+  /* the date: the page's one big line */
+  .day-head{margin:30px 0 22px;align-items:flex-end;}
+  .day-greet{font-size:13px;font-weight:600;color:var(--orange);letter-spacing:.01em;margin-bottom:4px;}
+  .day-greet:empty{display:none;}
+  .day-date{font-size:30px;font-weight:700;letter-spacing:-.028em;line-height:1.1;}
+  .day-fresh{margin-top:8px;font-size:12.5px;gap:10px;}
+
+  /* cards: one shape */
+  .card,.day-grid .card,.cal-card,.sl-card,.today-card{border-radius:16px;padding:22px 24px 24px;
+    border-color:var(--line);
+    box-shadow:0 1px 2px rgba(var(--shadow-rgb),.04),0 6px 20px -10px rgba(var(--shadow-rgb),.14);}
+  .day-top{margin-bottom:20px;}
+  .day-row{gap:20px;margin-bottom:20px;}
+  .sl-card,.cal-card{margin-bottom:20px;}
+  .day-row > .card{margin:0;}
+  .day-grid{gap:20px;}
+  .cardhead{margin-bottom:18px;}
+  .chead{font-size:17.5px;font-weight:700;letter-spacing:-.022em;gap:9px;}
+  .chead > .ic{width:18px;height:18px;color:var(--orange);}
+  .chead .mo{font-weight:500;color:var(--ink-faint);letter-spacing:-.01em;}
+  .csub{font-size:13px;color:var(--ink-dim);margin-top:5px;}
+
+  /* the start strip: a calm card with a terracotta mark */
+  .startday{margin:0 0 20px;padding:18px 22px 18px 20px;border:1px solid var(--line);border-radius:16px;
+    background:var(--card);box-shadow:0 1px 2px rgba(var(--shadow-rgb),.04),0 6px 20px -10px rgba(var(--shadow-rgb),.14);
+    transition:box-shadow .2s ease,border-color .2s ease;}
+  .startday:hover{transform:none;border-color:rgba(var(--orange-rgb),.4);
+    box-shadow:0 1px 2px rgba(var(--shadow-rgb),.05),0 12px 28px -12px rgba(var(--shadow-rgb),.22);}
+  .sd-in{gap:16px;}
+  .sd-ic{width:44px;height:44px;padding:11px;border-radius:50%;background:rgba(var(--orange-rgb),.1);}
+  .sd-txt b{font-family:var(--font-display);font-size:18px;font-weight:700;letter-spacing:-.02em;}
+  .sd-txt small{font-size:13px;margin-top:4px;}
+  .sd-go{width:36px;height:36px;padding:9px;border-radius:50%;background:var(--card-2);
+    transition:background .2s ease,transform .2s ease;}
+  .startday:hover .sd-go{background:rgba(var(--orange-rgb),.12);transform:translateX(2px);}
+
+  /* the day at a glance */
+  .tsum-row{padding:14px 0;gap:var(--sp-4);}
+  .tsum-row:first-child{padding-top:0;}
+  .tsum-row:last-child{padding-bottom:0;}
+  .tsum-k{flex:0 0 152px;font-size:11px;font-weight:700;letter-spacing:.09em;}
+  .tsum-v{font-family:var(--font-display);font-size:16.5px;font-weight:600;letter-spacing:-.015em;}
+  .tsum-hb,.tsum-b{font-size:12.5px;font-weight:600;padding:7px 14px;border-color:var(--line);
+    transition:background var(--tap),border-color var(--tap),color var(--tap);}
+  .tsum-hb:hover,.tsum-b:hover{border-color:rgba(var(--orange-rgb),.4);background:rgba(var(--orange-rgb),.04);}
+  .tsum-hb .ic{color:rgba(var(--ink-faint-rgb),.45);}
+  .tsum-hb.on{border-color:rgba(var(--green-rgb),.35);text-decoration:none;}
+  .tsum-n{font-size:12px;font-weight:600;}
+
+  /* Today: a list you tick through — rows on hairlines, not boxes */
+  .tl-card .cardhead{margin-bottom:12px;}
+  .tl-prog{height:4px;border-radius:999px;background:var(--navy-2);overflow:hidden;margin:0 0 10px;}
+  .tl-prog i{display:block;height:100%;border-radius:999px;background:var(--green);transition:width .4s ease;}
+  .tl-list{gap:0;}
+  .tl-row{position:relative;border:0;border-radius:12px;background:transparent;padding:12px;margin:0 -12px;
+    transition:background var(--tap);}
+  .tl-row + .tl-row::before{content:"";position:absolute;left:12px;right:12px;top:0;height:1px;background:var(--line);}
+  .tl-row:hover{background:var(--card-2);}
+  .tl-row:hover::before,.tl-row:hover + .tl-row::before{opacity:0;}
+  .tl-line{gap:12px;}
+  .tl-t{font-size:15px;font-weight:500;color:var(--ink-strong);letter-spacing:-.005em;}
+  .tl-w{font-size:12px;font-weight:500;margin-top:2px;}
+  .tl-row.late{background:rgba(var(--red-rgb),.04);box-shadow:inset 3px 0 0 var(--red);}
+  .tl-row.running{border-color:transparent;background:rgba(var(--orange-rgb),.06);box-shadow:inset 3px 0 0 var(--orange);}
+  .tl-row.done .tl-t{color:var(--ink-faint);}
+  .tl-a,.tl-more{color:var(--ink-faint);font-weight:600;}
+  .tl-a:hover,.tl-more:hover{background:var(--card);border-color:var(--line);color:var(--ink);}
+  .fm-tick{width:22px;height:22px;border-radius:7px;border:1.5px solid rgba(var(--ink-faint-rgb),.45);
+    transition:background var(--tap),border-color var(--tap);}
+  .fm-tick:hover{border-color:var(--green);background:rgba(var(--green-rgb),.06);}
+  /* Focus / later appear on the row you are on — on a mouse. A phone has no hover, so there
+     they always show; a keyboard brings them up with focus. */
+  @media(hover:hover){
+    .tl-acts .tl-a{opacity:0;transition:opacity .15s ease;}
+    .tl-row:hover .tl-a,.tl-row:focus-within .tl-a,.tl-row.running .tl-a{opacity:1;}
+  }
+  .tl-sub{margin-left:34px;}
+  .tl-inside{margin-left:34px;}
+  .tl-parked{margin-top:12px;}
+
+  /* This week: days as soft tiles */
+  .cal-day{border:0;background:var(--card-2);border-radius:12px;padding:12px;}
+  .cal-day.past{background:transparent;box-shadow:inset 0 0 0 1px var(--line);}
+  .cal-dname{font-size:10.5px;letter-spacing:.11em;}
+  .cal-dnum{font-family:var(--font-display);font-size:18px;font-weight:700;}
+  .cal-today{border:0;border-radius:12px;background:rgba(var(--orange-rgb),.06);padding:14px;}
+  .cal-slide.is-today{border-radius:12px;}
+  /* a planned job inside today's panel: a clean white tile, its teal edge still saying "from
+     your weekly plan" rather than "booked in Google" */
+  .ct-item.ct-task{background:var(--card);border-radius:8px;
+    box-shadow:0 1px 2px rgba(var(--shadow-rgb),.06);margin:3px 0;}
+  .ct-item + .ct-item.ct-task,.ct-item.ct-task + .ct-item{border-top-color:transparent;}
+  .cal-ev{background:var(--card);box-shadow:0 1px 2px rgba(var(--shadow-rgb),.07);border-radius:8px;}
+  .cal-ev:hover{background:var(--panel-1);}
+
+  /* emails, Slack and payments: items you read, as soft tiles with their colour on the edge */
+  .tier{margin-top:var(--sp-5);padding-top:var(--sp-4);}
+  .mail{border-color:transparent;border-left-width:3px;border-radius:12px;background:var(--card-2);
+    padding:12px 14px 12px 15px;margin-top:8px;}
+  .mail:hover{background:var(--panel-1);transform:none;}
+  .mail-subj{font-size:14px;}
+  .mail-why{font-size:13px;line-height:1.55;}
+  .sl-grid{gap:var(--sp-5);}
+  .mrow{border-color:transparent;border-radius:12px;background:var(--card-2);padding:13px 15px;margin-top:8px;}
+  .mrow:hover{background:var(--panel-1);border-color:transparent;}
+  .mrow.hot{border-color:transparent;background:rgba(var(--red-rgb),.05);}
+  .mrow.warm{border-color:transparent;background:rgba(var(--amber-rgb),.06);}
+  .mrow-who{font-size:14px;}
+  .mrow-amt{font-family:var(--font-display);font-size:15px;font-weight:700;}
+  .mrow-why{font-size:12.5px;}
+  .fin-alert{border-color:transparent;border-radius:12px;}
+  .mgroup{margin-top:var(--sp-5);}
+  @media(max-width:700px){
+    body{padding:0 16px 64px;}
+    .day-date{font-size:25px;}
+    .card,.day-grid .card,.cal-card,.sl-card,.today-card{padding:18px 18px 20px;}
+    .startday{padding:16px 16px;}
+    .tsum-k{flex:0 0 100%;}
+  }
+
   /* v123.1: HIDDEN MUST MEAN HIDDEN. The browser hides [hidden] with display:none from
      its OWN stylesheet, which any author rule beats — and .fin-alert sets display:flex,
      so `<a class="fin-alert" hidden>` would show the money alarm on every load with
@@ -1448,6 +1598,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 
 <div class="day-head">
   <div>
+    <div class="day-greet" id="dayGreet"></div>
     <div class="day-date" id="dayDate">Today</div>
     <div class="day-fresh" id="dayFresh"><span class="loading">Checking…</span></div>
   </div>
@@ -3579,7 +3730,10 @@ function renderTodayList() {
   }
   // done sinks to the bottom, otherwise the order is the order they come in
   const order = live.filter((j) => !j.done).concat(live.filter((j) => j.done));
-  body.innerHTML = '<div class="tl-list">' + order.map((j) => tlRowHtml(j, false)).join("") + "</div>" +
+  // v233: how far through the day, at a glance
+  body.innerHTML = '<div class="tl-prog" role="progressbar" aria-label="Done today" aria-valuemin="0" aria-valuemax="' + live.length +
+      '" aria-valuenow="' + done + '"><i style="width:' + (live.length ? Math.round(done / live.length * 100) : 0) + '%"></i></div>' +
+    '<div class="tl-list">' + order.map((j) => tlRowHtml(j, false)).join("") + "</div>" +
     (parked.length
       ? '<button type="button" class="tl-parked" data-tl="parked" aria-expanded="' + tlShowParked + '">' +
           (tlShowParked ? "▾" : "▸") + " Parked (" + parked.length + ")</button>" +
@@ -3783,6 +3937,10 @@ function fmWire() {
 function renderHead() {
   const today = new Date();
   $("dayDate").textContent = dateWords(today);
+  // v233: a greeting, by the hour — it is a page he opens first thing and last thing
+  const hr = today.getHours();
+  const greet = $("dayGreet");
+  if (greet) greet.textContent = (hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening") + ", Ash";
   const bits = [];
   if (mailLive) {
     // Read live, so the only honest thing to report is how many are labelled right now.

@@ -129,8 +129,12 @@ function stripComments(src) {
 
     /* ---- surfaces: three tiers, and they must stay three ---- */
     const page = rgbOf(L["--navy"]);
-    assert.ok(Math.max(...page) - Math.min(...page) <= 14, "the page is near-neutral — a grey with a hint of cool");
-    assert.ok(page[2] >= page[0], "…cool (or neutral), never warm: blue >= red");
+    assert.ok(Math.max(...page) - Math.min(...page) <= 14, "the page is near-neutral — a paper, not a colour");
+    /* v233: the page went WARM, on purpose. Ash: "look at colour theme (but keep it light)".
+       A cool blue-grey ground left the terracotta brand looking pasted on; a warm paper is
+       what lets it belong. Still near-neutral (the line above), still light (below) — and
+       warm, not pink: red leads blue, but only by a breath. */
+    assert.ok(page[0] >= page[2] && page[0] - page[2] <= 12, "…warm (or neutral) by a breath, never tinted: red >= blue, within 12");
     assert.ok(lum(page) > 0.8 && lum(page) < 0.95, "…light, but still a tone: the page is not white");
     assert.ok(lum(rgbOf(L["--card"])) - lum(page) >= 0.04, "cards sit visibly above the page — no same-tone flatness");
     assert.ok(dist(L["--card"], L["--navy"]) >= 18, "…a real tone difference, not a rounding error");
