@@ -108,14 +108,19 @@ const dstyle = DAILY.slice(DAILY.indexOf("<style>") + 7, DAILY.indexOf("</style>
        morning now, which is what the fm_ ids below check. */
     "JSON.stringify({ checkin: next })", "id=\"fm_mind\"", "id=\"fm_one\"",
     "const CK_HABITS", "ckToggleHabit", "data-habit",
-    "function ftStart(min)", "function ftPause()", "function ftOnTick()", "renderTimerBar",
   ]) {
     assert.ok(djs.includes(here), "the daily page has " + here);
   }
+  // v230: the timer moved to /focus-timer.js, which the daily page (and every page) loads
+  const FT = read("focus-timer.js");
+  assert.ok(/<script src="\/focus-timer\.js"><\/script>/.test(DAILY), "the daily page loads the shared timer");
+  for (const here of ["function ftStart(min, job)", "function ftPause()", "function ftOnTick()", "function renderTimerBar()"]) {
+    assert.ok(FT.includes(here), "the shared timer has " + here);
+  }
   // including Dial in, which nearly went out with the bathwater
-  assert.ok(/const FT_PLAYLIST_URI = "spotify:playlist:/.test(djs), "Dial in came across too");
-  assert.ok(/function ftDialIn\(a\)/.test(djs), "…with its app-first, web-fallback behaviour");
-  assert.ok(/if \(taken \|\| document\.hidden\) return;/.test(djs),
+  assert.ok(/const FT_PLAYLISTS = \[/.test(FT) && /uri: "spotify:playlist:/.test(FT), "Dial in came across too");
+  assert.ok(/function ftDialIn\(a\)/.test(FT), "…with its app-first, web-fallback behaviour");
+  assert.ok(/if \(taken \|\| document\.hidden\) \{ done\(\); return; \}/.test(FT),
     "…which still opens exactly one thing: the app took it, or the web player did");
 
   /* ============ 6. one day, one writer ============

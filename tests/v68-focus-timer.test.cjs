@@ -20,8 +20,11 @@ const DAILY = fs.readFileSync(path.join(__dirname, "..", "daily.html"), "utf8");
   for (const gone of ["wpStartTimer", "wpPauseTimer", "wpResumeTimer", "wpTimerOnTick", "wpTimerBadgeText"]) {
     assert.ok(!WEEKLY.includes(gone), "the weekly page is rid of " + gone);
   }
-  for (const here of ["function ftStart(min)", "function ftPause()", "function ftOnTick()"]) {
-    assert.ok(DAILY.includes(here), "…and the daily page has " + here);
+  // v230: the timer lives in /focus-timer.js, which the daily page loads
+  const FT = fs.readFileSync(path.join(__dirname, "..", "focus-timer.js"), "utf8");
+  assert.ok(DAILY.includes('<script src="/focus-timer.js"></script>'), "…and the daily page loads the shared timer");
+  for (const here of ["function ftStart(min, job)", "function ftPause()", "function ftOnTick()"]) {
+    assert.ok(FT.includes(here), "…which has " + here);
   }
   console.log("v68-focus-timer: all assertions passed (retired — see v154-the-day-moved)");
 })().catch((e) => { console.error(e); process.exit(1); });

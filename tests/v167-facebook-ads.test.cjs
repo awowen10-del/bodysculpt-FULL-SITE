@@ -62,7 +62,8 @@ const RETIRED_GLYPHS = ["✕", "▸", "▾", "▲", "▼", "◐", "▶", "×", "
     for (const g of RETIRED_GLYPHS) assert.ok(!body.includes(g), label + "no " + JSON.stringify(g) + " standing in for an icon");
     assert.ok(syms.has("ic-play") && syms.has("ic-megaphone"), label + "the play and megaphone icons are on the sprite");
     // no import of anything — one file, like the others
-    assert.ok(!/<script src=|<link rel="stylesheet" href="(?!https:\/\/fonts)/.test(ADS), label + "one file, no bundles");
+    // v230: the one shared script every page loads — the focus timer — and nothing else
+    assert.ok(!/<script src="(?!\/focus-timer\.js")|<link rel="stylesheet" href="(?!https:\/\/fonts)/.test(ADS), label + "one file, no bundles");
   }
 
   /* ================= 2. the page talks to one place, and judges nothing ================= */

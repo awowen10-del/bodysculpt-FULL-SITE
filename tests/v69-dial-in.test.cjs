@@ -20,8 +20,11 @@ const DAILY = fs.readFileSync(path.join(__dirname, "..", "daily.html"), "utf8");
   for (const gone of ["wpDialIn", "WP_FOCUS_PLAYLIST_URI"]) {
     assert.ok(!WEEKLY.includes(gone), "the weekly page is rid of " + gone);
   }
-  for (const here of ["FT_PLAYLIST_URI", "function ftDialIn(a)", "spotify:playlist:"]) {
-    assert.ok(DAILY.includes(here), "…and the daily page has " + here);
+  // v230: Dial in lives in /focus-timer.js, which the daily page loads
+  const FT = fs.readFileSync(path.join(__dirname, "..", "focus-timer.js"), "utf8");
+  assert.ok(DAILY.includes('<script src="/focus-timer.js"></script>'), "…and the daily page loads it");
+  for (const here of ["FT_PLAYLISTS", "function ftDialIn(a)", "spotify:playlist:"]) {
+    assert.ok(FT.includes(here), "…which has " + here);
   }
   console.log("v69-dial-in: all assertions passed (retired — see v154-the-day-moved)");
 })().catch((e) => { console.error(e); process.exit(1); });

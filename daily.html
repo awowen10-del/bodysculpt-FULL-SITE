@@ -251,7 +251,6 @@
   .viewtoggle .vt.active{color:var(--ink);font-weight:600;border-bottom-color:var(--orange);}
   .viewtoggle .vt:focus-visible{outline:none;box-shadow:var(--focus);border-radius:var(--r-sm);}
   @media(max-width:900px){
-    .ftbar{top:58px;}   /* under the pinned narrow-screen bar */
     .sidenav{transform:translateX(-100%);transition:transform .22s ease;box-shadow:none;}
     .sn-fold{display:none;}
     body.nav-open .sidenav{transform:none;box-shadow:var(--shadow-lift);}
@@ -1179,58 +1178,46 @@
     .startday{padding:16px 18px;}
     .sd-txt b{font-size:17px;}
   }
-  .ft-dial{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
-    color:var(--teal-bright);text-decoration:none;padding:4px 10px 4px 8px;
-    border-radius:var(--r-pill);background:rgba(var(--teal-rgb),.10);transition:background var(--tap);}
-  .ft-dial:hover{background:rgba(var(--teal-rgb),.2);}
-  .ft-dial .ic{width:13px;height:13px;}
-
-  /* --- THE FOCUS BAR ---
-     "it needs to be like 'wow, this is time sensitive, focus'." So when a block is running
-     it is not a widget in a card — it pins itself under the app bar, across the whole page,
-     with the clock at 46px and the block visibly draining underneath it. Under five minutes
-     it goes amber and the clock breathes; under one, red. The countdown is written into the
-     browser tab as well, so it is legible from a different tab entirely. */
-  .ftbar{position:sticky;top:0;z-index:55;display:flex;align-items:center;
-    gap:var(--sp-4);padding:14px 20px;margin:var(--sp-3) 0 0;border-radius:var(--r-lg);
-    overflow:hidden;box-shadow:var(--shadow-lift);
-    background:var(--ink-strong);color:var(--card);}
-  /* Lift the real children above the drain, and NOT the drain itself — `.ftbar > *` on its
-     own turned the fill into an in-flow flex item, which squashed the clock and the message
-     into a column and made the bar 250px tall. The fill's rule comes after, and wins. */
-  .ftbar > *{position:relative;}
-  .ftbar .ft-fill{position:absolute;left:0;top:0;bottom:0;
-    background:rgba(var(--orange-rgb),.34);transition:width 1s linear;pointer-events:none;}
-  .ft-clock{font-size:46px;font-weight:800;letter-spacing:-.045em;line-height:1;
-    font-variant-numeric:tabular-nums;flex:0 0 auto;}
-  .ft-msg{font-size:14px;line-height:1.4;flex:1;min-width:0;opacity:.92;}
-  .ft-msg b{font-weight:700;}
-  .ft-say{display:block;font-size:12.5px;opacity:.75;margin-top:2px;}
-  .ft-btn{font-family:inherit;font-size:13px;font-weight:700;color:var(--ink-strong);
-    background:var(--card);border:0;border-radius:var(--r-md);padding:9px 18px;cursor:pointer;
-    flex:0 0 auto;}
-  .ft-btn.ghost{background:transparent;color:var(--card);
-    box-shadow:inset 0 0 0 1px rgba(var(--line-rgb),.45);}
-  .ft-btn:focus-visible{outline:none;box-shadow:var(--focus);}
-  .ftbar .ic{width:26px;height:26px;flex:0 0 auto;}
-  .ftbar.soon .ft-fill{background:rgba(var(--amber-rgb),.42);}
-  .ftbar.soon .ft-clock{color:var(--amber-2);animation:ftbreathe 2s ease-in-out infinite;}
-  .ftbar.last .ft-fill{background:rgba(var(--red-rgb),.45);}
-  .ftbar.last .ft-clock{color:var(--red-2);animation:ftbreathe 1s ease-in-out infinite;}
-  .ftbar.paused{background:var(--ink-dim);}
-  .ftbar.paused .ft-fill{background:rgba(var(--line-rgb),.3);}
-  .ftbar.done{background:var(--green-2);}
-  @keyframes ftbreathe{0%,100%{opacity:1;}50%{opacity:.55;}}
-  /* somebody who has asked for less movement gets a colour change and no pulse */
-  @media(prefers-reduced-motion:reduce){
-    .ftbar.soon .ft-clock,.ftbar.last .ft-clock{animation:none;}
-    .ft-fill{transition:none;}
-  }
+  /* v230: the Today list. The rows reuse focus mode's tick box and checklist pieces. */
+  .tl-card{margin-top:var(--sp-4);}
+  .tl-list{display:flex;flex-direction:column;gap:4px;}
+  .tl-row{border:1px solid var(--line);border-radius:var(--r-md);background:var(--card);padding:9px 11px;}
+  .tl-line{display:flex;align-items:center;gap:11px;min-width:0;}
+  .tl-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;}
+  .tl-t{font-size:14.5px;line-height:1.4;color:var(--ink);word-break:break-word;}
+  .tl-w{font-size:11.5px;font-weight:600;color:var(--ink-faint);}
+  .tl-row.late{border-color:rgba(var(--red-rgb),.4);background:rgba(var(--red-rgb),.04);}
+  .tl-row.late .tl-w{color:var(--red);}
+  .tl-row.done{opacity:.55;}
+  .tl-row.done .tl-t{text-decoration:line-through;color:var(--ink-faint);}
+  .tl-row.running{border-color:var(--orange);box-shadow:0 0 0 2px rgba(var(--orange-rgb),.14);}
+  .tl-run{flex:0 0 auto;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--orange);background:rgba(var(--orange-rgb),.12);border-radius:var(--r-pill);padding:3px 8px;}
+  .tl-acts{flex:0 0 auto;display:flex;align-items:center;gap:4px;}
+  .tl-a,.tl-more,.tl-min,.tl-parked{font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;
+    border-radius:var(--r-pill);background:transparent;border:1px solid transparent;color:var(--ink-faint);padding:4px 9px;}
+  .tl-a:hover,.tl-more:hover{color:var(--ink);border-color:var(--line);}
+  .tl-more{padding:4px 7px;transition:transform var(--tap);}
+  .tl-more.on{transform:rotate(90deg);color:var(--orange);}
+  .tl-a:focus-visible,.tl-more:focus-visible,.tl-min:focus-visible,.tl-parked:focus-visible{outline:none;box-shadow:var(--focus);}
+  .tl-sub{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0 0 31px;font-size:13px;color:var(--ink-dim);}
+  .tl-min{border-color:var(--line);background:var(--card);color:var(--ink-dim);}
+  .tl-min:hover{border-color:var(--orange);color:var(--ink);}
+  .tl-min.go{background:var(--green);border-color:var(--green);color:var(--on-accent);}
+  .tl-fin span{font-weight:700;color:var(--green-2);margin-right:4px;}
+  .tl-inside{margin:10px 0 2px 31px;border-left:3px solid rgba(var(--orange-rgb),.35);padding-left:var(--sp-4);}
+  .tl-parked{margin-top:10px;padding:4px 2px;}
+  .tl-parked:hover{color:var(--ink);}
+  .tl-row.parked{opacity:.7;}
+  .tl-empty{font-size:14px;line-height:1.6;color:var(--ink-dim);}
+  .tsum-dialset{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;}
   @media(max-width:700px){
-    .ftbar{flex-wrap:wrap;gap:var(--sp-3);padding:12px 14px;}
-    .ft-clock{font-size:34px;}
-    .ft-msg{flex:1 1 100%;order:3;}
+    .tl-line{flex-wrap:wrap;}
+    .tl-acts{margin-left:31px;}
+    .tl-sub,.tl-inside{margin-left:0;}
   }
+  /* v230: the focus bar, Dial in and the playlist picker are styled by /focus-timer.js,
+     which carries its own look so every page draws the same bar. */
 
   /* v123.1: HIDDEN MUST MEAN HIDDEN. The browser hides [hidden] with display:none from
      its OWN stylesheet, which any author rule beats — and .fin-alert sets display:flex,
@@ -1300,6 +1287,8 @@
   .sl-row.sl-gone{padding:0;border:0;background:none;cursor:default;}
   .sl-row.sl-gone:hover{transform:none;background:none;}
 </style>
+<!-- v230: the focus timer, shared by every page so a block follows you between them -->
+<script src="/focus-timer.js"></script>
 </head>
 <body>
 <script>
@@ -1452,6 +1441,18 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
     <div id="todayBody"><div class="loading">Loading…</div></div>
   </section>
 </div>
+
+<!-- v230: TODAY'S JOBS, ON THE PAGE. The list the one-at-a-time screen used to walk you
+     through, as a plain list you can see and do in any order. -->
+<section class="card tl-card" id="tlCard">
+  <div class="cardhead">
+    <div>
+      <div class="chead"><svg class="ic"><use href="#ic-target"/></svg> Today</div>
+      <div class="csub" id="tlSub"></div>
+    </div>
+  </div>
+  <div id="tlBody"><div class="loading">Loading today’s jobs…</div></div>
+</section>
 
 <!-- v223: THE TEAM SLACK. What the team needs from you, under the day and above the week:
      what you missed, what to know, what to step in on, and every coach's Post-Shift
@@ -2424,6 +2425,10 @@ const WP_BANDS = [
 ];
 const WP_DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 let wpAgenda = null;      // { weekEnding, cells } for the week on screen, or null
+// v230: THIS week's agenda, kept even while the calendar card is showing another week, so the
+// Today list never mistakes next Wednesday's jobs for today's
+let wpAgendaToday = null;
+const agendaToday = () => (calWeekOffset === 0 ? wpAgenda : wpAgendaToday);
 
 // The Monday-based plan is keyed by its own week; the strip may be showing another one.
 function agendaWeekOf(offset) {
@@ -2436,13 +2441,14 @@ function agendaWeekOf(offset) {
    weekly page worked out — and there is no other function here that posts to the store. The
    test asserts that: every request to the store that carries a method posts { weeklyTick }
    and nothing else. Where a task's tick actually LIVES is not known here and must not be. */
-async function tickTask(tgt, done) {
+async function tickTask(tgt, done, week) {
   // v227: a project step's tick is the step's, through the projects store's stepLink route
   if (tgt && tgt.p) return fmTickStep({ projectId: tgt.p, stepId: tgt.s }, done);
+  // v230: the Today list names its own week; the calendar strip ticks the week it shows
   const r = await fetch(API, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ weeklyTick: { weekEnding: agendaWeekOf(calWeekOffset), tgt, done } }),
+    body: JSON.stringify({ weeklyTick: { weekEnding: week || agendaWeekOf(calWeekOffset), tgt, done } }),
   });
   if (!r.ok) throw new Error("HTTP " + r.status);
   return await r.json();
@@ -2487,22 +2493,24 @@ async function loadAgenda() {
     const r = await jget(API + "?weeklyagenda=" + encodeURIComponent(agendaWeekOf(calWeekOffset)));
     wpAgenda = (r && r.agenda) || null;
   } catch { wpAgenda = null; }
+  if (calWeekOffset === 0) wpAgendaToday = wpAgenda;
 }
 
 // Everything planned for one day, in band order. Returns [] when the weekly plan has not
 // been opened since it last changed — which the card says out loud rather than implying
 // the day is empty.
-function agendaForDay(dayKey) {
-  if (!wpAgenda || !wpAgenda.cells) return [];
+function agendaForDay(dayKey, agenda) {
+  const ag = agenda || wpAgenda;     // v230: the Today list passes this week's, whatever the strip shows
+  if (!ag || !ag.cells) return [];
   const out = [];
   for (const [slot, label, hour] of WP_BANDS) {
     const cellKey = slot + ":" + dayKey;
-    (wpAgenda.cells[cellKey] || []).forEach((row, idx) => {
+    (ag.cells[cellKey] || []).forEach((row, idx) => {
       // v227: a project step's row says WHICH step it is; its title and done-state are read
       // live from the project list, never from the cache
       const f = agendaStepOf(row);
       const live = f ? { title: f.step.title, done: !!f.step.done } : {};
-      out.push({ ...row, ...live, slot, bandLabel: label, hour, cellKey, idx });
+      out.push({ ...row, ...live, slot, bandLabel: label, hour, cellKey, idx, row });
     });
   }
   return out;
@@ -3123,179 +3131,16 @@ async function ckToggleHabit(id) {
 }
 
 /* =====================================================================
-   THE FOCUS TIMER  (v152)
-
-   Ash: "make the focus timer more prominent for me — it needs to be like 'wow, this is
-   time sensitive, focus'."
-
-   Idle, it is four small buttons and stays out of the way. RUNNING, it takes the top of the
-   page: a bar pinned under the app bar with the clock at 46px, a drain bar showing the block
-   emptying, and the countdown written into the browser tab so it is visible from a different
-   tab entirely. Under five minutes it turns amber and the clock pulses; under one, red.
-
-   The engine is the v68 one, carried over intact, because it was right: remaining time is
-   always DERIVED from timestamps — endAt while running, a frozen pausedRemaining while
-   paused — and never a decremented counter, so a backgrounded tab that stops getting ticks
-   comes back showing the correct time instead of however far it got.
+   THE FOCUS TIMER  (v152 → v230)
+   v230: the whole timer — engine, bar, chime, Dial in and its playlists — lives in
+   /focus-timer.js now, loaded by every page, so a block started here follows you to any
+   other page and survives a reload (it is kept in this browser as "ft.timer"). Everything
+   this page used before (ftTimer, FT_PRESETS, ftStart, ftReset, ftFmt, ftRemaining,
+   ftDialIn…) is that file's. This page only listens: when the timer changes, the Focus block
+   card and the Today list redraw.
    ===================================================================== */
-let ftTimer = null;      // { durationMin, endAt, pausedRemaining, finished } — null = idle
-let ftTick = null;       // the one interval, alive only while running
-const FT_PRESETS = [25, 45, 60, 90];
-/* v154: "Dial in" came across with the timer. The app URI is a known-safe hardcoded
-   constant; the https address is the fallback for a machine with no desktop Spotify. App
-   first, then the web player ~1.2s later UNLESS the page lost focus in the meantime — which
-   means the app took it. Normal cases open exactly one thing. */
-const FT_PLAYLIST_URI = "spotify:playlist:1VKtv1xJtFFkS3OsaFY3WZ";
-const FT_PLAYLIST_URL = "https://open.spotify.com/playlist/1VKtv1xJtFFkS3OsaFY3WZ";
-let ftDialFallback = false;
-function ftDialIn(a) {
-  if (ftDialFallback) { ftDialFallback = false; return true; }   // the fallback re-click: follow the link
-  let taken = false;
-  const noteTaken = () => { taken = true; };
-  window.addEventListener("blur", noteTaken, { once: true });
-  document.addEventListener("visibilitychange", noteTaken, { once: true });
-  try { window.location.href = FT_PLAYLIST_URI; } catch (e) { /* no handler for the scheme */ }
-  setTimeout(() => {
-    window.removeEventListener("blur", noteTaken);
-    document.removeEventListener("visibilitychange", noteTaken);
-    if (taken || document.hidden) return;     // the desktop app took it; do not also open a tab
-    ftDialFallback = true;
-    a.click();
-  }, 1200);
-  return false;                                // never both
-}
-const FT_TITLE = document.title;
-
-const ftRemaining = () => {
-  if (!ftTimer || ftTimer.finished) return 0;
-  if (ftTimer.pausedRemaining != null) return ftTimer.pausedRemaining;
-  return Math.max(0, ftTimer.endAt - Date.now());
-};
-const ftFmt = (ms) => {
-  const s = Math.ceil(ms / 1000);
-  return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
-};
-function ftStart(min) {
-  ftTimer = { durationMin: min, endAt: Date.now() + min * 60000, pausedRemaining: null, finished: false };
-  ftEnsureTick(); ftRefresh();
-}
-function ftPause() {
-  if (!ftTimer || ftTimer.finished || ftTimer.pausedRemaining != null) return;
-  ftTimer.pausedRemaining = Math.max(0, ftTimer.endAt - Date.now());
-  ftTimer.endAt = null;
-  if (ftTick) { clearInterval(ftTick); ftTick = null; }
-  ftRefresh();
-}
-function ftResume() {
-  if (!ftTimer || ftTimer.finished || ftTimer.pausedRemaining == null) return;
-  ftTimer.endAt = Date.now() + ftTimer.pausedRemaining;
-  ftTimer.pausedRemaining = null;
-  ftEnsureTick(); ftRefresh();
-}
-function ftReset() {
-  ftTimer = null;
-  if (ftTick) { clearInterval(ftTick); ftTick = null; }
-  ftRefresh();
-}
-function ftEnsureTick() { if (!ftTick) ftTick = setInterval(ftOnTick, 500); }
-
-// A tick patches the clock, the drain bar and the tab title — never a re-render, so nothing
-// you are typing is disturbed by a block running in the background.
-function ftOnTick() {
-  if (!ftTimer || ftTimer.finished || ftTimer.pausedRemaining != null) {
-    if (ftTick) { clearInterval(ftTick); ftTick = null; }
-    return;
-  }
-  if (ftTimer.endAt - Date.now() <= 0) {
-    ftTimer.finished = true;
-    if (ftTick) { clearInterval(ftTick); ftTick = null; }
-    ftChime();
-    ftRefresh();
-    return;
-  }
-  const left = ftRemaining();
-  const clock = $("ftClock");
-  if (clock) clock.textContent = ftFmt(left);
-  // v221: focus mode has its own clock, because the page's bar is behind that screen
-  const fmc = $("fmClock");
-  if (fmc) fmc.textContent = ftFmt(left);
-  const fill = $("ftFill");
-  if (fill) fill.style.width = ftPct() + "%";
-  const bar = $("ftBar");
-  if (bar) bar.className = "ftbar " + ftTone();
-  document.title = ftFmt(left) + " · " + FT_TITLE;
-}
-const ftPct = () => {
-  if (!ftTimer || !ftTimer.durationMin) return 0;
-  return Math.max(0, Math.min(100, (ftRemaining() / (ftTimer.durationMin * 60000)) * 100));
-};
-// The last five minutes of a block are the ones that need saying.
-function ftTone() {
-  if (!ftTimer) return "";
-  if (ftTimer.finished) return "done";
-  if (ftTimer.pausedRemaining != null) return "paused";
-  const m = ftRemaining() / 60000;
-  return m <= 1 ? "last" : m <= 5 ? "soon" : "run";
-}
-// A short tone rather than a file: nothing to load, nothing to 404, and it works offline.
-function ftChime() {
-  try {
-    const C = window.AudioContext || window.webkitAudioContext;
-    if (!C) return;
-    const ctx = new C();
-    [880, 1174].forEach((hz, i) => {
-      const o = ctx.createOscillator(), g = ctx.createGain();
-      o.frequency.value = hz; o.type = "sine";
-      o.connect(g); g.connect(ctx.destination);
-      const t0 = ctx.currentTime + i * 0.22;
-      g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(0.22, t0 + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.5);
-      o.start(t0); o.stop(t0 + 0.55);
-    });
-    setTimeout(() => { try { ctx.close(); } catch (e) {} }, 1500);
-  } catch (e) { /* a browser that will not make a noise is not a broken timer */ }
-}
-
-// The bar. It exists in the DOM only while there is a block on, so an idle page is exactly
-// as it was.
-function renderTimerBar() {
-  const host = $("ftHost");
-  if (!host) return;
-  if (!ftTimer) {
-    host.innerHTML = "";
-    document.title = FT_TITLE;
-    return;
-  }
-  if (ftTimer.finished) {
-    host.innerHTML = '<div class="ftbar done" id="ftBar">' +
-      '<svg class="ic"><use href="#ic-check"/></svg>' +
-      '<span class="ft-clock" id="ftClock">0:00</span>' +
-      '<span class="ft-msg"><b>Time\u2019s up.</b> That was a ' + ftTimer.durationMin + " minute block.</span>" +
-      '<button type="button" class="ft-btn" id="ftDone">Done</button></div>';
-    document.title = "✓ " + FT_TITLE;
-    return;
-  }
-  const paused = ftTimer.pausedRemaining != null;
-  host.innerHTML = '<div class="ftbar ' + ftTone() + '" id="ftBar">' +
-    '<span class="ft-fill" id="ftFill" style="width:' + ftPct() + '%"></span>' +
-    '<span class="ft-clock" id="ftClock">' + ftFmt(ftRemaining()) + "</span>" +
-    '<span class="ft-msg"><b>' + ftTimer.durationMin + "-minute focus block</b>" +
-      (paused ? " · paused" : '<span class="ft-say">Heads down. Nothing else until this runs out.</span>') + "</span>" +
-    '<button type="button" class="ft-btn" id="ftToggle">' + (paused ? "Resume" : "Pause") + "</button>" +
-    '<button type="button" class="ft-btn ghost" id="ftStop">Stop</button></div>';
-  document.title = ftFmt(ftRemaining()) + " · " + FT_TITLE;
-}
-
-function ftRefresh() { renderTimerBar(); renderToday(); }
-
-document.addEventListener("click", (e) => {
-  const t = e.target && e.target.closest ? e.target.closest("[id^=ft]") : null;
-  if (!t) return;
-  if (t.id === "ftToggle") { ftTimer && ftTimer.pausedRemaining != null ? ftResume() : ftPause(); }
-  else if (t.id === "ftStop" || t.id === "ftDone") ftReset();
-  else if (t.id && t.id.indexOf("ftGo") === 0) ftStart(Number(t.dataset.min));
-});
+document.addEventListener("ft:change", () => { if (dayReady) { renderToday(); renderTodayList(); } });
+let dayReady = false;    // the check-in has loaded — until then there is nothing true to draw
 
 /* ---------- the check-in card ---------- */
 /* v221: renderCheckin() is gone, and with it the card of question boxes that sat beside
@@ -3361,9 +3206,8 @@ function renderToday() {
   } else {
     html += FT_PRESETS.map((m) => '<button type="button" class="tsum-hb" id="ftGo' + m + '" data-min="' + m + '">' + m + " min</button>").join("");
   }
-  html += '</span><a class="ft-dial tsum-dial" href="' + esc(FT_PLAYLIST_URL) + '" target="_blank" rel="noopener noreferrer" ' +
-    'title="Open the focus playlist in Spotify" onclick="return ftDialIn(this)">' +
-    '<svg class="ic"><use href="#ic-headphones"/></svg>Dial in</a></div>';
+  // v230: which playlist, then Dial in — the pick is remembered, so it is one click next time
+  html += '</span><span class="tsum-dialset">' + ftPickerHtml() + ftDialHtml("Dial in", "tsum-dial") + "</span></div>";
 
   html += "</div>";
   body.innerHTML = html;
@@ -3409,10 +3253,8 @@ const PROJECTS = "/.netlify/functions/projects";
 const FM_BANDS = [["6-9", "6 – 9"], ["10-12", "9 – 11.30"], ["1-3", "12 – 3"], ["5-8", "5 – 8"]];
 let fmProjects = [];          // the project list, read once (a READ — jget, no options)
 let fmOpen = false;
-let fmStage = "morning";      // morning | day | evening
+let fmStage = "morning";      // morning | evening (v230: the jobs are on the page now)
 let fmQueue = [];
-let fmShowAll = false;
-let fmShowNotes = false;      // v220: the step's notes, under the job, when asked for
 
 async function fmLoadProjects() {
   try {
@@ -3424,13 +3266,13 @@ async function fmLoadProjects() {
 /* Today's jobs, in the order they should be met: the plan first, in band order, then the
    things dated today that never got planned. A job needs a way to be completed or it does
    not belong in a queue whose whole point is completing things. */
-function fmBuildQueue() {
+function fmBuildQueue(includeParked) {
   const dayKey = agendaDayKey(new Date());
   const today = ckToday();
   const parked = new Set(ckEntry(today).parked || []);
   const out = [];
   const planned = new Set();     // the steps already on today's plan, by id
-  agendaForDay(dayKey).forEach((t) => {
+  agendaForDay(dayKey, agendaToday()).forEach((t) => {
     if (!t.tgt) return;                       // no tick address — it cannot be finished here
     // v227: a project step on the plan is found by the ids on its row — never by its title
     const f = agendaStepOf(t);
@@ -3438,7 +3280,7 @@ function fmBuildQueue() {
     out.push({
       key: t.tgt.p ? "step:" + t.tgt.p + ":" + t.tgt.s : "plan:" + (t.tgt.l || t.tgt.m || "") + ":" + t.tgt.k,
       title: t.title, source: "plan", kind: t.kind, when: t.bandLabel,
-      done: !!t.done, tgt: t.tgt, cellKey: t.cellKey, idx: t.idx, from: "",
+      done: !!t.done, tgt: t.tgt, cellKey: t.cellKey, idx: t.idx, row: t.row, from: "",
       step: f,
     });
   });
@@ -3464,7 +3306,10 @@ function fmBuildQueue() {
     });
   });
   late.sort((a, b) => b.late - a.late);
-  return out.concat(due, late).filter((j) => !parked.has(j.key));
+  // v230: the order the Today list reads in — what is already late, then the plan in band
+  // order, then what is dated today and was never planned
+  const all = late.concat(out, due);
+  return includeParked ? all : all.filter((j) => !parked.has(j.key));
 }
 function fmDaysLate(due, today) {
   return Math.round((Date.parse(today + "T12:00:00Z") - Date.parse(due + "T12:00:00Z")) / 86400000);
@@ -3480,12 +3325,12 @@ function fmDetail(job) {
   return { project: f.project, step: f.step, list, notes, files, done: list.filter((c) => c.done).length };
 }
 const fmLeft = () => fmQueue.filter((j) => !j.done);
-const fmCurrent = () => fmLeft()[0] || null;
 const fmAsked = () => { const e = ckEntry(ckToday()); return !!(richToText(e.oneThing).trim() || e.dismissed); };
 const fmClosed = () => !!ckEntry(ckToday()).closedAt;
 
 /* The button that leads the page. It says where the day is up to, so it is never an
-   ornament: three questions, then the work, then the write-up. */
+   ornament: three questions, then the work (v230: on the page, in the Today list below),
+   then the write-up. */
 function renderStartDay() {
   const btn = $("fmStart"), t = $("fmStartT"), sub = $("fmStartS");
   if (!btn || !t || !sub) return;
@@ -3500,22 +3345,21 @@ function renderStartDay() {
     sub.textContent = total
       ? "Three questions, then the " + total + " job" + (total === 1 ? "" : "s") + " you have planned."
       : "Three questions, then what to focus on.";
-  } else if (left) {
-    const now = fmCurrent();
-    t.textContent = "Focus on today";
-    sub.textContent = done + " of " + total + " done — next: " + (now ? now.title : "");
-  } else if (total) {
-    t.textContent = "Close the day";
-    sub.textContent = "Everything on the list is done. Write it up.";
   } else {
-    t.textContent = "Focus on today";
-    sub.textContent = "Nothing planned yet — open it to sort that out.";
+    // the same count the Today list shows (it includes the One Thing), so the two never disagree
+    const live = tlJobs().live, ldone = live.filter((j) => j.done).length;
+    t.textContent = "Close the day";
+    sub.textContent = live.length
+      ? (ldone < live.length ? ldone + " of " + live.length + " done — your jobs are below. Write it up when you are finished."
+              : "Everything on the list is done. Write it up.")
+      : "Write up the day when you are ready.";
   }
 }
 
+// v230: two stages — the morning questions, and the write-up. The day is the page itself.
 function fmShow(stage) {
   fmQueue = fmBuildQueue();
-  fmStage = stage || (fmClosed() ? "evening" : !fmAsked() ? "morning" : fmLeft().length ? "day" : "evening");
+  fmStage = stage || (fmClosed() ? "evening" : !fmAsked() ? "morning" : "evening");
   fmOpen = true;
   $("fmWrap").hidden = false;
   document.body.style.overflow = "hidden";
@@ -3526,15 +3370,14 @@ function fmCloseMode() {
   fmOpen = false;
   $("fmWrap").hidden = true;
   document.body.style.overflow = "";
-  renderStartDay(); renderToday(); renderCalendar();
+  renderStartDay(); renderToday(); renderTodayList(); renderCalendar();
 }
 function fmRender() {
   const label = $("fmStepLabel"), prog = $("fmProg"), body = $("fmBody");
   if (!body) return;
-  label.textContent = fmStage === "morning" ? "Starting the day" : fmStage === "day" ? "Today" : "Closing the day";
-  const total = fmQueue.length, done = total - fmLeft().length;
-  prog.textContent = (fmStage === "day" && total) ? done + " of " + total : "";
-  body.innerHTML = fmStage === "morning" ? fmMorningHtml() : fmStage === "day" ? fmDayHtml() : fmEveningHtml();
+  label.textContent = fmStage === "morning" ? "Starting the day" : "Closing the day";
+  prog.textContent = "";
+  body.innerHTML = fmStage === "morning" ? fmMorningHtml() : fmEveningHtml();
   fmWire();
 }
 
@@ -3544,7 +3387,7 @@ function fmMorningHtml() {
   const when = e.oneThingWhen || "";
   return '<div class="fm-sheet">' +
     '<div class="fm-h">Right. What kind of day is it?</div>' +
-    '<div class="fm-sub">Three questions, then I will put your jobs in front of you one at a time. ' +
+    '<div class="fm-sub">Three questions, then your jobs are on the page. ' +
     'Skip any of them — none of this is compulsory.</div>' +
     /* v221: the three questions, WORD FOR WORD as they have always been. They moved from a
        card into this screen; they were not rewritten. Ash answers these every morning and
@@ -3566,81 +3409,168 @@ function fmMorningHtml() {
   '</div>';
 }
 
-/* ---------- the day ---------- */
-function fmDayHtml() {
-  const job = fmCurrent();
+/* ---------- the day ----------
+   v230: TODAY'S JOBS, ON THE PAGE.
+   Ash: "make 'today' a plain job list on the page". The one-at-a-time screen is gone; the
+   jobs it walked through one by one are a list on the dashboard itself, under the Focus block
+   card, where they can be seen at a glance and done in any order. It is fmBuildQueue()
+   rendered as a list, read live on every load (the plan's agenda for THIS week, and the
+   project steps from the store):
+     • the One Thing first, if it is set;
+     • then project steps already past their date, in red, "N days late";
+     • then today's planned blocks, in band order;
+     • then project steps dated today that were never planned.
+   Done rows go grey and sink to the bottom — they stay, because "3 of 7 done" should be
+   something you can see. Parked rows go to a folded "Parked (N)" line at the foot.
+   Every tick is the same write it always was: the plan's tick address, or the step's
+   stepLink. Unticking writes false. Nothing new is stored. */
+let tlOpen = {};            // job key → its notes and checklist are showing
+let tlShowParked = false;   // the "Parked (N)" line is unfolded
+let tlFocusPick = "";       // the job whose Focus lengths are showing
+
+// today's jobs, as the list shows them: { live, parked }
+function tlJobs() {
   const e = ckEntry(ckToday());
   const one = richToText(e.oneThing).trim();
-  if (!fmQueue.length) {
-    return '<div class="fm-sheet">' +
-      (one ? '<div class="fm-when">Your one thing</div><div class="fm-job">' + esc(one) + "</div>" : "") +
-      '<div class="fm-empty" style="margin-top:' + (one ? "28px" : "0") + '"><b>Nothing is planned for today.</b><br>' +
-      'Jobs come from the time blocks on your <a href="/index.html">weekly planner</a>, and from any ' +
-      '<a href="/projects.html">project step</a> dated today. Put something in either and it will be here.' +
-      (wpAgenda ? "" : "<br><br>Your weekly planner has not been opened since it last changed, so today may look emptier than it is — opening it once fixes that for good.") +
-      "</div>" + fmHabitsHtml() + "</div>";
-  }
-  if (!job) {
-    return '<div class="fm-sheet"><div class="fm-h">That is the lot.</div>' +
-      '<div class="fm-sub">Everything you planned for today is done.</div>' +
-      '<div class="fm-btns"><button type="button" class="fm-b go" id="fmToEvening">Close the day</button></div>' +
-      fmHabitsHtml() + "</div>";
-  }
-  const rest = fmQueue.filter((j) => j !== job);
-  return '<div class="fm-sheet">' +
-    fmOneThingHtml() +
-    (job.when ? '<div class="fm-when">' + esc(job.when) + "</div>" : "") +
-    '<div class="fm-job">' + esc(job.title) + "</div>" +
-    (job.from ? '<div class="fm-from">From <b>' + esc(job.from) + "</b> — " +
-      (job.late ? job.late + (job.late === 1 ? " day" : " days") + " late." : "dated today, not on your plan.") + "</div>" : "") +
-    fmDetailHtml(job) +
-    '<div class="fm-acts">' +
-      '<button type="button" class="fm-act done" id="fmDone"><svg class="ic"><use href="#ic-check"/></svg> Done</button>' +
-      (fmLeft().length > 1 ? '<button type="button" class="fm-act" id="fmSkip"><svg class="ic"><use href="#ic-arrow-right"/></svg> Not this one</button>' : "") +
-      '<button type="button" class="fm-act" id="fmPark"><svg class="ic"><use href="#ic-close"/></svg> Park it</button>' +
-    "</div>" +
-    '<div class="fm-q fm-jot"><label for="fm_jot">Anything to note?</label>' +
-      '<textarea id="fm_jot" placeholder="Goes into tonight\u2019s write-up. Your notebook is still your notebook.">' + esc(ckEntry(ckToday()).dayNote) + '</textarea></div>' +
-    (rest.length ? '<div class="fm-rest"><div class="fm-cap">The rest of today' +
-      '<button type="button" id="fmToggleAll">' + (fmShowAll ? "hide" : "show all " + rest.length) + "</button></div>" +
-      (fmShowAll ? '<div class="fm-list">' + rest.map(fmRowHtml).join("") + "</div>" : "") + "</div>" : "") +
-    fmTimerHtml() +
-    fmHabitsHtml() +
-    '<div class="fm-btns"><button type="button" class="fm-b" id="fmToEvening">Finish the day</button></div>' +
-  "</div>";
+  const parked = new Set(e.parked || []);
+  const jobs = [];
+  if (one) jobs.push({ key: "one", title: one, source: "one", kind: "one", when: "", from: "", done: e.oneThingDone === true });
+  fmBuildQueue(true).forEach((j) => jobs.push(j));
+  return { live: jobs.filter((j) => !parked.has(j.key)), parked: jobs.filter((j) => parked.has(j.key)) };
 }
-/* v220: what is INSIDE the job on screen. Ash: "if there's a task we're doing that has
-   checklists inside of it, they are being shown as well."
-   The checklist ticks from here, through the same narrow stepLink route the weekly page and
-   the board use — one boolean on one item. The notes are read-only, as they are everywhere
-   outside the board, and they are collapsed by default: the point of this screen is the one
-   job, not a wall of everything known about it. */
-function fmDetailHtml(job) {
-  const d = fmDetail(job);
+const tlFind = (key) => { const { live, parked } = tlJobs(); return live.concat(parked).find((j) => j.key === key) || null; };
+// where a job came from, in a word or two: its block, or its project
+function tlWhere(j) {
+  if (j.source === "one") return "Your one thing";
+  if (j.late) return (j.from ? j.from + " · " : "") + j.late + (j.late === 1 ? " day late" : " days late");
+  if (j.source === "plan") return j.when || "Planned";
+  return j.from ? j.from + " · due today" : "Due today";
+}
+function tlDetailHtml(j) {
+  const d = j.source === "one" ? null : fmDetail(j);
   if (!d) return "";
-  let h = '<div class="fm-inside">';
+  let h = '<div class="tl-inside">';
   if (d.list.length) {
     h += '<div class="fm-cap">Checklist — ' + d.done + " of " + d.list.length + "</div>" +
       '<div class="fm-bar2"><i style="width:' + Math.round(d.done / d.list.length * 100) + '%"></i></div>' +
       '<div class="fm-ck">' + d.list.map((c) =>
-        '<button type="button" class="fm-ckrow' + (c.done ? " on" : "") + '" data-ck="' + esc(c.id) + '">' +
+        '<button type="button" class="fm-ckrow' + (c.done ? " on" : "") + '" data-tl="ck" data-ck="' + esc(c.id) + '">' +
         '<span class="fm-ckb"><svg class="ic"><use href="#ic-check"/></svg></span>' +
         "<span>" + esc(c.text) + "</span></button>").join("") + "</div>";
   }
-  if (d.notes || d.files.length) {
-    h += '<button type="button" class="fm-more" id="fmMore">' +
-      (fmShowNotes ? "Hide" : "Show") + " what the step says" +
-      (d.files.length ? " (" + d.files.length + " file" + (d.files.length === 1 ? "" : "s") + ")" : "") + "</button>";
-    if (fmShowNotes) {
-      h += '<div class="fm-notes">' + (d.notes ? esc(d.notes).replace(/\n/g, "<br>") : "<i>No notes on this one.</i>") + "</div>";
-      if (d.files.length) {
-        h += '<div class="fm-files">' + d.files.map((f) =>
-          '<a href="' + esc(PROJECTS + "?file=" + encodeURIComponent(f.id)) + '" target="_blank" rel="noopener">' +
-          '<svg class="ic"><use href="#ic-note"/></svg>' + esc(f.name) + "</a>").join("") + "</div>";
-      }
-    }
+  if (d.notes) h += '<div class="fm-notes">' + esc(d.notes).replace(/\n/g, "<br>") + "</div>";
+  if (d.files.length) {
+    h += '<div class="fm-files">' + d.files.map((f) =>
+      '<a href="' + esc(PROJECTS + "?file=" + encodeURIComponent(f.id)) + '" target="_blank" rel="noopener">' +
+      '<svg class="ic"><use href="#ic-note"/></svg>' + esc(f.name) + "</a>").join("") + "</div>";
   }
   return h + "</div>";
+}
+function tlRowHtml(j, isParked) {
+  const run = ftTimer && ftTimer.jobKey && ftTimer.jobKey === j.key ? ftTimer : null;
+  const live = run && !run.finished;
+  const hasMore = j.source !== "one" && !!fmDetail(j);
+  const open = hasMore && !!tlOpen[j.key];
+  let h = '<div class="tl-row' + (j.done ? " done" : "") + (j.late && !j.done ? " late" : "") +
+    (live ? " running" : "") + (isParked ? " parked" : "") + '" data-key="' + esc(j.key) + '">' +
+    '<div class="tl-line">' +
+      '<button type="button" class="fm-tick' + (j.done ? " on" : "") + '" data-tl="tick" aria-label="' +
+        esc((j.done ? "Not done after all: " : "Mark done: ") + j.title) + '"><svg class="ic"><use href="#ic-check"/></svg></button>' +
+      '<span class="tl-main"><span class="tl-t">' + esc(j.title) + "</span>" +
+        '<span class="tl-w">' + esc(tlWhere(j)) + "</span></span>" +
+      (live ? '<span class="tl-run">' + (run.pausedRemaining != null ? "Paused" : "Running") + "</span>" : "") +
+      '<span class="tl-acts">' +
+        (hasMore ? '<button type="button" class="tl-more' + (open ? " on" : "") + '" data-tl="more" aria-expanded="' + open +
+          '" title="Notes and checklist">▸</button>' : "") +
+        (isParked
+          ? '<button type="button" class="tl-a" data-tl="unpark">bring back</button>'
+          : (!j.done && !run ? '<button type="button" class="tl-a" data-tl="focus" aria-expanded="' + (tlFocusPick === j.key) + '">Focus</button>' : "") +
+            (!j.done && j.source !== "one" ? '<button type="button" class="tl-a" data-tl="park" title="Put it aside for today">later</button>' : "")) +
+      "</span>" +
+    "</div>";
+  // the lengths, when Focus was pressed
+  if (!isParked && tlFocusPick === j.key && !j.done && !run) {
+    h += '<div class="tl-sub">' + FT_PRESETS.map((m) =>
+      '<button type="button" class="tl-min" data-tl="min" data-min="' + m + '">' + m + " min</button>").join("") + "</div>";
+  }
+  // running on this job: the second button, never automatic
+  if (live) h += '<div class="tl-sub">' + ftDialHtml("and dial in") + "</div>";
+  // its block ran out
+  if (run && run.finished) {
+    h += '<div class="tl-sub tl-fin"><span>Time’s up on this one.</span>' +
+      (j.done ? "" : '<button type="button" class="tl-min go" data-tl="fin-done">Done ✓</button>') +
+      '<button type="button" class="tl-min" data-tl="keep">Keep going</button></div>';
+  }
+  if (open) h += tlDetailHtml(j);
+  return h + "</div>";
+}
+function renderTodayList() {
+  const body = $("tlBody"), sub = $("tlSub");
+  if (!body) return;
+  tlWireOnce();
+  const { live, parked } = tlJobs();
+  const done = live.filter((j) => j.done).length;
+  if (sub) sub.textContent = live.length ? done + " of " + live.length + " done" : "";
+  if (!live.length && !parked.length) {
+    body.innerHTML = '<div class="tl-empty"><b>Nothing is planned for today.</b> ' +
+      'Jobs come from the time blocks on your <a href="/index.html">weekly planner</a>, and from any ' +
+      '<a href="/projects.html">project step</a> with a date. Put something in either and it will be here.' +
+      (agendaToday() ? "" : " Your weekly planner has not been opened since it last changed, so today may look emptier than it is — opening it once fixes that.") +
+      "</div>";
+    return;
+  }
+  // done sinks to the bottom, otherwise the order is the order they come in
+  const order = live.filter((j) => !j.done).concat(live.filter((j) => j.done));
+  body.innerHTML = '<div class="tl-list">' + order.map((j) => tlRowHtml(j, false)).join("") + "</div>" +
+    (parked.length
+      ? '<button type="button" class="tl-parked" data-tl="parked" aria-expanded="' + tlShowParked + '">' +
+          (tlShowParked ? "▾" : "▸") + " Parked (" + parked.length + ")</button>" +
+        (tlShowParked ? '<div class="tl-list">' + parked.map((j) => tlRowHtml(j, true)).join("") + "</div>" : "")
+      : "");
+}
+// one listener for the whole list, so a redraw never has to rewire it
+function tlWireOnce() {
+  const body = $("tlBody");
+  if (!body || body.dataset.wired) return;
+  body.dataset.wired = "1";
+  body.addEventListener("click", tlClick);
+}
+async function tlClick(e) {
+  const el = e.target && e.target.closest ? e.target.closest("[data-tl]") : null;
+  if (!el) return;
+  const act = el.dataset.tl;
+  if (act === "parked") { tlShowParked = !tlShowParked; renderTodayList(); return; }
+  const rowEl = el.closest("[data-key]");
+  const j = rowEl ? tlFind(rowEl.dataset.key) : null;
+  if (!j) return;
+  if (act === "tick") return tlTick(j);
+  if (act === "more") { tlOpen[j.key] = !tlOpen[j.key]; renderTodayList(); return; }
+  if (act === "focus") { tlFocusPick = tlFocusPick === j.key ? "" : j.key; renderTodayList(); return; }
+  if (act === "min") { tlFocusPick = ""; ftStart(Number(el.dataset.min), { key: j.key, title: j.title }); return; }
+  if (act === "park") return tlPark(j, true);
+  if (act === "unpark") return tlPark(j, false);
+  if (act === "ck") return fmTickCheck(j, el.dataset.ck);
+  if (act === "keep") { ftKeepGoing(); return; }
+  if (act === "fin-done") { ftReset(); if (!j.done) await tlTick(j); return; }
+}
+// tick or untick — and a job finished while its block is running ends the block
+async function tlTick(j) {
+  const want = !j.done;
+  if (want && ftTimer && ftTimer.jobKey === j.key) ftReset();
+  if (j.source === "one") {
+    await ckSetDone(want);
+    fmAfterChange();
+    return;
+  }
+  await fmSetDone(j, want);
+}
+// "later": off today's list, onto the folded line. Written to the DAY, never to the weekly plan.
+async function tlPark(j, on) {
+  const parked = (ckEntry(ckToday()).parked || []).filter((k) => k !== j.key);
+  if (on) parked.push(j.key);
+  const save = ckSave({ parked });      // on screen first — ckSave updates the day before it posts
+  renderTodayList(); renderStartDay();
+  try { await save; } catch (e) { /* it comes back tomorrow either way */ }
 }
 /* On screen first, then told to the board — and put back if the board will not take it. */
 async function fmTickCheck(job, checkId) {
@@ -3650,7 +3580,7 @@ async function fmTickCheck(job, checkId) {
   if (!c) return;
   const was = !!c.done;
   c.done = !was;
-  fmRender();
+  fmAfterChange();
   try {
     const r = await fetch(PROJECTS, {
       method: "POST",
@@ -3658,7 +3588,7 @@ async function fmTickCheck(job, checkId) {
       body: JSON.stringify({ stepLink: { projectId: d.project.id, stepId: d.step.id, check: { id: checkId, done: !was } } }),
     });
     if (!r.ok) throw new Error("HTTP " + r.status);
-  } catch (e) { c.done = was; fmRender(); }
+  } catch (e) { c.done = was; fmAfterChange(); }
 }
 function fmRowHtml(j) {
   return '<div class="fm-row' + (j.done ? " is-done" : "") + '">' +
@@ -3666,49 +3596,6 @@ function fmRowHtml(j) {
       (j.done ? "Not done after all" : "Mark done") + '"><svg class="ic"><use href="#ic-check"/></svg></button>' +
     '<span class="fm-rt">' + esc(j.title) + "</span>" +
     (j.when ? '<span class="fm-rw">' + esc(j.when) + "</span>" : "") + "</div>";
-}
-function fmHabitsHtml() {
-  const habits = ckEntry(ckToday()).habits;
-  const ticked = CK_HABITS.filter((h) => habits[h.id] === true).length;
-  return '<div class="fm-rest"><div class="fm-cap">Non-negotiables — ' +
-    (ticked === CK_HABITS.length ? "all done" : ticked + " of " + CK_HABITS.length) + "</div>" +
-    '<div class="fm-nn">' + CK_HABITS.map((h) =>
-      '<button type="button" class="fm-nnb' + (habits[h.id] === true ? " on" : "") + '" data-fmhabit="' + esc(h.id) + '">' +
-      '<svg class="ic"><use href="#ic-check"/></svg>' + esc(h.short) + "</button>").join("") + "</div></div>";
-}
-
-/* v221: THE ONE THING RIDES WITH YOU.
-   It was shown only on a day with nothing planned — so the moment there were jobs, the most
-   important thing Ash had written down that morning disappeared. One quiet line above the
-   job, ticked when it is done, on every screen of the day. */
-function fmOneThingHtml() {
-  const e = ckEntry(ckToday());
-  const one = richToText(e.oneThing).trim();
-  if (!one) return "";
-  const done = e.oneThingDone === true;
-  return '<div class="fm-one' + (done ? " done" : "") + '">' +
-    '<span class="fm-one-k">Your one thing</span>' +
-    '<span class="fm-one-v">' + esc(one) + "</span>" +
-    (done ? '<svg class="ic"><use href="#ic-check"/></svg>' : "") + "</div>";
-}
-
-/* v221: the focus block, from inside focus mode — which is exactly where you want it, and
-   the one place it was not. The running clock is patched by ftOnTick along with the page's
-   bar (which is behind this screen and cannot be seen from here). */
-function fmTimerHtml() {
-  if (ftTimer) {
-    const state = ftTimer.finished ? "finished" : ftTimer.pausedRemaining != null ? "paused" : "running";
-    return '<div class="fm-rest"><div class="fm-cap">Focus block — ' + state + "</div>" +
-      '<div class="fm-timer"><span class="fm-clock" id="fmClock">' + ftFmt(ftRemaining()) + "</span>" +
-      (ftTimer.finished ? "" :
-        ftTimer.pausedRemaining != null
-          ? '<button type="button" class="fm-nnb" id="fmTResume">Resume</button>'
-          : '<button type="button" class="fm-nnb" id="fmTPause">Pause</button>') +
-      '<button type="button" class="fm-nnb" id="fmTStop">Stop</button></div></div>';
-  }
-  return '<div class="fm-rest"><div class="fm-cap">Focus block</div><div class="fm-timer">' +
-    FT_PRESETS.map((m) => '<button type="button" class="fm-nnb" data-ftmin="' + m + '">' + m + " min</button>").join("") +
-    "</div></div>";
 }
 
 /* ---------- the end ---------- */
@@ -3767,64 +3654,39 @@ async function fmTickStep(job, done) {
 // on screen first, then told to the store; a tick that lies gets put straight back
 async function fmSetDone(job, want) {
   const was = job.done;
-  job.done = want;
-  if (job.source === "plan" && wpAgenda && wpAgenda.cells && wpAgenda.cells[job.cellKey]) {
-    const row = wpAgenda.cells[job.cellKey][job.idx];
-    if (row) agendaSetDone(row, want);
-  }
-  if (job.source === "step") {
-    const p = fmProjects.find((x) => x.id === job.projectId);
-    const st = p && (p.steps || []).find((x) => x.id === job.stepId);
-    if (st) st.done = want;
-  }
-  fmRender();
-  try {
-    if (job.source === "plan") await tickTask(job.tgt, want);
-    else await fmTickStep(job, want);
-  } catch (e) {
-    job.done = was;
-    if (job.source === "plan" && wpAgenda && wpAgenda.cells && wpAgenda.cells[job.cellKey]) {
-      const row = wpAgenda.cells[job.cellKey][job.idx];
-      if (row) agendaSetDone(row, was);
-    }
+  // v230: the agenda row the job came from (carried on the job), not a lookup by position in
+  // whichever week the calendar card happens to be showing
+  const row = job.source === "plan" ? (job.row || null) : null;
+  const setLocal = (v) => {
+    job.done = v;
+    if (row) agendaSetDone(row, v);
     if (job.source === "step") {
       const p = fmProjects.find((x) => x.id === job.projectId);
       const st = p && (p.steps || []).find((x) => x.id === job.stepId);
-      if (st) st.done = was;
+      if (st) st.done = v;
     }
-    fmRender();
+  };
+  setLocal(want);
+  fmAfterChange();
+  try {
+    if (job.source === "plan") await tickTask(job.tgt, want, agendaWeekOf(0));
+    else await fmTickStep(job, want);
+  } catch (e) {
+    setLocal(was);
+    fmAfterChange();
   }
 }
-// to the back of today's queue (his call) — it comes round again after the others
-function fmSkipCurrent() {
-  const job = fmCurrent();
-  if (!job) return;
-  const i = fmQueue.indexOf(job);
-  fmQueue.splice(i, 1);
-  fmQueue.push(job);
-  fmRender();
+// everything that shows a job's state, after it changes
+function fmAfterChange() {
+  renderTodayList();
+  renderStartDay();
+  renderCalendar();
+  if (fmOpen) fmRender();
 }
-// off today altogether. Written to the DAY, never to the weekly plan.
-async function fmParkCurrent() {
-  const job = fmCurrent();
-  if (!job) return;
-  const parked = (ckEntry(ckToday()).parked || []).slice();
-  if (!parked.includes(job.key)) parked.push(job.key);
-  fmQueue = fmQueue.filter((j) => j !== job);
-  fmRender();
-  try { await ckSave({ parked }); } catch (e) { /* it comes back tomorrow either way */ }
-}
-async function fmSaveJot() {
-  const el = $("fm_jot");
-  if (!el) return;
-  const v = el.value.slice(0, 20000);
-  if (v === ckEntry(ckToday()).dayNote) return;
-  try { await ckSave({ dayNote: v }); } catch (e) {}
-}
-
 function fmWire() {
   const on = (id, fn) => { const el = $(id); if (el) el.addEventListener("click", fn); };
-  on("fmSkipQ", async () => { try { await ckSave({ dismissed: true }); } catch (e) {} fmStage = "day"; fmQueue = fmBuildQueue(); fmRender(); });
+  // v230: saved or skipped, the questions CLOSE — back to the page, where the list is
+  on("fmSkipQ", async () => { try { await ckSave({ dismissed: true }); } catch (e) {} fmCloseMode(); });
   on("fmSaveQ", async () => {
     const patch = {
       mind: ($("fm_mind") || {}).value || "", gratitude: ($("fm_grat") || {}).value || "",
@@ -3832,33 +3694,17 @@ function fmWire() {
       dismissed: true,
     };
     try { await ckSave(patch); } catch (e) {}
-    fmStage = "day"; fmQueue = fmBuildQueue(); fmRender();
+    fmCloseMode();
   });
-  on("fmDone", () => { const j = fmCurrent(); if (j) fmSetDone(j, true); });
-  on("fmSkip", fmSkipCurrent);
-  on("fmPark", fmParkCurrent);
-  on("fmToggleAll", () => { fmShowAll = !fmShowAll; fmRender(); });
-  on("fmMore", () => { fmShowNotes = !fmShowNotes; fmRender(); });
   on("fmOneYes", async () => { await ckSetDone(true); fmRender(); });
   on("fmOneNo", async () => { await ckSetDone(false); fmRender(); });
-  on("fmTPause", () => { ftPause(); fmRender(); });
-  on("fmTResume", () => { ftResume(); fmRender(); });
-  on("fmTStop", () => { ftReset(); fmRender(); });
-  [...document.querySelectorAll("[data-ftmin]")].forEach((el) =>
-    el.addEventListener("click", () => { ftStart(Number(el.dataset.ftmin)); fmRender(); }));
-  [...document.querySelectorAll("[data-ck]")].forEach((el) =>
-    el.addEventListener("click", () => { const j = fmCurrent(); if (j) fmTickCheck(j, el.dataset.ck); }));
-  on("fmToEvening", async () => { await fmSaveJot(); fmStage = "evening"; fmRender(); });
-  on("fmBackToDay", () => { fmStage = "day"; fmRender(); });
+  // v230: "Back to the jobs" closes the write-up — the jobs are on the page
+  on("fmBackToDay", fmCloseMode);
   on("fmCloseDay", async () => {
     const note = ($("fm_note") || {}).value || "";
     try { await ckSave({ dayNote: note, closedAt: new Date().toISOString() }); } catch (e) {}
     fmCloseMode();
   });
-  const jot = $("fm_jot");
-  if (jot) jot.addEventListener("blur", fmSaveJot);
-  [...document.querySelectorAll("[data-fmhabit]")].forEach((el) =>
-    el.addEventListener("click", async () => { await ckToggleHabit(el.dataset.fmhabit); fmRender(); }));
   [...document.querySelectorAll("[data-tick]")].forEach((el) =>
     el.addEventListener("click", () => {
       const j = fmQueue.find((x) => x.key === el.dataset.tick);
@@ -4514,6 +4360,7 @@ async function calRefresh() {
   const agenda = loadAgenda().then(() => {
     renderCalendar();
     renderStartDay();
+    if (dayReady) renderTodayList();      // v230: the list reads this week's agenda
     if (fmOpen) fmRender();
   }).catch(() => {});
   if (!gcalClientId || !gcalReady()) { await agenda; return; }
@@ -5091,14 +4938,16 @@ async function loadAll() {
   renderMail();
   renderMoney();
   renderTimerBar();
+  dayReady = true;
   renderToday();
+  renderTodayList();
   renderStartDay();
   if (btn) btn.disabled = false;
   // v219: the project list, for the steps dated today that never made it onto a plan. A
   // READ, through jget like every other read on this page. It goes last and alone: focus
   // mode works without it, it just knows about fewer jobs.
   // v227: and the calendar, whose project-step rows read their title and tick from it
-  fmLoadProjects().then(() => { renderStartDay(); renderCalendar(); if (fmOpen) fmRender(); });
+  fmLoadProjects().then(() => { renderStartDay(); renderTodayList(); renderCalendar(); if (fmOpen) fmRender(); });
 
   // The calendar and the inbox go last and on their own: they are a different service with
   // a different sign-in, and a Google outage must not hold up the cards above them. They

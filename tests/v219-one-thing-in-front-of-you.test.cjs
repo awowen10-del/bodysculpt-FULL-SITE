@@ -60,11 +60,13 @@ function bodyOf(js, name) {
     const WEEK = "2026-03-16";             // the Monday that starts it
     // v227: a planned project step is matched by the ids on its row (agendaStepOf), never by
     // title — and steps past their date come after today's
+    // v230: it reads THIS week's agenda (agendaToday), whatever the calendar card is showing
     const build = (agendaForDay, agendaDayKey, agendaWeekOf, ckEntry, ckToday, fmProjects) => new Function(
       "agendaForDay", "agendaDayKey", "agendaWeekOf", "ckEntry", "ckToday", "fmProjects",
+      "const agendaToday = () => null;\n" +
       "function agendaStepOf(row)" + bodyOf(JS, "agendaStepOf") + "\n" +
       "function fmDaysLate(due, today)" + bodyOf(JS, "fmDaysLate") + "\n" +
-      "return (function fmBuildQueue()" + bodyOf(JS, "fmBuildQueue") + ")")(agendaForDay, agendaDayKey, agendaWeekOf, ckEntry, ckToday, fmProjects);
+      "return (function fmBuildQueue(includeParked)" + bodyOf(JS, "fmBuildQueue") + ")")(agendaForDay, agendaDayKey, agendaWeekOf, ckEntry, ckToday, fmProjects);
 
     const agenda = [
       { title: "Team huddle", kind: "recurring", done: true, bandLabel: "6 – 9",
@@ -93,9 +95,9 @@ function bodyOf(js, name) {
 
     let q = run();
     assert.deepStrictEqual(q.map((j) => j.title),
-      ["Team huddle", "Build the tag map", "Point the website forms at GoHighLevel", "Already finished",
-       "Should have been last week", "Should have been Monday"],
-      "today is the plan's blocks in band order, then the things dated today that never got planned, then the overdue, oldest first");
+      ["Should have been last week", "Should have been Monday",
+       "Team huddle", "Build the tag map", "Point the website forms at GoHighLevel", "Already finished"],
+      "v230: the overdue first (oldest first), then the plan's blocks in band order, then the things dated today that never got planned");
     // v227: overdue says how late
     assert.strictEqual(q.find((j) => j.title === "Should have been Monday").when, "2 days late", "an overdue step says how late it is");
     assert.strictEqual(q.find((j) => j.title === "Should have been last week").late, 7, "…in days");
@@ -134,56 +136,65 @@ function bodyOf(js, name) {
     // a week with no plan at all is empty, not broken
     const empty = build(() => [], () => "wed", () => WEEK, () => ({ parked: [] }), () => TODAY, [])();
     assert.deepStrictEqual(empty, [], "no plan and no dated steps is an empty day, not an error");
+    // v230: the Today list asks for the parked ones too, to fold them at the foot
+    entry.parked = [q.find((j) => j.title === "Team huddle").key];
+    const withParked = build(() => agenda, () => "wed", () => WEEK, () => entry, () => TODAY, projects)(true);
+    assert.ok(withParked.some((j) => j.title === "Team huddle"), "asked to, it includes what was put aside");
   }
 
   /* =====================================================================
      2. IT NEVER GATES THE DAY
+     v230: the morning questions are still Start today's job; saved OR skipped, they close
+     and leave you on the page, where the jobs are now listed.
      ===================================================================== */
   {
     assert.ok(/id="fmSkipQ">Skip for today</.test(JS), "the questions can be skipped");
     const wire = bodyOf(JS, "fmWire");
-    assert.ok(/on\("fmSkipQ", async \(\) => \{[\s\S]*?fmStage = "day"/.test(wire),
-      "…and skipping goes straight to the jobs, rather than out");
-    // the mode is an overlay over the page, not a replacement for it
+    assert.ok(/on\("fmSkipQ", async \(\) => \{[\s\S]*?fmCloseMode\(\)/.test(wire),
+      "…and skipping goes back to the page and its list");
+    assert.ok(!/fmStage = "day"/.test(JS), "there is no one-at-a-time stage any more");
     assert.ok(/<div class="fm" id="fmWrap" hidden>/.test(PAGE), "focus mode starts hidden");
     assert.ok(/\.fm\{position:fixed;inset:0/.test(STYLE), "…and is laid over the page when it opens");
-    assert.ok(/Everything else on this page is still here, underneath/.test(PAGE),
-      "…the ordinary dashboard is untouched beneath it");
     const close = bodyOf(JS, "fmCloseMode");
-    assert.ok(/renderStartDay\(\); renderToday\(\); renderCalendar\(\);/.test(close),
-      "closing it puts you back on a page that is up to date");
+    assert.ok(/renderStartDay\(\); renderToday\(\); renderTodayList\(\); renderCalendar\(\);/.test(close),
+      "closing it puts you back on a page that is up to date, list and all");
     assert.ok(/e\.key === "Escape" && fmOpen/.test(JS), "Escape is always a way out");
-    // and the button tells you where the day is up to rather than just sitting there
     const start = bodyOf(JS, "renderStartDay");
-    for (const state of ["Start today", "Focus on today", "Close the day", "Today is closed off"]) {
+    for (const state of ["Start today", "Close the day", "Today is closed off"]) {
       assert.ok(start.includes('"' + state + '"'), "the button says " + state + " when that is where the day is");
     }
   }
 
   /* =====================================================================
-     3. NO DEAD ENDS, AND PARK IT IS HONEST
+     3. v230: THE TODAY LIST — every job, on the page
      ===================================================================== */
   {
-    const day = bodyOf(JS, "fmDayHtml");
-    assert.ok(/id="fmDone"/.test(day) && /id="fmSkip"/.test(day) && /id="fmPark"/.test(day),
-      "every job offers Done, Not this one, and Park it");
-    assert.ok(/fmLeft\(\)\.length > 1 \?/.test(day),
-      "…except that there is nothing to skip TO when it is the last one, so that button goes");
-    // his call: skipping sends it to the back of today
-    const skip = bodyOf(JS, "fmSkipCurrent");
-    assert.ok(/fmQueue\.splice\(i, 1\);\s*fmQueue\.push\(job\);/.test(skip),
-      "Not this one sends it to the back of today's queue, to come round again");
+    assert.ok(/<section class="card tl-card" id="tlCard">/.test(PAGE), "the page has a Today list");
+    assert.ok(PAGE.indexOf('<div class="day-top">') < PAGE.indexOf('id="tlCard"') &&
+      PAGE.indexOf('id="tlCard"') < PAGE.indexOf('id="slCard"'),
+      "…directly under the start strip and the One thing / Focus block card");
+    const jobs = bodyOf(JS, "tlJobs");
+    assert.ok(/key: "one"/.test(jobs) && jobs.indexOf('key: "one"') < jobs.indexOf("fmBuildQueue(true)"),
+      "the One Thing leads the list");
+    const list = bodyOf(JS, "renderTodayList");
+    assert.ok(/done \+ " of " \+ live\.length \+ " done"/.test(list), "the header says how many are done");
+    assert.ok(/live\.filter\(\(j\) => !j\.done\)\.concat\(live\.filter\(\(j\) => j\.done\)\)/.test(list),
+      "done rows sink to the bottom rather than vanishing");
+    assert.ok(/Parked \(" \+ parked\.length \+ "\)/.test(list), "parked jobs fold into one line at the foot");
+    assert.ok(/Nothing is planned for today\./.test(list) && /has not been opened since it last changed/.test(list),
+      "an empty day says so, and says where jobs come from");
+    const row = bodyOf(JS, "tlRowHtml");
+    for (const act of ["tick", "more", "focus", "park", "unpark", "min", "keep", "fin-done"]) {
+      assert.ok(row.includes('data-tl="' + act + '"'), "a row offers " + act);
+    }
+    assert.ok(/ftDialHtml\("and dial in"\)/.test(row), "a running row offers Dial in as a second button — never automatic");
     // park writes to the DAY, never to the plan
-    const park = bodyOf(JS, "fmParkCurrent");
-    assert.ok(/ckSave\(\{ parked \}\)/.test(park), "Park it is written on the day's own record");
+    const park = bodyOf(JS, "tlPark");
+    assert.ok(/ckSave\(\{ parked \}\)/.test(park), "later is written on the day's own record");
     assert.ok(!/weeklyTick|weeklyPlan|stepLink/.test(park), "…and touches neither the weekly plan nor the board");
-    assert.ok(/a fact about a day, and the plan has no field for it/.test(JS),
-      "…and the reason is written down where the next person will read it");
-    // a day with nothing in it says what to do about it rather than showing a void
-    assert.ok(/Nothing is planned for today\./.test(day), "an empty day says so");
-    assert.ok(/weekly planner<\/a>, and from any/.test(day), "…and says where jobs come from");
-    assert.ok(/has not been opened since it last changed/.test(day),
-      "…including the one case where the day only LOOKS empty");
+    // finishing a job ends its block
+    assert.ok(/if \(want && ftTimer && ftTimer\.jobKey === j\.key\) ftReset\(\);/.test(bodyOf(JS, "tlTick")),
+      "ticking a job while its timer runs stops the timer");
   }
 
   /* =====================================================================
@@ -191,12 +202,11 @@ function bodyOf(js, name) {
      ===================================================================== */
   {
     const set = bodyOf(JS, "fmSetDone");
-    assert.ok(set.indexOf("job.done = want") < set.indexOf("await tickTask"),
+    assert.ok(set.indexOf("setLocal(want)") < set.indexOf("await tickTask"),
       "a tick moves on screen before the request — one that waits for the network feels broken");
-    assert.ok(/job\.done = was;/.test(set), "…and goes back if the store would not take it");
-    assert.ok(/if \(job\.source === "plan"\) await tickTask\(job\.tgt, want\);\s*else await fmTickStep\(job, want\);/.test(set),
-      "a planned job ticks through the weekly plan; a dated step ticks through the board");
-    // the evening
+    assert.ok(/setLocal\(was\);/.test(set), "…and goes back if the store would not take it");
+    assert.ok(/if \(job\.source === "plan"\) await tickTask\(job\.tgt, want, agendaWeekOf\(0\)\);\s*else await fmTickStep\(job, want\);/.test(set),
+      "a planned job ticks through THIS week's plan; a dated step ticks through the board");
     const eve = bodyOf(JS, "fmEveningHtml");
     assert.ok(/job" \+ \(done\.length === 1 \? "" : "s"\) \+ " done/.test(eve), "the write-up counts what got done");
     assert.ok(/Still open/.test(eve) && /put aside/.test(eve), "…what did not, and what was put aside");
@@ -302,16 +312,16 @@ function bodyOf(js, name) {
       "a step with nothing inside it shows nothing — no empty panel under the job");
     assert.strictEqual(detail({}), null, "and a job that is not a step at all shows nothing");
 
-    // it renders as ticks, and the notes stay out of the way until asked for
-    const html = bodyOf(JS, "fmDetailHtml");
+    // v230: it renders inline under its row, behind the ▸, as ticks
+    const html = bodyOf(JS, "tlDetailHtml");
     assert.ok(/Checklist — ' \+ d\.done \+ " of " \+ d\.list\.length/.test(html), "the checklist is counted");
-    assert.ok(/data-ck="/.test(html), "…and every item is a tick");
-    assert.ok(/id="fmMore"/.test(html) && /fmShowNotes \?/.test(html),
-      "the notes are behind one click — the point of the screen is the job, not everything known about it");
+    assert.ok(/data-tl="ck" data-ck="/.test(html), "…and every item is a tick");
+    assert.ok(/if \(open\) h \+= tlDetailHtml\(j\);/.test(bodyOf(JS, "tlRowHtml")),
+      "the notes and checklist are behind the ▸ — the list stays a list");
     // ticking is optimistic and reverts, like every other tick in the suite
     const tick = bodyOf(JS, "fmTickCheck");
     assert.ok(tick.indexOf("c.done = !was") < tick.indexOf("await fetch"), "the box moves before the request");
-    assert.ok(/c\.done = was; fmRender\(\);/.test(tick), "…and goes back if the board will not take it");
+    assert.ok(/c\.done = was; fmAfterChange\(\);/.test(tick), "…and goes back if the board will not take it");
   }
 
   console.log("v219-one-thing-in-front-of-you: all assertions passed");

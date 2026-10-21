@@ -21,6 +21,8 @@ const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
 const DAILY = read("daily.html");
 const js = DAILY.slice(DAILY.lastIndexOf("<script>") + 8, DAILY.lastIndexOf("</script>"));
 const style = DAILY.slice(DAILY.indexOf("<style>") + 7, DAILY.indexOf("</style>"));
+// v230: the timer — engine, bar and its look — moved to the shared /focus-timer.js
+const FT = read("focus-timer.js");
 
 (async () => {
   /* ================= 0. the stamp ================= */
@@ -93,31 +95,31 @@ const style = DAILY.slice(DAILY.indexOf("<style>") + 7, DAILY.indexOf("</style>"
   /* ============ 5. THE TIMER, AND WHY IT LOOKS LIKE THAT ============
      "it needs to be like 'wow, this is time sensitive, focus'." Idle it is four small
      buttons. Running it pins itself across the page under the app bar. */
-  assert.ok(/\.ftbar\{position:sticky/.test(style), "a running block pins itself to the top");
-  assert.ok(/\.ft-clock\{font-size:46px/.test(style), "…with the clock at 46px");
-  assert.ok(/\.ftbar \.ft-fill\{position:absolute/.test(style), "…and the block visibly draining");
-  assert.ok(/document\.title = ftFmt\(left\) \+ " · " \+ FT_TITLE;/.test(js),
+  assert.ok(/\.ftbar\{position:sticky/.test(FT), "a running block pins itself to the top");
+  assert.ok(/\.ft-clock\{font-size:46px/.test(FT), "…with the clock at 46px");
+  assert.ok(/\.ftbar \.ft-fill\{position:absolute/.test(FT), "…and the block visibly draining");
+  assert.ok(/document\.title = ftFmt\(left\) \+ " · " \+ FT_TITLE;/.test(FT),
     "…and the countdown written into the browser tab, legible from another tab entirely");
-  assert.ok(/document\.title = FT_TITLE;/.test(js), "…and put back when the block ends");
+  assert.ok(/document\.title = FT_TITLE;/.test(FT), "…and put back when the block ends");
   // the last five minutes are the ones that need saying
-  assert.ok(/m <= 1 \? "last" : m <= 5 \? "soon" : "run"/.test(js), "under 5 minutes reads differently; under 1, again");
-  assert.ok(/\.ftbar\.soon \.ft-clock\{color:var\(--amber-2\);animation:ftbreathe/.test(style), "amber and breathing");
-  assert.ok(/\.ftbar\.last \.ft-clock\{color:var\(--red-2\);animation:ftbreathe/.test(style), "then red and faster");
-  assert.ok(/@media\(prefers-reduced-motion:reduce\)\{[\s\S]{0,200}?animation:none/.test(style),
+  assert.ok(/m <= 1 \? "last" : m <= 5 \? "soon" : "run"/.test(FT), "under 5 minutes reads differently; under 1, again");
+  assert.ok(/\.ftbar\.soon \.ft-clock\{color:var\(--amber-2\);animation:ftbreathe/.test(FT), "amber and breathing");
+  assert.ok(/\.ftbar\.last \.ft-clock\{color:var\(--red-2\);animation:ftbreathe/.test(FT), "then red and faster");
+  assert.ok(/@media\(prefers-reduced-motion:reduce\)\{[\s\S]{0,200}?animation:none/.test(FT),
     "…and somebody who asked for less movement gets the colour without the pulse");
   // the v68 engine came over intact, because it was right
-  assert.ok(/return Math\.max\(0, ftTimer\.endAt - Date\.now\(\)\);/.test(js),
+  assert.ok(/return Math\.max\(0, ftTimer\.endAt - Date\.now\(\)\);/.test(FT),
     "time left is DERIVED from a timestamp, never decremented — a backgrounded tab comes back correct");
-  assert.ok(/ftTimer\.pausedRemaining = Math\.max\(0, ftTimer\.endAt - Date\.now\(\)\);/.test(js),
+  assert.ok(/ftTimer\.pausedRemaining = Math\.max\(0, ftTimer\.endAt - Date\.now\(\)\);/.test(FT),
     "…and pausing freezes what is left rather than stopping a counter");
-  assert.ok(/if \(ftTick\) \{ clearInterval\(ftTick\); ftTick = null; \}/.test(js),
+  assert.ok(/if \(ftTick\) \{ clearInterval\(ftTick\); ftTick = null; \}/.test(FT),
     "the one interval is cleared whenever nothing is running");
   // a tick must not disturb what you are typing
-  assert.ok(/const clock = \$\("ftClock"\);\s*\n\s*if \(clock\) clock\.textContent/.test(js),
+  assert.ok(/const clock = ft\$\("ftClock"\);\s*\n\s*if \(clock\) clock\.textContent/.test(FT),
     "a tick patches the clock text — it does not re-render the page under your cursor");
-  assert.ok(/function ftChime\(\)/.test(js) && /AudioContext/.test(js),
+  assert.ok(/function ftChime\(\)/.test(FT) && /AudioContext/.test(FT),
     "it makes a noise when the block ends, generated rather than fetched");
-  assert.ok(/catch \(e\) \{ \/\* a browser that will not make a noise is not a broken timer \*\/ \}/.test(js),
+  assert.ok(/catch \(e\) \{ \/\* a browser that will not make a noise is not a broken timer \*\/ \}/.test(FT),
     "…and a browser that refuses is not an error");
 
   /* ============ 6. the questions get out of the way once the day has started ============
@@ -126,8 +128,9 @@ const style = DAILY.slice(DAILY.indexOf("<style>") + 7, DAILY.indexOf("</style>"
      shows the ANSWER. Same behaviour, one fewer place for it to live. */
   assert.ok(!/class="ck-sum"/.test(js), "the collapsing card is gone");
   assert.ok(/<span class="tsum-k">One thing/.test(js), "…and the day strip shows the answer instead");
-  assert.ok(/fmStage = "day"; fmQueue = fmBuildQueue\(\); fmRender\(\);/.test(js),
-    "…and answering them moves straight on to the day, rather than back to a card");
+  // v230: …and answering (or skipping) them closes back to the page, where the jobs are listed
+  assert.ok(/try \{ await ckSave\(patch\); \} catch \(e\) \{\}\s*fmCloseMode\(\);/.test(js),
+    "…and answering them goes back to the page and its Today list, not to a one-at-a-time screen");
   /* THE v144 RULE, KEPT: every control is wired in the function that renders it, so a
      render that returns early can never leave a button on screen with nothing behind it.
      v221 split these across two renderers — the day strip keeps the one-thing yes/no and

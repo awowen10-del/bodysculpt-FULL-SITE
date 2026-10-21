@@ -159,9 +159,10 @@ const ruleOf = (style, sel) => {
     assert.ok(js.trimStart().startsWith("/* v162: the side nav's drawer"), label + "the drawer script leads the app script");
   }
   // the finance page pins its header; the timer bar on the daily page sits under the narrow bar
-  assert.ok(/\.ftbar\{position:sticky;top:0;/.test(styleOf(SRC["daily.html"])), "daily: the timer bar pins to the top on a wide screen");
-  assert.ok(/\.ftbar\{top:58px;\}/.test(styleOf(SRC["daily.html"]).slice(styleOf(SRC["daily.html"]).indexOf("  @media(max-width:900px){"))),
-    "daily: …and under the pinned bar on a narrow one");
+  // v230: the bar's look moved with the timer into /focus-timer.js, shared by every page
+  const FTJS = fs.readFileSync(path.join(__dirname, "..", "focus-timer.js"), "utf8");
+  assert.ok(/\.ftbar\{position:sticky;top:0;/.test(FTJS), "the timer bar pins to the top on a wide screen");
+  assert.ok(/@media\(max-width:900px\)\{\.ftbar\{top:58px;\}\}/.test(FTJS), "…and under the pinned bar on a narrow one");
   assert.ok(!/\.appbar\{position:static;\}/.test(styleOf(SRC["finances.html"])), "finances: the stale app-bar override is gone");
 
   console.log("v162-side-nav.test: all assertions passed");

@@ -63,11 +63,14 @@ assert.strictEqual((habits.match(/sub: "/g) || []).length, 3,
   "the habits keep their detail text — it is the tooltip that was wrong, not the words");
 
 /* ---- 3. the focus block still works the way it did ---- */
-assert.ok(/#ic-headphones/.test(today) && /<symbol id="ic-headphones"/.test(html), "Dial in keeps its glyph");
-assert.ok(/onclick="return ftDialIn\(this\)"/.test(today) && /rel="noopener noreferrer"/.test(today),
+// v230: Dial in and its playlist picker are drawn by the shared /focus-timer.js
+const FT = read("focus-timer.js");
+assert.ok(/ftPickerHtml\(\) \+ ftDialHtml\(/.test(today), "the focus row offers the playlist picker and Dial in");
+assert.ok(/#ic-headphones/.test(FT) && /<symbol id="ic-headphones"/.test(html), "Dial in keeps its glyph");
+assert.ok(/onclick="return ftDialIn\(this\)"/.test(FT) && /rel="noopener noreferrer"/.test(FT),
   "the app-then-web link is unchanged");
 assert.ok(/id="ftGo' \+ m \+ '" data-min="' \+ m \+ '"/.test(today), "each length keeps its id and its minutes");
-assert.ok(/t\.id\.indexOf\("ftGo"\) === 0\) ftStart\(Number\(t\.dataset\.min\)\)/.test(js),
+assert.ok(/t\.id\.indexOf\("ftGo"\) === 0\) ftStart\(Number\(t\.dataset\.min\)\)/.test(FT),
   "…so the delegated click still starts the timer");
 assert.ok(/A ' \+ ftTimer\.durationMin \+ "-minute block is "/.test(today),
   "a running block still says so here, rather than the presets pretending nothing is on");
