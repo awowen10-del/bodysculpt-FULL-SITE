@@ -5,6 +5,7 @@
 //
 //   Recurring Revenue  = GoCardless (memberships only)  +  Stripe payments NOT named as trials
 //   Trial Revenue      = Stripe payments whose name says "6 week", "6-week" or "referral"
+//   Upfront Memberships= Stripe payments named as upfront deals (v226) — see isUpfrontName
 //   Other Revenue      = SumUp (meal prep, nothing else goes through it)
 //   Processing Fees    = what Stripe, GoCardless and SumUp kept
 //
@@ -81,6 +82,13 @@ const clip = (s, n) => { s = String(s || ""); return s.length > n ? s.slice(0, n
 // that is the end of a bigger number ("16 week plan" is not the challenge).
 const TRIAL_RE = /(?<!\d)6[\s\-]*weeks?|referral/i;
 export function isTrialName(name) { return TRIAL_RE.test(String(name || "")); }
+
+// v226. Upfront memberships — several months paid in one go ("12 FOR 10 UPFRONT - 3 PW",
+// "BF - 10 for £999"). Ash: they are not recurring, so they get their own box. Trial wins
+// if a name somehow says both, because Ash's trial rule is the firmer one.
+const UPFRONT_RE = /upfront|\b\d+\s*for\s*£?\s*\d+/i;
+export function isUpfrontName(name) { return UPFRONT_RE.test(String(name || "")); }
+export function kindOf(name) { return isTrialName(name) ? "trial" : isUpfrontName(name) ? "upfront" : "recurring"; }
 
 // Everything Stripe calls a payment, as one line of text to match against. Ontraport and
 // payment links put the product in the description; subscriptions put it on the invoice
@@ -160,14 +168,16 @@ export async function pullStripe(fx, key, b) {
       const g = groups.get(k) || { name: label, kind, amount: 0, count: 0 };
       g.amount += p; g.count += c; groups.set(k, g);
     };
-    let recurring = 0, trial = 0, fees = 0, trialCount = 0, otherCurrency = 0;
-    const refunded = { recurring: 0, trial: 0 };
+    const taken = { recurring: 0, trial: 0, upfront: 0 };
+    let fees = 0, trialCount = 0, otherCurrency = 0;
+    const refunded = { recurring: 0, trial: 0, upfront: 0 };
     for (const ch of charges) {
       if (!ch || ch.status !== "succeeded" || !ch.paid) continue;
       if (ch.currency && ch.currency !== "gbp") { otherCurrency++; continue; }
       const amt = pence(ch.amount);
-      const kind = isTrialName(stripeName(ch)) ? "trial" : "recurring";
-      if (kind === "trial") { trial += amt; trialCount++; } else recurring += amt;
+      const kind = kindOf(stripeName(ch));
+      taken[kind] += amt;
+      if (kind === "trial") trialCount++;
       note(stripeLabel(ch), kind, amt, 1);
       const bt = ch.balance_transaction && typeof ch.balance_transaction === "object" ? ch.balance_transaction : null;
       if (bt) fees += pence(bt.fee);
@@ -176,7 +186,7 @@ export async function pullStripe(fx, key, b) {
       if (!r || r.status === "failed" || r.status === "canceled") continue;
       if (r.currency && r.currency !== "gbp") { otherCurrency++; continue; }
       const ch = r.charge && typeof r.charge === "object" ? r.charge : null;
-      const kind = isTrialName(stripeName(ch)) ? "trial" : "recurring";
+      const kind = kindOf(stripeName(ch));
       refunded[kind] += pence(r.amount);
       const bt = r.balance_transaction && typeof r.balance_transaction === "object" ? r.balance_transaction : null;
       if (bt) fees += pence(bt.fee);          // a fee Stripe handed back is negative here
@@ -189,7 +199,7 @@ export async function pullStripe(fx, key, b) {
       for (const bt of (Array.isArray(d.balance_transactions) ? d.balance_transactions : [])) fees += pence(bt && bt.fee);
       if (d.status !== "lost") continue;
       const ch = d.charge && typeof d.charge === "object" ? d.charge : null;
-      const kind = isTrialName(stripeName(ch)) ? "trial" : "recurring";
+      const kind = kindOf(stripeName(ch));
       refunded[kind] += pence(d.amount);
       lost++;
     }
@@ -202,10 +212,11 @@ export async function pullStripe(fx, key, b) {
     if (otherCurrency) notes.push(otherCurrency + " payment" + (otherCurrency === 1 ? "" : "s") + " not in pounds left out");
     return {
       ok: true,
-      recurring: pounds(recurring - refunded.recurring),
-      trial: pounds(trial - refunded.trial),
-      gross: { recurring: pounds(recurring), trial: pounds(trial) },
-      refunds: { recurring: pounds(refunded.recurring), trial: pounds(refunded.trial) },
+      recurring: pounds(taken.recurring - refunded.recurring),
+      trial: pounds(taken.trial - refunded.trial),
+      upfront: pounds(taken.upfront - refunded.upfront),
+      gross: { recurring: pounds(taken.recurring), trial: pounds(taken.trial), upfront: pounds(taken.upfront) },
+      refunds: { recurring: pounds(refunded.recurring), trial: pounds(refunded.trial), upfront: pounds(refunded.upfront) },
       fees: pounds(fees),
       trialCount,
       names, notes,
@@ -428,10 +439,11 @@ export async function pullSumUp(fx, key, b, nowMs) {
 
 /* ---------- the four boxes ---------- */
 export function combine(st, gc, su) {
-  const fields = { recurringRev: null, trialRev: null, otherRev: null, processingFees: null };
+  const fields = { recurringRev: null, trialRev: null, upfrontRev: null, otherRev: null, processingFees: null };
   const r2 = (n) => Math.round(n * 100) / 100;
   if (st.ok && gc.ok) fields.recurringRev = r2(st.recurring + gc.recurring);
   if (st.ok) fields.trialRev = r2(st.trial);
+  if (st.ok) fields.upfrontRev = r2(st.upfront);
   if (su.ok) fields.otherRev = r2(su.other);
   // Fees are filled when Stripe and GoCardless answered; SumUp's are added when it gave them.
   // When it didn't, the warning says so on the page beside the box.

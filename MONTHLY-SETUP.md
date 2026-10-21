@@ -44,12 +44,15 @@ Re-running the seed is safe: existing months are skipped.
 
 ## Pulling revenue from Stripe, GoCardless & SumUp (v225)
 In the figures panel, **Pull from Stripe, GoCardless & SumUp** fills four boxes for the selected month:
-- **Recurring Revenue** = GoCardless + every Stripe payment that is *not* a trial
+- **Recurring Revenue** = GoCardless + every Stripe payment that is not a trial or upfront
 - **Trial Revenue** = Stripe payments with "6 week", "6-week" or "referral" in the name
+- **Upfront Memberships** (v226) = Stripe payments that say "upfront", or "12 for 10" / "10 for £999"
 - **Other Revenue** = SumUp (meal prep)
 - **Processing Fees** = what all three kept
 
-Refunds come off the month they were refunded in. A box is only filled if every account it needs answered. Nothing saves until you press **Save figures**, and **Put back what was there** undoes the pull. On the 4th of each month last month is pulled automatically and the KPIs view offers it for review.
+Refunds come off the month they were refunded in. Cash never reaches the pull — add it by hand.
+
+**Paid straight into the bank (v226):** upload the month's Santander statement on the Finances page (Import) first. The review then lists any money in from a person — not Stripe, GoCardless or SumUp payouts, your own accounts or a loan — and you mark each one Upfront membership, Monthly membership or Not membership. Marks are saved with the month. A box is only filled if every account it needs answered. Nothing saves until you press **Save figures**, and **Put back what was there** undoes the pull. On the 4th of each month last month is pulled automatically and the KPIs view offers it for review.
 
 One-time setup, in Netlify → Site configuration → Environment variables:
 1. **Stripe** — `STRIPE_SECRET_KEY` is already there for the Daily Dashboard. In Stripe → Developers → API keys, edit that restricted key and add **Read** for **Balance**, **Invoices** and **Refunds** (keep Charges, Disputes, Subscriptions, Customers).

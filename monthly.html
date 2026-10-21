@@ -353,6 +353,8 @@
   .tk-kind{display:inline-block;font-size:10px;font-weight:700;border-radius:6px;padding:1px 6px;margin-left:6px;}
   .tk-kind.trial{background:rgba(var(--orange-rgb),.14);color:var(--orange-soft);}
   .tk-kind.recurring{background:rgba(var(--green-rgb),.12);color:var(--green-2);}
+  .tk-kind.upfront{background:rgba(var(--line-rgb),.7);color:var(--ink);}
+  .tk-review select{font-family:inherit;font-size:12px;padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);max-width:100%;}
   .tk-undo{font-family:inherit;background:var(--ink);color:var(--card);border:0;border-radius:10px;padding:9px 14px;font-weight:700;font-size:13px;cursor:pointer;}
   .tk-ready{margin-top:12px;border:1px solid rgba(var(--orange-rgb),.4);background:rgba(var(--orange-rgb),.06);border-radius:12px;padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;}
   .ghostbtn{font-family:inherit;background:transparent;border:1px solid var(--line);color:var(--ink-dim);
@@ -848,6 +850,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
     <div class="egrid">
       <label class="f">Recurring Revenue (£)<input type="number" step="0.01" id="m_recurringRev" inputmode="decimal" placeholder="0"></label>
       <label class="f">Trial Revenue (£)<input type="number" step="0.01" id="m_trialRev" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Upfront Memberships (£)<input type="number" step="0.01" id="m_upfrontRev" inputmode="decimal" placeholder="0"></label>
       <label class="f">Other Revenue (£)<input type="number" step="0.01" id="m_otherRev" inputmode="decimal" placeholder="0"></label>
       <label class="f">Processing Fees (£)<input type="number" step="0.01" id="m_processingFees" inputmode="decimal" placeholder="0"></label>
       <label class="f calc">Charged Revenue (£) <span class="calc-tag">auto</span><input type="text" id="m_charged" readonly tabindex="-1" placeholder="—"></label>
@@ -1136,10 +1139,10 @@ function computed(ym, field){
   const g = f => man(ym, f);
   switch(field){
     case "charged": {
-      // Charged = Recurring Rev + Trial Rev + Other Rev
-      const r=g("recurringRev"), t=g("trialRev"), o=g("otherRev");
-      if(!isNum(r) && !isNum(t) && !isNum(o)) return null;
-      return n(r) + n(t) + n(o);
+      // Charged = Recurring Rev + Trial Rev + Upfront Memberships (v226) + Other Rev
+      const r=g("recurringRev"), t=g("trialRev"), u=g("upfrontRev"), o=g("otherRev");
+      if(!isNum(r) && !isNum(t) && !isNum(u) && !isNum(o)) return null;
+      return n(r) + n(t) + n(u) + n(o);
     }
     case "banked": {
       // Banked = Charged - Processing Fees
@@ -1298,6 +1301,7 @@ function homeKpiSpec(){
     ["Revenue","Charged Revenue",   aEff("charged"),      gbp, "upGood"],
     ["Revenue","Recurring Revenue", aMan("recurringRev"), gbp, "upGood"],
     ["Revenue","Trial Revenue",     aMan("trialRev"),     gbp, "upGood"],
+    ["Revenue","Upfront Memberships", aMan("upfrontRev"), gbp, "upGood"],
     ["Revenue","Other Revenue",     aMan("otherRev"),     gbp, "upGood"],
     ["Revenue","Banked Revenue",    aEff("banked"),       gbp, "upGood"],
     ["Back End","New Members",           aEff("signups"),    num, "upGood"],
@@ -1687,13 +1691,13 @@ function rebuildMonthSel(){
 // Manual fields = revenue + ATP + 15 expense lines + tax/owner. Expense Total is NOT
 // stored — it's computed from the 15 lines on render via expenseTotal().
 // Saved (manual) fields only. Charged, Banked and ATP are COMPUTED — never saved as manual.
-const MONEY_FIELDS = ["recurringRev","trialRev","otherRev","processingFees",
+const MONEY_FIELDS = ["recurringRev","trialRev","upfrontRev","otherRev","processingFees",
   "signups","cancellations","recurring","paused","adSpend","leads","trialSales",
   "staffNet","pensions","rent","accounting","software","marketing","cleaning","lease",
   "bills","website","retail","otherExp","travel","mentorship","charges",
   "taxPaid","profit","ownersPay","neil","taxSaved"];
 const MONEY_INPUTS = {
-  recurringRev:"m_recurringRev",trialRev:"m_trialRev",otherRev:"m_otherRev",processingFees:"m_processingFees",
+  recurringRev:"m_recurringRev",trialRev:"m_trialRev",upfrontRev:"m_upfrontRev",otherRev:"m_otherRev",processingFees:"m_processingFees",
   signups:"m_signups",cancellations:"m_cancellations",recurring:"m_recurring",paused:"m_paused",
   adSpend:"m_adSpend",leads:"m_leads",trialSales:"m_trialSales",
   staffNet:"m_staffNet",pensions:"m_pensions",rent:"m_rent",accounting:"m_accounting",software:"m_software",
@@ -1707,8 +1711,9 @@ const MONEY_INPUTS = {
 function updateLiveCalcFields(){
   const numOf = id => { const raw = document.getElementById(id).value; const v = Number(raw); return (raw!=="" && isFinite(v)) ? v : 0; };
   const recRev = numOf("m_recurringRev"), trialRev = numOf("m_trialRev"), otherRev = numOf("m_otherRev");
+  const upRev = numOf("m_upfrontRev");
   const fees = numOf("m_processingFees");
-  const charged = recRev + trialRev + otherRev;
+  const charged = recRev + trialRev + upRev + otherRev;
   const banked = charged - fees;
 
   // effective recurring for THIS month, using the typed override if present, else the rolling calc
@@ -1725,7 +1730,7 @@ function updateLiveCalcFields(){
   const atp = (charged>0 && isNum(effRec) && effRec>0) ? charged/effRec : null;
 
   document.getElementById("m_charged").value = charged ? gbp(charged) : "—";
-  document.getElementById("m_banked").value = (recRev||trialRev||otherRev||fees) ? gbp(banked) : "—";
+  document.getElementById("m_banked").value = (recRev||trialRev||upRev||otherRev||fees) ? gbp(banked) : "—";
   document.getElementById("m_atp").value = isNum(atp) ? gbp(atp) : "—";
 
   // recurring hint: show the rolling suggestion when no manual override is typed
@@ -1789,6 +1794,9 @@ async function saveMoney(){
   // member snapshot correct for months where recurring was rolled rather than typed.
   const typedRecurring = document.getElementById("m_recurring").value;
   if(typedRecurring === "" && isNum(recurringC)) rec.recurring = recurringC;
+  // v226: the bank payments Ash marked as membership in the takings review travel with the
+  // month, so a re-pull puts them back instead of quietly dropping them from the boxes.
+  if(tkCur && tkCur.month === curYm) rec.bankPicks = Object.assign({}, tkPicks);
   // drop any legacy stored field no longer used
   delete rec.expense;
   try{
@@ -1810,11 +1818,21 @@ async function saveMoney(){
 // boxes — nothing is saved until Save figures, exactly as if Ash had typed them — and the
 // review carries a "Put back what was there" button, so a bad pull is one press to undo.
 const TK_FIELDS = [["recurringRev","Recurring Revenue"],["trialRev","Trial Revenue"],
-  ["otherRev","Other Revenue"],["processingFees","Processing Fees"]];
-let tkWas = null;          // what the four boxes held before the pull
+  ["upfrontRev","Upfront Memberships"],["otherRev","Other Revenue"],["processingFees","Processing Fees"]];
+let tkWas = null;          // what the boxes held before the pull
 let tkReadyYm = null;      // the month the 4th-of-the-month run has waiting
+let tkCur = null;          // the pull on screen
+let tkPicks = {};          // v226: bank rows marked as membership — {rowId:{kind,amount,date,desc}}
+let tkBank = null;         // v226: {loading} | {rows, from, to} | {none} | {error}
+// v226. Money paid straight into the bank — Jackie's £750 upfront — never touches Stripe,
+// GoCardless or SumUp. The statement Ash uploads on the Finances page is read here (GET
+// only) and anything in from a PERSON is listed for him to mark. Payouts from the three
+// providers, his own accounts, and loans are left out: they are not revenue, or are
+// already counted.
+const TK_PICK_FIELD = { upfront:"upfrontRev", monthly:"recurringRev" };
+const TK_NOT_INCOME = /CAPITAL ON TAP|INTEREST|HMRC|LOAN|FUNDING CIRCLE|IWOCA/i;
 function tkReset(){
-  tkWas = null;
+  tkWas = null; tkCur = null; tkPicks = {}; tkBank = null;
   document.getElementById("tkReview").hidden = true;
   document.getElementById("tkReview").innerHTML = "";
   document.getElementById("tkMsg").textContent = "";
@@ -1840,12 +1858,67 @@ function tkApply(pull){
     tkWas = {};
     TK_FIELDS.forEach(([f])=>{ tkWas[f] = document.getElementById(MONEY_INPUTS[f]).value; });
   }
+  // a second press of Pull keeps the marks made since the first; a fresh review starts from
+  // the ones saved with the month
+  if(!(tkCur && tkCur.month === pull.month)){
+    const saved = (MONTHREC[pull.month] || {}).bankPicks;
+    tkPicks = (saved && typeof saved === "object") ? Object.assign({}, saved) : {};
+  }
+  tkCur = pull;
+  tkFill();
+  tkLoadBank(pull.month);
+}
+// The boxes = what the providers said + the bank rows Ash marked. A box the pull could not
+// fill is left exactly as it was, marks and all.
+function tkTotals(){
+  const out = {};
   TK_FIELDS.forEach(([f])=>{
-    const v = pull.fields ? pull.fields[f] : null;
-    if(isNum(v)) document.getElementById(MONEY_INPUTS[f]).value = v.toFixed(2);
+    const v = tkCur && tkCur.fields ? tkCur.fields[f] : null;
+    out[f] = isNum(v) ? v : null;
   });
+  Object.values(tkPicks).forEach(p=>{
+    const f = p && TK_PICK_FIELD[p.kind];
+    if(f && isNum(out[f]) && isNum(p.amount)) out[f] = Math.round((out[f] + p.amount)*100)/100;
+  });
+  return out;
+}
+function tkFill(){
+  const t = tkTotals();
+  TK_FIELDS.forEach(([f])=>{ if(isNum(t[f])) document.getElementById(MONEY_INPUTS[f]).value = t[f].toFixed(2); });
   updateLiveCalcFields();
-  tkRenderReview(pull);
+  tkRenderReview(tkCur);
+}
+async function tkLoadBank(ym){
+  tkBank = { loading:true }; tkRenderReview(tkCur);
+  try{
+    const [tx, st] = await Promise.all([
+      fetch(STORE + "?fintxns=" + encodeURIComponent(ym)).then(r=>r.json()),
+      fetch(STORE + "?finsettings=1").then(r=>r.json()).catch(()=>({})),
+    ]);
+    if(!tkCur || tkCur.month !== ym) return;
+    const rows = (tx && Array.isArray(tx.rows) ? tx.rows : []).filter(r=>r && !r.del);
+    if(!rows.length){ tkBank = { none:true }; tkRenderReview(tkCur); return; }
+    const set = (st && st.settings) || st || {};
+    const keys = Object.values(set.sources || { stripe:"STRIPE", gocardless:"GC C1", sumup:"SUMUP" }).filter(Boolean).map(k=>String(k).toUpperCase());
+    keys.push("GOCARDLESS");
+    if(set.transferKeyword) keys.push(String(set.transferKeyword).toUpperCase());
+    const dates = rows.map(r=>String(r.date||"")).filter(Boolean).sort();
+    const people = rows.filter(r=>{
+      if(r.dir !== "in") return false;
+      if(r.cat === "Transfer" || r.cat === "Directors loan") return false;
+      const d = String(r.desc||"").toUpperCase();
+      if(keys.some(k=>d.includes(k))) return false;
+      return !TK_NOT_INCOME.test(d);
+    }).sort((x,y)=>String(x.date).localeCompare(String(y.date)));
+    tkBank = { rows: people, from: dates[0], to: dates[dates.length-1] };
+  }catch(e){ tkBank = { error:true }; }
+  if(tkCur && tkCur.month === ym) tkRenderReview(tkCur);
+}
+function tkPick(id, kind){
+  const r = (tkBank && tkBank.rows || []).find(x=>String(x.id)===String(id));
+  if(kind === "none" || !TK_PICK_FIELD[kind]) delete tkPicks[id];
+  else if(r) tkPicks[id] = { kind, amount: Math.round(Number(r.amount)*100)/100, date: r.date, desc: String(r.desc||"").slice(0,80) };
+  tkFill();
 }
 function tkUndo(){
   if(!tkWas) return;
@@ -1854,40 +1927,77 @@ function tkUndo(){
   tkReset();
   document.getElementById("tkMsg").textContent = "Put back what was there before the pull.";
 }
+function tkBankHtml(ym){
+  const money = v => isNum(v) ? gbp(v) : "—";
+  const dmy = d => { try{ return new Date(d+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"}); }catch(e){ return d; } };
+  const head = `<h4 style="margin-top:12px">Paid straight into the bank</h4>`;
+  const upload = `<a href="finances.html" target="_blank" rel="noopener">upload it on the Finances page</a>`;
+  if(!tkBank || tkBank.loading) return head + `<div class="msg">Checking your bank statement…</div>`;
+  if(tkBank.error) return head + `<div class="tk-warn">Couldn't read your bank statements — the numbers above are still right for Stripe, GoCardless &amp; SumUp.</div>`;
+  if(tkBank.none) return head + `<div class="tk-warn">No bank statement uploaded for ${esc(ymLabel(ym))} — ${upload} (Import), then press Pull again, to catch anyone who paid you by bank transfer.</div>`;
+  const b = monthBoundsOf(ym), short = tkBank.to && b && tkBank.to < b.last;
+  const cover = `<div class="msg">Statement covers ${esc(dmy(tkBank.from))} – ${esc(dmy(tkBank.to))}.${short?` <span class="tk-warn">It stops before the end of the month — ${upload} for the rest.</span>`:""}</div>`;
+  const rows = tkBank.rows || [];
+  // marks saved with the month whose bank row is no longer in the statement still count —
+  // they are listed so nothing is counted that Ash can't see
+  const orphan = Object.entries(tkPicks).filter(([id])=>!rows.some(r=>String(r.id)===id));
+  if(!rows.length && !orphan.length) return head + cover + `<div class="msg">Nobody paid you directly this month — only Stripe, GoCardless &amp; SumUp payouts, your own transfers and loans came in.</div>`;
+  const opt = (id, cur) => `<select data-tkpick="${esc(String(id))}">
+      <option value="none"${!cur?" selected":""}>Not membership</option>
+      <option value="upfront"${cur==="upfront"?" selected":""}>Upfront membership</option>
+      <option value="monthly"${cur==="monthly"?" selected":""}>Monthly membership</option></select>`;
+  const list = rows.map(r=>{
+    const cur = tkPicks[r.id] ? tkPicks[r.id].kind : "";
+    return `<tr><td>${esc(dmy(r.date))} · ${esc(String(r.desc||"").replace(/^FASTER PAYMENTS RECEIPT\s*/i,"").slice(0,60))}</td><td>${money(Number(r.amount))}</td><td>${opt(r.id, cur)}</td></tr>`;
+  }).join("") + orphan.map(([id,p])=>`<tr><td>${esc(dmy(p.date))} · ${esc(p.desc)} <span class="msg">(no longer in the statement)</span></td><td>${money(p.amount)}</td><td>${opt(id, p.kind)}</td></tr>`).join("");
+  return head + cover + `<div class="msg">Money in from anyone other than Stripe, GoCardless, SumUp, your own accounts or a loan. Mark what was a membership and it's added to the box above.</div>
+    <table><tbody>${list}</tbody></table>`;
+}
+function monthBoundsOf(ym){
+  const m = /^(\d{4})-(\d{2})$/.exec(ym||""); if(!m) return null;
+  const last = new Date(Date.UTC(+m[1], +m[2], 0)).getUTCDate();
+  return { first: ym + "-01", last: ym + "-" + String(last).padStart(2,"0") };
+}
 function tkRenderReview(pull){
+  if(!pull) return;
   const el = document.getElementById("tkReview");
   const S = pull.sources || {}, st = S.stripe || {}, gc = S.gocardless || {}, su = S.sumup || {};
   const money = v => isNum(v) ? gbp(v) : "—";
   const wasNum = f => { const raw = tkWas ? tkWas[f] : ""; return raw === "" || raw == null ? null : Number(raw); };
+  const tot = tkTotals();
   const rows = TK_FIELDS.map(([f,label])=>{
-    const was = wasNum(f), now = pull.fields ? pull.fields[f] : null;
+    const was = wasNum(f), now = tot[f];
     const changed = isNum(now) && (!isNum(was) || Math.abs(was-now) >= 0.005);
     return `<tr><td>${esc(label)}</td><td>${money(was)}</td><td class="${changed?"tk-changed":""}">${isNum(now)?money(now):"left as it was"}</td></tr>`;
   }).join("");
   const line = (name, s, body) => s.ok ? `<li><b>${name}:</b> ${body}${(s.notes||[]).length?" — "+esc(s.notes.join("; ")):""}</li>`
                                        : `<li class="tk-warn"><b>${name}:</b> ${esc(s.error||"didn't answer")}</li>`;
-  const stBody = st.ok ? `memberships ${money(st.gross&&st.gross.recurring)}, trials ${money(st.gross&&st.gross.trial)} (${st.trialCount||0} payment${st.trialCount===1?"":"s"})`
-    + ((st.refunds&&(st.refunds.recurring||st.refunds.trial)) ? `, refunds −${money(st.refunds.recurring+st.refunds.trial)}` : "")
-    + `, fees ${money(st.fees)}` : "";
+  const G = st.gross || {}, F = st.refunds || {};
+  const stRef = (F.recurring||0) + (F.trial||0) + (F.upfront||0);
+  const stBody = st.ok ? `memberships ${money(G.recurring)}, upfront ${money(G.upfront||0)}, trials ${money(G.trial)} (${st.trialCount||0} payment${st.trialCount===1?"":"s"})`
+    + (stRef ? `, refunds −${money(stRef)}` : "") + `, fees ${money(st.fees)}` : "";
   const gcBody = gc.ok ? `memberships ${money(gc.gross)} from ${gc.count||0} payments`
     + (gc.refunds ? `, refunds −${money(gc.refunds)}` : "") + `, fees ${money(gc.fees)}` : "";
   const suBody = su.ok ? `meal prep ${money(su.gross)} from ${su.count||0} sales`
     + (su.refunds ? `, refunds −${money(su.refunds)}` : "") + `, fees ${su.feesKnown?money(su.fees):"not given"}` : "";
-  const names = (st.ok && Array.isArray(st.names) && st.names.length) ? `<details><summary>What Stripe counted as trial and as membership (${st.names.length} name${st.names.length===1?"":"s"})</summary><ul>`
-    + st.names.map(n=>`<li>${esc(n.name)}<span class="tk-kind ${n.kind==="trial"?"trial":"recurring"}">${n.kind==="trial"?"Trial":"Membership"}</span> — ${money(n.amount)} × ${n.count}</li>`).join("")
-    + `</ul><div class="note" style="margin-top:0">A payment is a trial when its name has "6 week", "6-week" or "referral" in it. Anything else on Stripe counts as membership.</div></details>` : "";
+  const KIND = { trial:["trial","Trial"], upfront:["upfront","Upfront"], recurring:["recurring","Membership"] };
+  const names = (st.ok && Array.isArray(st.names) && st.names.length) ? `<details><summary>How Stripe's payments were sorted (${st.names.length} name${st.names.length===1?"":"s"})</summary><ul>`
+    + st.names.map(n=>{ const k = KIND[n.kind] || KIND.recurring; return `<li>${esc(n.name)}<span class="tk-kind ${k[0]}">${k[1]}</span> — ${money(n.amount)} × ${n.count}</li>`; }).join("")
+    + `</ul><div class="note" style="margin-top:0">Trial: the name has "6 week", "6-week" or "referral" in it. Upfront: it says "upfront", or "12 for 10" / "10 for £999". Everything else on Stripe is membership.</div></details>` : "";
   const when = pull.pulledAt ? new Date(pull.pulledAt).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) : "";
   const warns = (pull.warnings||[]).filter(w=>!/^(Stripe|GoCardless|SumUp):/.test(w));
   el.innerHTML = `<h4>${esc(ymLabel(pull.month))} from your payment accounts${pull.partial?" — so far, the month isn't over":""}</h4>
-    <table><thead><tr><th></th><th>Was</th><th>From payments</th></tr></thead><tbody>${rows}</tbody></table>
+    <table><thead><tr><th></th><th>Was</th><th>Filled in</th></tr></thead><tbody>${rows}</tbody></table>
     <ul>${line("Stripe",st,stBody)}${line("GoCardless",gc,gcBody)}${line("SumUp",su,suBody)}${warns.map(w=>`<li class="tk-warn">${esc(w)}</li>`).join("")}</ul>
     ${names}
+    ${tkBankHtml(pull.month)}
     <div class="erow-actions" style="margin-top:8px">
       <button class="tk-undo" id="tkUndo" type="button">Put back what was there</button>
-      <span class="msg">Nothing is saved yet — check the numbers, then press <b>Save figures</b>.${when?" Pulled "+esc(when)+".":""}</span>
+      <span class="msg">Nothing is saved yet — check the numbers, add any cash, then press <b>Save figures</b>.${when?" Pulled "+esc(when)+".":""}</span>
     </div>`;
   el.hidden = false;
   document.getElementById("tkUndo").addEventListener("click", tkUndo);
+  el.querySelectorAll("[data-tkpick]").forEach(sel=>sel.addEventListener("change", ()=>tkPick(sel.getAttribute("data-tkpick"), sel.value)));
 }
 // The 4th-of-the-month run keeps last month's pull. If that month has no revenue typed yet,
 // say so on the KPIs view with one button that opens it, filled in, for review.
@@ -1897,7 +2007,7 @@ async function tkCheckReady(){
     const pull = r && r.pull;
     if(!pull || !pull.ok || !pull.month || !YMS.includes(pull.month)) return;
     const rec = MONTHREC[pull.month] || {};
-    if(["recurringRev","trialRev","otherRev"].some(f=>isNum(rec[f]))) return;
+    if(["recurringRev","trialRev","upfrontRev","otherRev"].some(f=>isNum(rec[f]))) return;
     tkReadyYm = pull.month;
     const el = document.getElementById("tkReady");
     el.innerHTML = `<span><b>${esc(ymLabel(pull.month))}'s takings are ready</b> — pulled from Stripe, GoCardless &amp; SumUp. Check them and save.</span>
@@ -2034,7 +2144,7 @@ function wire(){
   });
   // live recompute of the locked Charged/Banked/ATP fields + recurring hint as revenue
   // and member inputs are typed
-  ["m_recurringRev","m_trialRev","m_otherRev","m_processingFees","m_recurring","m_signups","m_cancellations"].forEach(id=>{
+  ["m_recurringRev","m_trialRev","m_upfrontRev","m_otherRev","m_processingFees","m_recurring","m_signups","m_cancellations"].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.addEventListener("input", updateLiveCalcFields);
   });

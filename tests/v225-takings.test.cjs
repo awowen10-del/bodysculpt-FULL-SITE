@@ -142,8 +142,8 @@ function world() {
   assert.ok(st.ok, st.error); assert.ok(gc.ok, gc.error); assert.ok(su.ok, su.error);
   // Stripe: memberships 45+45, trials 99+49+99, failed ignored; refund of an August trial
   // (99) and a lost chargeback on a membership (45) come off September.
-  assert.deepStrictEqual(st.gross, { recurring: 90, trial: 247 });
-  assert.deepStrictEqual(st.refunds, { recurring: 45, trial: 99 });
+  assert.deepStrictEqual(st.gross, { recurring: 90, trial: 247, upfront: 0 });
+  assert.deepStrictEqual(st.refunds, { recurring: 45, trial: 99, upfront: 0 });
   assert.strictEqual(st.recurring, 45); assert.strictEqual(st.trial, 148);
   assert.strictEqual(st.trialCount, 3);
   assert.strictEqual(st.fees, (90 + 90 + 180 + 100 + 180 + 250 + 2000) / 100, "charge fees + Stripe's own bills + the dispute fee");
@@ -158,7 +158,7 @@ function world() {
   assert.ok(w.calls.some((c) => c.searchParams.get("oldest_ref") === "T2"), "SumUp follows its next link");
   assert.strictEqual(w.calls.filter((c) => c.pathname === "/v1/charges").length, 3, "Stripe pages through has_more");
   // the four boxes
-  assert.deepStrictEqual(pull.fields, { recurringRev: 115, trialRev: 148, otherRev: 37.5, processingFees: 30.92 });
+  assert.deepStrictEqual(pull.fields, { recurringRev: 115, trialRev: 148, upfrontRev: 0, otherRev: 37.5, processingFees: 30.92 });
   assert.strictEqual(pull.partial, false);
   assert.deepStrictEqual(pull.warnings, []);
 
@@ -222,12 +222,13 @@ function world() {
   const M = read("monthly.html");
   const tk = M.slice(M.indexOf("// ===================== v225: THE MONTH'S TAKINGS"), M.indexOf("// ===================== AI MONTHLY REVIEW"));
   assert.ok(tk.length > 1000);
-  assert.ok(!/saveMonth|saveMoney\(|STORE/.test(tk), "the pull never writes the month — Save figures does");
+  assert.ok(!/saveMonth|saveMoney\(|method:\s*"POST"/.test(tk), "the pull never writes the month — Save figures does");
   assert.ok(/id="tkUndo"/.test(tk) && /Put back what was there/.test(tk), "undo sits on the review");
   assert.ok(/function openMoney\(\)\{[\s\S]*?tkReset\(\);[\s\S]*?\n\}/.test(M), "opening the panel clears an old review");
   assert.ok(/getElementById\("tkPull"\)\.addEventListener\("click", tkPull\)/.test(M));
   assert.ok(/tkCheckReady\(\);/.test(M.slice(M.indexOf("async function boot()"))), "boot looks for a waiting pull");
   // only the four revenue boxes are touched
   assert.ok(/const TK_FIELDS = \[\["recurringRev"[\s\S]*?\["processingFees","Processing Fees"\]\];/.test(tk));
+  assert.ok(!/trialSales/.test(tk), "Trial Sales stays Ash's to type — cash trials");
   console.log("v225 takings: OK");
 })().catch((e) => { console.error(e); process.exit(1); });
