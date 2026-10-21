@@ -3206,9 +3206,15 @@ function wpRemoveRefEverywhere(ref){
 //     previous week's exceptions — that's what keeps a move/skip inside its own week.
 //   • Exceptions only ever exist for defaults sources (recurring/training). One-off tasks
 //     behave exactly as they always have.
-//   • One entry per ref per week (a second exception on the same task replaces the first).
+//   • v228: one entry per OCCURRENCE per week, not per task — the value is a LIST,
+//       { "<ref>": [ { type:"skip", from }, { type:"move", from, to }, … ] }
+//     and a second exception with the same `from` replaces that one only. (It used to be one
+//     entry per task, which meant a daily task could only ever have one day skipped: skipping
+//     Thursday brought Tuesday back.)
 //   • `from` is the SCHEDULE-derived cell the occurrence comes from, so an exception is
-//     automatically invalidated (schedule wins) once the schedule moves elsewhere.
+//     automatically invalidated (schedule wins) once the schedule moves elsewhere. It is
+//     required: an entry without one is dropped (v228 — an old from-less entry, which meant
+//     every occurrence, is expanded into one per occurrence on load, so nothing is lost).
 function wpValidCellKey(k){
   if(typeof k !== "string" || !k) return null;
   const parts = k.split(":");
@@ -3226,30 +3232,66 @@ function wpExceptionsMap(plan){
   if(!p.exceptions || typeof p.exceptions !== "object" || Array.isArray(p.exceptions)) p.exceptions = {};
   return p.exceptions;
 }
-// Validate one entry. Returns a clean {type, from?, to} or null (unknown shapes are ignored,
-// never thrown away silently mid-render — the load path does the pruning).
+// Validate one entry. Returns a clean {type, from, to?} or null (unknown shapes are ignored,
+// never thrown away silently mid-render — the load path does the pruning). v228: `from` is
+// required — it is what makes an entry one occurrence rather than the whole task.
 function wpNormException(ref, ex){
   if(!ex || typeof ex !== "object" || Array.isArray(ex)) return null;
   if(!wpIsDefaultsSource(String(ref).split(":")[0])) return null;
   const from = wpValidCellKey(ex.from);
-  if(ex.type === "skip"){ const o = { type:"skip" }; if(from) o.from = from; return o; }
+  if(!from) return null;
+  if(ex.type === "skip") return { type:"skip", from };
   if(ex.type === "move"){
     const to = wpValidCellKey(ex.to);
     if(!to) return null;                       // a move with nowhere to go is meaningless
-    const o = { type:"move", to };
-    if(from) o.from = from;
-    return o;
+    return { type:"move", from, to };
   }
   return null;
 }
-function wpExceptionFor(ref){ return wpNormException(ref, wpExceptionsMap()[ref]); }
+// v228: a task's entries for the week, cleaned — a list, one per occurrence (`from`), the
+// later of two for the same occurrence winning. The pre-v228 single object is a one-element
+// list. `derived` (the schedule's cells) is only needed to upgrade an old entry with no
+// `from`, which meant "every occurrence": it becomes one entry per occurrence, so the week
+// renders exactly as it did. Without `derived` such an entry is dropped.
+function wpNormExceptionList(ref, raw, derived){
+  const src = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+  const byFrom = new Map();
+  src.forEach(ex=>{
+    if(ex && typeof ex === "object" && !Array.isArray(ex) && !wpValidCellKey(ex.from) && derived){
+      Object.keys(derived).filter(k=>(derived[k]||[]).includes(ref)).forEach(k=>{
+        const e = wpNormException(ref, Object.assign({}, ex, { from:k }));
+        if(e) byFrom.set(e.from, e);
+      });
+      return;
+    }
+    const e = wpNormException(ref, ex);
+    if(e) byFrom.set(e.from, e);
+  });
+  return [...byFrom.values()];
+}
+function wpExceptionsFor(ref){ return wpNormExceptionList(ref, wpExceptionsMap()[ref], wpScheduledPlacements()); }
+// write one occurrence's exception, replacing only an earlier one for the SAME occurrence
+function wpSetException(ref, entry){
+  const e = wpNormException(ref, entry);
+  if(!e) return;
+  wpExceptionsMap()[ref] = wpExceptionsFor(ref).filter(x=>x.from !== e.from).concat([e]);
+}
+// clear one occurrence's exception, leaving the task's others alone
+function wpClearException(ref, from){
+  const map = wpExceptionsMap();
+  const list = wpExceptionsFor(ref).filter(x=>x.from !== from);
+  if(list.length) map[ref] = list; else delete map[ref];
+}
 // Sanitise a stored map on load (structure only — task existence is judged at render time).
-function wpCleanExceptions(raw){
+// v228: every value becomes a list; an old single object is upgraded, nothing is lost.
+function wpCleanExceptions(raw, weekEnding){
   const out = {};
   if(!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  let derived = null;
   Object.keys(raw).forEach(ref=>{
-    const e = wpNormException(ref, raw[ref]);
-    if(e) out[ref] = e;
+    if(!derived) derived = wpScheduledPlacements(weekEnding);
+    const list = wpNormExceptionList(ref, raw[ref], derived);
+    if(list.length) out[ref] = list;
   });
   return out;
 }
@@ -3308,15 +3350,18 @@ function wpEffectivePlacements(plan, weekEnding){
   });
   const ex = wpExceptionsMap(p);
   Object.keys(ex).forEach(ref=>{
-    const e = wpNormException(ref, ex[ref]);
-    if(!e || !wpResolveRef(ref)) return;                        // unknown / deleted task
-    const cells = (e.from ? [e.from] : Object.keys(out)).filter(k=>(out[k]||[]).includes(ref));
-    if(!cells.length) return;                                   // stale — schedule wins
-    cells.forEach(k=>{ out[k] = out[k].filter(r=>r!==ref); });
-    if(e.type === "move"){
+    if(!wpResolveRef(ref)) return;                              // unknown / deleted task
+    // v228: EVERY entry for the task, one per occurrence. An entry whose `from` is no longer
+    // one of the task's scheduled cells is stale — the schedule simply wins.
+    const live = wpNormExceptionList(ref, ex[ref], derived).filter(e=>(derived[e.from]||[]).includes(ref));
+    // all the occurrences come out first, then the moves land — so a move into a cell whose
+    // own occurrence is skipped is not undone by the order the entries happen to be in
+    live.forEach(e=>{ out[e.from] = (out[e.from]||[]).filter(r=>r!==ref); });
+    live.forEach(e=>{
+      if(e.type !== "move") return;
       out[e.to] = out[e.to] || [];
       if(!out[e.to].includes(ref)) out[e.to].push(ref);
-    }
+    });
   });
   // v89: LAST — order within each cell. Purely a sort of what the two steps above produced.
   Object.keys(wpCellOrderMap(p)).forEach(key=>{
@@ -3388,10 +3433,14 @@ function wpIsScheduledRef(ref){
 }
 // The schedule-derived cell behind a cell you can see: if the chip you grabbed is itself the
 // result of a move exception, its base is that exception's `from`.
+// v228: a task can have several moves this week; a cell that still holds the task's own
+// (un-excepted) occurrence is that occurrence, otherwise it is whichever move landed there.
 function wpBaseCellOf(ref, cellKey){
-  const e = wpExceptionFor(ref);
-  if(e && e.type === "move" && e.from && e.to === cellKey) return e.from;
-  return cellKey;
+  const list = wpExceptionsFor(ref);
+  const derived = wpScheduledPlacements();
+  if((derived[cellKey]||[]).includes(ref) && !list.some(e=>e.from === cellKey)) return cellKey;
+  const mv = list.find(e=>e.type === "move" && e.to === cellKey && (derived[e.from]||[]).includes(ref));
+  return mv ? mv.from : cellKey;
 }
 // A moved occurrence takes its tick with it. Only multi-day tasks key done-state per day
 // ("<id>:<day>"); single-day/weekly tasks use the plain id key, which no move can disturb.
@@ -3550,7 +3599,7 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
     // v82: this week's exception overlay for scheduled tasks (move/skip a single occurrence).
     // Structurally validated here; a week without the field starts {} and renders exactly as
     // it did before v82. NEVER seeded from another week — see wpSeedRecurringPlacements.
-    exceptions: wpCleanExceptions(plan.exceptions),
+    exceptions: wpCleanExceptions(plan.exceptions, wk),
     // v84: this week's location overrides ({ day: locationKey | "" }). Like exceptions:
     // additive, optional, validated here, and NEVER seeded from another week — a week with
     // no overrides simply follows the default pattern.
@@ -7017,9 +7066,9 @@ async function wpMoveThisWeek(ref, fromCell, toCell){
   const to = wpValidCellKey(toCell);
   if(!base || !to) return;
   wpSyncFromDom();
-  const map = wpExceptionsMap();
-  if(base === to) delete map[ref];
-  else map[ref] = { type:"move", from:base, to:to };
+  // v228: this occurrence only — the task's other skips and moves this week stay
+  if(base === to) wpClearException(ref, base);
+  else wpSetException(ref, { type:"move", from:base, to:to });
   wpMoveDoneState(ref, fromCell, to);   // a moved occurrence keeps its tick
   await wpSaveSection("timeBlocks");
   renderWeeklyPlan();
@@ -7051,9 +7100,9 @@ async function wpMoveSchedule(ref, fromCell, toCell){
 async function wpSkipThisWeek(ref, cellKey){
   if(!wpPlan || !wpIsScheduledRef(ref)) return;
   const base = wpValidCellKey(wpBaseCellOf(ref, cellKey));
+  if(!base) return;                     // v228: a skip is of one occurrence, or of nothing
   wpSyncFromDom();
-  const map = wpExceptionsMap();
-  map[ref] = base ? { type:"skip", from:base } : { type:"skip" };
+  wpSetException(ref, { type:"skip", from:base });   // v228: added to the week's others, not instead of them
   await wpSaveSection("timeBlocks");
   renderWeeklyPlan();
 }

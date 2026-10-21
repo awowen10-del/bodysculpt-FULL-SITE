@@ -170,7 +170,7 @@ function world() {
     // …and the underlying state for hidden days is all still there
     assert.deepStrictEqual(Array.from(ctx.__wpState.defaults[0].days), ["mon", "wed", "sun"], "schedule untouched");
     assert.strictEqual(ctx.wpIsDone("recurring", ctx.__wpState.defaults[0], "sun"), true, "hidden day's done tick kept");
-    assert.strictEqual(ctx.__wpState.plan.exceptions["recurring:r1"].type, "skip", "exception kept");
+    assert.strictEqual(ctx.__wpState.plan.exceptions["recurring:r1"][0].type, "skip", "exception kept");
     assert.ok(ctx.wpEffectivePlacements()["6-9:sun"].includes("recurring:r1"), "hidden day still placed in the model");
     assert.strictEqual(ctx.wpLocationOf("sun"), "home", "hidden day's location still resolves");
     assert.strictEqual(ctx.wpLocationOf("fri"), "home", "…including a per-week override");

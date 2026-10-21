@@ -161,7 +161,9 @@ function world(extra) {
     // a skip in the same week, then check neither travels
     stubAsk(ctx, "week");
     await ctx.wpChipRemove(null, "recurring:r1", "6-9:wed");
-    assert.strictEqual(ctx.__wpState.plan.exceptions["recurring:r1"].type, "skip");
+    // v228: the skip sits beside Monday's move — one entry per occurrence
+    assert.strictEqual(Array.from(ctx.__wpState.plan.exceptions["recurring:r1"]).map((e) => e.type + "@" + e.from).sort().join(","),
+      "move@6-9:mon,skip@6-9:wed");
 
     await ctx.loadWeeklyPlan(NEXT);
     assert.strictEqual(Object.keys(ctx.__wpState.plan.exceptions).length, 0, "exceptions never roll over");

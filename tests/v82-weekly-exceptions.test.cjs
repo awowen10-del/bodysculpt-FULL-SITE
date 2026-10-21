@@ -53,7 +53,9 @@ function stubAsk(ctx, answer) {
     await ctx.wpCellDrop(dropEv(), "10-12", "tue");
 
     assert.strictEqual(asks.length, 1, "dragging a scheduled chip asks first");
-    const ex = ctx.__wpState.plan.exceptions["recurring:r1"];
+    // v228: a list, one entry per occurrence
+    const ex = (ctx.__wpState.plan.exceptions["recurring:r1"] || [])[0];
+    assert.strictEqual(ctx.__wpState.plan.exceptions["recurring:r1"].length, 1, "one occurrence, one entry");
     assert.ok(ex, "a week exception was recorded");
     assert.strictEqual(ex.type, "move");
     assert.strictEqual(ex.from, "6-9:mon");
@@ -114,7 +116,7 @@ function stubAsk(ctx, answer) {
     await ctx.wpChipRemove(null, "recurring:r1", "6-9:mon");
 
     assert.strictEqual(asks.length, 1, "removing a scheduled chip asks first");
-    const ex = ctx.__wpState.plan.exceptions["recurring:r1"];
+    const ex = ctx.__wpState.plan.exceptions["recurring:r1"][0];
     assert.strictEqual(ex.type, "skip");
     assert.strictEqual(ex.from, "6-9:mon");
     assert.ok(ctx.__wpState.defaults.some((d) => d.id === "r1"), "the task itself survives");
@@ -238,7 +240,7 @@ function stubAsk(ctx, answer) {
     await ctx.wpCellDrop(dropEv(), "6-9", "wed");
 
     assert.strictEqual(asks.length, 1, "training chips ask too");
-    const ex = ctx.__wpState.plan.exceptions["training:t1"];
+    const ex = ctx.__wpState.plan.exceptions["training:t1"][0];
     assert.strictEqual(ex.type, "move");
     assert.strictEqual(ex.to, "6-9:wed");
     const it = ctx.__wpState.training.find((d) => d.id === "t1");
@@ -250,10 +252,16 @@ function stubAsk(ctx, answer) {
     // …and the skip half, through the same shared function
     stubAsk(ctx, "week");
     await ctx.wpChipRemove(null, "training:t1", "5-8:thu");
-    assert.strictEqual(ctx.__wpState.plan.exceptions["training:t1"].type, "skip", "skip replaces the move");
+    // v228: skipping Thursday is about Thursday — Tuesday's move stays. (Before v228 one entry
+    // per task meant this skip REPLACED the move and Tuesday came back: the bug being fixed.)
+    const exs = ctx.__wpState.plan.exceptions["training:t1"];
+    assert.strictEqual(exs.length, 2, "the skip is added alongside the move, not instead of it");
+    assert.ok(exs.some((e) => e.type === "skip" && e.from === "5-8:thu"), "Thursday is skipped");
+    assert.ok(exs.some((e) => e.type === "move" && e.from === "5-8:tue"), "Tuesday's move is kept");
     E = ctx.wpEffectivePlacements();
     assert.ok(!cell(E, "5-8:thu").includes("training:t1"), "skipped");
-    assert.ok(cell(E, "5-8:tue").includes("training:t1"), "back on its schedule (the move was superseded)");
+    assert.ok(!cell(E, "5-8:tue").includes("training:t1") && cell(E, "6-9:wed").includes("training:t1"),
+      "…and Tuesday's occurrence is still on Wednesday where it was moved");
 
     // remove entirely deletes the training task everywhere
     stubAsk(ctx, "all");

@@ -279,7 +279,7 @@ async function week(wk, defaults, plan) {
     stubAsk(sk.ctx, "week");
     await sk.ctx.wpChipRemove(null, "recurring:m1", "10-12:sun");
     await sk.settle();
-    const ex = sk.ctx.__wpState.plan.exceptions["recurring:m1"];
+    const ex = (sk.ctx.__wpState.plan.exceptions["recurring:m1"] || [])[0];
     assert.ok(ex && ex.type === "skip", "removing the chip records a skip, not a deletion");
     assert.strictEqual(ex.from, "10-12:sun", "…against the cell the rule resolved to");
     assert.ok(!Object.keys(sk.ctx.wpEffectivePlacements()).some((k) => cell(sk.ctx.wpEffectivePlacements(), k).includes("recurring:m1")),
@@ -293,7 +293,7 @@ async function week(wk, defaults, plan) {
     mv.ctx.wpChipDragStart(dragEv(), "recurring:m1", "10-12:sun");
     await mv.ctx.wpCellDrop(dropEv(), "6-9", "tue");
     await mv.settle();
-    const mex = mv.ctx.__wpState.plan.exceptions["recurring:m1"];
+    const mex = (mv.ctx.__wpState.plan.exceptions["recurring:m1"] || [])[0];
     assert.ok(mex && mex.type === "move", "dragging the chip records a move");
     assert.strictEqual(mex.from, "10-12:sun", "…from the resolved cell");
     assert.strictEqual(mex.to, "6-9:tue", "…to the dropped one");

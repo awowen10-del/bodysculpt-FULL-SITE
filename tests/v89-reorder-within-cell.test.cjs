@@ -175,8 +175,8 @@ function world(extra) {
     // …it falls through to the cell, which runs the normal v82 move prompt
     await ctx.wpCellDrop(cellEv(), "6-9", "mon");
     assert.strictEqual(asked, 1, "the move prompt was shown");
-    assert.strictEqual(ctx.__wpState.plan.exceptions[LEADS].type, "move", "a one-week move exception was written");
-    assert.strictEqual(ctx.__wpState.plan.exceptions[LEADS].to, "6-9:mon");
+    assert.strictEqual(ctx.__wpState.plan.exceptions[LEADS][0].type, "move", "a one-week move exception was written");
+    assert.strictEqual(ctx.__wpState.plan.exceptions[LEADS][0].to, "6-9:mon");
     assert.strictEqual(Object.keys(ctx.__wpState.plan.cellOrder).length, 0, "moving between cells writes no ordering");
 
     // a same-cell drop on the CELL (not on a chip) is still the v82 no-op

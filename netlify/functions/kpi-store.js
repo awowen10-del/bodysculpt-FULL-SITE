@@ -952,11 +952,13 @@ export default async (req) => {
         }
         incoming.reviewChecklist = clean;
       }
-      // v82: whitelist the per-week exception overlay — a small map of
-      //   "<recurring|training>:<id>" -> { type:"move", from, to } | { type:"skip", from? }
-      // where from/to are "<slot>:<day>" grid cells. Same discipline as reviewChecklist:
-      // shape-checked, size-capped, unknown fields dropped, anything malformed skipped.
-      // This field is per-week only; it is never copied between weeks.
+      // v82: whitelist the per-week exception overlay. v228: one entry per OCCURRENCE —
+      //   "<recurring|training>:<id>" -> [ { type:"skip", from } | { type:"move", from, to }, … ]
+      // where from/to are "<slot>:<day>" grid cells and `from` is required (it is what makes an
+      // entry one occurrence). A pre-v228 single object is accepted as a one-element list, and
+      // a later entry for the same `from` replaces the earlier. Same discipline as
+      // reviewChecklist: shape-checked, size-capped, unknown fields dropped, anything malformed
+      // skipped. This field is per-week only; it is never copied between weeks.
       if ("exceptions" in incoming) {
         const VALID_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
         const REF_RE = /^(recurring|training):[A-Za-z0-9_-]{1,40}$/;
@@ -972,20 +974,19 @@ export default async (req) => {
         if (raw && typeof raw === "object" && !Array.isArray(raw)) {
           for (const k of Object.keys(raw).slice(0, 60)) {
             if (!REF_RE.test(k)) continue;
-            const v = raw[k];
-            if (!v || typeof v !== "object" || Array.isArray(v)) continue;
-            const from = cell(v.from);
-            if (v.type === "skip") {
-              const o = { type: "skip" };
-              if (from) o.from = from;
-              clean[k] = o;
-            } else if (v.type === "move") {
-              const to = cell(v.to);
-              if (!to) continue;                 // a move with nowhere to go is dropped
-              const o = { type: "move", to };
-              if (from) o.from = from;
-              clean[k] = o;
+            const list = Array.isArray(raw[k]) ? raw[k] : [raw[k]];
+            const byFrom = new Map();
+            for (const v of list.slice(0, 40)) {
+              if (!v || typeof v !== "object" || Array.isArray(v)) continue;
+              const from = cell(v.from);
+              if (!from) continue;               // an entry is one occurrence, or nothing
+              if (v.type === "skip") byFrom.set(from, { type: "skip", from });
+              else if (v.type === "move") {
+                const to = cell(v.to);
+                if (to) byFrom.set(from, { type: "move", from, to });   // a move with nowhere to go is dropped
+              }
             }
+            if (byFrom.size) clean[k] = [...byFrom.values()];
           }
         }
         incoming.exceptions = clean;
