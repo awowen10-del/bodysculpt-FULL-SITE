@@ -342,31 +342,67 @@ export async function pullSumUp(fx, key, b, nowMs) {
       gross += amt; count++;
       if (t.transaction_code) codes.add(t.transaction_code);
     }
-    // Fees come from the payout records, matched back to this month's sales by their code.
-    // If SumUp does not say, the fee box says so rather than quietly leaving SumUp out.
-    let fees = 0, feesKnown = false;
-    try {
-      const lateMs = Math.min(b.endMs + 14 * 86400000, nowMs || Date.now());
-      const day = (ms) => new Date(ms).toISOString().slice(0, 10);
-      const fin = await sumupGet(fx, key, "/v0.1/me/financials/transactions?start_date=" + b.firstDay +
-        "&end_date=" + day(lateMs) + "&format=json&limit=1000");
-      const list = Array.isArray(fin) ? fin : (fin && Array.isArray(fin.items) ? fin.items : []);
-      for (const f of list) {
-        if (!f || (f.transaction_code && !codes.has(f.transaction_code))) continue;
-        const raw = f.fee_amount != null ? f.fee_amount : f.fee;
-        if (raw == null) continue;
-        fees += Math.round(Math.abs(Number(raw) || 0) * 100);
-        feesKnown = true;
+    // Fees. SumUp keeps them in more than one place depending on the account, so try each in
+    // turn and stop at the first that gives fees for THIS month's sales (matched by code).
+    // What each place said is kept in feeTried — field names and counts only, never values —
+    // so a gap can be diagnosed from the review instead of guessed at. If none of them say,
+    // the fee box says so rather than quietly leaving SumUp out.
+    let fees = 0, feesKnown = !count;         // nothing sold, nothing charged
+    const feeTried = [];
+    const feeOf = (f) => {
+      if (!f || typeof f !== "object") return null;
+      for (const k of ["fee_amount", "fee", "fees", "transaction_fee"]) if (f[k] != null && isFinite(Number(f[k]))) return Math.abs(Number(f[k]));
+      return null;
+    };
+    const lateMs = Math.min(b.endMs + 14 * 86400000, nowMs || Date.now());
+    const day = (ms) => new Date(ms).toISOString().slice(0, 10);
+    const span = "start_date=" + b.firstDay + "&end_date=" + day(lateMs) + "&format=json&limit=1000";
+    for (const path of ["/v0.1/me/financials/transactions?" + span, "/v0.1/me/financials/payouts?" + span]) {
+      if (feesKnown) break;
+      const label = path.split("?")[0].split("/").pop();
+      try {
+        const fin = await sumupGet(fx, key, path);
+        const list = Array.isArray(fin) ? fin : (fin && Array.isArray(fin.items) ? fin.items : []);
+        let matched = 0, sum = 0;
+        for (const f of list) {
+          if (!f || !f.transaction_code || !codes.has(f.transaction_code)) continue;
+          const v = feeOf(f);
+          if (v == null) continue;
+          sum += Math.round(v * 100); matched++;
+        }
+        feeTried.push(label + ": " + list.length + " rows, " + matched + " matched" + (list[0] ? " [" + Object.keys(list[0]).slice(0, 12).join(",") + "]" : ""));
+        if (matched) { fees = sum; feesKnown = true; }
+      } catch (e) { feeTried.push(label + ": " + clip(String((e && e.message) || "failed"), 80)); }
+    }
+    // Last resort: each sale's own record, which carries its fee on the payout event.
+    if (!feesKnown) {
+      const list = [...codes];
+      let matched = 0, sum = 0, failedCalls = 0, firstKeys = "";
+      for (let i = 0; i < list.length; i += 10) {
+        const got = await Promise.all(list.slice(i, i + 10).map((c) =>
+          sumupGet(fx, key, "/v0.1/me/transactions?transaction_code=" + encodeURIComponent(c)).catch(() => { failedCalls++; return null; })));
+        for (const t of got) {
+          if (!t) continue;
+          if (!firstKeys) firstKeys = Object.keys(t).slice(0, 15).join(",");
+          let v = feeOf(t);
+          if (v == null && Array.isArray(t.events)) {
+            const ev = t.events.map(feeOf).filter((x) => x != null);
+            if (ev.length) v = ev.reduce((a, x) => a + x, 0);
+          }
+          if (v == null) continue;
+          sum += Math.round(v * 100); matched++;
+        }
       }
-      if (!count) feesKnown = true;           // nothing sold, nothing charged
-    } catch (e) { feesKnown = false; }
+      feeTried.push("each sale: " + matched + " of " + list.length + " had a fee" + (failedCalls ? ", " + failedCalls + " calls failed" : "") + (firstKeys ? " [" + firstKeys + "]" : ""));
+      if (matched) { fees = sum; feesKnown = true; }
+    }
     const notes = [];
     if (!feesKnown) notes.push("SumUp didn't give its fees for these sales — the fee figure is Stripe and GoCardless only");
     return {
       ok: true,
       other: pounds(gross - refunded),
       gross: pounds(gross), refunds: pounds(refunded), count,
-      fees: feesKnown ? pounds(fees) : null, feesKnown, notes,
+      fees: feesKnown ? pounds(fees) : null, feesKnown, feeTried, notes,
     };
   } catch (e) {
     return { ok: false, error: clip(String((e && e.message) || "Could not reach SumUp"), 260) };

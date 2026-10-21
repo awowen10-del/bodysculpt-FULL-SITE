@@ -179,6 +179,23 @@ function world() {
   const partial = await L.pullMonth("2026-10", ENV, async (url) => ({ ok: true, json: async () => (url.includes("gocardless") ? { payments: [], refunds: [], payouts: [], meta: { cursors: {} } } : url.includes("sumup") ? { items: [], links: [] } : { data: [], has_more: false }) }), NOW);
   assert.ok(partial.partial, "the current month says 'so far'");
 
+  /* 4b. SumUp fees: when the financials lists don't carry them, each sale's own record does */
+  const w3 = world();
+  const perSale = async (url) => {
+    const U = new URL(url);
+    if (U.host === "api.sumup.com" && U.pathname.startsWith("/v0.1/me/financials/")) return { ok: true, json: async () => [{ transaction_code: "T1", amount: 12.5 }] };
+    if (U.host === "api.sumup.com" && U.pathname === "/v0.1/me/transactions") {
+      const fee = { T1: 0.21, T2: 0.51 }[U.searchParams.get("transaction_code")];
+      return { ok: true, json: async () => ({ id: "x", events: [{ type: "PAYOUT", fee_amount: fee }] }) };
+    }
+    return w3.fx(url);
+  };
+  const ps = await L.pullMonth("2026-09", ENV, perSale, NOW);
+  assert.ok(ps.sources.sumup.feesKnown, "found on the sales themselves");
+  assert.strictEqual(ps.sources.sumup.fees, 0.72);
+  assert.ok(ps.sources.sumup.feeTried.some((t) => /^transactions: 1 rows, 0 matched/.test(t)), "says what each place gave");
+  assert.ok(!JSON.stringify(ps.sources.sumup.feeTried).includes("12.5"), "field names only, never values");
+
   /* 5. read-only and isolated */
   const LIB = read("netlify/lib/takings.js");
   assert.ok(!/method:\s*["'](POST|PUT|PATCH|DELETE)/i.test(LIB), "the providers are only ever read");
