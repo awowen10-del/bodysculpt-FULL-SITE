@@ -122,7 +122,8 @@ function world() {
     assert.strictEqual(ctx.__wpState.dayStart, 4, "window start clamped to 7 - count");
     html = ctx.document.getElementById("wpBody").innerHTML;
     assert.ok(/wp-dv-arrow" title="Later in the week" disabled/.test(html), "the forward arrow is disabled at Sunday");
-    assert.ok(html.includes("Fri–Sun"), "the visible range is labelled");
+    // v229: with the dates of the week being viewed (WEEK starts Mon 16 Mar 2026)
+    assert.ok(html.includes("Fri 20 – Sun 22"), "the visible range is labelled, with its dates");
 
     // widening from a late window keeps it inside the week
     ctx.wpSetDayCount(5);

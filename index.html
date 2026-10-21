@@ -1095,6 +1095,11 @@
      the pill styling that follows is now only used by the Today modal. */
   table.wp-grid th.wp-dayhead{cursor:pointer;padding:9px 6px;}
   table.wp-grid th.wp-dayhead:hover{background:var(--card-2);}
+  /* v229: today's column, the way the Daily page marks today — a light orange tint on the
+     header cell only, and the day in orange */
+  table.wp-grid th.wp-dayhead.wp-dayhead-today{background:rgba(var(--orange-rgb),.06);}
+  table.wp-grid th.wp-dayhead.wp-dayhead-today:hover{background:rgba(var(--orange-rgb),.1);}
+  table.wp-grid th.wp-dayhead-today .wp-dayname{color:var(--orange);}
   .wp-dayhead-in{display:flex;align-items:center;justify-content:center;gap:5px;min-width:0;}
   .wp-dayname{flex:none;}
   /* v86: "MON | 📍 Warrington" — a hairline divider, the pin, then the place as quiet
@@ -3616,6 +3621,9 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
   // v227: project steps are read live from their boards. Old weeks that hold copies of them
   // are turned into nothing-but-a-pointer first (once), then the week's steps are laid out.
   if(wpProjects.loaded){ await wpMigrateStepCopies(); wpStepsSync(); }
+  // v229: a remembered count of fewer than 7 opens on today (else Monday) on the first load;
+  // after that the window is left where the user put it, as before
+  if(!wpDayStartSeeded){ wpDayStart = wpClampDayStart(wpDefaultDayStart(wpDayCount)); wpDayStartSeeded = true; }
   renderWeeklyPlan();
 
   /* v148: then the calendar, on its own and last. It is a different service with a
@@ -4399,11 +4407,23 @@ async function wpCopyWeek(){
 // nothing is skipped, cleared or migrated, and switching back to 7 restores the exact view.
 // (wpSyncFromDom only ever writes a cell it can actually find in the DOM, so a hidden day's
 // free text can never be blanked by a re-render — that's what makes this safe.)
-// Session-only state, like the v75 recurring tab: it survives re-renders and week changes,
-// and resets to the default 7 on reload.
+// It survives re-renders and week changes. v229: the COUNT is also remembered on this device
+// (localStorage, never the weekly plan store — it is a per-device preference, not plan data),
+// so a reload opens on the same number of days. The START is not remembered: each load opens
+// on today when today is in the week, else Monday (wpDefaultDayStart), as it always has.
 const WP_DAY_COUNTS = [1,2,3,5,7];
-let wpDayCount = 7;   // how many columns are shown
+const WP_DAYCOUNT_KEY = "wp.dayCount";
+// storage can be missing, blocked or hold junk — any of those is simply "7"
+function wpReadDayCount(){
+  try{
+    const n = Number(localStorage.getItem(WP_DAYCOUNT_KEY));
+    return WP_DAY_COUNTS.includes(n) ? n : 7;
+  }catch(e){ return 7; }
+}
+function wpWriteDayCount(n){ try{ localStorage.setItem(WP_DAYCOUNT_KEY, String(n)); }catch(e){} }
+let wpDayCount = wpReadDayCount();   // how many columns are shown
 let wpDayStart = 0;   // index into WP_DAYS of the leftmost visible column
+let wpDayStartSeeded = false;        // v229: the first load opens the remembered count on today
 function wpMaxDayStart(){ return Math.max(0, WP_DAYS.length - wpDayCount); }
 function wpClampDayStart(i){ return Math.min(Math.max(0, i|0), wpMaxDayStart()); }
 // The contiguous window of days to render — always exactly wpDayCount columns, always
@@ -4429,6 +4449,7 @@ function wpSetDayCount(n){
   if(!WP_DAY_COUNTS.includes(n)) return;
   wpSyncFromDom();                 // capture on-screen edits before the columns change
   wpDayCount = n;
+  wpWriteDayCount(n);              // v229: remembered on this device
   wpDayStart = wpClampDayStart(wpDefaultDayStart(n));
   renderWeeklyPlan();
 }
@@ -4440,6 +4461,10 @@ function wpSlideDays(dir){
   wpDayStart = next;
   renderWeeklyPlan();
 }
+// v229: "Mon 19" — the day and its date in the week being viewed. The day number is enough;
+// a week that crosses into a new month (Mon 26 … Sun 1) reads correctly without one.
+function wpDayDateNum(dk){ return wpWeekEnding ? Number(wpDateOfDay(wpWeekEnding, dk).slice(8, 10)) : ""; }
+function wpDayWithDate(d){ const n = wpDayDateNum(d[0]); return n ? d[1] + " " + n : d[1]; }
 // The header control: ‹ range › + the count buttons. The arrows/range only appear when
 // there's actually a window to move.
 function wpDayViewControlHtml(){
@@ -4449,7 +4474,8 @@ function wpDayViewControlHtml(){
   let slider = "";
   if(wpDayCount < WP_DAYS.length){
     const first = vis[0], last = vis[vis.length-1];
-    const range = first === last ? first[1] : (first[1]+"–"+last[1]);
+    // v229: with the dates — "Mon 19 – Fri 23", or "Wed 21" for one day
+    const range = first === last ? wpDayWithDate(first) : (wpDayWithDate(first)+" – "+wpDayWithDate(last));
     slider = `<button type="button" class="wp-dv-arrow" title="Earlier in the week" ${wpDayStart<=0?"disabled":""} onclick="wpSlideDays(-1)">‹</button>
       <span class="wp-dv-range">${wpEsc(range)}</span>
       <button type="button" class="wp-dv-arrow" title="Later in the week" ${wpDayStart>=wpMaxDayStart()?"disabled":""} onclick="wpSlideDays(1)">›</button>`;
@@ -4746,9 +4772,11 @@ function renderWeeklyPlan(){
   // flex container itself without giving up table-cell column sizing).
   // v87: only the visible window of days is drawn — every other day is untouched in the plan.
   const visDays = wpVisibleDays();
+  // v229: each column says its date, and today's column is marked (the Daily page's "today")
+  const tci = wpTodayColIdx(), todayKey = tci >= 0 ? WP_DAYS[tci][0] : "";
   const gridHead = `<tr><th class="wp-corner">Time</th>${visDays.map(([dk,l])=>
-    `<th class="wp-dayhead" title="Set ${l}'s location" onclick="wpOpenLocPopup('${dk}',this)"
-      ><span class="wp-dayhead-in"><span class="wp-dayname">${l}</span>${wpLocPillHtml(dk)}</span>${wpCalLooseHtml(dk)}</th>`).join("")}</tr>`;
+    `<th class="wp-dayhead${dk===todayKey?" wp-dayhead-today":""}" title="Set ${l}'s location" onclick="wpOpenLocPopup('${dk}',this)"
+      ><span class="wp-dayhead-in"><span class="wp-dayname">${wpEsc(wpDayWithDate([dk,l]))}</span>${wpLocPillHtml(dk)}</span>${wpCalLooseHtml(dk)}</th>`).join("")}</tr>`;
   // v82: the grid renders the EFFECTIVE placements — the schedule with this week's
   // move/skip exceptions applied on top. p.placements itself is untouched (it stays the
   // schedule, which is what saves and rolls over).
