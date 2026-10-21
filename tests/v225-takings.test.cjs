@@ -37,7 +37,7 @@ function world() {
     { id: "re_1", status: "succeeded", currency: "gbp", amount: 9900, charge: { description: "6 WEEK challenge" }, balance_transaction: { fee: 0 } },
   ];
   const disputes = [
-    { id: "dp_1", status: "lost", amount: 4500, charge: { invoice: inv("Unlimited Membership") } },
+    { id: "dp_1", status: "lost", amount: 4500, charge: { invoice: inv("Unlimited Membership") }, balance_transactions: [{ fee: 2000 }] },
     { id: "dp_2", status: "needs_response", amount: 4500, charge: { description: "x" } },
   ];
   const stripeFees = [{ id: "txn_f", type: "stripe_fee", amount: -250 }];
@@ -146,7 +146,7 @@ function world() {
   assert.deepStrictEqual(st.refunds, { recurring: 45, trial: 99 });
   assert.strictEqual(st.recurring, 45); assert.strictEqual(st.trial, 148);
   assert.strictEqual(st.trialCount, 3);
-  assert.strictEqual(st.fees, (90 + 90 + 180 + 100 + 180 + 250) / 100, "charge fees + Stripe's own bills");
+  assert.strictEqual(st.fees, (90 + 90 + 180 + 100 + 180 + 250 + 2000) / 100, "charge fees + Stripe's own bills + the dispute fee");
   assert.ok(st.names.some((n) => n.name === "Unlimited Membership" && n.kind === "recurring" && n.count === 2), "invoice line, tidied");
   // GoCardless: paid_out + confirmed + submitted; failed and charged-back left out; refund off
   assert.strictEqual(gc.gross, 105); assert.strictEqual(gc.refunds, 35); assert.strictEqual(gc.recurring, 70);
@@ -158,7 +158,7 @@ function world() {
   assert.ok(w.calls.some((c) => c.searchParams.get("oldest_ref") === "T2"), "SumUp follows its next link");
   assert.strictEqual(w.calls.filter((c) => c.pathname === "/v1/charges").length, 3, "Stripe pages through has_more");
   // the four boxes
-  assert.deepStrictEqual(pull.fields, { recurringRev: 115, trialRev: 148, otherRev: 37.5, processingFees: 10.92 });
+  assert.deepStrictEqual(pull.fields, { recurringRev: 115, trialRev: 148, otherRev: 37.5, processingFees: 30.92 });
   assert.strictEqual(pull.partial, false);
   assert.deepStrictEqual(pull.warnings, []);
 

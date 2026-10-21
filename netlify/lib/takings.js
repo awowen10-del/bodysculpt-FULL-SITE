@@ -183,7 +183,11 @@ export async function pullStripe(fx, key, b) {
     }
     let lost = 0;
     for (const d of disputes) {
-      if (!d || d.status !== "lost") continue;
+      if (!d) continue;
+      // Stripe's £20 dispute fee is charged when the dispute opens, whatever happens after —
+      // it sits on the dispute's own balance lines, not on the charge.
+      for (const bt of (Array.isArray(d.balance_transactions) ? d.balance_transactions : [])) fees += pence(bt && bt.fee);
+      if (d.status !== "lost") continue;
       const ch = d.charge && typeof d.charge === "object" ? d.charge : null;
       const kind = isTrialName(stripeName(ch)) ? "trial" : "recurring";
       refunded[kind] += pence(d.amount);
