@@ -273,21 +273,34 @@ export async function pullGoCardless(fx, token, b, nowMs) {
     const lateMs = Math.min(b.endMs + 14 * 86400000, nowMs || Date.now());
     const payouts = await gcList(fx, token, "/payouts",
       [["created_at[gte]", new Date(b.startMs).toISOString()], ["created_at[lte]", new Date(lateMs).toISOString()]], "payouts");
-    let fees = 0;
+    let fees = 0, feesApprox = false;
     const paidOut = new Set();
-    for (let i = 0; i < payouts.length; i += 5) {
-      const batch = payouts.slice(i, i + 5);
-      const items = await Promise.all(batch.map((po) => gcList(fx, token, "/payout_items", [["payout", po.id]], "payout_items")));
-      for (const list of items) for (const it of list) {
-        const pid = it && it.links && it.links.payment;
-        if (!pid || !mine.has(pid)) continue;
-        if (it.type === "payment_paid_out") paidOut.add(pid);
-        if (/fee/.test(String(it.type || ""))) fees += -Number(it.amount || 0);   // pence, negative = taken
+    try {
+      for (let i = 0; i < payouts.length; i += 5) {
+        const batch = payouts.slice(i, i + 5);
+        const items = await Promise.all(batch.map((po) => gcList(fx, token, "/payout_items", [["payout", po.id]], "payout_items")));
+        for (const list of items) for (const it of list) {
+          const pid = it && it.links && it.links.payment;
+          if (!pid || !mine.has(pid)) continue;
+          if (it.type === "payment_paid_out") paidOut.add(pid);
+          if (/fee/.test(String(it.type || ""))) fees += -Number(it.amount || 0);   // pence, negative = taken
+        }
+      }
+    } catch (e) {
+      // GoCardless archives the per-payment fee lines after six months. The money taken is
+      // still exact; only the fee falls back to each payout's own total, for payouts made in
+      // the month — close, not to the penny. Anything else is a real failure.
+      if (!/archived/i.test(String((e && e.message) || ""))) throw e;
+      feesApprox = true; fees = 0;
+      for (const po of payouts) {
+        const at = Date.parse(po && po.created_at);
+        if (at >= b.startMs && at < b.endMs) fees += pence(po.deducted_fees);
       }
     }
-    const notPaidOut = [...mine].filter((id) => !paidOut.has(id)).length;
+    const notPaidOut = feesApprox ? 0 : [...mine].filter((id) => !paidOut.has(id)).length;
     const notes = [];
     if (waiting) notes.push(waiting + " payment" + (waiting === 1 ? " was" : "s were") + " still on its way from the bank");
+    if (feesApprox) notes.push("GoCardless has archived the fee detail for this month, so its fees are the payouts' totals — close, not exact");
     if (notPaidOut) notes.push(notPaidOut + " not paid out to you yet, so their fees aren't in the fee figure");
     if (failed) notes.push(failed + " failed (not counted)");
     if (chargedBack) notes.push(chargedBack + " charged back by the member's bank (not counted)");
@@ -295,7 +308,7 @@ export async function pullGoCardless(fx, token, b, nowMs) {
       ok: true,
       recurring: pounds(gross - refunded),
       gross: pounds(gross), refunds: pounds(refunded), count,
-      fees: pounds(Math.round(fees)), notPaidOut, waiting, failed, chargedBack, notes,
+      fees: pounds(Math.round(fees)), feesApprox, notPaidOut, waiting, failed, chargedBack, notes,
     };
   } catch (e) {
     return { ok: false, error: clip(String((e && e.message) || "Could not reach GoCardless"), 260) };

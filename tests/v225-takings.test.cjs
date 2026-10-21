@@ -179,6 +179,21 @@ function world() {
   const partial = await L.pullMonth("2026-10", ENV, async (url) => ({ ok: true, json: async () => (url.includes("gocardless") ? { payments: [], refunds: [], payouts: [], meta: { cursors: {} } } : url.includes("sumup") ? { items: [], links: [] } : { data: [], has_more: false }) }), NOW);
   assert.ok(partial.partial, "the current month says 'so far'");
 
+  /* 4a. GoCardless archives fee detail after six months: revenue still counts, fees fall back */
+  const w4 = world();
+  const archived = async (url) => {
+    const U = new URL(url);
+    if (U.host === "api.gocardless.com" && U.pathname === "/payout_items") return { ok: false, status: 422, json: async () => ({ error: { message: "Payout items for payouts created more than 6 months ago are archived." } }) };
+    if (U.host === "api.gocardless.com" && U.pathname === "/payouts") return { ok: true, json: async () => ({ payouts: [
+      { id: "PO1", created_at: "2026-09-10T10:00:00Z", deducted_fees: 70 }, { id: "PO2", created_at: "2026-10-02T10:00:00Z", deducted_fees: 999 }], meta: { cursors: {} } }) };
+    return w4.fx(url);
+  };
+  const ar = await L.pullMonth("2026-09", ENV, archived, NOW);
+  assert.ok(ar.sources.gocardless.ok, "an archived fee breakdown does not sink GoCardless");
+  assert.strictEqual(ar.fields.recurringRev, 115, "recurring still exact");
+  assert.strictEqual(ar.sources.gocardless.fees, 0.7, "only payouts made in the month");
+  assert.ok(ar.sources.gocardless.feesApprox && /archived/.test(ar.sources.gocardless.notes.join()));
+
   /* 4b. SumUp fees: when the financials lists don't carry them, each sale's own record does */
   const w3 = world();
   const perSale = async (url) => {
