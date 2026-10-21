@@ -257,6 +257,116 @@ function cleanCheckin(raw) {
 // its own key, plus optional per-week overrides carried on the week's plan (field
 // "locations"). Purely informational: it never touches tasks, placements or done-state.
 const LOCATION_DEFAULTS_KEY = "weekly-location-defaults";
+
+/* v236: THE FOOD HUB. Additive — no existing key, field or route changes.
+     food-inventory     the meat, fridge and cupboard — NOT per week; leftovers simply stay
+     food-plan-<week>   the week: schedule, situation, meals (against their dates), prep
+                        session, to-buy list, end-of-week leftovers — keyed like weekly-plan-<week>
+     food-settings      kids' notes, people eating, the planning rules text — once
+     food-products      Tesco products linked by ingredient, reused every week
+     food-taste         the family's taste profile, built from every rating
+   The page writes only what Ash types, ticks and taps. The meals, prep session and to-buy list
+   are written by the food functions after Claude's answer has passed every check
+   (netlify/lib/food.js); nothing here can set them. "Cooked" is plain arithmetic on the
+   inventory — no AI. The key strings and default lists match netlify/lib/food.js; tests/v236
+   asserts it. */
+const FOOD_PLAN_PREFIX = "food-plan-";
+const FOOD_SETTINGS_KEY = "food-settings";
+const FOOD_PRODUCTS_KEY = "food-products";
+const FOOD_TASTE_KEY = "food-taste";
+const FOOD_INVENTORY_KEY = "food-inventory";
+const FOOD_RECIPES_KEY = "food-recipes";
+function foodPlanKeyOf(w) { return FOOD_PLAN_PREFIX + w; }
+const FOOD_PROTEIN_DEFAULTS = { proteinMin: 30, proteinMax: 40, servings: 3 };
+const FOOD_DEFAULT_SPICES = ["Italian seasoning", "bay leaves", "thyme", "toasted sesame seeds", "Colman's mustard powder",
+  "Korean seasoning (Rub Me Seoul Food)", "everything bagel seasoning", "lemon pepper", "hot honey seasoning", "mild curry powder",
+  "whole cloves", "Nando's Peri-Salt", "Knorr Aromat"];
+const FOOD_DEFAULT_STAPLES = ["olive oil", "salt", "black pepper", "stock cubes", "plain flour"];
+const FOOD_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+const FOOD_NIGHT_TYPES = ["family", "solo", "busy", "none"];
+const FOOD_CATEGORIES = ["meat", "fresh", "cupboard", "sauces", "spices", "staples"];
+const FOOD_UNITS = ["g", "ml", "count"];
+const FOOD_STORAGE = ["fridge", "freezer", "cupboard"];
+const FOOD_RATERS = ["polly", "artie", "adults"];
+const FOOD_RATING_VALUES = ["up", "so", "down"];
+const foodStr = (v, n) => (typeof v === "string" ? v.slice(0, n) : "");
+const foodKey = (name) => String(name || "").toLowerCase().replace(/\([^)]*\)/g, " ").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 60);
+const foodToday = () => new Date().toISOString().slice(0, 10);
+const foodId = (p) => p + Math.random().toString(36).slice(2, 9);
+const foodYmd = (v) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : "");
+function foodDefaultInventory() {
+  const t = foodToday();
+  const mk = (name, category) => ({ id: foodId("i_"), name, qty: 1, unit: "count", category, storage: "cupboard", added: t, opened: "" });
+  return { items: [...FOOD_DEFAULT_SPICES.map((n) => mk(n, "spices")), ...FOOD_DEFAULT_STAPLES.map((n) => mk(n, "staples"))] };
+}
+// one inventory item, cleaned — anything unknown falls back to something safe
+function foodCleanItem(raw, existing) {
+  const it = { ...(existing || {}) };
+  if (!existing) it.id = foodId("i_");
+  if ("name" in raw) it.name = foodStr(raw.name, 80).trim();
+  if ("qty" in raw) { const n = Number(raw.qty); it.qty = Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : 0; }
+  if ("unit" in raw || !existing) it.unit = FOOD_UNITS.includes(raw.unit) ? raw.unit : (it.unit || "count");
+  if ("category" in raw || !existing) it.category = FOOD_CATEGORIES.includes(raw.category) ? raw.category : (it.category || "fresh");
+  if ("storage" in raw || !existing) it.storage = FOOD_STORAGE.includes(raw.storage) ? raw.storage : (it.storage || "fridge");
+  if ("added" in raw || !existing) it.added = foodYmd(raw.added) || it.added || foodToday();
+  if ("opened" in raw) it.opened = foodYmd(raw.opened);
+  if (!("opened" in it)) it.opened = "";
+  return it;
+}
+function emptyFoodPlan(week) {
+  return { weekEnding: week, schedule: {}, situation: "", people: 4, meals: [], prepSession: { bags: [], steps: [] },
+    toBuy: [], endLeftovers: [], generatedAt: "", model: "" };
+}
+/* the taste profile — favourites: any meal both kids gave a thumbs up; never again: both kids
+   thumbs down, or the adults did; and every note */
+function foodTasteDerive(t) {
+  const names = Object.values(t.meals || {});
+  const any = (m, f) => (m.ratings || []).some(f);
+  t.favourites = names.filter((m) => any(m, (r) => r.polly === "up" && r.artie === "up")).map((m) => m.name);
+  t.neverAgain = names.filter((m) => any(m, (r) => (r.polly === "down" && r.artie === "down") || r.adults === "down")).map((m) => m.name);
+  t.notes = names.flatMap((m) => (m.ratings || []).filter((r) => r.note).map((r) => ({ week: r.week, meal: m.name, note: r.note })))
+    .sort((a, b) => (a.week < b.week ? 1 : a.week > b.week ? -1 : 0)).slice(0, 200);
+  return t;
+}
+/* the recipe book — a meal both kids gave a thumbs up, or one Ash starred "Keep", saved in full.
+   One entry per dish (by name, or by the book id a meal was cooked from), so a favourite cooked
+   again updates its ratings rather than duplicating. The planner reuses these exactly. */
+function foodRecipeFrom(meal, plan, week, prev) {
+  const r = meal.ratings || {};
+  const notes = (prev && Array.isArray(prev.notes) ? prev.notes : []).filter((n) => !(n.week === week && n.mealId === meal.id));
+  const same = !!(prev && prev.from && prev.from.week === week && prev.from.mealId === meal.id);
+  if (r.note) notes.unshift({ week, mealId: meal.id, note: r.note });
+  return {
+    id: (prev && prev.id) || foodId("r_"), key: foodKey(meal.name), name: foodStr(meal.name, 120), summary: foodStr(meal.summary, 240),
+    dumpBag: meal.dumpBag === true, slowCooker: meal.slowCooker || { low: "", high: "" },
+    ingredients: (meal.ingredients || []).slice(0, 30).map((i) => ({ name: foodStr(i.name, 80), qty: foodStr(i.qty, 40),
+      protein: Number(i.protein) || 0, topUp: i.topUp === true })),
+    method: (meal.method || []).slice(0, 30).map((x) => foodStr(x, 600)), kidTip: foodStr(meal.kidTip, 300),
+    perAdult: meal.perAdult || null, proteinTopUps: (meal.proteinTopUps || []).slice(0, 6), people: Number(plan.people) || 4,
+    ratings: { polly: r.polly || "", artie: r.artie || "", adults: r.adults || "" }, notes: notes.slice(0, 20),
+    // a recipe earned on ANOTHER night stays earned — a so-so the next time does not throw a
+    // favourite out; only the meal that put it in the book can take it out again (a mis-tap undone)
+    keep: meal.keep === true || !!(prev && prev.keep && (!same || meal.keep !== false)),
+    kidsLoved: (r.polly === "up" && r.artie === "up") || !!(prev && !same && prev.kidsLoved),
+    from: !prev || same ? { week, mealId: meal.id } : prev.from, savedAt: new Date().toISOString(),
+  };
+}
+async function foodBookUpdate(store, meal, plan, week) {
+  const book = (await store.get(FOOD_RECIPES_KEY, { type: "json" })) || { recipes: [] };
+  book.recipes = Array.isArray(book.recipes) ? book.recipes : [];
+  const i = book.recipes.findIndex((x) => (meal.recipeId && x.id === meal.recipeId) || x.key === foodKey(meal.name));
+  const prev = i >= 0 ? book.recipes[i] : null;
+  const next = foodRecipeFrom(meal, plan, week, prev);
+  // a book recipe cooked again keeps its saved method and ingredients exactly — only how it went is updated
+  if (prev && meal.recipeId === prev.id) { next.method = prev.method; next.ingredients = prev.ingredients; next.name = prev.name; next.key = prev.key; }
+  const belongs = next.keep || next.kidsLoved;
+  if (i >= 0 && belongs) book.recipes[i] = next;
+  else if (i >= 0) book.recipes.splice(i, 1);
+  else if (belongs) book.recipes.unshift(next);
+  book.recipes = book.recipes.slice(0, 200);
+  await store.set(FOOD_RECIPES_KEY, JSON.stringify(book));
+  return book;
+}
 // The fixed list of places. TO ADD A LOCATION: add its key here AND to WP_LOCATIONS in
 // index.html (and give it a `.wp-loc-<key>` colour there). Anything else is stripped.
 const VALID_LOCATIONS = ["warrington", "home"];
@@ -636,6 +746,30 @@ export default async (req) => {
     const saved = (await store.get(weeklyPlanKeyOf(date), { type: "json" })) || null;
     const plan = saved || defaultWeeklyPlan(date);
     return Response.json({ plan });
+  }
+
+  // v236 Food hub: GET ?foodplan=<week> | ?foodinventory=1 | ?foodsettings=1 | ?foodtaste=1 | ?foodproducts=1 | ?foodrecipes=1
+  if (req.method === "GET" && url.searchParams.get("foodrecipes") === "1") {
+    return Response.json({ book: (await store.get(FOOD_RECIPES_KEY, { type: "json" })) || { recipes: [] } });
+  }
+  if (req.method === "GET" && url.searchParams.get("foodplan")) {
+    const date = url.searchParams.get("foodplan");
+    if (!validWeekDate(date)) return new Response("Bad week date (expected YYYY-MM-DD)", { status: 400 });
+    return Response.json({ plan: (await store.get(foodPlanKeyOf(date), { type: "json" })) || null });
+  }
+  if (req.method === "GET" && url.searchParams.get("foodinventory") === "1") {
+    return Response.json({ inventory: (await store.get(FOOD_INVENTORY_KEY, { type: "json" })) || foodDefaultInventory() });
+  }
+  if (req.method === "GET" && url.searchParams.get("foodsettings") === "1") {
+    // rules "" means the default rules, which the food function serves (?defaults=1)
+    const saved = (await store.get(FOOD_SETTINGS_KEY, { type: "json" })) || { kidsNotes: "", people: 4, rules: "" };
+    return Response.json({ settings: { ...FOOD_PROTEIN_DEFAULTS, ...saved } });
+  }
+  if (req.method === "GET" && url.searchParams.get("foodtaste") === "1") {
+    return Response.json({ taste: (await store.get(FOOD_TASTE_KEY, { type: "json" })) || { meals: {}, favourites: [], neverAgain: [], notes: [] } });
+  }
+  if (req.method === "GET" && url.searchParams.get("foodproducts") === "1") {
+    return Response.json({ products: (await store.get(FOOD_PRODUCTS_KEY, { type: "json" })) || {} });
   }
 
   // Recurring defaults: GET ?recurringdefaults=1 returns the editable default list.
@@ -1084,6 +1218,173 @@ export default async (req) => {
         });
       await store.set(TRAINING_DEFAULTS_KEY, JSON.stringify(clean));
       return Response.json({ ok:true, defaults: clean });
+    }
+
+    // v236 Food hub writes. Only what Ash types, ticks and taps — never the meals or the list.
+    // POST { foodPlan: { weekEnding, schedule?, situation?, people?, ticks?:{key:bool}, addBuy?:{name, qty}, removeBuy?:key } }
+    if (body.foodPlan && typeof body.foodPlan === "object") {
+      const f = body.foodPlan, week = f.weekEnding;
+      if (!validWeekDate(week)) return new Response("Bad foodPlan.weekEnding", { status: 400 });
+      const key = foodPlanKeyOf(week);
+      const plan = (await store.get(key, { type: "json" })) || emptyFoodPlan(week);
+      if (f.schedule && typeof f.schedule === "object") {
+        plan.schedule = {};
+        for (const d of FOOD_DAYS) plan.schedule[d] = FOOD_NIGHT_TYPES.includes(f.schedule[d]) ? f.schedule[d] : "family";
+      }
+      if ("situation" in f) plan.situation = foodStr(f.situation, 2000);
+      if ("people" in f) { const n = Math.round(Number(f.people)); if (n >= 1 && n <= 12) plan.people = n; }
+      if (f.ticks && typeof f.ticks === "object" && !Array.isArray(f.ticks)) {
+        for (const item of plan.toBuy || []) if (item && item.key in f.ticks) item.ticked = f.ticks[item.key] === true;
+      }
+      if (f.addBuy && typeof f.addBuy === "object" && foodKey(f.addBuy.name)) {
+        const k = foodKey(f.addBuy.name);
+        plan.toBuy = plan.toBuy || [];
+        if (!plan.toBuy.some((b) => b.key === k)) {
+          plan.toBuy.push({ id: foodId("b_"), key: k, name: foodStr(f.addBuy.name, 80).trim(), qty: foodStr(f.addBuy.qty, 40).trim(),
+            aisle: "Added by hand", nights: [], leftover: "", estPrice: 0, ticked: false, manual: true,
+            productName: "", packSize: "", productUrl: "", lastPrice: 0, confirmed: false });
+        }
+      }
+      if (typeof f.removeBuy === "string") plan.toBuy = (plan.toBuy || []).filter((b) => !(b.manual && b.key === f.removeBuy));
+      await store.set(key, JSON.stringify(plan));
+      return Response.json({ ok: true, plan });
+    }
+    // POST { foodSettings: { kidsNotes, people, rules, proteinMin, proteinMax, servings } } — once, for every
+    // week. rules "" = the defaults. Protein: grams per ADULT serving; servings = adult equivalents.
+    if (body.foodSettings && typeof body.foodSettings === "object") {
+      const f = body.foodSettings;
+      const people = Math.round(Number(f.people));
+      const n = (v, lo, hi, d) => { const x = Number(v); return Number.isFinite(x) && x >= lo && x <= hi ? Math.round(x * 10) / 10 : d; };
+      const proteinMin = n(f.proteinMin, 0, 200, FOOD_PROTEIN_DEFAULTS.proteinMin);
+      const clean = { kidsNotes: foodStr(f.kidsNotes, 2000), people: people >= 1 && people <= 12 ? people : 4, rules: foodStr(f.rules, 6000),
+        proteinMin, proteinMax: Math.max(proteinMin, n(f.proteinMax, 0, 300, FOOD_PROTEIN_DEFAULTS.proteinMax)),
+        servings: n(f.servings, 0.5, 20, FOOD_PROTEIN_DEFAULTS.servings) };
+      await store.set(FOOD_SETTINGS_KEY, JSON.stringify(clean));
+      return Response.json({ ok: true, settings: clean });
+    }
+    // POST { foodProduct: { name, productName, packSize, productUrl, lastPrice, confirmed } } — a Tesco product,
+    // remembered by ingredient. No name and not confirmed = forgotten.
+    if (body.foodProduct && typeof body.foodProduct === "object") {
+      const f = body.foodProduct, k = foodKey(f.name);
+      if (!k) return new Response("Bad foodProduct.name", { status: 400 });
+      const products = (await store.get(FOOD_PRODUCTS_KEY, { type: "json" })) || {};
+      const entry = {
+        productName: foodStr(f.productName, 160).trim(), packSize: foodStr(f.packSize, 40).trim(),
+        productUrl: /^https?:\/\//i.test(f.productUrl || "") ? foodStr(f.productUrl, 500) : "",
+        lastPrice: Number.isFinite(Number(f.lastPrice)) && Number(f.lastPrice) > 0 ? Math.round(Number(f.lastPrice) * 100) / 100 : 0,
+        confirmed: f.confirmed === true, updatedAt: new Date().toISOString(),
+      };
+      if (!entry.productName && !entry.productUrl && !entry.confirmed) delete products[k]; else products[k] = entry;
+      await store.set(FOOD_PRODUCTS_KEY, JSON.stringify(products));
+      return Response.json({ ok: true, key: k, products });
+    }
+    // POST { foodInventory: { op: "add", items:[…] } | { op: "update", id, fields } | { op: "remove" | "usedUp", id } }
+    if (body.foodInventory && typeof body.foodInventory === "object") {
+      const f = body.foodInventory;
+      const inv = (await store.get(FOOD_INVENTORY_KEY, { type: "json" })) || foodDefaultInventory();
+      inv.items = Array.isArray(inv.items) ? inv.items : [];
+      if (f.op === "add" && Array.isArray(f.items)) {
+        for (const raw of f.items.slice(0, 40)) {
+          if (!raw || typeof raw !== "object") continue;
+          const it = foodCleanItem(raw, null);
+          if (it.name && inv.items.length < 400) inv.items.push(it);
+        }
+      } else if (f.op === "update" && typeof f.id === "string" && f.fields && typeof f.fields === "object") {
+        const i = inv.items.findIndex((x) => x.id === f.id);
+        if (i < 0) return Response.json({ ok: false, error: "No such item." }, { status: 404 });
+        inv.items[i] = foodCleanItem(f.fields, inv.items[i]);
+      } else if ((f.op === "remove" || f.op === "usedUp") && typeof f.id === "string") {
+        inv.items = inv.items.filter((x) => x.id !== f.id);
+      } else return new Response("Bad foodInventory op", { status: 400 });
+      await store.set(FOOD_INVENTORY_KEY, JSON.stringify(inv));
+      return Response.json({ ok: true, inventory: inv });
+    }
+    // POST { foodCooked: { weekEnding, mealId } } — deduct what the meal used from the inventory,
+    // and put what is left of any pack it opened into the fridge with today's date. Once only.
+    // POST { foodSkipped: { weekEnding, mealId } } — nothing deducted.
+    if ((body.foodCooked || body.foodSkipped) && typeof (body.foodCooked || body.foodSkipped) === "object") {
+      const f = body.foodCooked || body.foodSkipped, cooked = !!body.foodCooked, week = f.weekEnding;
+      if (!validWeekDate(week)) return new Response("Bad weekEnding", { status: 400 });
+      const plan = await store.get(foodPlanKeyOf(week), { type: "json" });
+      const meal = plan && (plan.meals || []).find((m) => m && m.id === f.mealId);
+      if (!meal) return Response.json({ ok: false, error: "That meal is not in this week's menu." }, { status: 404 });
+      if (meal.status === "cooked") return Response.json({ ok: true, already: true, plan });
+      const inv = (await store.get(FOOD_INVENTORY_KEY, { type: "json" })) || foodDefaultInventory();
+      if (cooked) {
+        const today = foodToday();
+        for (const c of meal.consumes || []) {
+          const it = inv.items.find((x) => x.id === c.inventoryId);
+          if (!it) continue;
+          // spices and staples are not counted down — they are always there
+          if (it.category === "spices" || it.category === "staples") continue;
+          it.qty = Math.round((Number(it.qty) - Number(c.qty || 0)) * 100) / 100;
+        }
+        inv.items = inv.items.filter((x) => x.category === "spices" || x.category === "staples" || Number(x.qty) > 0);
+        for (const l of meal.leftovers || []) {
+          inv.items.push(foodCleanItem({ name: l.name, qty: l.qty, unit: l.unit, category: l.category || "fresh",
+            storage: l.storage || "fridge", added: today, opened: today }, null));
+        }
+        meal.status = "cooked";
+        meal.cookedAt = new Date().toISOString();
+        await store.set(FOOD_INVENTORY_KEY, JSON.stringify(inv));
+      } else {
+        meal.status = "skipped";
+      }
+      await store.set(foodPlanKeyOf(week), JSON.stringify(plan));
+      return Response.json({ ok: true, plan, inventory: inv });
+    }
+    // POST { foodRating: { weekEnding, mealId, polly?, artie?, adults?, note? } } — saved on the
+    // meal, and folded into the taste profile. "" clears a rating.
+    if (body.foodRating && typeof body.foodRating === "object") {
+      const f = body.foodRating, week = f.weekEnding;
+      if (!validWeekDate(week)) return new Response("Bad foodRating.weekEnding", { status: 400 });
+      const plan = await store.get(foodPlanKeyOf(week), { type: "json" });
+      const meal = plan && (plan.meals || []).find((m) => m && m.id === f.mealId);
+      if (!meal) return Response.json({ ok: false, error: "That meal is not in this week's menu." }, { status: 404 });
+      const r = { ...(meal.ratings || {}) };
+      for (const k of FOOD_RATERS) if (k in f) r[k] = FOOD_RATING_VALUES.includes(f[k]) ? f[k] : "";
+      if ("note" in f) r.note = foodStr(f.note, 140).trim();
+      r.ratedAt = new Date().toISOString();
+      meal.ratings = r;
+      await store.set(foodPlanKeyOf(week), JSON.stringify(plan));
+      const taste = (await store.get(FOOD_TASTE_KEY, { type: "json" })) || { meals: {} };
+      taste.meals = taste.meals || {};
+      const key = foodKey(meal.name);
+      const entry = taste.meals[key] || { name: meal.name, ratings: [] };
+      entry.name = meal.name;
+      entry.ratings = (entry.ratings || []).filter((x) => !(x.week === week && x.mealId === meal.id));
+      if (FOOD_RATERS.some((k) => r[k]) || r.note) {
+        entry.ratings.push({ week, mealId: meal.id, polly: r.polly || "", artie: r.artie || "", adults: r.adults || "", note: r.note || "" });
+      }
+      if (entry.ratings.length) taste.meals[key] = entry; else delete taste.meals[key];
+      const keys = Object.keys(taste.meals);
+      if (keys.length > 400) for (const k of keys.slice(0, keys.length - 400)) delete taste.meals[k];
+      await store.set(FOOD_TASTE_KEY, JSON.stringify(foodTasteDerive(taste)));
+      // both kids thumbs up → into the recipe book (or a book recipe's ratings brought up to date)
+      const inBook = ((await store.get(FOOD_RECIPES_KEY, { type: "json" })) || { recipes: [] }).recipes || [];
+      const book = (r.polly === "up" && r.artie === "up") || meal.keep || inBook.some((x) => x.id === meal.recipeId || x.key === foodKey(meal.name))
+        ? await foodBookUpdate(store, meal, plan, week) : null;
+      return Response.json({ ok: true, ratings: r, taste, book });
+    }
+    // POST { foodKeep: { weekEnding, mealId, keep } } — Ash's ⭐ Keep: into the recipe book whatever the
+    // kids said; un-starred, it leaves the book unless both kids loved it.
+    if (body.foodKeep && typeof body.foodKeep === "object") {
+      const f = body.foodKeep, week = f.weekEnding;
+      if (!validWeekDate(week)) return new Response("Bad foodKeep.weekEnding", { status: 400 });
+      const plan = await store.get(foodPlanKeyOf(week), { type: "json" });
+      const meal = plan && (plan.meals || []).find((m) => m && m.id === f.mealId);
+      if (!meal) return Response.json({ ok: false, error: "That meal is not in this week's menu." }, { status: 404 });
+      meal.keep = f.keep === true;
+      await store.set(foodPlanKeyOf(week), JSON.stringify(plan));
+      const book = await foodBookUpdate(store, meal, plan, week);
+      return Response.json({ ok: true, plan, book });
+    }
+    // POST { foodRecipeRemove: { id } } — take a recipe out of the book
+    if (body.foodRecipeRemove && typeof body.foodRecipeRemove === "object") {
+      const book = (await store.get(FOOD_RECIPES_KEY, { type: "json" })) || { recipes: [] };
+      book.recipes = (book.recipes || []).filter((x) => x.id !== body.foodRecipeRemove.id);
+      await store.set(FOOD_RECIPES_KEY, JSON.stringify(book));
+      return Response.json({ ok: true, book });
     }
 
     // v84: save the DEFAULT weekly location pattern (its own key, whole map written as a

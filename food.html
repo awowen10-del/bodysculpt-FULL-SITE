@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tonight · Food</title>
+<!-- v236: CHLOE'S PAGE. The Food hub's week, for a phone: tonight's meal and how to make it, the
+     to-buy list with ticks, and what is in the freezer. Same data as the dashboard's Food tab,
+     on the same site (so behind the same protection) — and nothing else: no menu, no business. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* ===== METRICS — not colours =====
+       v121 put the ad-hoc numbers on scales. Radius was six values (8/10/12/16/20/pill)
+       often nested inside each other; it is now three plus the pill. Spacing was 14/16/26
+       used interchangeably for the same job; it is now a 4-based ramp. --radius is kept as
+       the old name for the card radius so existing rules keep resolving. */
+    --r-sm:6px;      /* chips, inputs, the small stuff inside a control */
+    --r-md:10px;     /* buttons, selects, toolbars */
+    --r-lg:14px;     /* cards, panels, modals */
+    --r-pill:999px;
+    --radius:var(--r-lg);
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px; --sp-7:48px;
+    /* motion + focus. Every interactive element takes --focus on :focus-visible. */
+    --tap:.12s ease;
+    --chev-mask:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>');
+    --focus:0 0 0 2px var(--card), 0 0 0 4px rgba(var(--orange-rgb),.55);
+    /* v233: two faces. Plus Jakarta Sans for headings — warmer and more characterful than
+       Inter at display sizes — and Inter kept for everything read at small sizes, where it
+       is hard to beat. */
+    --font-display:"Plus Jakarta Sans","Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  }
+  :root{
+    color-scheme:light;
+    /* THREE TIERS OF DEPTH, and they must stay three: the page (--navy) is "Mist", a soft,
+       light cool grey (v234 — Ash chose it from four over v233's warm paper, which read as
+       beige); the card (--card) is white and therefore visibly LIFTS off it; --line is a fine
+       cool hairline that draws the card's edge. Tone step + hairline do the
+       work — the shadows below are deliberately soft. --navy-2 is the recessed inset inside
+       a card (toolbars, sticky heads, sub-panels), so it sits BELOW the card, not above.
+       v121 deepened the page a step and tightened the hairline, so a white card reads as an
+       object on the page rather than blending into it. */
+    --navy:#f3f5f8; --navy-2:#e9ecf1; --card:#ffffff; --card-2:#f9fafc;
+    --line:#e1e5eb; --line-rgb:225,229,235;
+    /* dark-but-soft ink — a cool near-black, never #000; --ink-dim/-faint are muted greys.
+       The ramp runs strong → ink → dim → faint, lightening at every step. */
+    --ink:#171b22; --ink-dim:#59616f; --ink-faint:#737c8a; --ink-strong:#0b0e14;
+    --ink-dim-rgb:89,97,111; --ink-faint-rgb:115,124,138;
+    --on-accent:#fff;
+    /* THE BRAND. v108 pointed this at a muted slate-blue, which was safe and completely
+       anonymous — near enough the framework default that the app read as unbranded. v121
+       brings back the terracotta the dark theme always had, deepened so it holds its own
+       on a near-white card (5.44:1 on --card, and white on the solid fill is the same). */
+    --orange:#b4471b; --orange-soft:#93380f; --orange-rgb:180,71,27; --orange-soft-rgb:147,56,15;
+    --green:#17804d; --green-2:#0f6d40; --green-rgb:23,128,77; --green2-rgb:15,109,64;
+    /* amber shifted yellower and red shifted toward crimson: both had to clear the brand by
+       85 of summed RGB distance once the brand went warm, or "watch" and "problem" would
+       have read as shades of the brand instead of as states. */
+    --amber:#96700a; --amber-2:#85620a; --amber-rgb:150,112,10; --amber2-rgb:133,98,10;
+    --red:#ab1338; --red-2:#911029; --red-rgb:171,19,56; --red2-rgb:145,16,41;
+    /* "teal" is a NAME, like "orange": it is recurring / from-the-weekly-plan. v234 made it a
+       deep slate — Ash did not like the teal, and slate is terracotta's natural partner on a
+       warm page. Still clear of green (done) and the purples (home, Warrington). */
+    --teal:#3e5c76; --teal-soft:#344f66; --teal-bright:#2b4357; --teal-rgb:62,92,118;
+    /* home/buffer is indigo; the Warrington badge moved off copper to plum in v121, because
+       copper existed only to dodge a blue brand and now sat right on top of a warm one. */
+    --blue:#6247b5; --blue-soft:#513a99; --blue-rgb:98,71,181;
+    --info:#2b6cd9; --info-rgb:43,108,217;
+    --loc-warrington:#7a3363; --grad-mid:#6d9a2e;
+    /* the DEEP version of each accent — the chip behind them is a pale tint of the same
+       hue, so a pale text colour would vanish */
+    --tint-red:#8f1030; --tint-amber:#6f5308; --tint-green:#136540;
+    --tint-blue:#46337f; --tint-orange:#8f3813;
+    --panel-0:#f6f8fb; --panel-1:#f0f3f7; --panel-2:#e9edf3;
+    --hero-1:#f8f9fc; --hero-2:#f3f5f8; --hero-3:#e9ecf2;
+    --mark-bg:#edf0f5; --chart-grid:#e2e7ee;
+    /* a cool near-black scrim genuinely dims the page behind a modal; the shadow and the
+       hover "lift" are the ink tone at low alpha, so a hover DARKENS the surface it sits on. */
+    --backdrop-rgb:20,26,38;
+    --shadow-rgb:23,27,34;
+    --lift-rgb:23,27,34;
+    /* TWO shadow steps, not one. A single large soft shadow on every card reads as haze on
+       a light page: --shadow just separates a card from the ground, --shadow-lift is for
+       things that genuinely float (modals, popovers, the week picker). */
+    --shadow:0 1px 2px rgba(var(--shadow-rgb),.04), 0 1px 3px rgba(var(--shadow-rgb),.07);
+    --shadow-lift:0 4px 6px -1px rgba(var(--shadow-rgb),.06), 0 12px 24px -6px rgba(var(--shadow-rgb),.14);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{background:var(--navy);color:var(--ink);}
+  body{font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;
+    line-height:1.5;max-width:640px;margin:0 auto;padding:max(18px,env(safe-area-inset-top)) 16px 48px;}
+  h1,h2{font-family:var(--font-display);color:var(--ink-strong);letter-spacing:-.02em;}
+  h1{font-size:26px;line-height:1.15;}
+  h2{font-size:16px;margin-bottom:10px;}
+  .hello{font-size:13px;font-weight:600;color:var(--orange);margin-bottom:2px;}
+  .date{font-size:13px;color:var(--ink-faint);margin-top:4px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-top:16px;
+    box-shadow:0 1px 2px rgba(var(--shadow-rgb),.04),0 6px 20px -10px rgba(var(--shadow-rgb),.14);}
+  .muted{color:var(--ink-faint);font-size:13px;}
+  .tag{display:inline-block;font-size:11px;font-weight:700;border-radius:999px;padding:3px 9px;background:var(--card-2);color:var(--ink-dim);border:1px solid var(--line);margin-right:4px;}
+  .tag.bag{color:var(--tint-green);border-color:rgba(var(--green-rgb),.35);}
+  .meal-name{font-family:var(--font-display);font-size:21px;font-weight:700;color:var(--ink-strong);margin:8px 0 4px;line-height:1.25;}
+  .sum{font-size:14px;color:var(--ink-dim);}
+  .macros{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0;}
+  .macros span{font-size:12px;color:var(--ink-dim);background:var(--card-2);border-radius:999px;padding:4px 10px;}
+  .macros b{color:var(--ink-strong);}
+  .macros span.pro{background:rgba(var(--green-rgb),.1);color:var(--tint-green);}
+  .macros span.pro b{color:var(--tint-green);font-size:14px;}
+  .remind{background:rgba(var(--amber-rgb),.12);color:var(--tint-amber);border-radius:var(--r-lg);padding:12px 14px;font-size:14px;line-height:1.45;margin-bottom:14px;}
+  .remind b{color:var(--tint-amber);}
+  .remind[hidden]{display:none;}
+  .morning{background:rgba(var(--green-rgb),.08);color:var(--tint-green);border-radius:10px;padding:10px 12px;font-size:14px;margin:10px 0;}
+  .sec{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-faint);margin:14px 0 6px;}
+  ul.ing{list-style:none;font-size:14.5px;}
+  ul.ing li{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--line);}
+  ul.ing li:first-child{border-top:0;}
+  ul.ing em{font-style:normal;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--ink-faint);}
+  ol.method{padding-left:22px;font-size:15px;line-height:1.6;display:flex;flex-direction:column;gap:8px;}
+  .kid{background:var(--card-2);border-radius:10px;padding:10px 12px;font-size:14px;color:var(--ink-dim);margin-top:12px;}
+  .aisle{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-faint);margin:12px 0 4px;}
+  label.buy{display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-top:1px solid var(--line);font-size:15px;cursor:pointer;min-height:44px;}
+  label.buy input{width:22px;height:22px;accent-color:var(--green);flex:0 0 auto;margin-top:1px;}
+  label.buy small{display:block;font-size:12.5px;color:var(--ink-faint);}
+  label.buy.done span{text-decoration:line-through;opacity:.5;}
+  .frz{display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line);font-size:15px;}
+  .frz:first-child{border-top:0;}
+  .err{color:var(--tint-red);background:rgba(var(--red-rgb),.07);border-radius:10px;padding:10px 12px;font-size:14px;margin-top:14px;}
+  [hidden]{display:none!important;}
+</style>
+</head>
+<body>
+<div class="hello" id="hello">Hello</div>
+<h1 id="title">Tonight</h1>
+<div class="date" id="date"></div>
+<div class="err" id="err" hidden></div>
+<div class="remind" id="tomorrow" role="note" hidden></div>
+<section class="card" id="tonight"><div class="muted">Loading…</div></section>
+<section class="card" id="buyCard"><h2>To buy</h2><div id="buy" class="muted">Loading…</div></section>
+<section class="card" id="freezerCard"><h2>In the freezer</h2><div id="freezer" class="muted">Loading…</div></section>
+<script>
+/* Chloe's page reads two things — this week's food plan and the food inventory — and writes one:
+   a tick on the to-buy list. It knows nothing else in the store and links nowhere else. */
+const STORE = "/.netlify/functions/kpi-store";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pad = (n) => String(n).padStart(2, "0");
+const now = new Date();
+const today = now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate());
+// the week is keyed by its Monday, exactly as the weekly dashboard keys it (UTC)
+const monday = (() => { const x = new Date(); x.setUTCDate(x.getUTCDate() - ((x.getUTCDay() + 6) % 7)); return x.toISOString().slice(0, 10); })();
+const DAYS = { mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday", sun: "Sunday" };
+const TYPES = { family: "Family night", solo: "Chloe solo", busy: "Busy night" };
+let plan = null, tomorrowPlan = null;
+// tomorrow, and the Monday of ITS week — on a Sunday, tomorrow's dump bag is in next week's plan
+const tomorrowDate = (() => { const x = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1); return x.getFullYear() + "-" + pad(x.getMonth() + 1) + "-" + pad(x.getDate()); })();
+const tomorrowMonday = (() => { const x = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + 1)); x.setUTCDate(x.getUTCDate() - ((x.getUTCDay() + 6) % 7)); return x.toISOString().slice(0, 10); })();
+
+// food safety: a frozen dump bag defrosts in the fridge overnight — never slow cooked from frozen
+function renderTomorrow() {
+  const p = tomorrowMonday === monday ? plan : tomorrowPlan;
+  const m = ((p && p.meals) || []).find((x) => x.date === tomorrowDate && x.dumpBag);
+  const bag = m && ((p.prepSession && p.prepSession.bags) || []).find((b) => b.night === m.night);
+  $("tomorrow").hidden = !(bag && bag.storage !== "fridge");
+  if (!$("tomorrow").hidden) $("tomorrow").innerHTML = "<b>Before bed:</b> move tomorrow\u2019s <b>" + esc(bag.name || m.name) + "</b> bag from the freezer to the fridge so it defrosts overnight. Never slow cook it from frozen.";
+}
+function renderTonight() {
+  const meals = (plan && plan.meals) || [];
+  const m = meals.find((x) => x.date === today);
+  const next = meals.filter((x) => x.date > today).sort((a, b) => a.date.localeCompare(b.date))[0];
+  if (!m) {
+    $("tonight").innerHTML = "<h2>Tonight</h2><div class=\"muted\">Nothing planned for tonight." +
+      (next ? " Next up: <b>" + esc(next.name) + "</b> on " + esc(DAYS[next.night] || next.night) + "." : "") + "</div>";
+    return;
+  }
+  const bag = ((plan.prepSession && plan.prepSession.bags) || []).find((b) => b.night === m.night);
+  const pa = m.perAdult || {};
+  $("tonight").innerHTML =
+    "<span class=\"tag\">" + esc(TYPES[m.type] || "Tonight") + "</span>" + (m.dumpBag ? "<span class=\"tag bag\">Dump bag</span>" : "") +
+    (m.minutes ? "<span class=\"tag\">" + m.minutes + " min</span>" : "") +
+    "<div class=\"meal-name\">" + esc(m.name) + "</div><div class=\"sum\">" + esc(m.summary) + "</div>" +
+    "<div class=\"macros\"><span class=\"pro\"><b>" + Math.round(pa.protein || 0) + "g</b> protein</span><span><b>" + Math.round(pa.kcal || 0) + "</b> kcal</span>" +
+    "<span><b>" + Math.round(pa.carbs || 0) + "g</b> carbs</span><span><b>" + Math.round(pa.fat || 0) + "g</b> fat</span></div>" +
+    (bag && bag.morningOf ? "<div class=\"morning\"><b>This morning:</b> " + esc(bag.morningOf) + "</div>" : "") +
+    (m.dumpBag && m.slowCooker && (m.slowCooker.low || m.slowCooker.high) ? "<div class=\"morning\"><b>Slow cooker:</b> " + esc(m.slowCooker.low) + " on LOW, or " + esc(m.slowCooker.high) + " on HIGH</div>" : "") +
+    "<div class=\"sec\">Ingredients</div><ul class=\"ing\">" + (m.ingredients || []).map((i) => "<li><span>" + esc(i.qty) + " " + esc(i.name) + "</span>" +
+      (i.have ? "" : "<em>buy</em>") + "</li>").join("") + "</ul>" +
+    "<div class=\"sec\">Method</div><ol class=\"method\">" + (m.method || []).map((s) => "<li>" + esc(s) + "</li>").join("") + "</ol>" +
+    (m.kidTip ? "<div class=\"kid\"><b>For the kids:</b> " + esc(m.kidTip) + "</div>" : "");
+}
+function renderBuy() {
+  const list = (plan && plan.toBuy) || [];
+  if (!list.length) { $("buy").innerHTML = "<div class=\"muted\">Nothing on the list.</div>"; return; }
+  const groups = {};
+  for (const b of list) (groups[b.aisle || "Other"] = groups[b.aisle || "Other"] || []).push(b);
+  $("buy").className = "";
+  $("buy").innerHTML = Object.keys(groups).map((a) => "<div class=\"aisle\">" + esc(a) + "</div>" + groups[a].map((b) =>
+    "<label class=\"buy" + (b.ticked ? " done" : "") + "\"><input type=\"checkbox\"" + (b.ticked ? " checked" : "") + " data-key=\"" + esc(b.key) + "\">" +
+    "<span>" + esc(b.name) + " <b>" + esc(b.qty) + "</b>" + (b.productName ? "<small>" + esc(b.productName) + (b.packSize ? " · " + esc(b.packSize) : "") + "</small>" : "") + "</span></label>").join("")).join("");
+  $("buy").querySelectorAll("input[data-key]").forEach((el) => el.addEventListener("change", () => tick(el.dataset.key, el.checked)));
+}
+async function tick(key, on) {
+  const item = ((plan && plan.toBuy) || []).find((b) => b.key === key);
+  if (item) item.ticked = on;
+  renderBuy();
+  try {
+    const r = await fetch(STORE, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ foodPlan: { weekEnding: monday, ticks: { [key]: on } } }) });
+    if (!r.ok) throw new Error();
+  } catch (e) { if (item) item.ticked = !on; renderBuy(); showErr("Couldn\u2019t save that tick — check the signal."); }
+}
+function renderFreezer(inv) {
+  const items = ((inv && inv.items) || []).filter((i) => i.storage === "freezer");
+  $("freezer").className = "";
+  $("freezer").innerHTML = items.length ? items.map((i) => "<div class=\"frz\"><span>" + esc(i.name) + "</span><b>" +
+    esc(i.unit === "count" ? i.qty : i.qty + i.unit) + "</b></div>").join("") : "<div class=\"muted\">Nothing in the freezer.</div>";
+}
+function showErr(t) { $("err").textContent = t; $("err").hidden = false; }
+
+(async () => {
+  const h = now.getHours();
+  $("hello").textContent = (h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening") + ", Chloe";
+  $("date").textContent = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+  try {
+    const [p, inv, t] = await Promise.all([
+      fetch(STORE + "?foodplan=" + monday).then((r) => r.json()),
+      fetch(STORE + "?foodinventory=1").then((r) => r.json()),
+      tomorrowMonday === monday ? Promise.resolve(null) : fetch(STORE + "?foodplan=" + tomorrowMonday).then((r) => r.json()).catch(() => null),
+    ]);
+    plan = (p && p.plan) || { meals: [], toBuy: [] };
+    tomorrowPlan = (t && t.plan) || null;
+    renderTonight(); renderTomorrow(); renderBuy(); renderFreezer(inv && inv.inventory);
+  } catch (e) {
+    showErr("Couldn\u2019t load this week\u2019s food — try again in a moment.");
+  }
+})();
+</script>
+</body>
+</html>

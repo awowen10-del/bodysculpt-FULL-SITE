@@ -24,7 +24,7 @@ const fs = require("fs");
 const path = require("path");
 
 const read = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
-const FILES = ["index.html", "monthly.html", "quarterly.html", "finances.html", "daily.html", "social.html", "ads.html", "schedule.html", "projects.html"];   // v213: nine
+const FILES = ["index.html", "monthly.html", "quarterly.html", "finances.html", "daily.html", "social.html", "ads.html", "schedule.html", "projects.html", "health.html"];   // v213: nine; v236: Health & Fitness is the tenth
 const SRC = {};
 FILES.forEach((f) => { SRC[f] = read(f); });
 const styleOf = (src) => src.slice(src.indexOf("<style>") + 7, src.indexOf("</style>"));
@@ -36,7 +36,7 @@ const ruleOf = (style, sel) => {
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v176 · out-of-lambda-compatibility-mode";
+  const text = "build v236 · health-and-fitness";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }
@@ -70,8 +70,8 @@ const ruleOf = (style, sel) => {
     const groups = [...inner.matchAll(/<div class="sn-group( sn-money)?">\s*<span class="sn-cap">([^<]+)<\/span>([\s\S]*?)<\/div>/g)];
     // v165: Numbers joined between Planning and Social
     assert.deepStrictEqual(groups.map((m) => [m[2], !!m[1]]),
-      [["Today", false], ["Planning", false], ["Numbers", false], ["Social", false], ["Finances", true]],
-      label + "five captions in order, and only Finances carries the money class");
+      [["Today", false], ["Planning", false], ["Numbers", false], ["Social", false], ["Personal", false], ["Finances", true]],
+      label + "six captions in order (v236: Personal), and only Finances carries the money class");
     // v163 wrapped the label in a span (so the fold can hide it) and gave every link a
     // tooltip that repeats its label (so a folded icon still has a name)
     const linksOf = (block) => [...block.matchAll(/<a href="([^"]+)" class="sn-link( active)?" title="([^"]+)"><svg class="ic"><use href="#(ic-[a-z-]+)"\/><\/svg><span class="sn-lbl">([^<]+)<\/span><\/a>/g)]
@@ -81,12 +81,13 @@ const ruleOf = (style, sel) => {
       label + "the three periods stay together under Planning, with Projects after them (v213)");
     assert.deepStrictEqual(linksOf(groups[2][3]).map((l) => l.href), ["/index.html#kpi", "/monthly.html#kpi"], label + "Numbers is the two KPI doors");
     assert.deepStrictEqual(linksOf(groups[3][3]).map((l) => l.href), ["/social.html", "/ads.html", "/schedule.html"], label + "Social is Content, Facebook Ads and Scheduling (v170)");
-    assert.deepStrictEqual(linksOf(groups[4][3]).map((l) => l.href), ["/finances.html"], label + "Finances is alone — not a fourth period");
+    assert.deepStrictEqual(linksOf(groups[4][3]).map((l) => l.href), ["/health.html"], label + "Personal is Health & Fitness (v236) — not business, so not under Planning");
+    assert.deepStrictEqual(linksOf(groups[5][3]).map((l) => l.href), ["/finances.html"], label + "Finances is alone — not a fourth period");
     const all = linksOf(inner);
     assert.deepStrictEqual(all.map((l) => l.label),
-      ["Daily Dashboard", "Weekly", "Monthly", "Quarterly", "Projects", "Weekly KPIs", "Monthly KPIs", "Content", "Facebook Ads", "Scheduling", "Income &amp; Expenses"], label + "eleven labels (v213: Projects)");
+      ["Daily Dashboard", "Weekly", "Monthly", "Quarterly", "Projects", "Weekly KPIs", "Monthly KPIs", "Content", "Facebook Ads", "Scheduling", "Health &amp; Fitness", "Income &amp; Expenses"], label + "twelve labels (v213: Projects; v236: Health & Fitness)");
     assert.deepStrictEqual(all.map((l) => l.icon),
-      ["ic-sun", "ic-calendar", "ic-grid", "ic-target", "ic-kanban", "ic-trend-up", "ic-trend-up", "ic-camera", "ic-megaphone", "ic-clock", "ic-wallet"], label + "each row leads with its icon");
+      ["ic-sun", "ic-calendar", "ic-grid", "ic-target", "ic-kanban", "ic-trend-up", "ic-trend-up", "ic-camera", "ic-megaphone", "ic-clock", "ic-heart", "ic-wallet"], label + "each row leads with its icon");
     assert.deepStrictEqual(all.filter((l) => l.active).map((l) => l.href), ["/" + f], label + "marks its own link active, once");
     // every icon the rail asks for resolves in this page's sprite
     const sprite = /<svg width="0" height="0"[\s\S]*?<\/defs><\/svg>/.exec(SRC[f]);

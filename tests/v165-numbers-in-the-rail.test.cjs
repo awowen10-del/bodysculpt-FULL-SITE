@@ -28,7 +28,7 @@ const scriptOf = (src) => src.slice(src.lastIndexOf("<script>") + 8, src.lastInd
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v176 · out-of-lambda-compatibility-mode";
+  const text = "build v236 · health-and-fitness";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }
@@ -39,7 +39,7 @@ const scriptOf = (src) => src.slice(src.lastIndexOf("<script>") + 8, src.lastInd
     const grp = /<div class="sn-group">\s*<span class="sn-cap">Numbers<\/span>\s*<a href="\/index.html#kpi" class="sn-link" title="Weekly KPIs"><svg class="ic"><use href="#ic-trend-up"\/><\/svg><span class="sn-lbl">Weekly KPIs<\/span><\/a>\s*<a href="\/monthly.html#kpi" class="sn-link" title="Monthly KPIs"><svg class="ic"><use href="#ic-trend-up"\/><\/svg><span class="sn-lbl">Monthly KPIs<\/span><\/a>\s*<\/div>/.exec(src);
     assert.ok(grp, label + "a Numbers group with the two KPI doors, never marked active at build");
     const caps = [...src.matchAll(/<span class="sn-cap">([^<]+)<\/span>/g)].map((m) => m[1]);
-    assert.deepStrictEqual(caps, ["Today", "Planning", "Numbers", "Social", "Finances"], label + "…between Planning and Social");
+    assert.deepStrictEqual(caps, ["Today", "Planning", "Numbers", "Social", "Personal", "Finances"], label + "…between Planning and Social");
     // the KPI doors are the SAME pages — no kpis.html exists, nothing moved
     assert.ok(!/kpis?\.html/.test(src), label + "no separate KPI page is linked");
     // the rail's mark can follow the tab, on any page, harmlessly where there is no KPI link

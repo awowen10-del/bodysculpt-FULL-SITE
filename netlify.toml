@@ -7,6 +7,12 @@
 [functions."mentor-ai"]
   timeout = 26
 
+# v236: the Food hub's photo reader (Claude Haiku 5.5 reading the butcher's sign). Quick, but
+# a photo plus a cold start can pass the 10s default. Planning runs in food-background.js,
+# which as a background function gets 15 minutes on its own.
+[functions."food"]
+  timeout = 26
+
 # v135: the Daily Dashboard's Stripe read. Four parallel list calls to Stripe — comfortably
 # inside 10s in normal conditions, but a slow morning at Stripe should degrade into a slow
 # card, not a timed-out one.

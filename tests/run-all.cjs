@@ -24,6 +24,8 @@ const SOURCES = [
   ["schedule.html", path.join(__dirname, "..", "schedule.html")],
   // v213: Projects is the ninth
   ["projects.html", path.join(__dirname, "..", "projects.html")],
+  // v236: Health & Fitness is the tenth
+  ["health.html", path.join(__dirname, "..", "health.html")],
 ];
 for (const [label, file] of SOURCES) {
   const tmp = path.join(os.tmpdir(), "bodysculpt-extracted-" + process.pid + "-" + label + ".js");

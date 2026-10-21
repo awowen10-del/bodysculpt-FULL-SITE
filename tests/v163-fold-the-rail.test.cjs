@@ -25,7 +25,7 @@ const scriptOf = (src) => src.slice(src.lastIndexOf("<script>") + 8, src.lastInd
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v176 · out-of-lambda-compatibility-mode";
+  const text = "build v236 · health-and-fitness";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }
@@ -56,7 +56,7 @@ const scriptOf = (src) => src.slice(src.lastIndexOf("<script>") + 8, src.lastInd
     assert.ok(/html\.nav-collapsed \.sn-fold \.ic\{transform:rotate\(180deg\);\}/.test(wide), label + "the arrows turn round to say 'unfold'");
     // every link carries its name as a tooltip, so a folded icon is never nameless
     const links = [...src.matchAll(/<a href="[^"]+" class="sn-link(?: active)?" title="([^"]+)"><svg[^]*?<span class="sn-lbl">([^<]+)<\/span><\/a>/g)];
-    assert.strictEqual(links.length, 11, label + "eleven links (v165: the two KPI doors; v167: Facebook Ads; v170: Scheduling; v213: Projects)");
+    assert.strictEqual(links.length, 12, label + "twelve links (v165: the two KPI doors; v167: Facebook Ads; v170: Scheduling; v213: Projects; v236: Health & Fitness)");
     for (const m of links) assert.strictEqual(m[1], m[2], label + "the tooltip is the label: " + m[1]);
     // the drawer never folds
     const mq = style.slice(style.indexOf("  @media(max-width:900px){"));

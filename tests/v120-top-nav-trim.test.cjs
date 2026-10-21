@@ -75,22 +75,22 @@ const PAGES = [
     // the group headings, in order
     const groups = [...nav[1].matchAll(/<span class="sn-cap">([^<]+)<\/span>/g)].map((m) => m[1].trim());
     // v165: a fifth group, Numbers, between Planning and Social — the KPI tabs' own front door
-    assert.deepStrictEqual(groups, ["Today", "Planning", "Numbers", "Social", "Finances"], label + " names the five groups");
-    assert.strictEqual((nav[1].match(/<div class="sn-group/g) || []).length, 5,
-      label + " keeps the five groups apart");
+    assert.deepStrictEqual(groups, ["Today", "Planning", "Numbers", "Social", "Personal", "Finances"], label + " names the six groups (v236: Personal)");
+    assert.strictEqual((nav[1].match(/<div class="sn-group/g) || []).length, 6,
+      label + " keeps the six groups apart");
 
     // v162: a link leads with its icon; v163 wrapped the label so the fold can hide it
     const links = [...nav[1].matchAll(/<a href="([^"]+)"([^>]*)><svg class="ic"><use href="#ic-[a-z-]+"\/><\/svg><span class="sn-lbl">([\s\S]*?)<\/span><\/a>/g)];
-    assert.strictEqual(links.length, 11, label + " menu has today, the three periods, Projects (v213), the two KPI doors, the three social pages and finances");
+    assert.strictEqual(links.length, 12, label + " menu has today, the three periods, Projects (v213), the two KPI doors, the three social pages, Health & Fitness (v236) and finances");
 
     assert.deepStrictEqual(
       links.map((m) => m[1]),
-      ["/daily.html", "/index.html", "/monthly.html", "/quarterly.html", "/projects.html", "/index.html#kpi", "/monthly.html#kpi", "/social.html", "/ads.html", "/schedule.html", "/finances.html"],
-      label + " links to today, the three periods in order, the two KPI tabs, then social (Instagram, Facebook Ads — v167), then finances"
+      ["/daily.html", "/index.html", "/monthly.html", "/quarterly.html", "/projects.html", "/index.html#kpi", "/monthly.html#kpi", "/social.html", "/ads.html", "/schedule.html", "/health.html", "/finances.html"],
+      label + " links to today, the three periods in order, the two KPI tabs, then social (Instagram, Facebook Ads — v167), Health & Fitness (v236), then finances"
     );
     assert.deepStrictEqual(
       links.map((m) => m[3].trim()),
-      ["Daily Dashboard", "Weekly", "Monthly", "Quarterly", "Projects", "Weekly KPIs", "Monthly KPIs", "Content", "Facebook Ads", "Scheduling", "Income &amp; Expenses"],
+      ["Daily Dashboard", "Weekly", "Monthly", "Quarterly", "Projects", "Weekly KPIs", "Monthly KPIs", "Content", "Facebook Ads", "Scheduling", "Health &amp; Fitness", "Income &amp; Expenses"],
       label + " labels the periods by period alone"
     );
 

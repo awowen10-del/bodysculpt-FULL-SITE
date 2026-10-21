@@ -14,7 +14,7 @@ const FT = read("focus-timer.js");
 const DAILY = read("daily.html");
 const DJS = DAILY.slice(DAILY.lastIndexOf("<script>") + 8, DAILY.lastIndexOf("</script>"));
 const PAGES = ["index.html", "daily.html", "monthly.html", "quarterly.html", "projects.html",
-  "finances.html", "ads.html", "social.html", "schedule.html"];
+  "finances.html", "ads.html", "social.html", "schedule.html", "health.html"];   // v236: + Health & Fitness
 function bodyOf(js, name) {
   const re = new RegExp("\\n(?:async )?function " + name + "\\s*\\(", "g");
   const m = re.exec(js);
