@@ -43,7 +43,7 @@ const post = (code, views, likes) => ({ shortCode: code, url: "https://www.insta
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v240 · the-week-at-a-glance";
+  const text = "build v241 · month-and-quarter";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html", "ads.html", "schedule.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }

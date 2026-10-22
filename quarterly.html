@@ -851,6 +851,23 @@
      rendered even while their hidden property was true. The JS was right all along; only
      the paint was wrong. One rule, last in the sheet. */
   [hidden]{display:none!important;}
+
+  /* ===================== v241: THE QUARTER, DRESSED LIKE THE REST =====================
+     The Health page's language on Quarterly: the year as the page's big line, each quarter a
+     white card with its state as a colour on the top edge, a white stage bar, headings in
+     the display face. Restyle only. */
+  .yhead .ctitle-white{font-family:var(--font-display);font-size:30px;font-weight:800;letter-spacing:-.03em;text-transform:none;line-height:1.1;}
+  .year-btn{width:34px;height:34px;border-radius:10px;}
+  .qstrip{gap:14px;}
+  .qchip{border-radius:16px;padding:16px 18px;box-shadow:var(--shadow);border-top:3px solid var(--line);}
+  .qchip.st-completed{border-top-color:var(--green);}
+  .qchip.st-current{border-top-color:var(--info);}
+  .qchip.st-current .chip-st{color:var(--info);}
+  .qchip.active{border-color:var(--line);border-top-color:inherit;box-shadow:0 0 0 2px var(--info),var(--shadow);}
+  .qchip.active .chip-q{color:var(--ink-strong);}
+  .chip-q{font-family:var(--font-display);font-size:20px;}
+  .stagebar{background:var(--card);box-shadow:var(--shadow);border-radius:14px;}
+  .ws-title{font-family:var(--font-display);font-size:24px;letter-spacing:-.025em;}
 </style>
 <!-- v230: the focus timer, shared by every page so a block follows you between them -->
 <script src="/focus-timer.js"></script>

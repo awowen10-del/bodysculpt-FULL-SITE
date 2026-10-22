@@ -509,7 +509,7 @@ function meal(night, name, extra) {
     for (const f of ["netlify/functions/food.js", "netlify/functions/food-background.js"]) assert.ok(/process\.env\.ANTHROPIC_API_KEY/.test(read(f)), f + " reads the key on the server");
     assert.ok(!/food\.js|fhHub|food-plan|FOOD_/.test(read("daily.html")), "the Daily page (where the Today view lives now) has nothing of the Food hub");
     assert.ok(/\[functions\."food"\]\s+timeout = 26/.test(read("netlify.toml")), "the photo reader gets the full 26 seconds");
-    for (const f of ["index.html", "daily.html", "health.html"]) assert.ok(read(f).includes("build v240 · the-week-at-a-glance"), f + " is stamped health-and-fitness");
+    for (const f of ["index.html", "daily.html", "health.html"]) assert.ok(read(f).includes("build v241 · month-and-quarter"), f + " is stamped health-and-fitness");
   }
 
   /* =====================================================================
