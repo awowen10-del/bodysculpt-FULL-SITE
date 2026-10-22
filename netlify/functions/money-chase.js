@@ -8,6 +8,10 @@
 //   POST { op: "write", key }        write that person's due nudge NOW and save it as a
 //                                    Gmail draft (also: write again after Ash deleted one)
 //   POST { op: "finalSent", key, undo? }   Ash has sent the Slack message to Gaz (or not)
+//   POST { op: "sorted", key, undo? }      v246: Ash has dealt with it himself — no more
+//                                    chases, the row says "resolved by Ash on …". Written to
+//                                    the ladder's own record only; Stripe is never touched
+//                                    (this function has no way to write to Stripe at all)
 //
 // NOTHING SENDS. Device key required (it reads Ash's mail) — without one the page uses
 // stripe-feed and simply shows no ladder.
@@ -77,6 +81,16 @@ export default async (req) => {
       rec = { ...rec, final };
       state.debts[debt.key] = rec;
       await writeState(state);
+      return json({ ok: true, chase: ladder(debt, rec, facts, now) });
+    }
+
+    if (op === "sorted") {
+      rec = { ...rec };
+      if (body.undo) delete rec.sorted;
+      else rec.sorted = { at: now, rowIds: debt.rowIds.slice() };
+      state.debts[debt.key] = rec;
+      await writeState(state);
+      const facts = body.undo ? await gmailFacts(debt, rec) : {};
       return json({ ok: true, chase: ladder(debt, rec, facts, now) });
     }
 

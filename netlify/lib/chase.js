@@ -25,7 +25,8 @@
 //
 // Its state sits beside the mail triage in store `bodysculpt-mail`:
 //   chase-state        { debts: { [personKey]: Record } }       (chase-state-test in test mode)
-//   Record = { name, email, overdueFrom, nudge1?, nudge2?, final?, closedAt? }
+//   Record = { name, email, overdueFrom, nudge1?, nudge2?, final?, sorted?, closedAt? }
+//   sorted = { at, rowIds }   v246: Ash pressed "Sorted" — see isSorted()
 //   nudge  = { draftId, messageId, threadId, subject, to, preview, draftedAt }
 //   final  = { text, draftedAt, sentAt? }
 import { getStore } from "@netlify/blobs";
@@ -139,6 +140,13 @@ export function recordFor(state, debt) {
   return { ...rec, overdueFrom: from };
 }
 
+/* v246: "Sorted" — Ash has dealt with it himself (cash, a bank transfer, a word at the desk).
+   Recorded HERE ONLY: Stripe is never touched. It covers the rows that were on the card when
+   he pressed it; a NEW failure for the same member is not covered, so the chase returns for
+   that rather than being silently swallowed by an old decision. */
+export const isSorted = (debt, rec) =>
+  !!(rec && rec.sorted && rec.sorted.at && debt.rowIds.every((id) => (rec.sorted.rowIds || []).includes(id)));
+
 export const daysOverdue = (fromIso, now) => {
   const t = Date.parse(fromIso);
   return isFinite(t) ? Math.floor((now - t) / DAY_MS) : 0;
@@ -155,6 +163,10 @@ export function ladder(debt, rec, facts, now) {
   const days = daysOverdue(rec.overdueFrom || debt.overdueFrom, now);
   const base = { key: debt.key, days, name: debt.name, email: debt.email };
 
+  if (isSorted(debt, rec)) {
+    return { ...base, stage: "sorted", tag: "sorted", action: "none", sortedAt: rec.sorted.at,
+      note: "Resolved by Ash on " + dayWords(new Date(rec.sorted.at).toISOString()) + "." };
+  }
   if (debt.handsOff) return { ...base, stage: "needs-ash", tag: "NEEDS ASH", action: "none", note: debt.handsOff };
   if (debt.paidSince) {
     return { ...base, stage: "paid", tag: "paid", action: "none",
@@ -351,7 +363,7 @@ export async function buildChase(money, opts) {
   // the ladder, or one that is hands-off or paid.
   const allFacts = await Promise.all(debts.map((debt) => {
     const rec = recordFor(state, debt);
-    const quiet = debt.handsOff || debt.paidSince || daysOverdue(rec.overdueFrom, now) < STAGES[0].day;
+    const quiet = isSorted(debt, rec) || debt.handsOff || debt.paidSince || daysOverdue(rec.overdueFrom, now) < STAGES[0].day;
     return quiet ? {} : gmailFacts(debt, rec);
   }));
 

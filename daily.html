@@ -764,7 +764,9 @@
     padding:2px 7px;border-radius:var(--r-pill);border:1px solid var(--line);background:var(--navy-2);color:var(--ink-dim);}
   .mstage.s-nudge1,.mstage.s-nudge2{background:rgba(var(--amber-rgb),.10);color:var(--tint-amber);border-color:rgba(var(--amber-rgb),.28);}
   .mstage.s-final,.mstage.s-needs-ash{background:rgba(var(--red-rgb),.08);color:var(--tint-red);border-color:rgba(var(--red-rgb),.26);}
-  .mstage.s-paid,.mstage.s-replied{background:rgba(var(--green-rgb),.08);color:var(--tint-green);border-color:rgba(var(--green-rgb),.26);}
+  .mrow.is-sorted{background:var(--card);border-color:var(--line);opacity:.75;}
+  .mrow.is-sorted .mrow-amt{color:var(--ink-dim);text-decoration:line-through;}
+  .mstage.s-paid,.mstage.s-replied,.mstage.s-sorted{background:rgba(var(--green-rgb),.08);color:var(--tint-green);border-color:rgba(var(--green-rgb),.26);}
   .mchase{margin-top:9px;padding-top:9px;border-top:1px dashed var(--line);font-size:12px;line-height:1.5;color:var(--ink-dim);}
   .mchase-text{margin-top:6px;padding:8px 10px;border-radius:var(--r-sm);background:var(--card-2);
     color:var(--ink);white-space:pre-wrap;font-size:12px;line-height:1.5;}
@@ -2045,6 +2047,7 @@ const TIPS = {
   pastdue: ["Stopped paying", "A membership whose payment failed and has not gone through since. The member is normally still training. This is recurring income quietly leaking, and it is usually one message to fix."],
   failed: ["Failed payment", "A payment that did not go through in the last 60 days AND still has not been paid. Nearly always an expired or blocked card. Quick to sort while it is fresh."],
   chase: ["The chase", "Your ladder for anyone overdue: from day 8 a friendly 1st nudge; a 2nd nudge (same tone, plus a heads-up about sessions going on hold) a week after you sent the 1st, never before day 15; a Slack message for you to send to Gaz a week after the 2nd, never before day 22. Each one is a draft — the emails wait in your Gmail drafts, the Slack message waits here. The next one is only suggested once you have actually sent the one before. Paying anything, or emailing you, stops it."],
+  sorted: ["Sorted by you", "Ones you marked Sorted: dealt with your own way (cash, a bank transfer, a word at the desk). No more chases are suggested, and they are not counted in the total. Nothing was changed in Stripe. If that member misses another payment, the new one shows up as normal. \"Not sorted after all\" puts a row back."],
   cleared: ["Already sorted", "Cards bounce and then go through a day or two later all the time, and Stripe keeps the failed attempt on file forever. These are the ones that failed and have since been paid — either the retry worked, the invoice got settled, or they paid it again. Nothing to do; they are counted here so you can see the page checked rather than just went quiet."],
   onething: ["Your one thing", "The single thing you said this morning would make today count. It comes from the check-in in the weekly app; this card only shows it back to you."],
 };
@@ -3405,6 +3408,7 @@ function moneyRowHtml(r, kind, seen) {
     // row itself tells you what it thought — instead of you having to notice.
     when = tries + (r.why ? '<br><span class="stillwhy">' + esc(r.why) + "</span>" : "");
   }
+  if (chase && chase.stage === "sorted") cls += " is-sorted";
   return '<div class="mrow ' + cls + '">' +
     '<a class="mrow-link" href="' + esc(r.url) + '" target="_blank" rel="noopener">' +
     '<div class="mrow-top"><span class="mrow-who">' + esc(who) + "</span>" +
@@ -3459,9 +3463,44 @@ function mchaseHtml(v) {
   } else if (v.action === "none" && v.stage === "replied" && v.threadId) {
     h += '<div class="mchase-tools"><a class="abtn" href="' + esc(threadUrl(v.threadId)) + '" target="_blank" rel="noopener">Open their email</a></div>';
   }
+  // v246: Ash has dealt with it himself. Dashboard only — Stripe is not touched.
+  h += '<div class="mchase-tools">' + (v.stage === "sorted"
+    ? '<button type="button" class="abtn ghost" data-chase-unsort="' + k + '"' + (busy ? " disabled" : "") + ">Not sorted after all</button>"
+    : '<button type="button" class="abtn ghost" data-chase-sort="' + k + '"' + (busy ? " disabled" : "") +
+      ' title="Mark it resolved here: no more chases. Nothing changes in Stripe.">Sorted</button>') + "</div>";
   return h + "</div>";
 }
 const CHASE_CONTACT = "Gaz";
+
+/* ---------- v246: "Sorted" ----------
+   Ash: a "Sorted" button on each overdue row that "marks it resolved in the dashboard: no
+   more chases … Does not touch Stripe", and the headline ("X payments are still unpaid — £X
+   in the balance") must count it out. ONE function decides what is still open, and the
+   card, its headline and the "payments to sort" tile at the top all count from it. */
+const moneyRowSorted = (r) => {
+  const v = r.chaseKey && stripeState && stripeState.chase ? stripeState.chase[r.chaseKey] : null;
+  return !!(v && v.stage === "sorted");
+};
+function moneyLive() {
+  const s0 = stripeState || {};
+  const d = s0.disputes || [];
+  const p = (s0.pastDue || []).filter((r) => !moneyRowSorted(r));
+  const f = (s0.failed || []).filter((r) => !moneyRowSorted(r));
+  const sorted = [...(s0.pastDue || []), ...(s0.failed || [])].filter(moneyRowSorted);
+  const sum = (rows) => rows.reduce((t, r) => t + (Number(r.amount) || 0), 0);
+  return { d, p, f, sorted, count: d.length + p.length + f.length, total: sum(d) + sum(p) + sum(f) };
+}
+
+let moneyUndo = null;        // { key, name } — the last "Sorted", with its way back on the card
+async function moneySorted(key, undo) {
+  const v = stripeState && stripeState.chase && stripeState.chase[key];
+  if (!undo) moneyUndo = { key, name: (v && (v.name || v.email)) || "them" };
+  else if (moneyUndo && moneyUndo.key === key) moneyUndo = null;
+  await moneyChaseAct(key, { op: "sorted", undo: !!undo });
+  // the undo bar only claims what actually happened
+  const now = stripeState && stripeState.chase && stripeState.chase[key];
+  if (!undo && (!now || now.stage !== "sorted")) { moneyUndo = null; renderMoney(); }
+}
 
 /* ---------- v245: review and send a chase without leaving the card ----------
    Ash: "I don't want to go into Gmail to send a chase." The draft the morning run (or the
@@ -3640,6 +3679,10 @@ async function moneyChaseAct(key, body) {
 
 function wireMoneyCard(body) {
   // v245: review and send, here
+  body.querySelectorAll("[data-chase-sort]").forEach((b) => b.addEventListener("click", () => moneySorted(b.dataset.chaseSort, false)));
+  body.querySelectorAll("[data-chase-unsort]").forEach((b) => b.addEventListener("click", () => moneySorted(b.dataset.chaseUnsort, true)));
+  const mu = $("moneyUndoBtn");
+  if (mu) mu.addEventListener("click", () => { const u = moneyUndo; moneyUndo = null; if (u) moneySorted(u.key, true); });
   body.querySelectorAll("[data-chase-open]").forEach((b) => b.addEventListener("click", () => moneyOpenDraft(b.dataset.chaseOpen)));
   body.querySelectorAll("[data-chase-close]").forEach((b) => b.addEventListener("click", () => { moneyOpen = null; renderMoney(); }));
   body.querySelectorAll("[data-chase-send]").forEach((b) => b.addEventListener("click", () => moneySend(b.dataset.chaseSend)));
@@ -3688,8 +3731,22 @@ function renderMoney() {
     return;
   }
 
-  const d = stripeState.disputes || [], p = stripeState.pastDue || [], f = stripeState.failed || [];
-  const n = d.length + p.length + f.length;
+  // v246: what is still open — rows Ash marked Sorted are counted out of everything below
+  const live = moneyLive();
+  const d = live.d, p = live.p, f = live.f;
+  const n = live.count;
+  const undoHtml = moneyUndo
+    ? '<div class="undobar"><svg class="ic"><use href="#ic-check"/></svg><span>' + esc(moneyUndo.name) +
+      " marked sorted \u2014 no more chases. Stripe is unchanged.</span>" +
+      '<button type="button" class="undobtn" id="moneyUndoBtn">Undo</button></div>'
+    : "";
+  // each sorted row keeps its own kind, so a membership still reads as a membership
+  const sortedSeen = new Set();
+  const sortedHtml = live.sorted.length
+    ? '<div class="mgroup"><div class="mgroup-h"><svg class="ic"><use href="#ic-check"/></svg>Sorted by you (' +
+        live.sorted.length + ")" + tipBtn("sorted") + "</div>" +
+        live.sorted.map((r) => moneyRowHtml(r, r.kind === "subscription" ? "pastdue" : "failed", sortedSeen)).join("") + "</div>"
+    : "";
 
   // What failed and has since been paid. Never a row — just a line saying it was looked at.
   const res = stripeState.resolved || { count: 0 };
@@ -3703,22 +3760,25 @@ function renderMoney() {
     : "";
 
   if (!n) {
-    body.innerHTML = '<div class="allclear"><svg class="ic"><use href="#ic-check"/></svg>' +
-      "<div>Nothing disputed, nothing past due, and nothing unpaid in the last " + days + " days." +
+    body.innerHTML = undoHtml + '<div class="allclear"><svg class="ic"><use href="#ic-check"/></svg>' +
+      "<div>" + (live.sorted.length ? "Nothing left to sort \u2014 everything else is marked sorted by you."
+        : "Nothing disputed, nothing past due, and nothing unpaid in the last " + days + " days.") +
       (res.count ? " " + res.count + (res.count === 1 ? " card bounced" : " cards bounced") +
         " and " + (res.count === 1 ? "was" : "were") + " paid without you having to do anything." : "") +
-      "</div></div>";
+      "</div></div>" + sortedHtml;
+    wireMoneyCard(body);
     return;
   }
 
   const seen = new Set();
-  body.innerHTML =
+  body.innerHTML = undoHtml +
     (stripeState.chaseTest ? '<div class="mtest"><b>Chase test mode.</b> Payment chases are drafted to ' + esc(stripeState.chaseTest) +
       " instead of to members. Remove CHASE_TEST_EMAIL in Netlify to go live." + tipBtn("chase") + "</div>" : "") +
     (stripeState.chaseError ? '<div class="mtest">' + esc(stripeState.chaseError) + "</div>" : "") +
     moneyGroupHtml("Disputes", "dispute", "ic-alert", d, "dispute", seen) +
     moneyGroupHtml("Stopped paying", "pastdue", "ic-trend-down", p, "pastdue", seen) +
     moneyGroupHtml("Still unpaid", "failed", "ic-card", f, "failed", seen) +
+    sortedHtml +
     clearedHtml;
   wireMoneyCard(body);
 
@@ -3728,7 +3788,7 @@ function renderMoney() {
   if (d.length) bits.push("<b>" + d.length + (d.length === 1 ? " dispute" : " disputes") + "</b> to answer");
   if (p.length) bits.push("<b>" + p.length + "</b> " + (p.length === 1 ? "membership has" : "memberships have") + " stopped paying");
   if (f.length) bits.push("<b>" + f.length + "</b> " + (f.length === 1 ? "payment is" : "payments are") + " still unpaid");
-  const total = (stripeState.totals && (stripeState.totals.disputed + stripeState.totals.pastDue + stripeState.totals.failed)) || 0;
+  const total = live.total;     // v246: open rows only — a sorted one is not in the balance
   alert.innerHTML = '<svg class="ic"><use href="#ic-alert"/></svg>' +
     '<span class="t">' + bits.join(" · ") + ' — <span class="n">' + esc(fromPence(total, "gbp")) + "</span> in the balance</span>" +
     '<span class="go">Open Stripe<svg class="ic"><use href="#ic-arrow-right"/></svg></span>';
@@ -4425,7 +4485,7 @@ function dayStatsHtml() {
   try { const { live } = tlJobs(); jobs = { left: live.filter((j) => !j.done).length, done: live.filter((j) => j.done).length, all: live.length }; } catch (e) {}
   try { if (!(mailLoading && !mailLive)) { const src = mailItems(); mail = src.items.filter((i) => i.tier !== "fyi" && i.tier !== "other").length; } } catch (e) {}
   try { if (slBrief && slBrief.builtAt) slack = (slBrief.actions || []).length + (slBrief.sessions || []).filter((x) => !x.acknowledged).length; } catch (e) {}
-  try { if (stripeState && stripeState.ok !== false && stripeState.configured !== false) money = (stripeState.disputes || []).length + (stripeState.pastDue || []).length + (stripeState.failed || []).length; } catch (e) {}
+  try { if (stripeState && stripeState.ok !== false && stripeState.configured !== false) money = moneyLive().count; } catch (e) {}
   const tile = (target, icon, n, words, tone) => '<button type="button" class="dstat ' + tone + (n ? "" : " clear") + '" data-go="' + target + '">' +
     '<span class="dstat-ic"><svg class="ic"><use href="#' + icon + '"/></svg></span>' +
     "<b>" + (n == null ? "–" : n) + "</b><small>" + words + "</small></button>";
