@@ -3282,7 +3282,15 @@ async function mailAskClaude(threadId) {
   const btn = $("mailBody") && $("mailBody").querySelector('[data-ai="' + threadId + '"]');
   if (btn) btn.disabled = true;
   try {
-    const data = await mailAi("POST", { op: "write", threadId, current, brief });
+    // v244.1: a slow Claude (or a function that ran out of time) gets one quiet second try —
+    // Ash: "I should never see an error from the button for a timeout."
+    let data;
+    try { data = await mailAi("POST", { op: "write", threadId, current, brief }); }
+    catch (e) {
+      if (!e || !e.slow) throw e;
+      mailNote(threadId, "Still writing…");
+      data = await mailAi("POST", { op: "write", threadId, current, brief });
+    }
     const text = String(data.text || "").trim();
     if (!text) throw new Error("Claude sent nothing back.");
     ta.value = text;
@@ -3311,7 +3319,12 @@ async function mailAi(method, body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await r.json().catch(() => ({}));
-  if (!r.ok || data.ok === false) throw new Error(data.error || ("HTTP " + r.status));
+  if (!r.ok || data.ok === false) {
+    const err = new Error(data.error || ("HTTP " + r.status));
+    // 503 = Claude was slow; 502/504 = the function itself ran out of time
+    err.slow = !!data.slow || r.status === 502 || r.status === 504;
+    throw err;
+  }
   return data;
 }
 

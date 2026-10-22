@@ -41,8 +41,14 @@ export default async (req) => {
       if (!/^[0-9a-f]+$/i.test(id)) return json({ ok: false, error: "No thread named." }, 400);
       const detail = threadDetail(await gmailGet("threads/" + encodeURIComponent(id) + "?format=full"));
       if (!detail.messages.length) return json({ ok: false, error: "That thread is empty." }, 404);
-      const text = await writeReply(detail, { mode: "button", current: clip(body.current, 6000), brief: clip(body.brief, 500) });
-      return json({ ok: true, text });
+      try {
+        const { text, effort } = await writeReply(detail, { mode: "button", current: clip(body.current, 6000), brief: clip(body.brief, 500) });
+        return json({ ok: true, text, effort });
+      } catch (e) {
+        // v244.1: slow is not broken — the page retries once, quietly, on `slow`
+        if (e && e.slow) return json({ ok: false, slow: true, error: "Claude is slow right now." }, 503);
+        throw e;
+      }
     }
 
     if (op === "run") {

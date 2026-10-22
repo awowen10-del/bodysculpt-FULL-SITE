@@ -87,7 +87,7 @@ export function replyPrompt(detail, opts) {
   return (
     (o.mode === "morning"
       ? "This is the weekday morning inbox run. If this email is on the skill's Hands-off list, do not draft: answer with exactly one line, \"NEEDS ASH: \" followed by what they want.\n\n"
-      : "Ash pressed the button himself, so write the reply even if the topic is on the Hands-off list — he has decided to handle it.\n\n") +
+      : "Ash pressed the button himself, so always write the reply: even if the topic is on the Hands-off list, and even if more than one fact is missing (give each its own [ASH: ...] placeholder) — he is here to fill them in.\n\n") +
     (o.brief ? "What Ash wants this reply to say: " + o.brief + "\n\n" : "") +
     (o.current ? "There is already a draft. Rewrite it in line with that, keeping anything that is still right:\n\"\"\"\n" + o.current + "\n\"\"\"\n\n" : "") +
     "Today is " + new Date(o.now || Date.now()).toISOString().slice(0, 10) + ".\n\n" +
@@ -96,17 +96,59 @@ export function replyPrompt(detail, opts) {
   );
 }
 
-export async function writeReply(detail, opts) {
-  const o = opts || {};
-  const msg = await client().messages.create({
+/* v244.1, Ash: "try medium first; if the call is going to exceed the limit, fall back to low
+   and still return a draft. I should never see an error from the button for a timeout."
+
+   The button lives inside a 26-second function, and one medium-effort Opus call can take
+   most of that. Trying medium and THEN low would leave low no time. So both start at once:
+   medium is given MEDIUM_WAIT_MS to finish, and if it has not (or it failed), the low one —
+   by then usually done — is the answer. Whichever loses is cancelled. The morning job has
+   fifteen minutes and simply writes at medium. */
+const MEDIUM_WAIT_MS = 15000;     // medium's chance, from the moment both start
+const BUTTON_DEADLINE_MS = 22500; // everything ends here, inside the 26s wall with room to reply
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function writeOnce(detail, o, effort, signal) {
+  return client().messages.create({
     model: MODELS.write,
     max_tokens: 4000,
-    // the button lives inside a 26-second function; the morning job has fifteen minutes
-    output_config: { effort: o.mode === "morning" ? "medium" : "low" },
+    output_config: { effort },
     system: systemPrompt(),
     messages: [{ role: "user", content: replyPrompt(detail, o) }],
-  });
-  return textOf(msg);
+  }, { signal, maxRetries: 0 }).then(textOf);
+}
+
+// Returns { text, effort } — effort says which one was used, for the log and the page.
+export async function writeReply(detail, opts) {
+  const o = opts || {};
+  if (o.mode === "morning") return { text: await writeOnce(detail, o, "medium"), effort: "medium" };
+
+  const started = Date.now();
+  const waitMs = o.waitMs || MEDIUM_WAIT_MS, deadlineMs = o.deadlineMs || BUTTON_DEADLINE_MS;   // tests shrink these
+  const medStop = new AbortController(), lowStop = new AbortController();
+  // settled, never rejecting: a loser that errors after the race must not crash anything
+  const settle = (p) => p.then((text) => ({ text }), (err) => ({ err }));
+  const med = settle(writeOnce(detail, o, "medium", medStop.signal));
+  const low = settle(writeOnce(detail, o, "low", lowStop.signal));
+  const stopAll = () => { medStop.abort(); lowStop.abort(); };
+
+  // 1. medium, if it is back in time
+  const first = await Promise.race([med, sleep(waitMs).then(() => null)]);
+  if (first && first.text) { lowStop.abort(); return { text: first.text, effort: "medium" }; }
+
+  // 2. otherwise low — and if low has failed, whatever medium manages before the deadline
+  const left = () => Math.max(0, deadlineMs - (Date.now() - started));
+  const second = await Promise.race([low, sleep(left()).then(() => null)]);
+  if (second && second.text) { medStop.abort(); return { text: second.text, effort: "low" }; }
+  const last = first ? null : await Promise.race([med, sleep(left()).then(() => null)]);
+  stopAll();
+  if (last && last.text) return { text: last.text, effort: "medium" };
+
+  // Neither in time. Said plainly — the page tries once more by itself before showing it.
+  const why = (second && second.err) || (first && first.err) || null;
+  const err = new Error(why && !/abort/i.test(String(why.message)) ? why.message : "Claude is slow right now.");
+  err.slow = !why || /abort|timeout|overloaded|529|429/i.test(String(why.message));
+  throw err;
 }
 
 /* ---------- sorting the inbox ----------
@@ -236,7 +278,7 @@ export async function runMorning(opts) {
     const rec = { kind: c.kind, reason: c.reason, lastMsgId: last.id, at: now, draftId: "" };
     if (c.kind === "lead" || c.kind === "client") {
       try {
-        const text = await writeReply(d, { mode: "morning", now });
+        const { text } = await writeReply(d, { mode: "morning", now });
         const flagged = /^NEEDS ASH:/i.exec(text);
         if (flagged) {
           rec.kind = "hands_off";

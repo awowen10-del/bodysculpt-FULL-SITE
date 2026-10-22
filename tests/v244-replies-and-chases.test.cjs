@@ -43,25 +43,84 @@ const ago = (d) => new Date(NOW - d * DAY).toISOString();
   const gmail = await import("file://" + root("netlify/lib/gmail.js"));
   const { SKILL_TEXT } = await import("file://" + root("netlify/lib/email-skill.js"));
 
-  /* ============ 1. the skill is Ash's skill ============ */
+  /* ============ 1. the skill: one master, every copy the same ============
+     v244.1, Ash: "One source of truth." netlify/lib/email-skill.js is the master;
+     `npm run sync-skill` (scripts/sync-email-skill.mjs) writes it out. Every copy that exists
+     on the machine running the tests must match it exactly. */
   {
-    const local = path.join(os.homedir(), ".claude", "skills", "synced");
-    let found = "";
-    try {
-      for (const d of fs.readdirSync(local)) {
-        const f = path.join(local, d, "bodysculpt-email-replies", "SKILL.md");
-        if (fs.existsSync(f)) { found = f; break; }
-      }
-    } catch { /* not this machine */ }
-    if (found) {
-      const body = fs.readFileSync(found, "utf8").replace(/^---[\s\S]*?\n---\n+/, "");
-      assert.strictEqual(SKILL_TEXT, body,
-        "netlify/lib/email-skill.js has drifted from the skill — copy SKILL.md over again (see the file's header)");
-    } else {
-      console.log("  (skill not on this machine — drift check skipped)");
+    const { targets, MASTER } = await import("file://" + root("scripts/sync-email-skill.mjs"));
+    const { SKILL_FRONTMATTER } = await import("file://" + root("netlify/lib/email-skill.js"));
+    assert.strictEqual(MASTER, SKILL_FRONTMATTER + SKILL_TEXT, "a copy is the header plus the master text");
+    assert.ok(/^---\nname: bodysculpt-email-replies\n/.test(SKILL_FRONTMATTER), "…with the skill's own name");
+    const found = targets().filter((t) => fs.existsSync(t));
+    for (const t of found) {
+      assert.strictEqual(fs.readFileSync(t, "utf8"), MASTER,
+        t + " has drifted from netlify/lib/email-skill.js — run `npm run sync-skill` (and upload the zip to claude.ai if it is a synced copy)");
     }
-    assert.ok(/£195/.test(SKILL_TEXT) && /skipthequeue/.test(SKILL_TEXT) && /Hands off/.test(SKILL_TEXT), "the copy carries the facts and the hands-off list");
+    if (!found.length) console.log("  (no copies of the skill on this machine — drift check skipped)");
+    assert.ok(read("package.json").includes('"sync-skill": "node scripts/sync-email-skill.mjs"'), "one command: npm run sync-skill");
+    const script = read("scripts/sync-email-skill.mjs");
+    assert.ok(/if \(!fs\.existsSync\(t\)\)/.test(script) && /copyFileSync\(t, t \+ "\.bak"\)/.test(script),
+      "the sync only overwrites copies that exist, and backs each one up first");
+
+    // the v244.1 rules are in the master
+    assert.ok(/£195/.test(SKILL_TEXT) && /skipthequeue/.test(SKILL_TEXT) && /Hands off/.test(SKILL_TEXT), "the facts and the hands-off list");
+    assert.ok(!/Two to six short paragraphs/.test(SKILL_TEXT), "the old length rule is gone");
+    for (const rule of [/Length: usually 2–5 sentences/, /Match them: a one-line casual email gets a short casual reply/,
+      /Answer what they actually asked in the first line or two/, /Never promise anything Ash hasn't agreed to in the thread/,
+      /At most one `\[ASH: …\]` placeholder per draft\. If more than one fact is missing, don't\s+draft: flag it NEEDS ASH/]) {
+      assert.ok(rule.test(SKILL_TEXT), "the skill has: " + rule);
+    }
     assert.ok(drafts.systemPrompt().startsWith(SKILL_TEXT), "the skill IS the reply writer's system prompt");
+  }
+
+  /* ============ 1b. the button: medium first, low if medium is too slow, never a timeout ============ */
+  {
+    const savedFetch = globalThis.fetch, savedKey = process.env.ANTHROPIC_API_KEY;
+    process.env.ANTHROPIC_API_KEY = "sk-test";
+    // a fake Claude: each effort answers after its own delay (or fails), and honours cancel
+    const fakeClaude = (plan) => async (url, init) => {
+      const effort = JSON.parse(init.body).output_config.effort;
+      const p = plan[effort];
+      await new Promise((res, rej) => {
+        const t = setTimeout(res, p.ms);
+        if (init.signal) init.signal.addEventListener("abort", () => { clearTimeout(t); const e = new Error("aborted"); e.name = "AbortError"; rej(e); });
+      });
+      if (p.fail) return new Response(JSON.stringify({ type: "error", error: { type: "overloaded_error", message: "Overloaded" } }), { status: 529, headers: { "content-type": "application/json" } });
+      return new Response(JSON.stringify({ id: "m", type: "message", role: "assistant", model: "x", stop_reason: "end_turn",
+        content: [{ type: "text", text: "Hi Karen — " + effort }], usage: { input_tokens: 1, output_tokens: 1 } }),
+        { status: 200, headers: { "content-type": "application/json" } });
+    };
+    const d = { messages: [{ id: "m1", mine: false, fromName: "Karen", text: "Can I move Tuesday?", at: 0 }], replyTo: { name: "Karen", email: "k@x" } };
+    const fast = { mode: "button", waitMs: 200, deadlineMs: 500 };
+    try {
+      globalThis.fetch = fakeClaude({ medium: { ms: 20 }, low: { ms: 10 } });
+      let r = await drafts.writeReply(d, fast);
+      assert.deepStrictEqual([r.effort, r.text], ["medium", "Hi Karen — medium"], "medium in time: medium is used, even though low was quicker");
+
+      globalThis.fetch = fakeClaude({ medium: { ms: 5000 }, low: { ms: 50 } });
+      r = await drafts.writeReply(d, fast);
+      assert.deepStrictEqual([r.effort, r.text], ["low", "Hi Karen — low"], "medium too slow: the low draft comes back instead");
+
+      globalThis.fetch = fakeClaude({ medium: { ms: 10, fail: true }, low: { ms: 80 } });
+      r = await drafts.writeReply(d, fast);
+      assert.strictEqual(r.effort, "low", "medium failing outright: low still answers");
+
+      globalThis.fetch = fakeClaude({ medium: { ms: 5000 }, low: { ms: 5000 } });
+      const t0 = Date.now();
+      await assert.rejects(drafts.writeReply(d, fast), (e) => e.slow === true, "both too slow: a SLOW error, which the page retries quietly");
+      assert.ok(Date.now() - t0 < 1500, "…and it gives up at the deadline, inside the function's wall");
+    } finally {
+      globalThis.fetch = savedFetch;
+      if (savedKey === undefined) delete process.env.ANTHROPIC_API_KEY; else process.env.ANTHROPIC_API_KEY = savedKey;
+    }
+    const lib = read("netlify/lib/mail-drafts.js");
+    assert.ok(/const MEDIUM_WAIT_MS = 15000;/.test(lib) && /const BUTTON_DEADLINE_MS = 22500;/.test(lib), "15s for medium, everything over by 22.5s of the 26s wall");
+    const ask = fn("mailAskClaude");
+    assert.ok(/if \(!e \|\| !e\.slow\) throw e;/.test(ask) && (ask.match(/mailAi\("POST", \{ op: "write"/g) || []).length === 2,
+      "the page tries once more by itself when Claude was slow");
+    assert.ok(/err\.slow = !!data\.slow \|\| r\.status === 502 \|\| r\.status === 504;/.test(fn("mailAi")),
+      "…including when the function itself ran out of time");
   }
 
   /* ============ 2. THE LADDER ============ */

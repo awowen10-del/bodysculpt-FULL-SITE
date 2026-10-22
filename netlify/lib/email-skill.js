@@ -1,20 +1,36 @@
-// netlify/lib/email-skill.js  (v244)
+// netlify/lib/email-skill.js  (v244, master from v244.1)
 //
 // Ash's Claude skill "bodysculpt-email-replies" — the voice, the confirmed facts (prices,
 // timetable, links, policies), the hands-off list and the FAQ playbook learned from his sent
 // mail — as the instructions every reply and every payment chase on the Daily page is
 // written from.
 //
-// A COPY. The site runs on Netlify and cannot read the skills folder on Ash's laptop, so the
-// text lives here. When the skill changes, copy SKILL.md over again (everything below its
-// "---" header) — tests/v244-replies-and-chases.test.cjs compares the two whenever the
-// skill is on the machine running the tests, and fails if they have drifted.
+// THIS IS THE MASTER COPY. Ash, v244.1: "One source of truth … I edit in one place and push
+// everywhere." Edit the text below, then run
 //
-// Below, verbatim apart from the header. The "Steps" section talks about get_thread and
-// create_draft, tools the skill has in Claude; here the code does those parts itself, and
-// SKILL_ADAPTER (in mail-drafts.js) tells Claude so.
+//     npm run sync-skill
+//
+// which writes it out to every other copy (scripts/sync-email-skill.mjs says where, and why
+// the claude.ai skill itself takes an upload). tests/v244-replies-and-chases.test.cjs
+// compares every copy it can find on the machine running the tests and fails if any has
+// drifted from this one.
+//
+// The "Steps" section talks about get_thread and create_draft, tools the skill has in
+// Claude; on the site the code does those parts itself, and SKILL_ADAPTER (in
+// mail-drafts.js) tells Claude so.
+//
+// One rule for editing: this text sits inside backticks, so a backtick in it is written \`
+// and the two characters $ { must never appear together.
 
 export const SKILL_COPIED_ON = "2026-10-22";
+
+// The header a SKILL.md file starts with. The site does not use it; the copies do.
+export const SKILL_FRONTMATTER = `---
+name: bodysculpt-email-replies
+description: "Draft client and lead email replies in Ash's voice using Bodysculpt's real prices, timetable, links and policies, learned from your sent mail."
+---
+
+`;
 
 export const SKILL_TEXT = `# Bodysculpt email replies
 
@@ -30,8 +46,16 @@ are not customer replies and should just be flagged.
 
 - Open with "Hi <first name>," — occasionally "Morning <name>," or "Hey <name>," for
   people Ash clearly knows. Never "Dear".
-- Short paragraphs, one idea each. Two to six short paragraphs is the norm. Ash never
-  writes walls of text and never uses bullet points in customer emails.
+- Short paragraphs, one idea each. Ash never writes walls of text and never uses
+  bullet points in customer emails.
+- Length: usually 2–5 sentences. Go longer only when they asked several separate things,
+  and answer each briefly.
+- Match them: a one-line casual email gets a short casual reply; a long, detailed email
+  can have a fuller one.
+- Answer what they actually asked in the first line or two — no warm-up before the
+  answer.
+- Never promise anything Ash hasn't agreed to in the thread: no calls, dates, refunds or
+  "I'll sort it today" unless he has said so.
 - Warm, plain, unpolished English. Contractions everywhere. "Ahh", "Yep", "No worries
   at all", "Perfect", "Leave it with me", "I'll get this sorted today for you".
 - Do NOT use "mate" or "my friend" in drafts (Ash adds it himself when reviewing).
@@ -88,6 +112,9 @@ are not customer replies and should just be flagged.
 If a fact needed for the reply is NOT in this list (a specific price for something
 unusual, a policy Ash hasn't stated, medical questions), write the draft with a clearly
 marked \`[ASH: ...]\` placeholder rather than guessing.
+
+At most one \`[ASH: …]\` placeholder per draft. If more than one fact is missing, don't
+draft: flag it NEEDS ASH with what you'd need to know.
 
 ## Hands off — flag, never draft
 
@@ -216,8 +243,9 @@ sure to pass your kind words on to Dan and Gaz 😊"
 2. Check the Hands-off list. If it matches, do not draft — flag as NEEDS ASH with a
    one-line summary of what they want.
 3. Match the ask to the FAQ playbook (one email can hit two entries — answer both).
-4. Write the reply in the Voice above using only the confirmed Facts. Unknown facts get
-   \`[ASH: ...]\` placeholders. Never invent availability, dates or prices.
+4. Write the reply in the Voice above using only the confirmed Facts. An unknown fact
+   gets an \`[ASH: ...]\` placeholder — at most one; more than one missing means flag
+   NEEDS ASH instead. Never invent availability, dates or prices.
 5. End with a question or clear next step. Sign "Ash".
 6. Save as a Gmail draft on the same thread (create_draft). Never send.
 7. In the report, note "draft saved" or the reason it wasn't.
@@ -229,7 +257,10 @@ Before saving each draft, check:
 - No "mate", no corporate phrases, no bullet points, no signature block.
 - Every number, time or link in the draft appears in the Facts section verbatim.
 - Nothing from the Hands-off list has been drafted.
-- Any placeholder is in the \`[ASH: ...]\` form and is listed in the report.
+- Any placeholder is in the \`[ASH: ...]\` form, there is at most one, and it is listed
+  in the report.
+- It is 2–5 sentences unless they asked several things, and the answer comes first.
+- It promises nothing Ash hasn't agreed to in the thread.
 - The draft ends with a question or next step and is signed "Ash".
 - The draft is on the correct thread and addressed to the sender, not to the
   Stripe/automated notification address.`;
