@@ -463,7 +463,11 @@ export function errorWords(e) {
   if (e instanceof Anthropic.AuthenticationError) return "The Anthropic key is missing or wrong in Netlify.";
   if (e instanceof Anthropic.APIConnectionTimeoutError) return "That took too long — try again.";
   if (e instanceof Anthropic.InternalServerError) return "Claude had a problem on its side — try again shortly.";
-  if (e instanceof Anthropic.APIError) return "Claude refused the request (" + (e.status || "error") + ").";
+  // the API's own reason, so a rejected request says WHY (it was a bare "400" before v249)
+  if (e instanceof Anthropic.APIError) {
+    const why = String((e.error && e.error.error && e.error.error.message) || "").trim();
+    return "Claude refused the request (" + (e.status || "error") + ")" + (why ? ": " + why.slice(0, 240) : "") + ".";
+  }
   return (e && e.message) ? String(e.message).slice(0, 200) : "Something went wrong.";
 }
 /* The meals array, read as it streams: every complete meal object so far. A plain scanner over
@@ -578,9 +582,16 @@ async function settle(client, store, week, ctx, first, ask) {
   const issues = proteinIssues(data.meals, target);
   if (!issues.length) return { data, flagged: false };
   await setJob(store, week, { stage: "protein", stageNote: "Sending " + issues.map((p) => DAY_NAMES[p.night]).join(", ") + " back for more protein…" });
-  const r2 = await askClaude(client, { ...ask.params, history: [{ role: "user", content: ask.content }, { role: "assistant", content: first.content }],
+  // the second pass is a polish, never a gate: if it fails outright, the first menu is kept, flagged
+  let r2;
+  try {
+    r2 = await askClaude(client, { ...ask.params, history: [{ role: "user", content: ask.content }, { role: "assistant", content: first.content }],
     content: "PROTEIN CHECK (worked out from your ingredient protein values ÷ " + target.servings + " adult servings):\n" + proteinWords(issues, target) +
       "\nFix only those meals, in the order of the protein rules. Keep everything else exactly as it is. Return the whole answer again in the same shape." });
+  } catch (e) {
+    console.error("[food] protein re-check failed, keeping the first menu: " + errorWords(e));
+    return { data, flagged: true };
+  }
   const c2 = r2.ok ? ask.check(r2.data) : r2;
   if (!c2.ok) return { data, flagged: true };
   return { data: finish(c2.data), flagged: true };
@@ -664,6 +675,7 @@ export async function runJob(store, client, job) {
       }
     } else out = { ok: false, error: "Unknown action." };
   } catch (e) {
+    console.error("[food] " + job.action + " failed: " + ((e && e.message) || e));
     out = { ok: false, error: errorWords(e) };
   }
   await setJob(store, week, { status: out.ok ? "done" : "error", finishedAt: new Date().toISOString(),

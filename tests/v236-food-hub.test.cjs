@@ -554,6 +554,18 @@ function meal(night, name, extra) {
     const p3 = JSON.parse(store._m.get("food-plan-" + W2));
     assert.strictEqual(p3.meals.find((m) => m.night === "tue").proteinFlag, "below", "a broken send-back keeps the first answer, flagged");
 
+    // v249: the send-back REJECTED by the API (a thrown 400) → still the first answer, flagged — not a failed week
+    const { default: Anthropic } = await import("@anthropic-ai/sdk");
+    const e400 = (why) => new Anthropic.BadRequestError(400, { type: "error", error: { type: "invalid_request_error", message: why } }, "400", new Headers());
+    const c3b = fakeClient([menu2(60), e400("messages.1: something about the history")]);
+    const out3b = await lib.runJob(store, c3b, { id: "p3b", action: "createMenu", weekEnding: W2, inputs: { schedule: sched2, situation: "", people: 4 } });
+    assert.ok(out3b.ok, "a send-back the API rejects keeps the first menu — the week is still planned");
+    assert.strictEqual(JSON.parse(store._m.get("food-plan-" + W2)).meals.find((m) => m.night === "tue").proteinFlag, "below", "…flagged");
+    // and a rejected FIRST request says the API's own reason, not a bare "400"
+    const c3c = fakeClient([e400("max_tokens: too many")]);
+    const out3c = await lib.runJob(store, c3c, { id: "p3c", action: "createMenu", weekEnding: W2, inputs: { schedule: sched2, situation: "", people: 4 } });
+    assert.strictEqual(out3c.error, "Claude refused the request (400): max_tokens: too many.", "a rejected request shows Claude's reason");
+
     // on target first time → no second call
     const c4 = fakeClient([menu2(93)]);
     await lib.runJob(store, c4, { id: "p4", action: "createMenu", weekEnding: W2, inputs: { schedule: sched2, situation: "", people: 4 } });
