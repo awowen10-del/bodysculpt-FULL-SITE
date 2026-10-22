@@ -38,7 +38,7 @@ async function loadSnapshot() {
 
 (async () => {
   /* ================= 0. the stamp ================= */
-  const text = "build v241 · month-and-quarter";
+  const text = "build v242 · projects-and-money";
   for (const f of ["monthly.html", "index.html", "finances.html", "daily.html", "social.html", "ads.html"]) {
     assert.ok(read(f).includes(text), f + " carries the stamp");
   }
