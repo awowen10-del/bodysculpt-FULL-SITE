@@ -771,6 +771,10 @@
   .mchase-tools{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
   .mchase-tools .abtn{font-size:11.5px;padding:5px 10px;}
   .mchase .warn{color:var(--tint-red);}
+  /* v245: the chase opens here — the reply card's editor, inside the money row */
+  .mchase-edit{margin-top:8px;}
+  .mchase-edit .reply-h{font-size:11.5px;color:var(--ink-dim);margin-bottom:6px;line-height:1.45;}
+  .mchase-edit .reply-text{font-size:12.5px;}
   .mtest{font-size:11.5px;color:var(--tint-amber);margin-bottom:10px;line-height:1.45;}
 
   /* the group headings inside the money card */
@@ -3155,7 +3159,8 @@ function gmB64(s) {
 const gmB64Url = (s) => gmB64(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 const gmHeaderWord = (s) => (/^[\x20-\x7e]*$/.test(s) ? s : "=?UTF-8?B?" + gmB64(s) + "?=");
 function gmBuildReply(r) {
-  const subject = /^\s*re:/i.test(r.subject || "") ? String(r.subject).trim() : "Re: " + String(r.subject || "").trim();
+  // v245: `fresh` — a new email rather than a reply (the 1st payment nudge): no "Re:"
+  const subject = r.fresh || /^\s*re:/i.test(r.subject || "") ? String(r.subject || "").trim() : "Re: " + String(r.subject || "").trim();
   // a display name that is not plain ASCII would need its own encoding; the address alone is always right
   const to = r.toName && /^[\x20-\x7e]*$/.test(r.toName) && !/[<>",]/.test(r.toName)
     ? r.toName + " <" + r.toEmail + ">" : r.toEmail;
@@ -3429,10 +3434,14 @@ function mchaseHtml(v) {
   const k = esc(v.key);
   const busy = moneyBusy === v.key;
   let h = '<div class="mchase">' + esc(v.note || "") + (v.error ? '<div class="warn">' + esc(v.error) + "</div>" : "");
-  if (v.action === "draft-ready") {
+  if (v.action === "draft-ready" && moneyOpen === v.key) {
+    h += mchaseEditHtml(v);
+  } else if (v.action === "draft-ready") {
     if (v.preview) h += '<div class="mchase-text">' + esc(v.preview) + (v.preview.length >= 220 ? "\u2026" : "") + "</div>";
+    // v245: reviewed and sent HERE; Gmail is the second way, not the only one
     h += '<div class="mchase-tools">' +
-      (v.messageId ? '<a class="abtn primary" href="' + esc(draftUrl(v.messageId)) + '" target="_blank" rel="noopener">Open the draft in Gmail</a>' : "") +
+      (v.draftId ? '<button type="button" class="abtn primary" data-chase-open="' + k + '">Review and send</button>' : "") +
+      (v.messageId ? '<a class="abtn ghost" href="' + esc(draftUrl(v.messageId)) + '" target="_blank" rel="noopener">Open draft in Gmail</a>' : "") +
       "</div>" +
       (stripeState.chaseTest ? '<div class="mtest">Test mode: this draft is addressed to ' + esc(v.to || stripeState.chaseTest) + ", not to them.</div>" : "");
   } else if (v.action === "write" || v.action === "draft-gone") {
@@ -3453,6 +3462,143 @@ function mchaseHtml(v) {
   return h + "</div>";
 }
 const CHASE_CONTACT = "Gaz";
+
+/* ---------- v245: review and send a chase without leaving the card ----------
+   Ash: "I don't want to go into Gmail to send a chase." The draft the morning run (or the
+   Write button) saved in Gmail is read in full, edited here, and SENT ONLY WHEN HE PRESSES
+   SEND — through the same closed funnel the reply card uses (gmailSend: updateDraft, then
+   sendDraft). The server still has no way to send; this button is the only door. */
+let moneyOpen = null;                 // the member key whose chase is open, or null
+const moneyDrafts = new Map();        // key -> { loading, error, draftId, threadId, toRaw, subject, inReplyTo, references, body }
+const moneyText = new Map();          // key -> the text as typed; survives every re-render
+
+function mchaseEditHtml(v) {
+  const k = esc(v.key);
+  const d = moneyDrafts.get(v.key);
+  if (!d || d.loading) return '<div class="mchase-edit"><div class="loading">Reading the draft\u2026</div></div>';
+  if (d.error) {
+    return '<div class="mchase-edit"><div class="warn">' + esc(d.error) + '</div><div class="mchase-tools">' +
+      '<button type="button" class="abtn" data-chase-close="' + k + '">Close</button></div></div>';
+  }
+  const text = moneyText.has(v.key) ? moneyText.get(v.key) : d.body;
+  return '<div class="mchase-edit">' +
+    '<div class="reply-h">To <b>' + esc(gmSender(d.toRaw) || gmAddress(d.toRaw)) + "</b> " + esc(gmAddress(d.toRaw)) +
+      "<br>" + esc(d.subject || "") + "</div>" +
+    '<textarea class="reply-text" id="mct_' + k + '" rows="8">' + esc(text) + "</textarea>" +
+    '<div class="mchase-tools">' +
+      '<button type="button" class="abtn primary" data-chase-send="' + k + '"' + (moneyBusy === v.key ? " disabled" : "") + ">Send</button>" +
+      '<button type="button" class="abtn" data-chase-save="' + k + '"' + (moneyBusy === v.key ? " disabled" : "") + ">Save draft</button>" +
+      (v.messageId ? '<a class="abtn ghost" href="' + esc(draftUrl(v.messageId)) + '" target="_blank" rel="noopener">Open draft in Gmail</a>' : "") +
+      '<button type="button" class="abtn ghost" data-chase-close="' + k + '">Close</button>' +
+    "</div>" +
+    '<div class="reply-note" id="mcn_' + k + '" aria-live="polite"></div>' +
+  "</div>";
+}
+
+function moneyNote(key, text, tone) {
+  const el = $("mcn_" + key);
+  if (!el) return;
+  el.textContent = text || "";
+  el.className = "reply-note" + (tone ? " " + tone : "");
+}
+
+async function moneyOpenDraft(key) {
+  if (moneyOpen === key) { moneyOpen = null; renderMoney(); return; }
+  moneyOpen = key;
+  const v = stripeState && stripeState.chase && stripeState.chase[key];
+  if (!v || !v.draftId) return;
+  if (!moneyDrafts.has(key) || moneyDrafts.get(key).error) {
+    moneyDrafts.set(key, { loading: true });
+    renderMoney();
+    try {
+      const dr = await gmailGet("drafts/" + encodeURIComponent(v.draftId) + "?format=full");
+      const m = dr.message || {};
+      moneyDrafts.set(key, {
+        draftId: dr.id, threadId: m.threadId || "", toRaw: gmHeader(m, "to"), subject: gmHeader(m, "subject"),
+        inReplyTo: gmHeader(m, "in-reply-to"), references: gmHeader(m, "references"), body: gmBody(m.payload),
+      });
+    } catch (e) {
+      moneyDrafts.set(key, { error: "That draft is no longer in Gmail (it may have been sent or deleted there) \u2014 press Refresh." });
+    }
+  }
+  renderMoney();
+}
+
+function moneyDraftRaw(d, text) {
+  // the draft's References already ends with what it replies to; gmBuildReply adds that back
+  const refs = d.inReplyTo ? String(d.references || "").replace(d.inReplyTo, "").trim() : d.references;
+  const name = gmSender(d.toRaw), email = gmAddress(d.toRaw);
+  return gmBuildReply({ fresh: !d.inReplyTo, toName: name !== email ? name : "", toEmail: email,
+    subject: d.subject, inReplyTo: d.inReplyTo, references: refs, text });
+}
+
+async function moneySaveDraft(key) {
+  const d = moneyDrafts.get(key);
+  const ta = $("mct_" + key);
+  if (!d || !d.draftId || !ta || moneyBusy) return;
+  const text = String(ta.value || "");
+  if (!text.trim()) { moneyNote(key, "There is nothing to save.", "warn"); return; }
+  moneyBusy = key;
+  moneyNote(key, "Saving\u2026");
+  try {
+    await gmailSend("updateDraft", d.draftId, { message: { raw: moneyDraftRaw(d, text), threadId: d.threadId } });
+    d.body = text;
+    moneyText.delete(key);
+    moneyNote(key, "Saved to Gmail\u2019s drafts.", "ok");
+  } catch (e) {
+    moneyNote(key, "Not saved. " + ((e && e.message) || "Gmail would not keep it."), "warn");
+  }
+  moneyBusy = "";
+}
+
+/* SEND. Only ever called from the Send button's click (wireMoneyCard). The edited text goes
+   into the draft, then the draft is sent — and the row flips to "… sent" at once, without
+   waiting for the next read of Gmail, which then confirms it. */
+async function moneySend(key) {
+  const d = moneyDrafts.get(key);
+  const v = stripeState && stripeState.chase && stripeState.chase[key];
+  const ta = $("mct_" + key);
+  if (!d || !d.draftId || !v || !ta || moneyBusy) return;
+  const text = String(ta.value || "").trim();
+  if (!text) { moneyNote(key, "There is nothing to send.", "warn"); return; }
+  if (/\[ASH:/i.test(text)) { moneyNote(key, "Not sent \u2014 there is still an [ASH: \u2026] gap in it. Fill it in, then Send.", "warn"); return; }
+  moneyBusy = key;
+  moneyNote(key, "Sending\u2026");
+  const btn = $("moneyBody") && $("moneyBody").querySelector('[data-chase-send="' + key + '"]');
+  if (btn) btn.disabled = true;
+  try {
+    await gmailSend("updateDraft", d.draftId, { message: { raw: moneyDraftRaw(d, text), threadId: d.threadId } });
+    await gmailSend("sendDraft", "", { id: d.draftId });
+  } catch (e) {
+    moneyBusy = "";
+    if (btn) btn.disabled = false;
+    moneyNote(key, "Not sent. " + ((e && e.message) || "Gmail would not send it.") + " Your text is still here.", "warn");
+    return;
+  }
+  moneyBusy = "";
+  moneyOpen = null;
+  moneyDrafts.delete(key);
+  moneyText.delete(key);
+  stripeState.chase[key] = chaseSentView(v, Date.now());
+  renderMoney();
+  // Gmail now holds the truth; read the ladder again quietly to confirm it
+  setTimeout(loadMoneyChase, 4000);
+}
+
+/* The row straight after Send — the same words the server's ladder (lib/chase.js) uses for
+   a sent stage, with the next date worked out the same way: 7 days after sending, and never
+   before the next stage's own day (15 for the 2nd nudge, 22 for Gaz). */
+const CHASE_NEXT = { nudge1: { label: "1st nudge", day: 15, next: "The 2nd nudge is suggested from " },
+                     nudge2: { label: "2nd nudge", day: 22, next: "This goes to " + CHASE_CONTACT + " from " } };
+function chaseSentView(v, now) {
+  const st = CHASE_NEXT[v.stage];
+  if (!st) return v;
+  const DAYMS = 86400000;
+  const due = new Date(Math.max(now + 7 * DAYMS, now + (st.day - (v.days || 0)) * DAYMS));
+  const when = due.getDate() + " " + ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][due.getMonth()];
+  return Object.assign({}, v, { action: "waiting", tag: st.label + " sent", preview: "", error: "",
+    note: "Sent just now. " + st.next + when + (v.stage === "nudge1" ? " if nothing comes in." : ".") });
+}
 
 /* THE ONE WAY THIS PAGE TALKS TO money-chase. GET = the card's rows with the ladder on them;
    POST = "write" (that member's due nudge, as a Gmail draft) or "finalSent". Device key goes
@@ -3493,6 +3639,12 @@ async function moneyChaseAct(key, body) {
 }
 
 function wireMoneyCard(body) {
+  // v245: review and send, here
+  body.querySelectorAll("[data-chase-open]").forEach((b) => b.addEventListener("click", () => moneyOpenDraft(b.dataset.chaseOpen)));
+  body.querySelectorAll("[data-chase-close]").forEach((b) => b.addEventListener("click", () => { moneyOpen = null; renderMoney(); }));
+  body.querySelectorAll("[data-chase-send]").forEach((b) => b.addEventListener("click", () => moneySend(b.dataset.chaseSend)));
+  body.querySelectorAll("[data-chase-save]").forEach((b) => b.addEventListener("click", () => moneySaveDraft(b.dataset.chaseSave)));
+  body.querySelectorAll("textarea[id^='mct_']").forEach((ta) => ta.addEventListener("input", () => moneyText.set(ta.id.slice(4), ta.value)));
   body.querySelectorAll("[data-chase-write]").forEach((b) => b.addEventListener("click", () => moneyChaseAct(b.dataset.chaseWrite, { op: "write" })));
   body.querySelectorAll("[data-chase-final]").forEach((b) => b.addEventListener("click", () => moneyChaseAct(b.dataset.chaseFinal, { op: "finalSent" })));
   body.querySelectorAll("[data-chase-unfinal]").forEach((b) => b.addEventListener("click", () => moneyChaseAct(b.dataset.chaseUnfinal, { op: "finalSent", undo: true })));

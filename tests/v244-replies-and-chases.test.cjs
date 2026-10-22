@@ -254,7 +254,15 @@ const ago = (d) => new Date(NOW - d * DAY).toISOString();
     assert.strictEqual((lib.match(/securechkout\.com/g) || []).length, 1, "…and written in one place only");
   }
 
-  /* ============ 5. NOTHING SENDS ============ */
+  /* ============ 5. NOTHING SENDS BY ITSELF ============
+     v245 changed what this proves. Until then a chase could only be sent from Gmail, and the
+     test said the chase code could not send at all. Ash: "I don't want to go into Gmail to
+     send a chase" — so the Money card now sends, exactly as the reply card does. The claim
+     that matters is unchanged: NOTHING SENDS UNTIL ASH PRESSES SEND.
+       (a) the server — every job, every function — still has no way to send at all;
+       (b) on the page, the only code that sends is mailSend and moneySend, through the one
+           closed funnel (gmailSend);
+       (c) each of those is called from one place only: a Send button's click. */
   {
     const libs = ["netlify/lib/gmail.js", "netlify/lib/mail-drafts.js", "netlify/lib/chase.js",
       "netlify/functions/mail-ai.js", "netlify/functions/money-chase.js",
@@ -264,6 +272,30 @@ const ago = (d) => new Date(NOW - d * DAY).toISOString();
       assert.ok(!/messages\/send|drafts\/send|sendDraft|sendMessage/.test(code), f + " has no way to send an email");
       assert.ok(!/slack\.com|chat\.postMessage|lib\/slack\.js/.test(code), f + " has no way to post to Slack");
     }
+    // (b) the page: where sending happens
+    const sendSites = [...js.matchAll(/gmailSend\("(sendDraft|sendMessage)"/g)].map((m) => {
+      const before = js.slice(0, m.index);
+      return /async function (\w+)\([^)]*\) \{[^]*$/.exec(before.slice(before.lastIndexOf("\nasync function ")))[1];
+    });
+    assert.deepStrictEqual([...new Set(sendSites)].sort(), ["mailSend", "moneySend"],
+      "on the page, only mailSend (the reply card) and moneySend (the chase) ever send");
+    assert.ok(/const GMAIL_SEND_OPS = \{/.test(js) && /const spec = GMAIL_SEND_OPS\[op\];\s*if \(!spec\) throw/.test(js),
+      "…through the one closed funnel the reply card already used");
+    // (c) and each is called from exactly one place: its Send button's click
+    const calls = (name) => [...js.matchAll(new RegExp("[^\\w.]" + name + "\\(", "g"))]
+      .map((m) => js.slice(js.lastIndexOf("\n", m.index) + 1, js.indexOf("\n", m.index)).trim())
+      .filter((line) => !line.startsWith("async function " + name));
+    assert.deepStrictEqual(calls("moneySend"),
+      ['body.querySelectorAll("[data-chase-send]").forEach((b) => b.addEventListener("click", () => moneySend(b.dataset.chaseSend)));'],
+      "moneySend is called from one place: the chase's Send button, on click");
+    assert.deepStrictEqual(calls("mailSend"), ["if (el.dataset.send) mailSend(el.dataset.send);"],
+      "mailSend is called from one place …");
+    assert.ok(/body\.querySelectorAll\("\[data-send\],\[data-savedraft\],\[data-ai\]"\)\.forEach\(\(el\) => \{\s*el\.addEventListener\("click"/.test(js),
+      "… inside the reply card's click handler");
+    for (const f of ["loadAll", "loadMoneyChase", "renderMoney", "mchaseHtml", "mchaseEditHtml", "moneyOpenDraft", "loadGmail", "renderMail"]) {
+      assert.ok(!/moneySend\(|mailSend\(|sendDraft|sendMessage/.test(fn(f)), f + " never sends — loading, drawing and opening are not pressing Send");
+    }
+
     const g = read("netlify/lib/gmail.js").replace(/\/\/.*$/gm, "");
     assert.ok(!/method: "PUT"|method: "DELETE"|\/modify|\/trash/.test(g), "lib/gmail.js cannot change or delete a draft or a message");
     // two POSTs in the file: renewing the sign-in at Google's token address, and the draft
@@ -335,7 +367,30 @@ const ago = (d) => new Date(NOW - d * DAY).toISOString();
     assert.ok(/<div class="mrow /.test(row) && /<a class="mrow-link"/.test(row), "the row is a box with the Stripe link inside — buttons cannot live in a link");
 
     const ch = fn("mchaseHtml");
-    assert.ok(/draftUrl\(v\.messageId\)/.test(ch) && /Open the draft in Gmail/.test(ch), "an email chase opens in Gmail's drafts");
+    // v245: reviewed and sent on the card; Gmail is the second way
+    assert.ok(/data-chase-open="' \+ k \+ '">Review and send/.test(ch), "a drafted chase opens on the card");
+    assert.ok(/class="abtn ghost" href="' \+ esc\(draftUrl\(v\.messageId\)\)/.test(ch) && /Open draft in Gmail/.test(ch), "…with Open draft in Gmail kept, as the quieter option");
+    const ed = fn("mchaseEditHtml");
+    assert.ok(/<textarea class="reply-text" id="mct_/.test(ed) && /data-chase-send=/.test(ed) && /data-chase-save=/.test(ed),
+      "the full draft, editable, with Send and Save — the reply card's editor");
+    assert.ok(/gmailGet\("drafts\/" \+ encodeURIComponent\(v\.draftId\) \+ "\?format=full"\)/.test(fn("moneyOpenDraft")), "…read in full from the Gmail draft itself");
+    const ms = fn("moneySend");
+    assert.ok(ms.indexOf("[ASH:") < ms.indexOf("gmailSend("), "Send refuses an [ASH: …] gap before anything goes to Gmail");
+    assert.ok(ms.indexOf('gmailSend("updateDraft"') < ms.indexOf('gmailSend("sendDraft"'), "what is sent is what is on screen: the draft is updated, then sent");
+    assert.ok(/stripeState\.chase\[key\] = chaseSentView\(v, Date\.now\(\)\);\s*renderMoney\(\);/.test(ms), "the row flips the moment it is sent");
+    assert.ok(/Your text is still here/.test(ms), "a failed send keeps the text");
+
+    // the flip, run for real
+    const vm = require("vm");
+    const ctx = vm.createContext({});
+    vm.runInContext('const CHASE_CONTACT = "Gaz";\n' + js.slice(js.indexOf("const CHASE_NEXT ="), js.indexOf("\n", js.indexOf("nudge2: { label")) + 1) + fn("chaseSentView") + "\nthis.f = chaseSentView;", ctx);
+    const at = new Date(2026, 9, 22, 9).getTime();
+    let flip = ctx.f({ key: "k", stage: "nudge1", days: 14, action: "draft-ready", tag: "1st nudge", preview: "Hi" }, at);
+    assert.strictEqual(flip.tag, "1st nudge sent", "after Send: \"1st nudge sent\", straight away");
+    assert.strictEqual(flip.action, "waiting");
+    assert.ok(/Sent just now\. The 2nd nudge is suggested from 29 Oct/.test(flip.note), "…and the 2nd nudge a week on, as the ladder says");
+    flip = ctx.f({ key: "k", stage: "nudge2", days: 16, action: "draft-ready", tag: "2nd nudge" }, at);
+    assert.strictEqual(flip.tag, "2nd nudge sent"); assert.ok(/goes to Gaz from 29 Oct/.test(flip.note));
     assert.ok(/data-chase-copy/.test(ch) && /slack:\/\/open/.test(ch), "the Slack message is copied by Ash and sent from Slack");
     assert.ok(!/fetch\(/.test(ch) && !/fetch\(/.test(fn("wireMoneyCard")), "the card itself calls nothing but the funnel");
     assert.ok(/Undo \\u2014 not sent/.test(ch), "\"I've sent it to Gaz\" can be taken back where it was pressed");

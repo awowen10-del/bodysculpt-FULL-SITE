@@ -55,8 +55,11 @@ const between = (a, b) => js.slice(js.indexOf(a), js.indexOf(b));
   assert.ok(/const spec = GMAIL_SEND_OPS\[op\];\s*if \(!spec\) throw/.test(send), "an unknown operation is refused before any request is built");
   assert.ok(/fetch\(GMAIL_BASE \+ spec\.path\(id\), \{\s*method: spec\.method,/.test(send), "…and the request is GMAIL_BASE plus the table's path, nothing else");
   assert.strictEqual((js.match(/GMAIL_BASE \+ spec\.path\(id\)/g) || []).length, 1, "there is one send funnel");
-  assert.strictEqual((js.match(/await gmailSend\(/g) || []).length, 5,
-    "five call sites: update+send for a draft, send for none, update or create for Save as draft");
+  /* v245 added three, all on the Money card's chase, through this same funnel: Save draft
+     (updateDraft) and Send (updateDraft then sendDraft) — only on a press of Send, which
+     v244's test pins. */
+  assert.strictEqual((js.match(/await gmailSend\(/g) || []).length, 8,
+    "eight call sites: the reply card's five (update+send for a draft, send for none, update or create for Save as draft) and the chase's three (save; update+send)");
   for (const m of js.matchAll(/gmailSend\("([a-zA-Z]+)"/g)) {
     assert.ok(names.some((n) => n[0] === m[1]), "every call names an operation in the table: " + m[1]);
   }
@@ -107,8 +110,10 @@ const between = (a, b) => js.slice(js.indexOf(a), js.indexOf(b));
   }
   // the list itself still reads headers only — bodies come one thread at a time, on request
   assert.ok(/format=metadata&metadataHeaders=From&metadataHeaders=Subject/.test(js), "the list is still read as headers only");
-  assert.strictEqual((js.match(/\?format=full/g) || []).length, 1, "format=full is asked for in one place…");
+  // v245: two places, both on request — the open row's thread, and the open chase's draft
+  assert.strictEqual((js.match(/\?format=full/g) || []).length, 2, "format=full is asked for in two places…");
   assert.ok(/gmailGet\("threads\/" \+ encodeURIComponent\(threadId\) \+ "\?format=full"\)/.test(fn("mailLoadThread")), "…the open row's own thread");
+  assert.ok(/gmailGet\("drafts\/" \+ encodeURIComponent\(v\.draftId\) \+ "\?format=full"\)/.test(fn("moneyOpenDraft")), "…and the chase draft opened on the Money card");
 
   /* ============ 3. sending: draft → update + send; none → send ============ */
   const ms = fn("mailSend");
