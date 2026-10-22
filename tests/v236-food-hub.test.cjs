@@ -45,6 +45,7 @@ function fakeClient(answers) {
     return {
       on(ev, fn) { if (ev === "text") handlers.push(fn); return this; },
       async finalMessage() {
+        if (!answers.length) throw new Error("the fake Claude has no answer left");
         const a = answers.shift();
         if (a instanceof Error) throw a;
         if (a && a.stop_reason) return a;
@@ -180,7 +181,11 @@ function meal(night, name, extra) {
     assert.strictEqual(p.model, "claude-opus-5-5", "the menu uses Opus 5.5");
     assert.strictEqual(p.output_config.effort, "high", "…thinking hard");
     assert.ok(!("thinking" in p) && !/budget_tokens/.test(JSON.stringify(p)), "…with no thinking budget, which Opus 5.5 rejects");
-    assert.strictEqual(p.output_config.format.type, "json_schema", "…and a JSON schema for every answer");
+    // v250: the menu schema is too big for the API's enforced grammar ("The compiled grammar is too large"),
+    // so the shape is in the instructions and checked by the server instead
+    assert.ok(!p.output_config.format, "…no enforced grammar on the menu — the API rejects one this big");
+    assert.ok(/ANSWER FORMAT: reply with ONE JSON object/.test(p.system) && /"kidTip"/.test(p.system) && /"enum":\["mon","tue"/.test(p.system),
+      "…the shape is spelled out in the instructions instead, every field and the day names included");
     assert.strictEqual(p.fallbacks, "default", "…and the refusal fallback on");
   }
 
@@ -562,9 +567,23 @@ function meal(night, name, extra) {
     assert.ok(out3b.ok, "a send-back the API rejects keeps the first menu — the week is still planned");
     assert.strictEqual(JSON.parse(store._m.get("food-plan-" + W2)).meals.find((m) => m.night === "tue").proteinFlag, "below", "…flagged");
     // and a rejected FIRST request says the API's own reason, not a bare "400"
-    const c3c = fakeClient([e400("max_tokens: too many")]);
+    const c3c = fakeClient([e400("The compiled grammar is too large.")]);
     const out3c = await lib.runJob(store, c3c, { id: "p3c", action: "createMenu", weekEnding: W2, inputs: { schedule: sched2, situation: "", people: 4 } });
-    assert.strictEqual(out3c.error, "Claude refused the request (400): max_tokens: too many.", "a rejected request shows Claude's reason");
+    assert.strictEqual(out3c.error, "Claude refused the request (400): The compiled grammar is too large.", "a rejected request shows Claude's reason");
+
+    // v250: an answer in the wrong shape goes back ONCE with what was wrong; the fixed one is used
+    const c3d = fakeClient(["Here you go:\n```json\n" + JSON.stringify({ meals: "nope" }) + "\n```", "```json\n" + JSON.stringify(menu2(93)) + "\n```"]);
+    const out3d = await lib.runJob(store, c3d, { id: "p3d", action: "createMenu", weekEnding: W2, inputs: { schedule: sched2, situation: "", people: 4 } });
+    assert.ok(out3d.ok && c3d.calls.length === 2, "a wrong-shaped menu is sent back once and the fixed one saved (fences around it tolerated)");
+    const fix = c3d.calls[1].messages;
+    assert.ok(fix.length === 3 && fix[1].role === "assistant" && /not in the required shape: meals: /.test(fix[2].content), "…in the same conversation, saying which field was wrong");
+    const c3e = fakeClient([{ meals: "nope" }, { meals: "still nope" }]);
+    const out3e = await lib.runJob(store, c3e, { id: "p3e", action: "createMenu", weekEnding: W2, inputs: { schedule: sched2, situation: "", people: 4 } });
+    assert.ok(!out3e.ok && c3e.calls.length === 2 && out3e.error === "The answer was not readable.", "…but only once: wrong twice is an error, the saved week untouched");
+    // the protein send-back continues the WHOLE conversation, append-only
+    const c3f = fakeClient([{ meals: "nope" }, menu2(60), menu2(93)]);
+    await lib.runJob(store, c3f, { id: "p3f", action: "createMenu", weekEnding: W2, inputs: { schedule: sched2, situation: "", people: 4 } });
+    assert.strictEqual(c3f.calls[2].messages.length, 5, "the protein send-back carries the shape fix before it, nothing edited out");
 
     // on target first time → no second call
     const c4 = fakeClient([menu2(93)]);

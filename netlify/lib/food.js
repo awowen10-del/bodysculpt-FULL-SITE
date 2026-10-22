@@ -466,7 +466,7 @@ export function errorWords(e) {
   // the API's own reason, so a rejected request says WHY (it was a bare "400" before v249)
   if (e instanceof Anthropic.APIError) {
     const why = String((e.error && e.error.error && e.error.error.message) || "").trim();
-    return "Claude refused the request (" + (e.status || "error") + ")" + (why ? ": " + why.slice(0, 240) : "") + ".";
+    return "Claude refused the request (" + (e.status || "error") + ")" + (why ? ": " + why.slice(0, 240).replace(/\.+$/, "") : "") + ".";
   }
   return (e && e.message) ? String(e.message).slice(0, 200) : "Something went wrong.";
 }
@@ -491,22 +491,48 @@ export function mealsSoFar(text) {
 }
 // One structured call, streamed; the text is checked against the schema here, not trusted.
 // `history`: earlier turns of the same conversation (the sending-back), passed back unchanged.
-export async function askClaude(client, { model, system, content, schema, effort, maxTokens, fallback, onText, history }) {
-  const params = { model, max_tokens: maxTokens, system, messages: [...(history || []), { role: "user", content }],
-    output_config: { format: betaZodOutputFormat(schema), effort } };
+// `byHand` (v250): the menu schemas are too big for the API's enforced-JSON grammar ("The compiled
+// grammar is too large"), so for those the shape goes in the instructions instead, the answer is
+// checked here against the same Zod schema, and a wrong shape goes back ONCE, in the same
+// conversation, with what was wrong. `turns` is the whole conversation so far, for a later send-back.
+export async function askClaude(client, { model, system, content, schema, effort, maxTokens, fallback, onText, history, byHand }) {
+  const messages = [...(history || []), { role: "user", content }];
+  const params = { model, max_tokens: maxTokens, system: byHand ? system + shapeText(schema) : system, messages,
+    output_config: byHand ? { effort } : { format: betaZodOutputFormat(schema), effort } };
   if (fallback) { params.betas = ["server-side-fallback-2026-07-01"]; params.fallbacks = "default"; }
+  const msg = await streamOne(client, params, onText);
+  if (msg.stop_reason === "refusal") return { ok: false, error: "Claude declined to answer that one." };
+  if (msg.stop_reason === "max_tokens") return { ok: false, error: "The answer ran out of room before it finished." };
+  const turns = [...messages, { role: "assistant", content: msg.content }];
+  const read = readAnswer(msg, byHand ? schema : null);
+  if (read.ok) return { ok: true, data: read.data, content: msg.content, turns };
+  if (!byHand || byHand === "again") return { ok: false, error: "The answer was not readable." };
+  return askClaude(client, { model, system, schema, effort, maxTokens, fallback, onText, history: turns, byHand: "again",
+    content: "That answer was not in the required shape: " + read.error + "\nReturn the whole answer again as ONE JSON object in exactly the required shape — nothing before or after it." });
+}
+function streamOne(client, params, onText) {
   const stream = client.beta.messages.stream(params);
   if (onText && typeof stream.on === "function") {
     let acc = "";
     stream.on("text", (delta) => { acc += delta; onText(acc); });
   }
-  const msg = await stream.finalMessage();
-  if (msg.stop_reason === "refusal") return { ok: false, error: "Claude declined to answer that one." };
-  if (msg.stop_reason === "max_tokens") return { ok: false, error: "The answer ran out of room before it finished." };
-  const text = (msg.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
-  try { return { ok: true, data: JSON.parse(text), content: msg.content }; }
-  catch (e) { return { ok: false, error: "The answer was not readable." }; }
+  return stream.finalMessage();
 }
+// the JSON object in the text — fences or a stray line around it tolerated — and, by hand, its shape
+function readAnswer(msg, schema) {
+  const text = (msg.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
+  const i = text.indexOf("{"), j = text.lastIndexOf("}");
+  let data;
+  try { data = JSON.parse(i >= 0 && j > i ? text.slice(i, j + 1) : text); }
+  catch (e) { return { ok: false, error: "it was not valid JSON." }; }
+  if (schema) {
+    const r = schema.safeParse(data);
+    if (!r.success) return { ok: false, error: r.error.issues.slice(0, 8).map((x) => (x.path.join(".") || "the answer") + ": " + x.message).join("; ") };
+  }
+  return { ok: true, data };
+}
+const shapeText = (schema) => "\n\nANSWER FORMAT: reply with ONE JSON object and nothing else — no words before or after it, no code fences. " +
+  "Every field is required, in this order. It must match this JSON Schema exactly:\n" + JSON.stringify(z.toJSONSchema(schema));
 
 /* ---------- the jobs ---------- */
 export async function readPhoto(client, { jpegBase64 }) {
@@ -585,7 +611,7 @@ async function settle(client, store, week, ctx, first, ask) {
   // the second pass is a polish, never a gate: if it fails outright, the first menu is kept, flagged
   let r2;
   try {
-    r2 = await askClaude(client, { ...ask.params, history: [{ role: "user", content: ask.content }, { role: "assistant", content: first.content }],
+    r2 = await askClaude(client, { ...ask.params, history: first.turns,
     content: "PROTEIN CHECK (worked out from your ingredient protein values ÷ " + target.servings + " adult servings):\n" + proteinWords(issues, target) +
       "\nFix only those meals, in the order of the protein rules. Keep everything else exactly as it is. Return the whole answer again in the same shape." });
   } catch (e) {
@@ -616,7 +642,7 @@ export async function runJob(store, client, job) {
       if (!cookingNights(ctx.schedule).length) out = { ok: false, error: "Every night is set to No cooking." };
       else {
         let shown = 0;
-        const params = { model: FOOD_MODELS.createMenu, maxTokens: 64000, effort: FOOD_EFFORT.createMenu, fallback: true, schema: MenuOut, system: systemText(ctx.settings) };
+        const params = { model: FOOD_MODELS.createMenu, maxTokens: 64000, effort: FOOD_EFFORT.createMenu, fallback: true, byHand: true, schema: MenuOut, system: systemText(ctx.settings) };
         const content = contextText(ctx) + "\n\nWrite this week's menu.";
         const r = await askClaude(client, {
           ...params, content,
@@ -634,7 +660,7 @@ export async function runJob(store, client, job) {
         const c = r.ok ? check(r.data) : r;
         if (!c.ok) out = c;
         else {
-          const done = await settle(client, store, week, ctx, { data: c.data, content: r.content }, { params, content, check });
+          const done = await settle(client, store, week, ctx, { data: c.data, turns: r.turns }, { params, content, check });
           await store.set(foodPlanKeyOf(week), JSON.stringify(assembleMenu(prev, done.data, ctx, FOOD_MODELS.createMenu, done.flagged)));
           out = { ok: true };
         }
@@ -656,7 +682,7 @@ export async function runJob(store, client, job) {
               ? "Put our saved recipe [" + recipe.id + "] " + recipe.name + " on " + night + " in place of what is there, exactly as saved (recipeId \"" + recipe.id + "\"), " +
                 "using meat from stock where it can. Change nothing else unless the leftover chain needs it."
               : "Ash asks: \"" + str(job.request, 600) + "\"\nApply ONLY that change.";
-          const params = { model: FOOD_MODELS[job.action], maxTokens: 48000, effort: FOOD_EFFORT[job.action], fallback: true, schema: ChangeOut, system: systemText(ctx.settings) };
+          const params = { model: FOOD_MODELS[job.action], maxTokens: 48000, effort: FOOD_EFFORT[job.action], fallback: true, byHand: true, schema: ChangeOut, system: systemText(ctx.settings) };
           const content = contextText(ctx) + "\n\nTHE CURRENT MENU:\n" + current + "\n\n" + ask +
             "\nKeep every other meal exactly as it is and keep the leftover chain intact. Return in changedNights only the nights you changed, " +
             "in meals only those meals, plus the prep session, to-buy list and end leftovers for the whole week as it now stands.";
@@ -667,7 +693,7 @@ export async function runJob(store, client, job) {
           const c = r.ok ? check(r.data) : r;
           if (!c.ok) out = c;
           else {
-            const done = await settle(client, store, week, ctx, { data: c.data, content: r.content }, { params, content, check });
+            const done = await settle(client, store, week, ctx, { data: c.data, turns: r.turns }, { params, content, check });
             await store.set(foodPlanKeyOf(week), JSON.stringify(applyChange(prev, done.data, ctx, FOOD_MODELS[job.action], done.flagged)));
             out = { ok: true, summary: c.data.summary };
           }
