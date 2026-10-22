@@ -15,7 +15,7 @@ Do it on a laptop, not a phone.
 ## Before you start
 
 Have your Netlify site address to hand. It is the one you type to reach the dashboard, for
-example `https://bodysculpt-hq.netlify.app`. If you have a custom domain, use that one.
+example `https://bodysculptdashboard.netlify.app`. If you have a custom domain, use that one.
 
 Write it down exactly — **no slash on the end**. Google is fussy about this and it is the
 one step people get wrong.
@@ -78,7 +78,7 @@ once. Google makes you write it before it will let you use it.
 14. Under **Authorised JavaScript origins**, click **Add URI** and paste your site address.
     No slash on the end. For example:
     ```
-    https://bodysculpt-hq.netlify.app
+    https://bodysculptdashboard.netlify.app
     ```
     If you also open the dashboard on a custom domain, add that as a second URI.
 15. Leave **Authorised redirect URIs** empty. The dashboard does not use them.

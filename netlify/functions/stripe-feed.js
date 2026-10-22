@@ -106,6 +106,16 @@ function shapeSubscription(s) {
   };
 }
 
+/* v247: the email Ontraport writes into every charge's METADATA. A checkout that failed before
+   Stripe made a customer record carries no email anywhere else — Elaine Brook's declined
+   £195 on 28 Sep had none on the charge and no customer, but metadata.email was there all
+   along. Used for recognising the person AND as the row's email. */
+function metaEmail(ch) {
+  const m = (ch && ch.metadata) || {};
+  const v = String(m.email || m.Email || "").trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? v : "";
+}
+
 function shapeCharge(ch) {
   const bd = ch.billing_details || {};
   // v244: the customer record as well — a subscription charge's billing email is usually
@@ -116,7 +126,7 @@ function shapeCharge(ch) {
     kind: "charge",
     customerId: clip(typeof ch.customer === "string" ? ch.customer : (c && c.id) || "", 60),
     name: clip(bd.name || (c && c.name) || ch.receipt_email || "", 120),
-    email: clip(bd.email || ch.receipt_email || (c && c.email) || "", 160),
+    email: clip(bd.email || ch.receipt_email || (c && c.email) || metaEmail(ch) || "", 160),
     amount: pence(ch.amount),
     currency: clip(ch.currency, 8) || "gbp",
     // failure_message is the sentence a human can act on ("Your card has expired");
@@ -275,33 +285,68 @@ export async function readMoney(key) {
     const RETRY_WINDOW = SETTLE_WINDOW_DAYS * 86400;
 
 
-    // A name as it would be said out loud: no title, no punctuation, no double spaces. So
-    // "Mrs Jennifer Lawton" and "jennifer  lawton" are one person.
-    function normName(v) {
-      return String(v || "").toLowerCase()
-        .replace(/[^a-z\s]/g, " ")
-        .replace(/\b(mr|mrs|miss|ms|dr|prof|sir)\b/g, " ")
-        .replace(/\s+/g, " ").trim();
-    }
+    /* v247: ONE PERSON, ACROSS RECORDS. Elaine Brook, 28 Sep: a declined £195 at 12:03 with
+       NO customer record (card ••2608), another at 17:52 on customer record A (same card,
+       her email), and £195 PAID at 19:01 on customer record B (a different card, ••9684,
+       "E brook" on it, the same email). Each check compared two charges at a time and none
+       linked 12:03 to 19:01 directly — so she showed as owing £195 she had paid that night.
 
-    // Every way one person can be recognised across two charge records, best first. A
-    // payment taken on a link or the card machine may carry no customer at all, and someone
-    // whose card has just been declined pays with a DIFFERENT card — so no single one of
-    // these is enough on its own.
-    function whoIs(ch) {
+       Now every charge in the window is joined into people first: two charges that share a
+       customer record, an email (on the payment, its customer, or Ontraport's metadata) or a
+       card are the same person, and so is anything joined to either — 12:03 → 17:52 by the
+       card, 17:52 → 19:01 by the email. Every question below ("paid it again?", "paid
+       anything since?", "one debt or two?") is then asked of the PERSON.
+
+       A NAME NEVER JOINS RECORDS ON ITS OWN (Ash, v247: "names never join alone"). A gym has
+       two Sarah Joneses; one's payment must never quietly stop a chase on the other's real
+       debt — the same reason v139 stopped trusting an amount. Until v247 a full name alone
+       did join records; it no longer does. */
+    function strongKeys(ch) {
       const keys = [];
       const cObj = ch.customer && typeof ch.customer === "object" ? ch.customer : null;
       const cust = typeof ch.customer === "string" ? ch.customer : (cObj && cObj.id);
       if (cust) keys.push("c:" + cust);
       const bd = ch.billing_details || {};
-      const email = (bd.email || ch.receipt_email || (cObj && cObj.email) || "").trim().toLowerCase();
-      if (email) keys.push("e:" + email);
+      for (const e of [bd.email, ch.receipt_email, cObj && cObj.email, metaEmail(ch)]) {
+        const v = String(e || "").trim().toLowerCase();
+        if (v && !keys.includes("e:" + v)) keys.push("e:" + v);
+      }
       const card = ch.payment_method_details && ch.payment_method_details.card;
       if (card && card.fingerprint) keys.push("f:" + card.fingerprint);
-      const name = normName(bd.name || (cObj && cObj.name));
-      if (name && name.includes(" ")) keys.push("n:" + name);   // a full name only, never "jen"
       return keys;
     }
+    const subKeys = (sub) => {
+      const c = sub.customer;
+      const keys = [];
+      const id = typeof c === "string" ? c : (c && c.id);
+      if (id) keys.push("c:" + id);
+      const email = String((c && typeof c === "object" && c.email) || "").trim().toLowerCase();
+      if (email) keys.push("e:" + email);
+      return keys;
+    };
+    // Join every record that shares a key (a small union-find: each key points at a
+    // representative; one representative per person).
+    const parent = new Map();
+    const find = (k) => {
+      let r = k;
+      while (parent.get(r) !== r) r = parent.get(r);
+      while (parent.get(k) !== r) { const n = parent.get(k); parent.set(k, r); k = n; }
+      return r;
+    };
+    const join = (keys) => {
+      for (const k of keys) if (!parent.has(k)) parent.set(k, k);
+      for (let i = 1; i < keys.length; i++) {
+        const a = find(keys[0]), b = find(keys[i]);
+        if (a !== b) parent.set(b, a);
+      }
+    };
+    for (const ch of all) join(strongKeys(ch));
+    for (const sub of subRaw) join(subKeys(sub));
+    const personOf = (keys) => (keys.length ? [find(keys[0])] : []);
+
+    // Who a charge belongs to: [the person], or [] when it carries nothing to know them by.
+    // Kept as a list so every caller below reads exactly as it did.
+    const whoIs = (ch) => personOf(strongKeys(ch));
 
     // A PaymentIntent can hold several attempts. If any attempt on it succeeded, it is paid.
     const paidIntents = new Set(succeeded.map((c) => c.payment_intent).filter(Boolean));
@@ -315,13 +360,7 @@ export async function readMoney(key) {
     }
     // A membership already listed as "stopped paying" says everything this row would.
     const pastDueKeys = new Set();
-    for (const sub of [...(pastDue.data || []), ...(unpaid.data || [])]) {
-      const c = sub.customer;
-      const id = typeof c === "string" ? c : (c && c.id);
-      if (id) pastDueKeys.add("c:" + id);
-      const email = (c && typeof c === "object" && c.email || "").trim().toLowerCase();
-      if (email) pastDueKeys.add("e:" + email);
-    }
+    for (const sub of subRaw) for (const k of personOf(subKeys(sub))) pastDueKeys.add(k);
 
     const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     const dayLabel = (unix) => {
@@ -461,10 +500,7 @@ export async function readMoney(key) {
     const subRows = subRaw
       .map((s) => {
         const row = shapeSubscription(s);
-        const keys = [];
-        if (row.customerId) keys.push("c:" + row.customerId);
-        if (row.email) keys.push("e:" + row.email.trim().toLowerCase());
-        return { ...row, overdueFrom: row.since, paidSince: paidAnySince(keys, s.current_period_start || 0) };
+        return { ...row, overdueFrom: row.since, paidSince: paidAnySince(personOf(subKeys(s)), s.current_period_start || 0) };
       })
       .sort((a, b) => (a.since < b.since ? -1 : 1));
 

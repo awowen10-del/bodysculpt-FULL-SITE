@@ -176,13 +176,17 @@ export function ladder(debt, rec, facts, now) {
     return { ...base, stage: "replied", tag: "they've replied", action: "none", threadId: f.replied.threadId || "",
       note: "They emailed you on " + dayWords(f.replied.at) + " — chasing stopped. Their email is in your inbox." };
   }
+  // v247, Ash: "if a row has no email, don't show a chase stage at all — tag it 'no email on
+  // file' and let me resolve it by hand." (Sorted, on the row, is how.) It used to wear the
+  // "1st nudge" tag with the missing email in the small print.
+  if (!debt.email) {
+    return { ...base, stage: "no-email", tag: "no email on file", action: "none",
+      note: "There is no email for them in Stripe, so no chase is suggested. Sort it yourself, then press Sorted." };
+  }
   const s1 = STAGES[0], s2 = STAGES[1], s3 = STAGES[2];
   if (days < s1.day) {
     return { ...base, stage: "early", tag: "", action: "none",
       note: "Day " + days + " — the 1st nudge is suggested from day " + s1.day + "." };
-  }
-  if (!debt.email) {
-    return { ...base, stage: s1.id, tag: s1.label, action: "none", note: "Stripe has no email address for them, so there is nothing to draft." };
   }
 
   // One email stage: draft it, show the draft, or wait for the next day on the ladder.

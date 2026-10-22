@@ -260,8 +260,9 @@ const sub = (id, customer, status) => ({
   assert.strictEqual(out.body.failed.length, 0, "nothing left to collect on the invoice is paid, whatever the label says");
 
   // (b) IDENTITY. A payment taken through a link, a fresh checkout or the card machine may
-  //     carry no customer at all, or a different one. The same email, or the same card, or
-  //     the same full name, is the same person.
+  //     carry no customer at all, or a different one. The same email, or the same card, is the
+  //     same person. (v247: a full name on its own NO LONGER is — Ash, "names never join
+  //     alone". See tests/v247-one-person.test.cjs.)
   //
   //     v139 note: these deliberately use a COMMON amount and pad the fortnight with other
   //     people paying it, so the amount rule added for Jennifer Lawton cannot fire and each
