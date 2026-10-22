@@ -764,8 +764,6 @@
     padding:2px 7px;border-radius:var(--r-pill);border:1px solid var(--line);background:var(--navy-2);color:var(--ink-dim);}
   .mstage.s-nudge1,.mstage.s-nudge2{background:rgba(var(--amber-rgb),.10);color:var(--tint-amber);border-color:rgba(var(--amber-rgb),.28);}
   .mstage.s-final,.mstage.s-needs-ash,.mstage.s-no-email{background:rgba(var(--red-rgb),.08);color:var(--tint-red);border-color:rgba(var(--red-rgb),.26);}
-  .mrow.is-sorted{background:var(--card);border-color:var(--line);opacity:.75;}
-  .mrow.is-sorted .mrow-amt{color:var(--ink-dim);text-decoration:line-through;}
   .mstage.s-paid,.mstage.s-replied,.mstage.s-sorted{background:rgba(var(--green-rgb),.08);color:var(--tint-green);border-color:rgba(var(--green-rgb),.26);}
   .mchase{margin-top:9px;padding-top:9px;border-top:1px dashed var(--line);font-size:12px;line-height:1.5;color:var(--ink-dim);}
   .mchase-text{margin-top:6px;padding:8px 10px;border-radius:var(--r-sm);background:var(--card-2);
@@ -2047,7 +2045,6 @@ const TIPS = {
   pastdue: ["Stopped paying", "A membership whose payment failed and has not gone through since. The member is normally still training. This is recurring income quietly leaking, and it is usually one message to fix."],
   failed: ["Failed payment", "A payment that did not go through in the last 60 days AND still has not been paid. Nearly always an expired or blocked card. Quick to sort while it is fresh."],
   chase: ["The chase", "Your ladder for anyone overdue: from day 8 a friendly 1st nudge; a 2nd nudge (same tone, plus a heads-up about sessions going on hold) a week after you sent the 1st, never before day 15; a Slack message for you to send to Gaz a week after the 2nd, never before day 22. Each one is a draft — the emails wait in your Gmail drafts, the Slack message waits here. The next one is only suggested once you have actually sent the one before. Paying anything, or emailing you, stops it."],
-  sorted: ["Sorted by you", "Ones you marked Sorted: dealt with your own way (cash, a bank transfer, a word at the desk). No more chases are suggested, and they are not counted in the total. Nothing was changed in Stripe. If that member misses another payment, the new one shows up as normal. \"Not sorted after all\" puts a row back."],
   cleared: ["Already sorted", "Cards bounce and then go through a day or two later all the time, and Stripe keeps the failed attempt on file forever. These are the ones that failed and have since been paid — either the retry worked, the invoice got settled, or they paid it again. Nothing to do; they are counted here so you can see the page checked rather than just went quiet."],
   onething: ["Your one thing", "The single thing you said this morning would make today count. It comes from the check-in in the weekly app; this card only shows it back to you."],
 };
@@ -3408,7 +3405,6 @@ function moneyRowHtml(r, kind, seen) {
     // row itself tells you what it thought — instead of you having to notice.
     when = tries + (r.why ? '<br><span class="stillwhy">' + esc(r.why) + "</span>" : "");
   }
-  if (chase && chase.stage === "sorted") cls += " is-sorted";
   return '<div class="mrow ' + cls + '">' +
     '<a class="mrow-link" href="' + esc(r.url) + '" target="_blank" rel="noopener">' +
     '<div class="mrow-top"><span class="mrow-who">' + esc(who) + "</span>" +
@@ -3464,10 +3460,9 @@ function mchaseHtml(v) {
     h += '<div class="mchase-tools"><a class="abtn" href="' + esc(threadUrl(v.threadId)) + '" target="_blank" rel="noopener">Open their email</a></div>';
   }
   // v246: Ash has dealt with it himself. Dashboard only — Stripe is not touched.
-  h += '<div class="mchase-tools">' + (v.stage === "sorted"
-    ? '<button type="button" class="abtn ghost" data-chase-unsort="' + k + '"' + (busy ? " disabled" : "") + ">Not sorted after all</button>"
-    : '<button type="button" class="abtn ghost" data-chase-sort="' + k + '"' + (busy ? " disabled" : "") +
-      ' title="Mark it resolved here: no more chases. Nothing changes in Stripe.">Sorted</button>') + "</div>";
+  // v248: a sorted member leaves the card altogether — the way back is the Undo on the bar
+  h += '<div class="mchase-tools"><button type="button" class="abtn ghost" data-chase-sort="' + k + '"' + (busy ? " disabled" : "") +
+      ' title="Mark it resolved here: it leaves the card and no more chases. Nothing changes in Stripe.">Sorted</button></div>';
   return h + "</div>";
 }
 const CHASE_CONTACT = "Gaz";
@@ -3680,7 +3675,6 @@ async function moneyChaseAct(key, body) {
 function wireMoneyCard(body) {
   // v245: review and send, here
   body.querySelectorAll("[data-chase-sort]").forEach((b) => b.addEventListener("click", () => moneySorted(b.dataset.chaseSort, false)));
-  body.querySelectorAll("[data-chase-unsort]").forEach((b) => b.addEventListener("click", () => moneySorted(b.dataset.chaseUnsort, true)));
   const mu = $("moneyUndoBtn");
   if (mu) mu.addEventListener("click", () => { const u = moneyUndo; moneyUndo = null; if (u) moneySorted(u.key, true); });
   body.querySelectorAll("[data-chase-open]").forEach((b) => b.addEventListener("click", () => moneyOpenDraft(b.dataset.chaseOpen)));
@@ -3737,15 +3731,8 @@ function renderMoney() {
   const n = live.count;
   const undoHtml = moneyUndo
     ? '<div class="undobar"><svg class="ic"><use href="#ic-check"/></svg><span>' + esc(moneyUndo.name) +
-      " marked sorted \u2014 no more chases. Stripe is unchanged.</span>" +
+      " marked sorted \u2014 off the card, no more chases. Stripe is unchanged.</span>" +
       '<button type="button" class="undobtn" id="moneyUndoBtn">Undo</button></div>'
-    : "";
-  // each sorted row keeps its own kind, so a membership still reads as a membership
-  const sortedSeen = new Set();
-  const sortedHtml = live.sorted.length
-    ? '<div class="mgroup"><div class="mgroup-h"><svg class="ic"><use href="#ic-check"/></svg>Sorted by you (' +
-        live.sorted.length + ")" + tipBtn("sorted") + "</div>" +
-        live.sorted.map((r) => moneyRowHtml(r, r.kind === "subscription" ? "pastdue" : "failed", sortedSeen)).join("") + "</div>"
     : "";
 
   // What failed and has since been paid. Never a row — just a line saying it was looked at.
@@ -3761,11 +3748,11 @@ function renderMoney() {
 
   if (!n) {
     body.innerHTML = undoHtml + '<div class="allclear"><svg class="ic"><use href="#ic-check"/></svg>' +
-      "<div>" + (live.sorted.length ? "Nothing left to sort \u2014 everything else is marked sorted by you."
+      "<div>" + (live.sorted.length ? "Nothing left to sort."
         : "Nothing disputed, nothing past due, and nothing unpaid in the last " + days + " days.") +
       (res.count ? " " + res.count + (res.count === 1 ? " card bounced" : " cards bounced") +
         " and " + (res.count === 1 ? "was" : "were") + " paid without you having to do anything." : "") +
-      "</div></div>" + sortedHtml;
+      "</div></div>";
     wireMoneyCard(body);
     return;
   }
@@ -3778,7 +3765,6 @@ function renderMoney() {
     moneyGroupHtml("Disputes", "dispute", "ic-alert", d, "dispute", seen) +
     moneyGroupHtml("Stopped paying", "pastdue", "ic-trend-down", p, "pastdue", seen) +
     moneyGroupHtml("Still unpaid", "failed", "ic-card", f, "failed", seen) +
-    sortedHtml +
     clearedHtml;
   wireMoneyCard(body);
 

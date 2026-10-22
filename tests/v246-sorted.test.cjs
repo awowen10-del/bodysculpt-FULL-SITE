@@ -82,7 +82,7 @@ const ago = (d) => new Date(NOW - d * DAY).toISOString();
     const L = ctx.live();
     assert.strictEqual(L.p.length, 1, "Jen's membership is out of Stopped paying");
     assert.strictEqual(L.f.length, 2, "…and her failed charge out of Still unpaid");
-    assert.strictEqual(L.sorted.length, 2, "…both listed under Sorted by you");
+    assert.strictEqual(L.sorted.length, 2, "…both set aside (v248: and not drawn at all)");
     assert.strictEqual(L.count, 1 + 1 + 2, "the count leaves her out");
     assert.strictEqual(L.total, 4900 + 16900 + 9900 + 14900, "…and so does the balance");
     ctx.set({ disputes: [], pastDue: [row("sub_1", "c:jen", 14310)], failed: [] });
@@ -101,16 +101,17 @@ const ago = (d) => new Date(NOW - d * DAY).toISOString();
     const ch = fn("mchaseHtml");
     assert.ok(/data-chase-sort="' \+ k \+ '"/.test(ch) && />Sorted<\/button>/.test(ch), "every overdue member's row has Sorted");
     assert.ok(/Nothing changes in Stripe\./.test(ch), "…which says it leaves Stripe alone");
-    assert.ok(/data-chase-unsort=/.test(ch) && /Not sorted after all/.test(ch), "a sorted row can be put back");
     const w = fn("wireMoneyCard");
-    assert.ok(/\[data-chase-sort\]/.test(w) && /\[data-chase-unsort\]/.test(w) && /moneyUndoBtn/.test(w), "both wired, and the Undo");
+    assert.ok(/\[data-chase-sort\]/.test(w) && /moneyUndoBtn/.test(w), "Sorted wired, and the Undo");
     const rm = fn("renderMoney");
-    assert.ok(/marked sorted \\u2014 no more chases\. Stripe is unchanged\./.test(rm) && /id="moneyUndoBtn">Undo/.test(rm),
+    assert.ok(/marked sorted \\u2014 off the card, no more chases\. Stripe is unchanged\./.test(rm) && /id="moneyUndoBtn">Undo/.test(rm),
       "the way back is on the confirmation itself, where the press happened");
+    /* v248, Ash, over a screenshot of the "Sorted by you" group: "I don't want them showing as
+       sorted. Just get rid of them." A sorted member leaves the card altogether. */
+    assert.ok(!/Sorted by you/.test(js) && !/is-sorted/.test(DAILY) && !/Not sorted after all/.test(js), "no Sorted-by-you group, no struck-through rows");
+    assert.ok(!/live\.sorted\.map/.test(rm), "sorted rows are not drawn anywhere on the card");
     assert.ok(/if \(!undo && \(!now \|\| now\.stage !== "sorted"\)\) \{ moneyUndo = null;/.test(fn("moneySorted")),
       "…and it only claims what actually happened");
-    assert.ok(/moneyRowHtml\(r, r\.kind === "subscription" \? "pastdue" : "failed", sortedSeen\)/.test(rm),
-      "a sorted membership still reads as a membership");
   }
 
   console.log("v246-sorted.test: all assertions passed");
