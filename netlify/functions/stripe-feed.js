@@ -27,9 +27,14 @@
 // says "Stripe key not set yet" is useful, and a broken red card is not.
 
 const STRIPE_API = "https://api.stripe.com/v1";
-const FAILED_WINDOW_DAYS = 14;   // how far back a failed one-off charge is still news
+/* v244: 60 days, not 14. The chase ladder (day 8 / day 15 / day 22 — Ash's policy, see
+   netlify/lib/chase.js) needs a debt to stay on screen past its second week, and a failure
+   that fell out of a 14-day window simply vanished while still owed. What did NOT move is
+   SETTLE_WINDOW_DAYS below: widening the window must not widen what counts as "paid it". */
+const FAILED_WINDOW_DAYS = 60;   // how far back a failed charge is still news
+const SETTLE_WINDOW_DAYS = 14;   // how soon after a failure a payment reads as settling it
 const PAGE_LIMIT = 50;           // per Stripe list call; a gym will never approach this
-const CHARGE_PAGES = 3;          // up to 300 charges in the window — see listCharges()
+const CHARGE_PAGES = 10;         // up to 1,000 charges in the window — see listCharges()
 
 /* ---------- talking to Stripe ---------- */
 // Stripe's API is form-encoded and takes repeated keys for arrays (expand[]), so the
@@ -89,6 +94,7 @@ function shapeSubscription(s) {
   return {
     id: clip(s.id, 60),
     kind: "subscription",
+    customerId: clip(typeof s.customer === "string" ? s.customer : (c && c.id) || "", 60),
     name: clip((c && (c.name || c.email)) || "", 120),
     email: clip((c && c.email) || "", 160),
     amount: pence(price && price.unit_amount) * (item && item.quantity ? item.quantity : 1),
@@ -102,11 +108,15 @@ function shapeSubscription(s) {
 
 function shapeCharge(ch) {
   const bd = ch.billing_details || {};
+  // v244: the customer record as well — a subscription charge's billing email is usually
+  // empty, and the chase needs somewhere to write to.
+  const c = ch.customer && typeof ch.customer === "object" ? ch.customer : null;
   return {
     id: clip(ch.id, 60),
     kind: "charge",
-    name: clip(bd.name || ch.receipt_email || "", 120),
-    email: clip(bd.email || ch.receipt_email || "", 160),
+    customerId: clip(typeof ch.customer === "string" ? ch.customer : (c && c.id) || "", 60),
+    name: clip(bd.name || (c && c.name) || ch.receipt_email || "", 120),
+    email: clip(bd.email || ch.receipt_email || (c && c.email) || "", 160),
     amount: pence(ch.amount),
     currency: clip(ch.currency, 8) || "gbp",
     // failure_message is the sentence a human can act on ("Your card has expired");
@@ -118,7 +128,7 @@ function shapeCharge(ch) {
 }
 
 
-/* One fortnight of charges, all of it. v138: this used to be a single page of 100. A gym
+/* The whole window of charges, all of it (a fortnight until v244, sixty days now). v138: this used to be a single page of 100. A gym
    billing a few hundred memberships puts more than that through a fortnight, and the
    cross-check below can only clear a failure it can see the payment for — so a short list
    does not merely lose rows, it leaves failures on screen that were in fact paid. Newest
@@ -159,9 +169,34 @@ export default async (req) => {
     });
   }
 
-  const since = Math.floor(Date.now() / 1000) - FAILED_WINDOW_DAYS * 86400;
-
   try {
+    return new Response(JSON.stringify(await readMoney(key)), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        // A dashboard opened three times in a morning should not be three trips to Stripe,
+        // but "needs you today" must not be stale by an hour either.
+        "Cache-Control": "public, max-age=0, s-maxage=120",
+      },
+    });
+  } catch (e) {
+    // 200 on purpose. The page shows the sentence; it does not show a broken card.
+    return Response.json({
+      ok: false,
+      configured: true,
+      error: clip(e && e.message ? e.message : "Could not reach Stripe", 300),
+      fetchedAt: new Date().toISOString(),
+      disputes: [], pastDue: [], failed: [], resolved: { count: 0, attempts: 0, amount: 0, reasons: [] },
+    });
+  }
+};
+
+/* v244: the read itself, on its own, so the chase ladder (money-chase.js and the morning
+   job) works from EXACTLY the rows this card shows — one definition of "owed", not two.
+   Throws on a Stripe failure; the handler above turns that into the card's sentence. */
+export async function readMoney(key) {
+  const since = Math.floor(Date.now() / 1000) - FAILED_WINDOW_DAYS * 86400;
+  {
     // Four independent reads, in parallel — the function's whole latency is one round trip.
     const [disputes, pastDue, unpaid, charges] = await Promise.all([
       // The charge is expanded so a dispute row can name the member.
@@ -194,9 +229,7 @@ export default async (req) => {
       .map(shapeDispute)
       .sort((a, b) => (a.dueBy || "9999") < (b.dueBy || "9999") ? -1 : 1);
 
-    const subRows = [...(pastDue.data || []), ...(unpaid.data || [])]
-      .map(shapeSubscription)
-      .sort((a, b) => (a.since < b.since ? -1 : 1));
+    const subRaw = [...(pastDue.data || []), ...(unpaid.data || [])];
 
     /* ---------- which failures still need him? ----------
        v137 built this. v138 rebuilt it, because Ash found it wrong: "Jen Lawton's payment
@@ -233,7 +266,13 @@ export default async (req) => {
        will be wrong; there is no reason for one inside a fortnight, because two payments
        from the same person at the same amount inside a fortnight are not a billing cycle,
        they are somebody sorting something out. */
-    const RETRY_WINDOW = FAILED_WINDOW_DAYS * 86400;
+    /* v244: …and then the window grew to sixty days for the chase ladder, and this had to
+       come apart from it. Over sixty days, the same person paying the same amount again is
+       exactly a billing cycle: September's failure would be "settled" by October's
+       membership payment. So settling keeps its fortnight. Any payment at all after the
+       failure is still reported (paidSince, below) — Ash's rule is that it stops the chase —
+       it just does not take the debt off the card. */
+    const RETRY_WINDOW = SETTLE_WINDOW_DAYS * 86400;
 
 
     // A name as it would be said out loud: no title, no punctuation, no double spaces. So
@@ -303,6 +342,20 @@ export default async (req) => {
       return out;
     }
 
+    /* v244: the newest payment this person made after `afterUnix`, anywhere in the window,
+       of any amount — or null. Ash: "as soon as they pay anything … stop suggesting chases".
+       Deliberately looser than settling: it never clears a row, it only stops a chase. */
+    function paidAnySince(keys, afterUnix) {
+      let best = null;
+      for (const k of keys) {
+        for (const p of paidBy.get(k) || []) {
+          if (p.created <= afterUnix) continue;
+          if (!best || p.created > best.created) best = p;
+        }
+      }
+      return best ? { at: iso(best.created), amount: pence(best.amount) } : null;
+    }
+
     // Returns a short reason when the failure has been dealt with, or "" when it still needs him.
     function settledReason(ch) {
       // 1. THE INVOICE, when there is one and it has an answer. Paid means paid, however
@@ -347,6 +400,11 @@ export default async (req) => {
       if (inv && inv.status === "uncollectible") {
         return "Stripe has given up collecting this one.";
       }
+      // v244: a payment beyond the settling fortnight is news, not a settlement — say so
+      // rather than "nothing has come in", which would be untrue.
+      if (paidAnySince(whoIs(ch), ch.created)) {
+        return "They have paid something since, but nothing that settles this one.";
+      }
       return "Nothing has come in from them since.";
     }
 
@@ -390,13 +448,29 @@ export default async (req) => {
           why: whyStillHere(rep),
           attempts: rows.length,
           firstFailedAt: iso(first.created),
+          // v244: for the chase ladder — when this debt started, and anything paid since
+          overdueFrom: iso(first.created),
+          paidSince: paidAnySince(whoIs(first), first.created),
         };
       })
       .sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1));
 
+    // v244: past-due memberships, now that paidBy exists to ask "have they paid anything
+    // since?". The period start stands for when it went overdue — it is when the invoice
+    // that failed was raised.
+    const subRows = subRaw
+      .map((s) => {
+        const row = shapeSubscription(s);
+        const keys = [];
+        if (row.customerId) keys.push("c:" + row.customerId);
+        if (row.email) keys.push("e:" + row.email.trim().toLowerCase());
+        return { ...row, overdueFrom: row.since, paidSince: paidAnySince(keys, s.current_period_start || 0) };
+      })
+      .sort((a, b) => (a.since < b.since ? -1 : 1));
+
     const sum = (rows) => rows.reduce((t, r) => t + r.amount, 0);
 
-    return new Response(JSON.stringify({
+    return {
       ok: true,
       configured: true,
       liveMode: !key.startsWith("sk_test") && !key.startsWith("rk_test"),
@@ -421,23 +495,6 @@ export default async (req) => {
         pastDue: sum(subRows),
         failed: sum(failedRows),
       },
-    }), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        // A dashboard opened three times in a morning should not be three trips to Stripe,
-        // but "needs you today" must not be stale by an hour either.
-        "Cache-Control": "public, max-age=0, s-maxage=120",
-      },
-    });
-  } catch (e) {
-    // 200 on purpose. The page shows the sentence; it does not show a broken card.
-    return Response.json({
-      ok: false,
-      configured: true,
-      error: clip(e && e.message ? e.message : "Could not reach Stripe", 300),
-      fetchedAt: new Date().toISOString(),
-      disputes: [], pastDue: [], failed: [], resolved: { count: 0, attempts: 0, amount: 0, reasons: [] },
-    });
+    };
   }
-};
+}

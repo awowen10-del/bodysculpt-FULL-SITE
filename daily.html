@@ -726,8 +726,18 @@
   .mail.read{background:var(--card-2);}
   .mail.read .mail-subj{font-weight:500;color:var(--ink-dim);}
   .mail.read .mail-from{color:var(--ink-faint);}
+  /* v244: how the morning run sorted it — a quiet line, not a new block. NEEDS ASH is the
+     skill's hands-off list (refund, dispute, hardship…): never drafted, always yours. */
+  .mail-flag{display:inline-block;margin-top:8px;font-size:10.5px;font-weight:700;line-height:1.4;
+    padding:3px 8px;border-radius:var(--r-pill);border:1px solid var(--line);color:var(--ink-dim);background:var(--navy-2);}
+  .mail-flag.ash{background:rgba(var(--red-rgb),.08);color:var(--tint-red);border-color:rgba(var(--red-rgb),.24);}
+  .mail-flag b{font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin-right:4px;}
 
   /* --- money that needs you --- */
+  /* v244: the row is a box, and the Stripe link is its top half — the chase underneath has
+     buttons, and a button cannot live inside a link. */
+  .mrow-link{display:block;text-decoration:none;color:inherit;}
+  .mrow-link:focus-visible{outline:none;box-shadow:var(--focus);border-radius:var(--r-sm);}
   .mrow{display:block;text-decoration:none;color:inherit;border:1px solid var(--line);
     border-radius:var(--r-md);padding:11px 13px;margin-top:8px;background:var(--card);
     transition:border-color var(--tap),background var(--tap);}
@@ -749,6 +759,19 @@
   /* what is keeping this row on screen. Quiet, but there — the fix for "why is this still
      showing?" is the page answering it, not the person having to ask. */
   .mrow .stillwhy{color:var(--ink-dim);}
+  /* v244: where the chase stands — the stage beside the name, the next step underneath */
+  .mstage{flex:0 0 auto;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;
+    padding:2px 7px;border-radius:var(--r-pill);border:1px solid var(--line);background:var(--navy-2);color:var(--ink-dim);}
+  .mstage.s-nudge1,.mstage.s-nudge2{background:rgba(var(--amber-rgb),.10);color:var(--tint-amber);border-color:rgba(var(--amber-rgb),.28);}
+  .mstage.s-final,.mstage.s-needs-ash{background:rgba(var(--red-rgb),.08);color:var(--tint-red);border-color:rgba(var(--red-rgb),.26);}
+  .mstage.s-paid,.mstage.s-replied{background:rgba(var(--green-rgb),.08);color:var(--tint-green);border-color:rgba(var(--green-rgb),.26);}
+  .mchase{margin-top:9px;padding-top:9px;border-top:1px dashed var(--line);font-size:12px;line-height:1.5;color:var(--ink-dim);}
+  .mchase-text{margin-top:6px;padding:8px 10px;border-radius:var(--r-sm);background:var(--card-2);
+    color:var(--ink);white-space:pre-wrap;font-size:12px;line-height:1.5;}
+  .mchase-tools{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+  .mchase-tools .abtn{font-size:11.5px;padding:5px 10px;}
+  .mchase .warn{color:var(--tint-red);}
+  .mtest{font-size:11.5px;color:var(--tint-amber);margin-bottom:10px;line-height:1.45;}
 
   /* the group headings inside the money card */
   .mgroup{margin-top:var(--sp-4);}
@@ -1945,8 +1968,11 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
    ===================================================================== */
 const API = "/.netlify/functions/kpi-store";
 const STRIPE_FEED = "/.netlify/functions/stripe-feed";
+// v244: the two functions that read Ash's mail on the server. Both ask for this browser's
+// device key, so neither answers a stranger. See mailAi() and moneyChase().
+const MAIL_AI = "/.netlify/functions/mail-ai";
+const MONEY_CHASE = "/.netlify/functions/money-chase";
 // v155: the one non-Google address this page POSTs to — the Anthropic proxy, for a reply.
-const MENTOR = "/.netlify/functions/mentor-ai";
 
 /* ---------- small helpers ---------- */
 const $ = (id) => document.getElementById(id);
@@ -2013,7 +2039,8 @@ const TIPS = {
   triage: ["Your inbox", "Read straight from Gmail every time this page refreshes. Where your scheduled morning triage has labelled a thread Urgent / Today / This week / FYI, it sits under that heading. Anything unread it has not labelled yet is under Inbox, ranked by how much it looks like it needs you, with newsletters and notifications folded into Everything else. Nothing is labelled or moved by this page unless you press a button."],
   dispute: ["Dispute", "A member has told their bank the payment was wrong, and the bank has taken the money back off you while it decides. There is a deadline to send your side. Miss it and the money is gone automatically, so these always come first."],
   pastdue: ["Stopped paying", "A membership whose payment failed and has not gone through since. The member is normally still training. This is recurring income quietly leaking, and it is usually one message to fix."],
-  failed: ["Failed payment", "A payment that did not go through in the last fortnight AND still has not been paid. Nearly always an expired or blocked card. Quick to sort while it is fresh."],
+  failed: ["Failed payment", "A payment that did not go through in the last 60 days AND still has not been paid. Nearly always an expired or blocked card. Quick to sort while it is fresh."],
+  chase: ["The chase", "Your ladder for anyone overdue: from day 8 a friendly 1st nudge; a 2nd nudge (same tone, plus a heads-up about sessions going on hold) a week after you sent the 1st, never before day 15; a Slack message for you to send to Gaz a week after the 2nd, never before day 22. Each one is a draft — the emails wait in your Gmail drafts, the Slack message waits here. The next one is only suggested once you have actually sent the one before. Paying anything, or emailing you, stops it."],
   cleared: ["Already sorted", "Cards bounce and then go through a day or two later all the time, and Stripe keeps the failed attempt on file forever. These are the ones that failed and have since been paid — either the retry worked, the invoice got settled, or they paid it again. Nothing to do; they are counted here so you can see the page checked rather than just went quiet."],
   onething: ["Your one thing", "The single thing you said this morning would make today count. It comes from the check-in in the weekly app; this card only shows it back to you."],
 };
@@ -2162,6 +2189,7 @@ function mailItemHtml(it) {
     // v160: with a draft on show the block beneath already says "Review and send" — the
     // pill saying "Send the reply" above it was the same instruction twice
     (it.action && !hasDraft ? '<span class="mail-act">' + esc(it.action) + "</span>" : "") +
+    mailFlagHtml(it, hasDraft) +
     (hasDraft && !open
       ? '<span class="mail-draft">' +
           '<span class="mail-dhead"><svg class="ic"><use href="#ic-check"/></svg>Reply written' +
@@ -2173,6 +2201,20 @@ function mailItemHtml(it) {
       : "") +
     (open ? mailOpenHtml(it) : "") +
   "</div>";
+}
+
+/* v244: what the morning run decided about a thread with no draft. Lead and client threads
+   get a draft (and show it); the other two say why there is none. Nothing when the run has
+   not seen the thread — the row is exactly as it was before. */
+function mailFlagHtml(it, hasDraft) {
+  const t = it.threadId && mailTriage[it.threadId];
+  if (!t || hasDraft) return "";
+  if (t.kind === "hands_off") {
+    return '<span class="mail-flag ash"><b>Needs Ash</b>' + esc(t.reason || "On the hands-off list — no draft") + "</span>";
+  }
+  if (t.kind === "not_client") return '<span class="mail-flag">Not a client \u2014 no draft</span>';
+  if (t.error) return '<span class="mail-flag">The draft could not be written: ' + esc(t.error) + "</span>";
+  return "";
 }
 
 /* ---------- the row, unfolded (v155) ----------
@@ -2352,6 +2394,11 @@ function renderMail() {
   const body = $("mailBody"), right = $("mailHeadRight"), sub = $("mailSub");
   if (!body) return;
   right.innerHTML =
+    // v244: the morning run, on demand. Only for a connected browser — it reads the mail.
+    (gcalDevice && gcalReady()
+      ? '<button type="button" class="abtn" id="mailDraftRun"' + (mailRun.running ? " disabled" : "") + ">" +
+          (mailRun.running ? "Drafting\u2026" : "Draft replies") + "</button>"
+      : "") +
     '<label class="mailtog"><input type="checkbox" id="mailUnread"' + (mailUnreadOnly ? " checked" : "") +
     "> Unread only</label>" + tipBtn("triage");
 
@@ -2395,6 +2442,7 @@ function renderMail() {
       (drafted ? " \u00b7 " + drafted + (drafted === 1 ? " reply written" : " replies written") : "");
 
   let html = "";
+  if (mailRun.note) html += '<div class="mail-why" style="margin-bottom:8px;font-size:12.5px;">' + esc(mailRun.note) + "</div>";
   if (mailUndo) {
     const n = mailUndo.items.length;
     html += '<div class="undobar"><svg class="ic"><use href="#ic-check"/></svg><span>' +
@@ -2474,6 +2522,8 @@ function wireMailCard(body) {
   });
   const ub = $("mailUndoBtn");
   if (ub) ub.addEventListener("click", mailUndoLast);
+  const dr = $("mailDraftRun");
+  if (dr) dr.addEventListener("click", mailDraftRun);
 
   const mc = $("mailConnect");
   if (mc) mc.addEventListener("click", async () => {
@@ -2572,6 +2622,10 @@ let mailOpenId = null;             // thread id of the one open row, or null
 const mailThreads = new Map();     // thread id -> { loading, error, messages, draftId, draftBody, replyTo }
 const mailReplyText = new Map();   // thread id -> the reply as typed; survives every re-render
 const mailBusy = new Set();        // thread ids with a send or a draft save in flight
+/* v244: how the morning run (mail-drafts-background) sorted each thread, and whether a run
+   is going. Read from mail-ai alongside the inbox; empty when it cannot be read. */
+let mailTriage = {};
+let mailRun = { running: false, note: "" };
 /* v146: an email you have already read is not a job. Default to unread only — the card is
    meant to be the short list of what is left, and a fortnight of read threads buries it.
    The choice is remembered per browser; it changes nothing but what is fetched. */
@@ -2726,6 +2780,12 @@ async function loadGmail() {
   } finally {
     mailLoading = false;
   }
+  // v244: the sorting is extra, never in the way — a failure leaves the rows as they were
+  try {
+    const t = await mailAi("GET");
+    mailTriage = (t && t.triage) || {};
+    mailRun.running = !!(t && t.run && t.run.running);
+  } catch { mailTriage = {}; }
 }
 
 /* ---------- what the weekly plan says you are doing (v149) ----------
@@ -3138,6 +3198,9 @@ async function mailSend(threadId) {
   const text = String((ta ? ta.value : mailReplyText.get(threadId)) || "").trim();
   if (!th || th.loading || th.error) return;
   if (!text) { mailNote(threadId, "There is nothing in the reply to send.", "warn"); return; }
+  // v244: the skill marks what it does not know as [ASH: …]. That is a note to Ash, and it
+  // must never reach a client — so it stops the send, and says where.
+  if (/\[ASH:/i.test(text)) { mailNote(threadId, "Not sent — there is still an [ASH: …] gap in the reply. Fill it in (or take it out), then Send.", "warn"); return; }
   if (mailBusy.has(threadId)) return;
   mailBusy.add(threadId);
   mailNote(threadId, "Sending…");
@@ -3198,22 +3261,14 @@ async function mailSaveDraft(threadId) {
 }
 
 /* Claude writes the reply — from the conversation, the current text if there is one, and
-   whatever Ash typed in the one-line box. The result goes into the editor and nowhere else. */
-const MAIL_AI_THREAD_CHARS = 9000;
-function mailAiPrompt(th, current, brief) {
-  const convo = th.messages.map((m) => {
-    const v = gmVisible(m.body);
-    return "--- " + (m.mine ? "Ash (me)" : (m.fromName || m.fromEmail || "them")) + (m.date ? ", " + m.date.slice(0, 10) : "") + " ---\n" + v.text;
-  }).join("\n\n").slice(-MAIL_AI_THREAD_CHARS);
-  return "You are writing an email reply on behalf of Ash, who owns Bodysculpt, a gym in Warrington, UK.\n" +
-    "Write ONLY the body of the reply: no subject line, no preamble, no explanation, no placeholders in square brackets.\n" +
-    "Plain text. British English. Warm, direct and brief; short paragraphs; sign off as Ash.\n" +
-    "Do not invent facts, prices, dates or availability — if something is unknown, say Ash will confirm it.\n" +
-    (brief ? "\nWhat Ash wants this reply to say: " + brief + "\n" : "") +
-    (current ? "\nThere is already a draft. Rewrite it in line with the instruction above, keeping anything that is still right:\n\"\"\"\n" + current + "\n\"\"\"\n" : "") +
-    "\nThe conversation so far, oldest first:\n\n" + convo + "\n\nReply to the latest message from them.";
-}
+   whatever Ash typed in the one-line box. The result goes into the editor and nowhere else.
 
+   v244: written from ASH'S SKILL. Ash: "The slop is the 'Write it with Claude' button." It
+   sent four generic lines and no facts; the morning routine he likes works from his
+   bodysculpt-email-replies skill — his voice, real prices, timetable, links, policies. The
+   prompt now lives on the server (netlify/lib/mail-drafts.js), with the skill as Claude's
+   instructions, and the server reads the WHOLE thread from Gmail itself. The page sends only
+   which thread, what is in the box, and the one-line brief. */
 async function mailAskClaude(threadId) {
   const th = mailThreads.get(threadId);
   const ta = $("rt_" + threadId);
@@ -3227,21 +3282,17 @@ async function mailAskClaude(threadId) {
   const btn = $("mailBody") && $("mailBody").querySelector('[data-ai="' + threadId + '"]');
   if (btn) btn.disabled = true;
   try {
-    const r = await fetch(MENTOR, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: mailAiPrompt(th, current, brief), model: "opus", maxTokens: 900, effort: "low" }),
-    });
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok || data.error) throw new Error(data.error || ("HTTP " + r.status));
-    const text = String(data.text || "").trim().replace(/^```[a-z]*\s*/i, "").replace(/```\s*$/, "").trim();
+    const data = await mailAi("POST", { op: "write", threadId, current, brief });
+    const text = String(data.text || "").trim();
     if (!text) throw new Error("Claude sent nothing back.");
     ta.value = text;
     mailReplyText.set(threadId, text);
     if (inp) inp.value = "";
     if (btn) btn.textContent = "Rewrite with Claude";
     if (inp) inp.placeholder = "What should change? e.g. shorter, warmer, say no";
-    mailNote(threadId, "Written. Read it, change what you like, then Send.", "ok");
+    mailNote(threadId, /\[ASH:/i.test(text)
+      ? "Written — it has an [ASH: …] gap for something the skill does not know. Fill it in, then Send."
+      : "Written. Read it, change what you like, then Send.", "ok");
     ta.focus();
   } catch (e) {
     mailNote(threadId, "Claude could not write it: " + ((e && e.message) || "no reply") + ". Your text is unchanged.", "warn");
@@ -3250,11 +3301,65 @@ async function mailAskClaude(threadId) {
   mailBusy.delete(threadId);
 }
 
+/* v244: THE ONE WAY THIS PAGE TALKS TO mail-ai. GET = how the run sorted each thread;
+   POST = "write" (one reply, into the editor) or "run" (the morning run, now). The device
+   key goes with it — the function reads Ash's mail and answers nobody else. */
+async function mailAi(method, body) {
+  const r = await fetch(MAIL_AI, {
+    method: method,
+    headers: Object.assign({ "X-Device-Key": gcalDevice || "" }, body ? { "Content-Type": "application/json" } : {}),
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok || data.ok === false) throw new Error(data.error || ("HTTP " + r.status));
+  return data;
+}
+
+/* "Draft replies": start the run, then look in every few seconds until it is done, and read
+   the inbox again — the drafts are in Gmail, so they appear on the rows by themselves. */
+const MAIL_RUN_POLL_MS = 8000;
+const MAIL_RUN_MAX_MS = 15 * 60 * 1000;
+async function mailDraftRun() {
+  if (mailRun.running) return;
+  mailRun = { running: true, note: "Drafting replies from your skill — this takes a few minutes. Nothing is sent; they land in Gmail's drafts." };
+  renderMail();
+  const started = Date.now();
+  try {
+    await mailAi("POST", { op: "run" });
+    let run = null;
+    while (Date.now() - started < MAIL_RUN_MAX_MS) {
+      await new Promise((res) => setTimeout(res, MAIL_RUN_POLL_MS));
+      const t = await mailAi("GET");
+      run = t.run || {};
+      if (!run.running && run.finishedAt >= started - 5000) break;
+    }
+    const c = (run && run.counts) || {};
+    mailRun = { running: false, note: run && run.running ? "Still drafting — refresh in a minute."
+      : "Done: " + (c.drafted || 0) + (c.drafted === 1 ? " reply" : " replies") + " drafted, " +
+        (c.handsOff || 0) + " flagged for you, " + (c.notClient || 0) + " not from clients" +
+        (c.chasesDrafted ? ", " + c.chasesDrafted + " payment " + (c.chasesDrafted === 1 ? "chase" : "chases") + " waiting" : "") + "." +
+        (run && run.error ? " " + run.error : "") };
+  } catch (e) {
+    mailRun = { running: false, note: "Could not draft: " + ((e && e.message) || "no answer") + "." };
+  }
+  mailLive = null;
+  mailLoading = true;
+  renderMail();
+  await loadGmail();
+  renderMail(); renderHead();
+  loadMoneyChase();
+}
+
 /* ---------- money ---------- */
 let stripeState = null;
 
-function moneyRowHtml(r, kind) {
+function moneyRowHtml(r, kind, seen) {
   const who = r.name || r.email || "Unknown";
+  // v244: the chase. The stage sits beside the name on every row of that member; the next
+  // step is spelled out once, under their first row — one member is one chase.
+  const chase = r.chaseKey && stripeState && stripeState.chase ? stripeState.chase[r.chaseKey] : null;
+  const firstOfThem = !!chase && !seen.has(r.chaseKey);
+  if (chase) seen.add(r.chaseKey);
   let why = "", when = "", cls = "";
   if (kind === "dispute") {
     cls = "hot";
@@ -3282,19 +3387,115 @@ function moneyRowHtml(r, kind) {
     // row itself tells you what it thought — instead of you having to notice.
     when = tries + (r.why ? '<br><span class="stillwhy">' + esc(r.why) + "</span>" : "");
   }
-  return '<a class="mrow ' + cls + '" href="' + esc(r.url) + '" target="_blank" rel="noopener">' +
+  return '<div class="mrow ' + cls + '">' +
+    '<a class="mrow-link" href="' + esc(r.url) + '" target="_blank" rel="noopener">' +
     '<div class="mrow-top"><span class="mrow-who">' + esc(who) + "</span>" +
+      (chase && chase.tag ? '<span class="mstage s-' + esc(chase.stage) + '">' + esc(chase.tag) + "</span>" : "") +
       '<span class="mrow-amt">' + esc(fromPence(r.amount, r.currency)) + "</span></div>" +
     '<div class="mrow-why">' + esc(why) + "</div>" +
     (when ? '<div class="mrow-when">' + when + "</div>" : "") +
-  "</a>";
+    "</a>" +
+    (firstOfThem ? mchaseHtml(chase) : "") +
+  "</div>";
 }
 
-function moneyGroupHtml(title, tip, icon, rows, kind) {
+function moneyGroupHtml(title, tip, icon, rows, kind, seen) {
   if (!rows.length) return "";
   return '<div class="mgroup"><div class="mgroup-h"><svg class="ic"><use href="#' + icon + '"/></svg>' +
     esc(title) + " (" + rows.length + ")" + tipBtn(tip) + "</div>" +
-    rows.map((r) => moneyRowHtml(r, kind)).join("") + "</div>";
+    rows.map((r) => moneyRowHtml(r, kind, seen)).join("") + "</div>";
+}
+
+/* ---------- v244: the chase ----------
+   What to do next about one member, as netlify/lib/chase.js worked it out. Every action is
+   Ash's: an email is a Gmail DRAFT he opens and sends (or doesn't); the final stage is a
+   Slack message he copies and sends to Gaz himself. This page sends nothing to anyone. */
+let moneyBusy = "";          // the member key with a write in flight
+const moneyCopied = new Set();
+function mchaseHtml(v) {
+  const k = esc(v.key);
+  const busy = moneyBusy === v.key;
+  let h = '<div class="mchase">' + esc(v.note || "") + (v.error ? '<div class="warn">' + esc(v.error) + "</div>" : "");
+  if (v.action === "draft-ready") {
+    if (v.preview) h += '<div class="mchase-text">' + esc(v.preview) + (v.preview.length >= 220 ? "\u2026" : "") + "</div>";
+    h += '<div class="mchase-tools">' +
+      (v.messageId ? '<a class="abtn primary" href="' + esc(draftUrl(v.messageId)) + '" target="_blank" rel="noopener">Open the draft in Gmail</a>' : "") +
+      "</div>" +
+      (stripeState.chaseTest ? '<div class="mtest">Test mode: this draft is addressed to ' + esc(v.to || stripeState.chaseTest) + ", not to them.</div>" : "");
+  } else if (v.action === "write" || v.action === "draft-gone") {
+    h += '<div class="mchase-tools"><button type="button" class="abtn primary" data-chase-write="' + k + '"' + (busy ? " disabled" : "") + ">" +
+      (busy ? "Writing\u2026" : (v.action === "draft-gone" ? "Write it again" : "Write the " + esc(v.tag) + " now")) + "</button></div>";
+  } else if (v.action === "slack" || v.action === "done") {
+    h += '<div class="mchase-text" id="mslack_' + k + '">' + esc(v.slack || "") + "</div>" +
+      '<div class="mchase-tools">' +
+        '<button type="button" class="abtn" data-chase-copy="' + k + '">' + (moneyCopied.has(v.key) ? "Copied" : "Copy") + "</button>" +
+        '<a class="abtn" href="slack://open">Open Slack</a>' +
+        (v.action === "slack"
+          ? '<button type="button" class="abtn primary" data-chase-final="' + k + '"' + (busy ? " disabled" : "") + ">I\u2019ve sent it to " + esc(CHASE_CONTACT) + "</button>"
+          : '<button type="button" class="abtn ghost" data-chase-unfinal="' + k + '"' + (busy ? " disabled" : "") + ">Undo \u2014 not sent</button>") +
+      "</div>";
+  } else if (v.action === "none" && v.stage === "replied" && v.threadId) {
+    h += '<div class="mchase-tools"><a class="abtn" href="' + esc(threadUrl(v.threadId)) + '" target="_blank" rel="noopener">Open their email</a></div>';
+  }
+  return h + "</div>";
+}
+const CHASE_CONTACT = "Gaz";
+
+/* THE ONE WAY THIS PAGE TALKS TO money-chase. GET = the card's rows with the ladder on them;
+   POST = "write" (that member's due nudge, as a Gmail draft) or "finalSent". Device key goes
+   with it — the function reads Ash's mail. */
+async function moneyChase(method, body) {
+  const r = await fetch(MONEY_CHASE, {
+    method: method,
+    headers: Object.assign({ "X-Device-Key": gcalDevice || "" }, body ? { "Content-Type": "application/json" } : {}),
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok || data.ok === false) throw new Error(data.error || ("HTTP " + r.status));
+  return data;
+}
+
+// After the plain Stripe read has painted the card, the same rows again with the ladder on
+// them. Without a connected browser, or if it fails, the card simply stays as it was.
+async function loadMoneyChase() {
+  if (!gcalDevice) return;
+  try {
+    const data = await moneyChase("GET");
+    if (data && data.configured !== false && data.ok !== false) { stripeState = data; renderMoney(); }
+  } catch { /* the card without a ladder is still the card */ }
+}
+
+async function moneyChaseAct(key, body) {
+  if (moneyBusy) return;
+  moneyBusy = key;
+  renderMoney();
+  try {
+    const data = await moneyChase("POST", Object.assign({ key }, body));
+    if (data.chase && stripeState && stripeState.chase) stripeState.chase[key] = data.chase;
+  } catch (e) {
+    if (stripeState && stripeState.chase && stripeState.chase[key]) stripeState.chase[key] = Object.assign({}, stripeState.chase[key], { error: (e && e.message) || "That did not work." });
+  }
+  moneyBusy = "";
+  renderMoney();
+}
+
+function wireMoneyCard(body) {
+  body.querySelectorAll("[data-chase-write]").forEach((b) => b.addEventListener("click", () => moneyChaseAct(b.dataset.chaseWrite, { op: "write" })));
+  body.querySelectorAll("[data-chase-final]").forEach((b) => b.addEventListener("click", () => moneyChaseAct(b.dataset.chaseFinal, { op: "finalSent" })));
+  body.querySelectorAll("[data-chase-unfinal]").forEach((b) => b.addEventListener("click", () => moneyChaseAct(b.dataset.chaseUnfinal, { op: "finalSent", undo: true })));
+  body.querySelectorAll("[data-chase-copy]").forEach((b) => b.addEventListener("click", async () => {
+    const k = b.dataset.chaseCopy;
+    const v = stripeState && stripeState.chase && stripeState.chase[k];
+    const text = (v && v.slack) || "";
+    try { await navigator.clipboard.writeText(text); }
+    catch {
+      // an older phone browser: select the text so a long-press copies it
+      const el = $("mslack_" + k);
+      if (el && window.getSelection) { const rg = document.createRange(); rg.selectNodeContents(el); const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(rg); }
+    }
+    moneyCopied.add(k);
+    b.textContent = "Copied";
+  }));
 }
 
 function renderMoney() {
@@ -3345,11 +3546,16 @@ function renderMoney() {
     return;
   }
 
+  const seen = new Set();
   body.innerHTML =
-    moneyGroupHtml("Disputes", "dispute", "ic-alert", d, "dispute") +
-    moneyGroupHtml("Stopped paying", "pastdue", "ic-trend-down", p, "pastdue") +
-    moneyGroupHtml("Still unpaid", "failed", "ic-card", f, "failed") +
+    (stripeState.chaseTest ? '<div class="mtest"><b>Chase test mode.</b> Payment chases are drafted to ' + esc(stripeState.chaseTest) +
+      " instead of to members. Remove CHASE_TEST_EMAIL in Netlify to go live." + tipBtn("chase") + "</div>" : "") +
+    (stripeState.chaseError ? '<div class="mtest">' + esc(stripeState.chaseError) + "</div>" : "") +
+    moneyGroupHtml("Disputes", "dispute", "ic-alert", d, "dispute", seen) +
+    moneyGroupHtml("Stopped paying", "pastdue", "ic-trend-down", p, "pastdue", seen) +
+    moneyGroupHtml("Still unpaid", "failed", "ic-card", f, "failed", seen) +
     clearedHtml;
+  wireMoneyCard(body);
 
   // The doorway line. Deadlines lead it, because a deadline is the only part of this
   // that gets worse on its own.
@@ -5364,6 +5570,7 @@ async function loadAll() {
   renderHead();
   renderMail();
   renderMoney();
+  loadMoneyChase();       // v244: the chase ladder arrives a moment after the card
   renderTimerBar();
   dayReady = true;
   renderToday();

@@ -65,8 +65,11 @@ const between = (a, b) => js.slice(js.indexOf(a), js.indexOf(b));
   assert.strictEqual(storeWrites.length, 2, "the store is written in exactly two places, as before");
   assert.deepStrictEqual(storeWrites.map((w) => /JSON\.stringify\(\{ ([a-zA-Z]+)[:,]/.exec(w)[1]).sort(), ["checkin", "weeklyTick"],
     "…with the same two payloads");
-  assert.ok(/const MENTOR = "\/\.netlify\/functions\/mentor-ai";/.test(js), "the AI proxy is a fixed address");
-  assert.strictEqual((js.match(/fetch\(MENTOR/g) || []).length, 1, "…used from one place");
+  /* v244: the reply is written by mail-ai (from Ash's skill) now, not the generic MENTOR
+     prompt. Same claim, new address: one fixed function, called from one funnel. */
+  assert.ok(!/fetch\(MENTOR/.test(js), "the generic AI proxy is no longer how a reply is written");
+  assert.ok(/const MAIL_AI = "\/\.netlify\/functions\/mail-ai";/.test(js), "the reply writer is a fixed address");
+  assert.strictEqual((js.match(/fetch\(MAIL_AI/g) || []).length, 1, "…used from one place");
 
   /* ============ 2. the row is a button that unfolds ============ */
   const row = fn("mailItemHtml");
@@ -129,14 +132,14 @@ const between = (a, b) => js.slice(js.indexOf(a), js.indexOf(b));
   const ask = fn("mailAskClaude");
   assert.ok(!/gmailSend|gmailWrite/.test(ask), "asking Claude never touches Gmail");
   assert.ok(/ta\.value = text;\s*mailReplyText\.set\(threadId, text\);/.test(ask), "the answer fills the box, and only the box");
-  assert.ok(/model: "opus", maxTokens: 900, effort: "low"/.test(ask), "a short reply at low effort — quick, not a board report");
   assert.ok(/Your text is unchanged/.test(ask), "a failure leaves what was there");
-  const prompt = fn("mailAiPrompt");
-  assert.ok(/on behalf of Ash, who owns Bodysculpt, a gym in Warrington/.test(prompt), "Claude knows whose voice it is");
-  assert.ok(/sign off as Ash/.test(prompt) && /no placeholders in square brackets/.test(prompt), "…writes a finished reply, not a template");
-  assert.ok(/Do not invent facts, prices, dates or availability/.test(prompt), "…and does not make things up");
-  assert.ok(/There is already a draft\. Rewrite it/.test(prompt) && /What Ash wants this reply to say/.test(prompt), "…rewrites when there is a draft, and takes a brief");
-  assert.ok(/MAIL_AI_THREAD_CHARS = 9000/.test(js) && /\.slice\(-MAIL_AI_THREAD_CHARS\)/.test(prompt), "a very long thread is trimmed from the front, keeping the newest");
+  /* v244: the prompt moved to the server and is written from Ash's skill. The old claims —
+     "no placeholders in square brackets", "say Ash will confirm it" — are REVERSED on
+     purpose: the skill marks an unknown fact [ASH: …] rather than guess, and the Send button
+     refuses a reply that still has one. tests/v244-replies-and-chases.test.cjs pins the new
+     prompt (skill as system prompt, whole thread, brief, rewrite, newest kept). */
+  assert.ok(/mailAi\("POST", \{ op: "write", threadId, current, brief \}\)/.test(ask), "the page names the thread, the box and the brief — nothing else");
+  assert.ok(!/function mailAiPrompt/.test(js), "the generic prompt is gone from the page");
 
   /* ============ 5. honest copy ============ */
   const setup = fn("mailSetupHtml");
@@ -147,11 +150,11 @@ const between = (a, b) => js.slice(js.indexOf(a), js.indexOf(b));
 
   /* ============ 6. the pure parts, run for real ============ */
   const src = between("/* ---------- reading one thread in full ---------- */", "/* ---------- send, save, ask ---------- */") +
-    fn("gmSender") + between("const gmHeader = (msg, name) => {", "// \"Karen Whitfield") + fn("mailAiPrompt") + "\nconst MAIL_AI_THREAD_CHARS = 9000;\n";
+    fn("gmSender") + between("const gmHeader = (msg, name) => {", "// \"Karen Whitfield");
   const ctx = vm.createContext({ atob, btoa, TextEncoder, TextDecoder, Uint8Array, console,
     mailThreads: new Map(), mailOpenId: null, renderMail() {}, gmailGet: async () => ({}) });
-  vm.runInContext(src + "\nthis.out = { gmAddress, gmBody, gmHtmlToText, gmVisible, gmBuildReply, gmB64Url, gmThreadDetail, mailAiPrompt };", ctx);
-  const { gmAddress, gmBody, gmHtmlToText, gmVisible, gmBuildReply, gmThreadDetail, mailAiPrompt } = ctx.out;
+  vm.runInContext(src + "\nthis.out = { gmAddress, gmBody, gmHtmlToText, gmVisible, gmBuildReply, gmB64Url, gmThreadDetail };", ctx);
+  const { gmAddress, gmBody, gmHtmlToText, gmVisible, gmBuildReply, gmThreadDetail } = ctx.out;
   const b64url = (s) => Buffer.from(s, "utf8").toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   const fromB64url = (s) => Buffer.from(s.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
 
@@ -223,12 +226,7 @@ const between = (a, b) => js.slice(js.indexOf(a), js.indexOf(b));
   const mineLast = gmThreadDetail({ id: "t2", messages: [M("m1", "Karen <karen@co.uk>", [], "Hi"), M("m2", "Ash <a@b.com>", ["SENT"], "Hello")] });
   assert.strictEqual(mineLast.replyTo.email, "karen@co.uk", "when the last message is mine, the reply still goes to them");
   assert.strictEqual(gmThreadDetail({ messages: [] }).replyTo, null, "an empty thread has nobody to reply to");
-  // the prompt Claude gets
-  const p = mailAiPrompt(th, "", "say yes but 6.30 not 6");
-  assert.ok(/--- Karen, 2023-11-14 ---\nCan I move Tuesday\?/.test(p) && /--- Ash \(me\)/.test(p), "the conversation is laid out with who said what");
-  assert.ok(/What Ash wants this reply to say: say yes but 6\.30 not 6/.test(p), "…and the brief");
-  assert.ok(!/There is already a draft/.test(p), "no draft, no rewrite instruction");
-  assert.ok(/There is already a draft/.test(mailAiPrompt(th, "old text", "")), "a draft asks for a rewrite");
+  // (v244: the prompt Claude gets is tested where it now lives — v244's test.)
 
   /* ============ 7. v155.1: a hidden thing says it is hidden ============
      Ash, over a card reading "Nothing needs a reply" with FYI 8 and nothing else: "Any ideas

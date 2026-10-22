@@ -55,7 +55,10 @@ for (const fn of ["kpi-store.js", "stripe-feed.js", "instagram-feed.js", "google
                   // v213: the Projects page's own store — it can reach nothing else
                   "projects.js", "../lib/projects.js",
                   // v225: the month's takings from Stripe, GoCardless and SumUp
-                  "takings.js", "takings-background.js", "takings-scheduled.js", "../lib/takings.js"]) {
+                  "takings.js", "takings-background.js", "takings-scheduled.js", "../lib/takings.js",
+                  // v244: replies and chases from Ash's own skill
+                  "mail-ai.js", "money-chase.js", "mail-drafts-background.js", "mail-drafts-scheduled.js",
+                  "../lib/gmail.js", "../lib/mail-drafts.js", "../lib/chase.js", "../lib/email-skill.js"]) {
   const chk = spawnSync(process.execPath, ["--check", path.join(__dirname, "..", "netlify", "functions", fn)], { stdio: "inherit" });
   if (chk.status !== 0) {
     console.error("SYNTAX CHECK FAILED (" + fn + ") — aborting test run");

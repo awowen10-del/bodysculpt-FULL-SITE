@@ -115,3 +115,18 @@
 # not the 1st, so direct debits taken at the end of the month have cleared or bounced.
 [functions."takings-scheduled"]
   schedule = "0 6 4 * *"
+
+# ===================== v244: replies and chases from Ash's own skill =====================
+# Weekdays 06:30 UTC (07:30 UK in summer, 06:30 in winter): the inbox is sorted (Sonnet),
+# a reply is written (Opus) for each lead or client, and any payment chase that is due is
+# written — all saved as Gmail DRAFTS. Nothing is ever sent. The scheduled function only
+# asks mail-drafts-background (15-min wall) to do the work.
+[functions."mail-drafts-scheduled"]
+  schedule = "30 6 * * 1-5"
+
+# "Write it with Claude" reads the thread and makes one Opus call; the Money card reads
+# sixty days of Stripe and asks Gmail where each chase stands. The paid-plan maximum.
+[functions."mail-ai"]
+  timeout = 26
+[functions."money-chase"]
+  timeout = 26
