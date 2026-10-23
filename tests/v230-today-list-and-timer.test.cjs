@@ -213,7 +213,8 @@ function bootPage(storage, opts) {
     const entry = { oneThing: "Ship the migration", oneThingDone: false, parked: ["plan:bufferItems:b2"] };
     const make = (timer) => new Function("$", "ckEntry", "ckToday", "richToText", "fmBuildQueue", "fmDetail", "esc",
       "ftTimer", "FT_PRESETS", "ftDialHtml", "agendaToday",
-      "let tlOpen = {}, tlShowParked = false, tlFocusPick = '';\n" +
+      "let tlOpen = {}, tlShowParked = false, tlFocusPick = '', tlCancel = null;\n" +
+      "const tlCanCancel = () => false;\n" +   // v251's cancel has its own test
       "function tlWireOnce(){}\n" +
       ["tlJobs", "tlWhere", "tlDetailHtml", "tlRowHtml", "renderTodayList"].map((n) => {
         const args = { tlJobs: "", tlWhere: "j", tlDetailHtml: "j", tlRowHtml: "j, isParked", renderTodayList: "" }[n];

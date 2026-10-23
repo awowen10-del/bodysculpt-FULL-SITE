@@ -157,8 +157,9 @@ async function runIg(env, url, responder, seed) {
      is "the page can write exactly one boolean and has no way to express anything else".
      Every store READ still goes through jget(url) with no options, which is checked above. */
   const storeWrites = [...djs.matchAll(/fetch\(API, \{[\s\S]{0,400}?\}\);/g)].map((m) => m[0]);
-  assert.strictEqual(storeWrites.length, 2, "there are exactly TWO places that write to the store");
-  for (const w of storeWrites) assert.ok(/method: "POST"/.test(w), "…both POSTs");
+  // v251 added the third: { weeklyCancel } — one occurrence off today, as a skip or move entry
+  assert.strictEqual(storeWrites.length, 3, "there are exactly THREE places that write to the store");
+  for (const w of storeWrites) assert.ok(/method: "POST"/.test(w), "…all POSTs");
   /* v152 added the second, when the daily check-in moved here from the weekly page's Today
      modal. Two named payloads, each built by one function that can express nothing else:
        { weeklyTick } — one boolean against one task's tick address
@@ -166,8 +167,8 @@ async function runIg(env, url, responder, seed) {
      Every store READ still goes through jget(url) with no options, checked above. */
   const bodies = storeWrites.map((w) => /JSON\.stringify\(\{ ([a-zA-Z]+)[:,]/.exec(w))
     .map((m) => (m ? m[1] : "")).sort();
-  assert.deepStrictEqual(bodies, ["checkin", "weeklyTick"],
-    "…and their bodies can only ever be { weeklyTick } and { checkin }");
+  assert.deepStrictEqual(bodies, ["checkin", "weeklyCancel", "weeklyTick"],
+    "…and their bodies can only ever be { weeklyTick }, { weeklyCancel } and { checkin }");
   // Scoped to the write bodies themselves. Scanning the whole script for these names finds
   // innocent ones — `week: 8` is a Gmail tier cap, not a KPI week — and a test that cries
   // wolf about its own page is worse than no test.
@@ -202,10 +203,12 @@ async function runIg(env, url, responder, seed) {
   /* v220 made it two: focus mode shows the checklist inside the job it is putting in front
      of you, and a checklist you can read but not tick sends you to the board to tick it.
      Both are the same shape — one boolean, at one address, on one step. */
-  assert.strictEqual(projWrites.length, 2, "there are exactly TWO places that write to the projects store");
+  /* v251 made it three: "cancel" on a project step moves its date, or clears it — the same
+     stepLink route, which can change only a step's date and day, never its title or board. */
+  assert.strictEqual(projWrites.length, 3, "there are exactly THREE places that write to the projects store");
   for (const w of projWrites) {
-    assert.ok(/method: "POST"/.test(w), "…both POSTs");
-    assert.ok(/JSON\.stringify\(\{ stepLink:/.test(w), "…and both bodies can only ever be { stepLink }");
+    assert.ok(/method: "POST"/.test(w), "…all POSTs");
+    assert.ok(/JSON\.stringify\(\{ stepLink:/.test(w), "…and every body can only ever be { stepLink }");
   }
   // what those payloads may carry, exhaustively and between them
   const fieldsOf = (w) => [...w.matchAll(/([a-zA-Z]+):/g)].map((m) => m[1]).filter((f) =>
@@ -213,8 +216,18 @@ async function runIg(env, url, responder, seed) {
   // order-independent: which of the two comes first in the file is not the guarantee
   const shapes = projWrites.map((w) => fieldsOf(w).sort().join(",")).sort();
   assert.deepStrictEqual(shapes,
-    ["check,done,id,projectId,stepId", "done,projectId,stepId"].sort(),
-    "between them: finishing a step, and ticking one item on its checklist — one boolean each, and nothing else");
+    ["check,done,id,projectId,stepId", "done,projectId,stepId", "projectId,stepId"].sort(),
+    "between them: finishing a step, ticking one item on its checklist, and (v251) cancel's date change — and nothing else");
+  /* v251: cancel's write carries a `link` built in tlCancelStep, and that link may hold a
+     step's date and its day in the week — what "move it to Thursday" or "not today" means —
+     and nothing else. Its title, notes, board and stage stay out of reach. */
+  {
+    const m = /\nasync function tlCancelStep\([^)]*\) \{([\s\S]*?)\n\}/.exec(djs);
+    assert.ok(m, "tlCancelStep builds cancel's projects write");
+    const linkKeys = [...m[1].matchAll(/link = \{([^}]*)\}/g)].flatMap((x) => [...x[1].matchAll(/([a-zA-Z]+):/g)].map((y) => y[1]));
+    for (const k of linkKeys) assert.ok(["due", "week", "day", "slot"].includes(k), "cancel's link only carries a date and a day: " + k);
+    assert.ok(!/link\.(?!due\b)[a-zA-Z]+ =/.test(m[1]), "…and nothing else is added to it afterwards");
+  }
   for (const w of projWrites) {
     for (const payload of ["project", "week", "day", "slot", "columns", "steps", "canvas", "archived", "title", "notes"]) {
       assert.ok(!new RegExp("\\b" + payload + "\\s*:").test(w),

@@ -1490,6 +1490,92 @@ export default async (req) => {
       return Response.json({ ok: true, weekEnding, done });
     }
 
+    // v251 Taking one job off TODAY from the Daily Dashboard — "not today", or "move it to
+    // another day this week". POST { weeklyCancel: { weekEnding, tgt, cell, to? } }
+    //
+    // Ash: "cancel the jobs here … remove it from the weekly calendar too but NOT the
+    // recurring task list. This should just be if I don't manage to get it done that day."
+    //
+    // So it is ONE OCCURRENCE in ONE WEEK, and it uses the weekly page's own v82/v228
+    // machinery rather than inventing a second one:
+    //   • a recurring/training job gets an exception entry — { type:"skip", from } or
+    //     { type:"move", from, to } — the same entry the planner's ✕ → "Skip this week" and
+    //     drag-to-move write. The schedule itself, the recurring list, is never touched, and an
+    //     exception never leaves its week, so next week it is back where it always is.
+    //   • a one-off planner task (projectItems/bufferItems) is hand-placed, so its placement in
+    //     that cell is taken out (or moved). The task itself stays in the week's list.
+    //   • a project step is not in the plan at all — the page changes the step through the
+    //     projects store, and this route only straightens the display cache.
+    // `from` for an exception is the SCHEDULE cell, so a job already moved to today is traced
+    // back to where it came from: one entry per occurrence, never two.
+    if (body.weeklyCancel && typeof body.weeklyCancel === "object") {
+      const c = body.weeklyCancel;
+      const weekEnding = typeof c.weekEnding === "string" ? c.weekEnding : "";
+      if (!validWeekDate(weekEnding)) return new Response("Bad weekEnding", { status: 400 });
+      const cellOk = (s) => typeof s === "string" && /^[a-z0-9-]{1,12}:(mon|tue|wed|thu|fri|sat|sun)$/.test(s);
+      const cell = cellOk(c.cell) ? c.cell : "";
+      if (!cell) return new Response("Bad cell", { status: 400 });
+      const to = c.to == null || c.to === "" ? "" : (cellOk(c.to) ? c.to : null);
+      if (to === null || to === cell) return new Response("Bad destination", { status: 400 });
+      const tgt = cleanTickTarget(c.tgt) || cleanStepTarget(c.tgt);
+      if (!tgt) return new Response("Bad target", { status: 400 });
+
+      if (!tgt.p) {
+        const key = weeklyPlanKeyOf(weekEnding);
+        const plan = await store.get(key, { type: "json" });
+        if (!plan) return Response.json({ ok: false, error: "No plan for that week yet." }, { status: 404 });
+        if (tgt.m) {
+          const ref = (tgt.m === "trainingDone" ? "training" : "recurring") + ":" + tgt.k.split(":")[0];
+          const ex = (plan.exceptions && typeof plan.exceptions === "object" && !Array.isArray(plan.exceptions)) ? plan.exceptions : {};
+          const list = (Array.isArray(ex[ref]) ? ex[ref] : ex[ref] ? [ex[ref]] : []).filter((e) => e && typeof e === "object");
+          const movedHere = list.find((e) => e.type === "move" && e.to === cell);
+          const from = movedHere ? movedHere.from : cell;
+          const rest = list.filter((e) => e.from !== from);
+          if (!to) rest.push({ type: "skip", from });
+          else if (to !== from) rest.push({ type: "move", from, to });   // moved back home = no entry
+          if (rest.length) ex[ref] = rest; else delete ex[ref];
+          plan.exceptions = ex;
+        } else {
+          const ref = (tgt.l === "bufferItems" ? "buffer" : "project") + ":" + tgt.k;
+          const pl = (plan.placements && typeof plan.placements === "object") ? plan.placements : {};
+          if (!(pl[cell] || []).includes(ref)) return Response.json({ ok: false, error: "That job is not on that day any more." }, { status: 404 });
+          pl[cell] = pl[cell].filter((r) => r !== ref);
+          if (!pl[cell].length) delete pl[cell];
+          if (to) { pl[to] = pl[to] || []; if (!pl[to].includes(ref)) pl[to].push(ref); }
+          plan.placements = pl;
+        }
+        plan.lastUpdated = new Date().toISOString();
+        await store.set(key, JSON.stringify(plan));
+      }
+
+      // The display cache, in the same breath — the row leaves today and (on a move) lands on
+      // its new day. A multi-day job's tick is keyed by day, so it takes its new day's key.
+      let agenda = null;
+      try {
+        const ag = await store.get(agendaKeyOf(weekEnding), { type: "json" });
+        if (ag && ag.cells) {
+          const same = (t) => t && (tgt.p ? t.p === tgt.p && t.s === tgt.s
+            : t.k === tgt.k && (t.m || "") === (tgt.m || "") && (t.l || "") === (tgt.l || ""));
+          const rows = ag.cells[cell] || [];
+          const i = rows.findIndex((r) => same(r.tgt));
+          if (i >= 0) {
+            const [row] = rows.splice(i, 1);
+            if (!rows.length) delete ag.cells[cell];
+            if (to) {
+              const toDay = to.split(":")[1];
+              const moved = { ...row, tgt: { ...row.tgt } };
+              if (moved.tgt.k && moved.tgt.k.includes(":")) moved.tgt.k = moved.tgt.k.split(":")[0] + ":" + toDay;
+              ag.cells[to] = (ag.cells[to] || []).concat([moved]);
+            }
+            await store.set(agendaKeyOf(weekEnding), JSON.stringify(ag));
+          }
+          agenda = ag;
+        }
+      } catch { /* the cache is disposable; opening the weekly page rewrites it */ }
+
+      return Response.json({ ok: true, weekEnding, agenda });
+    }
+
     // v136 Competitors: POST { igCompetitors: [...] }. A whole-list write — the page holds
     // the order and hands back the full list — de-duplicated and capped at ten. Touches
     // nothing but its own key.

@@ -1319,6 +1319,19 @@
   .tl-min:hover{border-color:var(--orange);color:var(--ink);}
   .tl-min.go{background:var(--green);border-color:var(--green);color:var(--on-accent);}
   .tl-fin span{font-weight:700;color:var(--green-2);margin-right:4px;}
+  /* v251: cancel — not getting to it today */
+  .tl-a-x:hover{color:var(--red);border-color:rgba(var(--red-rgb),.35);}
+  .tl-cx{background:var(--card-2);border-radius:10px;padding:10px 12px;}
+  .tl-cx.sure{background:rgba(var(--red-rgb),.05);box-shadow:inset 3px 0 0 var(--red);}
+  .tl-cx-q{flex:1 1 100%;color:var(--ink);line-height:1.5;margin-bottom:2px;}
+  .tl-cx-note,.tl-cx-err{flex:1 1 100%;font-size:12px;}
+  .tl-cx-err{color:var(--red);font-weight:700;}
+  .tl-min.warn{background:var(--red);border-color:var(--red);color:var(--on-accent);}
+  .tl-min.warn:hover{filter:brightness(.95);color:var(--on-accent);}
+  .tl-min.plain{background:transparent;border-color:transparent;}
+  .tl-cx-note-in{flex:1 1 100%;font:inherit;font-size:13px;line-height:1.5;color:var(--ink);background:var(--card);
+    border:1px solid var(--line);border-radius:8px;padding:8px 10px;resize:vertical;min-height:44px;margin:2px 0 4px;}
+  .tl-cx-note-in:focus{outline:none;box-shadow:var(--focus);}
   .tl-inside{margin:10px 0 2px 31px;border-left:3px solid rgba(var(--orange-rgb),.35);padding-left:var(--sp-4);}
   .tl-parked{margin-top:10px;padding:4px 2px;}
   .tl-parked:hover{color:var(--ink);}
@@ -2822,11 +2835,12 @@ function agendaWeekOf(offset) {
   return ymd(d);
 }
 
-/* THE ONE THING THIS PAGE CAN WRITE TO A PLAN.
-   It builds the only payload it is able to build — a single boolean at an address the
-   weekly page worked out — and there is no other function here that posts to the store. The
-   test asserts that: every request to the store that carries a method posts { weeklyTick }
-   and nothing else. Where a task's tick actually LIVES is not known here and must not be. */
+/* THE ONE THING THIS PAGE CAN WRITE TO A PLAN — and, since v251, its one exception:
+   tlCancelPost's { weeklyCancel }, which takes ONE occurrence off today (or moves it) through
+   the weekly page's own skip/move entries. It builds the only payload it is able to build — a
+   single boolean at an address the weekly page worked out. The test asserts that every
+   request to the store that carries a method posts { weeklyTick } or { weeklyCancel } and
+   nothing else. Where a task's tick actually LIVES is not known here and must not be. */
 async function tickTask(tgt, done, week) {
   // v227: a project step's tick is the step's, through the projects store's stepLink route
   if (tgt && tgt.p) return fmTickStep({ projectId: tgt.p, stepId: tgt.s }, done);
@@ -4167,6 +4181,8 @@ function fmMorningHtml() {
 let tlOpen = {};            // job key → its notes and checklist are showing
 let tlShowParked = false;   // the "Parked (N)" line is unfolded
 let tlFocusPick = "";       // the job whose Focus lengths are showing
+// v251: the job being taken off today — { key, stage: "ask" | "move" | "sure", to?, error? }
+let tlCancel = null;
 
 // today's jobs, as the list shows them: { live, parked }
 function tlJobs() {
@@ -4225,9 +4241,12 @@ function tlRowHtml(j, isParked) {
         (isParked
           ? '<button type="button" class="tl-a" data-tl="unpark">bring back</button>'
           : (!j.done && !run ? '<button type="button" class="tl-a" data-tl="focus" aria-expanded="' + (tlFocusPick === j.key) + '">Focus</button>' : "") +
-            (!j.done && j.source !== "one" ? '<button type="button" class="tl-a" data-tl="park" title="Put it aside for today">later</button>' : "")) +
+            (!j.done && j.source !== "one" ? '<button type="button" class="tl-a" data-tl="park" title="Put it aside for today">later</button>' : "") +
+            (!j.done && tlCanCancel(j) ? '<button type="button" class="tl-a tl-a-x" data-tl="cx" aria-expanded="' + (!!tlCancel && tlCancel.key === j.key) +
+              '" title="Not getting to it today — move it or drop it">cancel</button>' : "")) +
       "</span>" +
     "</div>";
+  if (!isParked && !j.done && tlCancel && tlCancel.key === j.key) h += tlCancelHtml(j);
   // the lengths, when Focus was pressed
   if (!isParked && tlFocusPick === j.key && !j.done && !run) {
     h += '<div class="tl-sub">' + FT_PRESETS.map((m) =>
@@ -4278,6 +4297,10 @@ function tlWireOnce() {
   if (!body || body.dataset.wired) return;
   body.dataset.wired = "1";
   body.addEventListener("click", tlClick);
+  // v251: the skip note survives a redraw (an error, say) while the prompt is open
+  body.addEventListener("input", (e) => {
+    if (tlCancel && e.target && e.target.dataset && "tlNote" in e.target.dataset) tlCancel.note = e.target.value;
+  });
 }
 async function tlClick(e) {
   const el = e.target && e.target.closest ? e.target.closest("[data-tl]") : null;
@@ -4291,6 +4314,19 @@ async function tlClick(e) {
   if (act === "more") { tlOpen[j.key] = !tlOpen[j.key]; renderTodayList(); return; }
   if (act === "focus") { tlFocusPick = tlFocusPick === j.key ? "" : j.key; renderTodayList(); return; }
   if (act === "min") { tlFocusPick = ""; ftStart(Number(el.dataset.min), { key: j.key, title: j.title }); return; }
+  if (act === "cx") { tlCancel = tlCancel && tlCancel.key === j.key ? null : { key: j.key, stage: "ask" }; tlFocusPick = ""; renderTodayList(); return; }
+  if (act === "cx-move") { tlCancel = { key: j.key, stage: "move" }; renderTodayList(); return; }
+  if (act === "cx-drop") {
+    tlCancel = { key: j.key, stage: "sure" };
+    renderTodayList();
+    const n = $("tlBody").querySelector("[data-tl-note]");
+    if (n) n.focus();
+    return;
+  }
+  if (act === "cx-day") { tlCancel = { key: j.key, stage: "sure", to: el.dataset.to }; renderTodayList(); return; }
+  if (act === "cx-back") { tlCancel = { key: j.key, stage: "ask" }; renderTodayList(); return; }
+  if (act === "cx-keep") { tlCancel = null; renderTodayList(); return; }
+  if (act === "cx-yes") return tlCancelGo(j);
   if (act === "park") return tlPark(j, true);
   if (act === "unpark") return tlPark(j, false);
   if (act === "ck") return fmTickCheck(j, el.dataset.ck);
@@ -4316,6 +4352,146 @@ async function tlPark(j, on) {
   renderTodayList(); renderStartDay();
   try { await save; } catch (e) { /* it comes back tomorrow either way */ }
 }
+/* ---------- v251: "cancel" — not getting to it today ----------
+   Ash: "I need the option of being able to cancel the jobs here — but it should come with a
+   final prompt, like are you sure? and that should remove it from the weekly calendar too but
+   NOT the recurring task list. This should just be if I don't manage to get it done that
+   day. Also should be prompted if I need to move it to another day, or just forget about it
+   today too."
+
+   Three steps, all inline — never a browser confirm(), which would freeze the page:
+     cancel → "Move to another day" | "Forget it today" | "Keep it"
+            → (a day, if moving) → "Are you sure?" saying exactly what will change → Yes.
+   What changes is ONE occurrence, never the job itself:
+     • recurring/training: this week's skip or move exception (kpi-store weeklyCancel). The
+       recurring list is not touched and next week is untouched.
+     • a one-off planner task: its slot today comes out (or moves); it stays in the week's list.
+     • a project step: its date moves, or is cleared — it stays on its board. */
+const tlStepOf = (j) => (j.tgt && j.tgt.p) || j.source === "step" ? j.step || null : null;
+function tlCanCancel(j) {
+  if (j.source === "one") return false;
+  if (tlStepOf(j)) return true;
+  return j.source === "plan" && !!(j.tgt && j.cellKey);
+}
+const tlDateOf = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const tlDayName = (s) => tlDateOf(s).toLocaleDateString("en-GB", { weekday: "long" });
+const tlDayShort = (s) => tlDateOf(s).toLocaleDateString("en-GB", { weekday: "short", day: "numeric" });
+// which days it can go to: the rest of this week for anything on the weekly plan (a skip or
+// move never leaves its week), the next seven days for a project step
+function tlCancelDays(j) {
+  const out = [];
+  const n = tlStepOf(j) ? 7 : 6 - (new Date().getDay() + 6) % 7;
+  for (let i = 1; i <= n; i++) { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + i); out.push(ymd(d)); }
+  return out;
+}
+const WP_ANY_SLOT = "any";
+const tlSlotOf = (j) => (j.cellKey ? j.cellKey.split(":")[0] : WP_ANY_SLOT);
+const tlCellOn = (j, date) => tlSlotOf(j) + ":" + agendaDayKey(tlDateOf(date));
+const tlInThisWeek = (date) => date >= agendaWeekOf(0) && date < agendaWeekOf(1);
+function tlCancelSays(j, to) {
+  const t = "“" + j.title + "”";
+  const f = tlStepOf(j);
+  const when = j.source === "plan" && j.when ? ", " + j.when : "";
+  if (f) {
+    return to ? t + " moves to " + tlDayName(to) + " " + tlDayShort(to).split(" ")[1] + ", on " + f.project.name + " and on the calendar."
+      : t + " comes off today and off the calendar, and its date is cleared. It stays on the " + f.project.name + " board, in this week's project list.";
+  }
+  if (j.tgt && j.tgt.m) {
+    return to ? t + " moves to " + tlDayName(to) + when + ", this week only. Your recurring list is not touched."
+      : t + " comes off today and off this week's calendar. Your recurring list is not touched — it is back as normal next time.";
+  }
+  return to ? t + " moves to " + tlDayName(to) + when + " on this week's calendar."
+    : t + " comes off today's slot on the calendar. It stays in this week's list in the planner.";
+}
+function tlCancelHtml(j) {
+  const c = tlCancel;
+  const b = (act, label, cls, extra) => '<button type="button" class="tl-min' + (cls ? " " + cls : "") + '" data-tl="' + act + '"' + (extra || "") + ">" + label + "</button>";
+  if (c.stage === "move") {
+    const days = tlCancelDays(j);
+    return '<div class="tl-sub tl-cx"><span class="tl-cx-q">Which day?</span>' +
+      days.map((d) => b("cx-day", esc(tlDayShort(d)), "", ' data-to="' + d + '"')).join("") +
+      b("cx-back", "Back", "plain") + "</div>";
+  }
+  if (c.stage === "sure") {
+    return '<div class="tl-sub tl-cx sure"><span class="tl-cx-q"><b>Are you sure?</b> ' + esc(tlCancelSays(j, c.to || "")) + "</span>" +
+      /* v251: a skip gets a line to yourself — "already sent the Shred announcement, so the
+         newsletter can wait". It is for clarity in the moment, and it is deliberately NOT
+         saved anywhere: it lives in this box and goes when the box does. */
+      (c.to ? "" : '<textarea class="tl-cx-note-in" data-tl-note rows="2" aria-label="A note to yourself" ' +
+        'placeholder="Why it’s fine to let this one go today — just for you, not saved anywhere.">' + esc(c.note || "") + "</textarea>") +
+      (c.error ? '<span class="tl-cx-err">' + esc(c.error) + "</span>" : "") +
+      b("cx-yes", c.to ? "Yes, move it" : "Yes, not today", "warn") + b("cx-keep", "No, keep it", "plain") + "</div>";
+  }
+  const canMove = tlCancelDays(j).length > 0;
+  return '<div class="tl-sub tl-cx"><span class="tl-cx-q">Not getting to this today?</span>' +
+    (canMove ? b("cx-move", "Move to another day") : "") +
+    b("cx-drop", "Forget it today") + b("cx-keep", "Keep it", "plain") +
+    (canMove ? "" : '<span class="tl-cx-note">No days left this week to move it to — a weekly plan move stays inside its week.</span>') + "</div>";
+}
+async function tlCancelGo(j) {
+  const to = (tlCancel && tlCancel.to) || "";
+  const f = tlStepOf(j);
+  try {
+    if (f) await tlCancelStep(j, f, to);
+    else await tlCancelPost(j.tgt, j.cellKey, to ? tlCellOn(j, to) : "");
+  } catch (e) {
+    tlCancel = { key: j.key, stage: "sure", to, note: (tlCancel && tlCancel.note) || "", error: "That did not save, so nothing has changed. Try again." };
+    renderTodayList();
+    return;
+  }
+  tlCancel = null;
+  delete tlOpen[j.key];
+  fmAfterChange();
+}
+// the weekly plan's side: the plan and the display cache, in one write
+async function tlCancelPost(tgt, cell, to) {
+  const r = await fetch(API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ weeklyCancel: { weekEnding: agendaWeekOf(0), tgt, cell, to } }),
+  });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const out = await r.json();
+  if (out && out.agenda) {
+    wpAgendaToday = out.agenda;
+    if (calWeekOffset === 0) wpAgenda = out.agenda;
+  }
+  return out;
+}
+// a project step: its date (or its day in the week) on the board, then today's cache row
+async function tlCancelStep(j, f, to) {
+  const st = f.step;
+  let link;
+  if (to) {
+    const d = tlDateOf(to);
+    const mon = new Date(d); mon.setDate(d.getDate() - (d.getDay() + 6) % 7);
+    const slot = tlSlotOf(j) === WP_ANY_SLOT ? "" : tlSlotOf(j);
+    link = { week: ymd(mon), day: agendaDayKey(d), slot };
+    if (st.due) link.due = to;
+  } else {
+    link = { due: "", week: agendaWeekOf(0), day: "", slot: "" };
+  }
+  const r = await fetch(PROJECTS, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ stepLink: Object.assign({ projectId: f.project.id, stepId: st.id }, link) }),
+  });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const out = await r.json();
+  Object.assign(st, (out && out.step) || link);
+  // the step is moved; the calendar's copy of today follows. If the cache will not take it,
+  // take the row off this page anyway — the weekly page rebuilds the cache from the step.
+  if (j.cellKey) {
+    const dest = to && tlInThisWeek(to) ? tlCellOn(j, to) : "";
+    try { await tlCancelPost({ p: f.project.id, s: st.id }, j.cellKey, dest); }
+    catch (e) {
+      const ag = agendaToday();
+      const rows = ag && ag.cells && ag.cells[j.cellKey];
+      if (rows) ag.cells[j.cellKey] = rows.filter((x) => !(x.tgt && x.tgt.p === f.project.id && x.tgt.s === st.id));
+    }
+  }
+}
+
 /* On screen first, then told to the board — and put back if the board will not take it. */
 async function fmTickCheck(job, checkId) {
   const d = fmDetail(job);
