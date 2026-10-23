@@ -1323,6 +1323,12 @@
   .tl-a-x:hover{color:var(--red);border-color:rgba(var(--red-rgb),.35);}
   .tl-cx{background:var(--card-2);border-radius:10px;padding:10px 12px;}
   .tl-cx.sure{background:rgba(var(--red-rgb),.05);box-shadow:inset 3px 0 0 var(--red);}
+  /* v252: a move is not a loss — it reads calm, not red */
+  .tl-cx.sure.move{background:rgba(var(--green-rgb),.06);box-shadow:inset 3px 0 0 var(--green);}
+  .tl-cx-date{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--ink-dim);}
+  .tl-cx-date input{font:inherit;font-size:16px;color:var(--ink);background:var(--card);border:1px solid var(--line);
+    border-radius:var(--r-pill);padding:3px 10px;}
+  .tl-cx-date input:focus{outline:none;box-shadow:var(--focus);}
   .tl-cx-q{flex:1 1 100%;color:var(--ink);line-height:1.5;margin-bottom:2px;}
   .tl-cx-note,.tl-cx-err{flex:1 1 100%;font-size:12px;}
   .tl-cx-err{color:var(--red);font-weight:700;}
@@ -4040,17 +4046,23 @@ function fmBuildQueue(includeParked) {
   });
   // dated today and not on the plan; then (v227) overdue — before today, not done — oldest first
   const due = [], late = [];
+  const thisWeek = agendaWeekOf(0);
   fmProjects.forEach((p) => {
     (p.steps || []).forEach((st) => {
-      if (!st || st.del || !st.due) return;
+      if (!st || st.del) return;
       if (planned.has(p.id + ":" + st.id)) return;   // the plan already has it, and twice is not a queue
+      // v252: an undated step whose day is today — moved here by "later" — is today's job on
+      // the step's own say-so, so it shows even before the weekly page has rewritten the cache
+      const onToday = !st.due && st.week === thisWeek && st.day === dayKey;
+      if (!st.due && !onToday) return;
       const job = {
         key: "step:" + p.id + ":" + st.id,
         title: st.title, source: "step", kind: "project", when: "",
         done: !!st.done, projectId: p.id, stepId: st.id, from: p.name,
         step: { project: p, step: st },
       };
-      if (st.due === today) due.push(job);
+      if (onToday) { job.onDay = true; job.when = tlBandLabel(st.slot || WP_ANY_SLOT); due.push(job); }
+      else if (st.due === today) due.push(job);
       else if (st.due < today && !st.done) {
         const n = fmDaysLate(st.due, today);
         job.late = n;
@@ -4195,13 +4207,27 @@ function tlJobs() {
   return { live: jobs.filter((j) => !parked.has(j.key)), parked: jobs.filter((j) => parked.has(j.key)) };
 }
 const tlFind = (key) => { const { live, parked } = tlJobs(); return live.concat(parked).find((j) => j.key === key) || null; };
-// where a job came from, in a word or two: its block, or its project
+/* where a job came from, and when — "Christmas Shred · Anytime", "Recurring · 6–9".
+   v252: Ash: "a little more specificity on the jobs" — a project step on the plan said only
+   "Anytime", where the weekly planner and the board both say which project it belongs to. The
+   project is read off the step itself (by its ids, never its title); a plan row says which
+   list it is from the same way the planner does. */
+const TL_KIND_WORD = { recurring: "Recurring", training: "Training", buffer: "Buffer" };
 function tlWhere(j) {
   if (j.source === "one") return "Your one thing";
-  if (j.late) return (j.from ? j.from + " · " : "") + j.late + (j.late === 1 ? " day late" : " days late");
-  if (j.source === "plan") return j.when || "Planned";
-  return j.from ? j.from + " · due today" : "Due today";
+  const proj = (j.step && j.step.project && j.step.project.name) || j.from || "";
+  const pre = (s) => (proj ? proj + " · " : "") + s;
+  if (j.late) return pre(j.late + (j.late === 1 ? " day late" : " days late"));
+  if (j.source === "plan") {
+    const when = j.when || "Planned";
+    if (j.step) return pre(when);
+    const word = TL_KIND_WORD[j.kind];
+    return word ? word + " · " + when : when;
+  }
+  if (j.onDay) return pre(j.when);
+  return pre("due today");
 }
+const tlBandLabel = (slot) => { const b = WP_BANDS.find((x) => x[0] === slot); return b ? b[1] : "Anytime"; };
 function tlDetailHtml(j) {
   const d = j.source === "one" ? null : fmDetail(j);
   if (!d) return "";
@@ -4241,8 +4267,11 @@ function tlRowHtml(j, isParked) {
         (isParked
           ? '<button type="button" class="tl-a" data-tl="unpark">bring back</button>'
           : (!j.done && !run ? '<button type="button" class="tl-a" data-tl="focus" aria-expanded="' + (tlFocusPick === j.key) + '">Focus</button>' : "") +
-            (!j.done && j.source !== "one" ? '<button type="button" class="tl-a" data-tl="park" title="Put it aside for today">later</button>' : "") +
-            (!j.done && tlCanCancel(j) ? '<button type="button" class="tl-a tl-a-x" data-tl="cx" aria-expanded="' + (!!tlCancel && tlCancel.key === j.key) +
+            /* v252: "later" says WHEN — a day and a time — and moves it there everywhere. It
+               used to fold the job into a Parked line on this page and nowhere else. */
+            (!j.done && tlCanCancel(j) ? '<button type="button" class="tl-a" data-tl="later" aria-expanded="' +
+              (!!tlCancel && tlCancel.key === j.key && tlCancel.via === "later") + '" title="Move it to another day or time">later</button>' : "") +
+            (!j.done && tlCanCancel(j) ? '<button type="button" class="tl-a tl-a-x" data-tl="cx" aria-expanded="' + (!!tlCancel && tlCancel.key === j.key && tlCancel.via !== "later") +
               '" title="Not getting to it today — move it or drop it">cancel</button>' : "")) +
       "</span>" +
     "</div>";
@@ -4301,6 +4330,14 @@ function tlWireOnce() {
   body.addEventListener("input", (e) => {
     if (tlCancel && e.target && e.target.dataset && "tlNote" in e.target.dataset) tlCancel.note = e.target.value;
   });
+  // v252: "Another date" on a project step — a date picked is the same as a day button
+  body.addEventListener("change", (e) => {
+    const t = e.target;
+    if (!tlCancel || !t || !t.dataset || !("tlDate" in t.dataset)) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(t.value || "") || t.value < ymd(new Date())) return;
+    tlCancel = { key: tlCancel.key, stage: "move", via: tlCancel.via, day: t.value };
+    renderTodayList();
+  });
 }
 async function tlClick(e) {
   const el = e.target && e.target.closest ? e.target.closest("[data-tl]") : null;
@@ -4314,8 +4351,10 @@ async function tlClick(e) {
   if (act === "more") { tlOpen[j.key] = !tlOpen[j.key]; renderTodayList(); return; }
   if (act === "focus") { tlFocusPick = tlFocusPick === j.key ? "" : j.key; renderTodayList(); return; }
   if (act === "min") { tlFocusPick = ""; ftStart(Number(el.dataset.min), { key: j.key, title: j.title }); return; }
-  if (act === "cx") { tlCancel = tlCancel && tlCancel.key === j.key ? null : { key: j.key, stage: "ask" }; tlFocusPick = ""; renderTodayList(); return; }
-  if (act === "cx-move") { tlCancel = { key: j.key, stage: "move" }; renderTodayList(); return; }
+  if (act === "cx") { tlCancel = tlCancel && tlCancel.key === j.key && tlCancel.via !== "later" ? null : { key: j.key, stage: "ask" }; tlFocusPick = ""; renderTodayList(); return; }
+  // v252: "later" goes straight to when; cancel's "Move to another day" lands in the same place
+  if (act === "later") { tlCancel = tlCancel && tlCancel.key === j.key && tlCancel.via === "later" ? null : { key: j.key, stage: "move", via: "later" }; tlFocusPick = ""; renderTodayList(); return; }
+  if (act === "cx-move") { tlCancel = { key: j.key, stage: "move", via: "" }; renderTodayList(); return; }
   if (act === "cx-drop") {
     tlCancel = { key: j.key, stage: "sure" };
     renderTodayList();
@@ -4323,11 +4362,20 @@ async function tlClick(e) {
     if (n) n.focus();
     return;
   }
-  if (act === "cx-day") { tlCancel = { key: j.key, stage: "sure", to: el.dataset.to }; renderTodayList(); return; }
-  if (act === "cx-back") { tlCancel = { key: j.key, stage: "ask" }; renderTodayList(); return; }
+  if (act === "cx-day") { tlCancel = { key: j.key, stage: "move", via: tlVia(), day: el.dataset.to }; renderTodayList(); return; }
+  if (act === "cx-slot") { tlCancel = { key: j.key, stage: "sure", via: tlVia(), day: tlCancel && tlCancel.day, to: tlCancel && tlCancel.day, slot: el.dataset.slot }; renderTodayList(); return; }
+  if (act === "cx-back") {
+    // one step back: the time, then the day, then (from cancel) the first question, or (from later) closed
+    const c = tlCancel || {};
+    if (c.stage === "sure" && c.to) tlCancel = { key: j.key, stage: "move", via: c.via, day: c.to };
+    else if (c.stage === "move" && c.day) tlCancel = { key: j.key, stage: "move", via: c.via };
+    else tlCancel = c.via === "later" ? null : { key: j.key, stage: "ask" };
+    renderTodayList();
+    return;
+  }
   if (act === "cx-keep") { tlCancel = null; renderTodayList(); return; }
   if (act === "cx-yes") return tlCancelGo(j);
-  if (act === "park") return tlPark(j, true);
+  // v252: nothing parks any more; a job parked before then can still be brought back
   if (act === "unpark") return tlPark(j, false);
   if (act === "ck") return fmTickCheck(j, el.dataset.ck);
   if (act === "keep") { ftKeepGoing(); return; }
@@ -4344,7 +4392,8 @@ async function tlTick(j) {
   }
   await fmSetDone(j, want);
 }
-// "later": off today's list, onto the folded line. Written to the DAY, never to the weekly plan.
+// v230's "later": off today's list, onto the folded line, written to the DAY. Since v252 "later"
+// moves the job instead (tlCancelGo); this is only the way back for a job parked before then.
 async function tlPark(j, on) {
   const parked = (ckEntry(ckToday()).parked || []).filter((k) => k !== j.key);
   if (on) parked.push(j.key);
@@ -4376,53 +4425,106 @@ function tlCanCancel(j) {
 const tlDateOf = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
 const tlDayName = (s) => tlDateOf(s).toLocaleDateString("en-GB", { weekday: "long" });
 const tlDayShort = (s) => tlDateOf(s).toLocaleDateString("en-GB", { weekday: "short", day: "numeric" });
-// which days it can go to: the rest of this week for anything on the weekly plan (a skip or
-// move never leaves its week), the next seven days for a project step
+/* v252: WHEN, EXACTLY. Ash: "when we 'later' it, it just moves it to 'parked'. I should be able
+   to specify exactly when it's being moved to, and it should move it in the calendar and the
+   weekly planner … I want all corresponding dates everywhere to align."
+   So a move is a day AND a time block, and it is written where the job lives — the rest follows:
+     • a project step: its day, week and time on the step (and its due date, if it has one).
+       The weekly planner lays steps out from the step itself, the board's card reads the same
+       fields, and the calendar's copy is moved in the same breath (both weeks, if it crosses
+       one). It can go anywhere — the next seven days, or any date picked.
+     • a recurring/training block or a one-off planner task: the rest of THIS week, because a
+       one-occurrence move never leaves its week (next week it is back where it always is).
+   An undated step stays undated: a move says when you will do it, not a new deadline. */
+const WP_BAND_END = { "6-9": 9, "10-12": 11.5, "1-3": 15, "5-8": 20 };
+const tlToday = () => ymd(new Date());
+// the time it sits in now, so "later today" never offers the slot it is already in
+function tlNowSlot(j) {
+  if (j.cellKey) return j.cellKey.split(":")[1] === agendaDayKey(new Date()) ? tlSlotOf(j) : "";
+  const st = j.step && j.step.step;
+  if (!st || j.late) return "";
+  return st.day === agendaDayKey(new Date()) && SLOT_OK(st.slot) ? st.slot : WP_ANY_SLOT;
+}
+const SLOT_OK = (s) => Object.prototype.hasOwnProperty.call(WP_BAND_END, s);
+// the time blocks it can go to on a date: Anytime only for a step (the planner's Anytime row
+// is for steps); on today, only the blocks still to come, and never the one it is in
+function tlMoveSlots(j, date) {
+  let slots = WP_BANDS.map((b) => b[0]).filter((s) => tlStepOf(j) || s !== WP_ANY_SLOT);
+  if (date === tlToday()) {
+    const h = new Date().getHours() + new Date().getMinutes() / 60;
+    const here = tlNowSlot(j);
+    slots = slots.filter((s) => s !== here && (s === WP_ANY_SLOT || h < WP_BAND_END[s]));
+  }
+  return slots;
+}
+// which days it can go to: today (if a block is left), then the rest of this week for anything
+// on the weekly plan, the next seven days for a project step (and any date, from the picker)
 function tlCancelDays(j) {
   const out = [];
+  if (tlMoveSlots(j, tlToday()).length) out.push(tlToday());
   const n = tlStepOf(j) ? 7 : 6 - (new Date().getDay() + 6) % 7;
   for (let i = 1; i <= n; i++) { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + i); out.push(ymd(d)); }
   return out;
 }
 const WP_ANY_SLOT = "any";
 const tlSlotOf = (j) => (j.cellKey ? j.cellKey.split(":")[0] : WP_ANY_SLOT);
-const tlCellOn = (j, date) => tlSlotOf(j) + ":" + agendaDayKey(tlDateOf(date));
+const tlCellOn = (slot, date) => (slot || WP_ANY_SLOT) + ":" + agendaDayKey(tlDateOf(date));
 const tlInThisWeek = (date) => date >= agendaWeekOf(0) && date < agendaWeekOf(1);
-function tlCancelSays(j, to) {
+const tlMondayOf = (date) => { const d = tlDateOf(date); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return ymd(d); };
+const tlVia = () => (tlCancel && tlCancel.via) || "";
+// "Tuesday 27 Oct, 12–3" — or "later today, 12–3"
+function tlWhenSays(to, slot) {
+  const day = to === tlToday() ? "later today"
+    : tlDayName(to) + " " + tlDateOf(to).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return day + ", " + (slot && slot !== WP_ANY_SLOT ? tlBandLabel(slot) : "any time");
+}
+function tlCancelSays(j, to, slot) {
   const t = "“" + j.title + "”";
   const f = tlStepOf(j);
   const when = j.source === "plan" && j.when ? ", " + j.when : "";
   if (f) {
-    return to ? t + " moves to " + tlDayName(to) + " " + tlDayShort(to).split(" ")[1] + ", on " + f.project.name + " and on the calendar."
+    return to ? t + " moves to " + tlWhenSays(to, slot) + ". " +
+        (f.step.due ? "Its due date on the " + f.project.name + " board changes to match" : "It moves on the " + f.project.name + " board") +
+        ", and the weekly planner and calendar move with it."
       : t + " comes off today and off the calendar, and its date is cleared. It stays on the " + f.project.name + " board, in this week's project list.";
   }
   if (j.tgt && j.tgt.m) {
-    return to ? t + " moves to " + tlDayName(to) + when + ", this week only. Your recurring list is not touched."
+    return to ? t + " moves to " + tlWhenSays(to, slot) + " on the weekly planner and calendar, this week only. Your recurring list is not touched."
       : t + " comes off today and off this week's calendar. Your recurring list is not touched — it is back as normal next time.";
   }
-  return to ? t + " moves to " + tlDayName(to) + when + " on this week's calendar."
-    : t + " comes off today's slot on the calendar. It stays in this week's list in the planner.";
+  return to ? t + " moves to " + tlWhenSays(to, slot) + " on this week's planner and calendar."
+    : t + " comes off today's slot" + when + " on the calendar. It stays in this week's list in the planner.";
 }
 function tlCancelHtml(j) {
   const c = tlCancel;
   const b = (act, label, cls, extra) => '<button type="button" class="tl-min' + (cls ? " " + cls : "") + '" data-tl="' + act + '"' + (extra || "") + ">" + label + "</button>";
+  if (c.stage === "move" && c.day) {
+    const slots = tlMoveSlots(j, c.day);
+    return '<div class="tl-sub tl-cx"><span class="tl-cx-q">What time, ' + esc(c.day === tlToday() ? "later today" : tlDayShort(c.day)) + "?</span>" +
+      slots.map((s) => b("cx-slot", esc(s === WP_ANY_SLOT ? "Any time" : tlBandLabel(s)), "", ' data-slot="' + s + '"')).join("") +
+      b("cx-back", "Back", "plain") + "</div>";
+  }
   if (c.stage === "move") {
     const days = tlCancelDays(j);
-    return '<div class="tl-sub tl-cx"><span class="tl-cx-q">Which day?</span>' +
-      days.map((d) => b("cx-day", esc(tlDayShort(d)), "", ' data-to="' + d + '"')).join("") +
+    return '<div class="tl-sub tl-cx"><span class="tl-cx-q">When are you doing it instead?</span>' +
+      days.map((d) => b("cx-day", esc(d === tlToday() ? "Later today" : tlDayShort(d)), "", ' data-to="' + d + '"')).join("") +
+      (tlStepOf(j) ? '<label class="tl-cx-date">Another date <input type="date" data-tl-date min="' + tlToday() + '"></label>' : "") +
+      (days.length || tlStepOf(j) ? "" : '<span class="tl-cx-note">No time left this week to move it to — a weekly plan move stays inside its week.</span>') +
       b("cx-back", "Back", "plain") + "</div>";
   }
   if (c.stage === "sure") {
-    return '<div class="tl-sub tl-cx sure"><span class="tl-cx-q"><b>Are you sure?</b> ' + esc(tlCancelSays(j, c.to || "")) + "</span>" +
+    return '<div class="tl-sub tl-cx sure' + (c.to ? " move" : "") + '"><span class="tl-cx-q"><b>' + (c.to ? "Move it?" : "Are you sure?") + "</b> " +
+      esc(tlCancelSays(j, c.to || "", c.slot || "")) + "</span>" +
       /* v251: a skip gets a line to yourself — "already sent the Shred announcement, so the
          newsletter can wait". It is for clarity in the moment, and it is deliberately NOT
          saved anywhere: it lives in this box and goes when the box does. */
       (c.to ? "" : '<textarea class="tl-cx-note-in" data-tl-note rows="2" aria-label="A note to yourself" ' +
         'placeholder="Why it’s fine to let this one go today — just for you, not saved anywhere.">' + esc(c.note || "") + "</textarea>") +
       (c.error ? '<span class="tl-cx-err">' + esc(c.error) + "</span>" : "") +
-      b("cx-yes", c.to ? "Yes, move it" : "Yes, not today", "warn") + b("cx-keep", "No, keep it", "plain") + "</div>";
+      (c.to ? b("cx-yes", "Yes, move it", "go") + b("cx-back", "Back", "plain")
+        : b("cx-yes", "Yes, not today", "warn") + b("cx-keep", "No, keep it", "plain")) + "</div>";
   }
-  const canMove = tlCancelDays(j).length > 0;
+  const canMove = tlCancelDays(j).length > 0 || !!tlStepOf(j);
   return '<div class="tl-sub tl-cx"><span class="tl-cx-q">Not getting to this today?</span>' +
     (canMove ? b("cx-move", "Move to another day") : "") +
     b("cx-drop", "Forget it today") + b("cx-keep", "Keep it", "plain") +
@@ -4430,12 +4532,14 @@ function tlCancelHtml(j) {
 }
 async function tlCancelGo(j) {
   const to = (tlCancel && tlCancel.to) || "";
+  const slot = (tlCancel && tlCancel.slot) || "";
+  const via = tlVia();
   const f = tlStepOf(j);
   try {
-    if (f) await tlCancelStep(j, f, to);
-    else await tlCancelPost(j.tgt, j.cellKey, to ? tlCellOn(j, to) : "");
+    if (f) await tlCancelStep(j, f, to, slot);
+    else await tlCancelPost(j.tgt, j.cellKey, to ? tlCellOn(slot, to) : "");
   } catch (e) {
-    tlCancel = { key: j.key, stage: "sure", to, note: (tlCancel && tlCancel.note) || "", error: "That did not save, so nothing has changed. Try again." };
+    tlCancel = { key: j.key, stage: "sure", via, day: to, to, slot, note: (tlCancel && tlCancel.note) || "", error: "That did not save, so nothing has changed. Try again." };
     renderTodayList();
     return;
   }
@@ -4443,12 +4547,13 @@ async function tlCancelGo(j) {
   delete tlOpen[j.key];
   fmAfterChange();
 }
-// the weekly plan's side: the plan and the display cache, in one write
-async function tlCancelPost(tgt, cell, to) {
+// the weekly plan's side: the plan and the display cache, in one write. `more` is only ever a
+// project step's { toWeek, title } — where its calendar copy lands when that is another week
+async function tlCancelPost(tgt, cell, to, more) {
   const r = await fetch(API, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ weeklyCancel: { weekEnding: agendaWeekOf(0), tgt, cell, to } }),
+    body: JSON.stringify({ weeklyCancel: Object.assign({ weekEnding: agendaWeekOf(0), tgt, cell, to }, more || {}) }),
   });
   if (!r.ok) throw new Error("HTTP " + r.status);
   const out = await r.json();
@@ -4456,17 +4561,19 @@ async function tlCancelPost(tgt, cell, to) {
     wpAgendaToday = out.agenda;
     if (calWeekOffset === 0) wpAgenda = out.agenda;
   }
+  // the calendar strip is showing the week it went to — read that week's copy again
+  if (more && more.toWeek && calWeekOffset !== 0 && agendaWeekOf(calWeekOffset) === more.toWeek) {
+    try { await loadAgenda(); } catch (e) { /* the strip catches up on its next load */ }
+  }
   return out;
 }
-// a project step: its date (or its day in the week) on the board, then today's cache row
-async function tlCancelStep(j, f, to) {
+// a project step: its day, week and time on the board (and its date, if it has one), then the
+// calendar's copy — out of today, into the day it went to
+async function tlCancelStep(j, f, to, slot) {
   const st = f.step;
   let link;
   if (to) {
-    const d = tlDateOf(to);
-    const mon = new Date(d); mon.setDate(d.getDate() - (d.getDay() + 6) % 7);
-    const slot = tlSlotOf(j) === WP_ANY_SLOT ? "" : tlSlotOf(j);
-    link = { week: ymd(mon), day: agendaDayKey(d), slot };
+    link = { week: tlMondayOf(to), day: agendaDayKey(tlDateOf(to)), slot: slot && slot !== WP_ANY_SLOT ? slot : "" };
     if (st.due) link.due = to;
   } else {
     link = { due: "", week: agendaWeekOf(0), day: "", slot: "" };
@@ -4479,15 +4586,17 @@ async function tlCancelStep(j, f, to) {
   if (!r.ok) throw new Error("HTTP " + r.status);
   const out = await r.json();
   Object.assign(st, (out && out.step) || link);
-  // the step is moved; the calendar's copy of today follows. If the cache will not take it,
-  // take the row off this page anyway — the weekly page rebuilds the cache from the step.
-  if (j.cellKey) {
-    const dest = to && tlInThisWeek(to) ? tlCellOn(j, to) : "";
-    try { await tlCancelPost({ p: f.project.id, s: st.id }, j.cellKey, dest); }
+  // the step has moved; the calendar's copy follows. If the cache will not take it, take the
+  // row off this page anyway — the weekly page rebuilds the cache from the step.
+  if (j.cellKey || to) {
+    const dest = to ? tlCellOn(slot, to) : "";
+    const more = to && !tlInThisWeek(to) ? { toWeek: link.week, title: String(st.title || "") } : { title: String(st.title || "") };
+    try { await tlCancelPost({ p: f.project.id, s: st.id }, j.cellKey || "", dest, more); }
     catch (e) {
       const ag = agendaToday();
-      const rows = ag && ag.cells && ag.cells[j.cellKey];
-      if (rows) ag.cells[j.cellKey] = rows.filter((x) => !(x.tgt && x.tgt.p === f.project.id && x.tgt.s === st.id));
+      if (ag && ag.cells) Object.keys(ag.cells).forEach((k) => {
+        ag.cells[k] = ag.cells[k].filter((x) => !(x.tgt && x.tgt.p === f.project.id && x.tgt.s === st.id));
+      });
     }
   }
 }

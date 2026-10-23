@@ -184,7 +184,9 @@ function bodyOf(js, name) {
     assert.ok(/Nothing is planned for today\./.test(list) && /has not been opened since it last changed/.test(list),
       "an empty day says so, and says where jobs come from");
     const row = bodyOf(JS, "tlRowHtml");
-    for (const act of ["tick", "more", "focus", "park", "unpark", "min", "keep", "fin-done"]) {
+    // v252: "later" asks WHEN and moves the job (tests/v252); "park" is gone, "unpark" stays
+    // so a job parked before then can still be brought back
+    for (const act of ["tick", "more", "focus", "later", "unpark", "min", "keep", "fin-done"]) {
       assert.ok(row.includes('data-tl="' + act + '"'), "a row offers " + act);
     }
     assert.ok(/ftDialHtml\("and dial in"\)/.test(row), "a running row offers Dial in as a second button — never automatic");

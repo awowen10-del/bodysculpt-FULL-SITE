@@ -215,6 +215,8 @@ function bootPage(storage, opts) {
       "ftTimer", "FT_PRESETS", "ftDialHtml", "agendaToday",
       "let tlOpen = {}, tlShowParked = false, tlFocusPick = '', tlCancel = null;\n" +
       "const tlCanCancel = () => false;\n" +   // v251's cancel has its own test
+      // v252: the row says which list it came from — the word table is a const, not a function
+      DJS.match(/\nconst TL_KIND_WORD = [^\n]*/)[0] + "\n" +
       "function tlWireOnce(){}\n" +
       ["tlJobs", "tlWhere", "tlDetailHtml", "tlRowHtml", "renderTodayList"].map((n) => {
         const args = { tlJobs: "", tlWhere: "j", tlDetailHtml: "j", tlRowHtml: "j, isParked", renderTodayList: "" }[n];

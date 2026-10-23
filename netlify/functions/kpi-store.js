@@ -1508,17 +1508,26 @@ export default async (req) => {
     //     projects store, and this route only straightens the display cache.
     // `from` for an exception is the SCHEDULE cell, so a job already moved to today is traced
     // back to where it came from: one entry per occurrence, never two.
+    //
+    // v252 ("later" says exactly when): `to` may be another TIME the same day, and a project
+    // step may go to another week — { toWeek, title }. The step itself is moved by the page
+    // through the projects store; here its calendar copy leaves this week and lands in that one.
     if (body.weeklyCancel && typeof body.weeklyCancel === "object") {
       const c = body.weeklyCancel;
       const weekEnding = typeof c.weekEnding === "string" ? c.weekEnding : "";
       if (!validWeekDate(weekEnding)) return new Response("Bad weekEnding", { status: 400 });
       const cellOk = (s) => typeof s === "string" && /^[a-z0-9-]{1,12}:(mon|tue|wed|thu|fri|sat|sun)$/.test(s);
-      const cell = cellOk(c.cell) ? c.cell : "";
-      if (!cell) return new Response("Bad cell", { status: 400 });
-      const to = c.to == null || c.to === "" ? "" : (cellOk(c.to) ? c.to : null);
-      if (to === null || to === cell) return new Response("Bad destination", { status: 400 });
       const tgt = cleanTickTarget(c.tgt) || cleanStepTarget(c.tgt);
       if (!tgt) return new Response("Bad target", { status: 400 });
+      // v252: a project step may have no row today (dated today, or late, and never planned),
+      // and may move to ANOTHER week (`toWeek`) — its plan lives on the step, so only the
+      // display copies move here. A plan job still needs its cell and stays inside its week.
+      const toWeek = tgt.p && validWeekDate(c.toWeek) && c.toWeek !== weekEnding ? c.toWeek : "";
+      const cell = cellOk(c.cell) ? c.cell : "";
+      if (!cell && !(tgt.p && c.cell === "")) return new Response("Bad cell", { status: 400 });
+      const to = c.to == null || c.to === "" ? "" : (cellOk(c.to) ? c.to : null);
+      if (to === null || (to === cell && !toWeek) || (!cell && !to)) return new Response("Bad destination", { status: 400 });
+      const stepTitle = typeof c.title === "string" ? c.title.slice(0, 200).trim() : "";
 
       if (!tgt.p) {
         const key = weeklyPlanKeyOf(weekEnding);
@@ -1551,11 +1560,47 @@ export default async (req) => {
       // The display cache, in the same breath — the row leaves today and (on a move) lands on
       // its new day. A multi-day job's tick is keyed by day, so it takes its new day's key.
       let agenda = null;
+      const same = (t) => t && (tgt.p ? t.p === tgt.p && t.s === tgt.s
+        : t.k === tgt.k && (t.m || "") === (tgt.m || "") && (t.l || "") === (tgt.l || ""));
+      if (tgt.p) {
+        // v252: a step sits in ONE place, so its rows come out of every cell of this week, and
+        // it lands once — here, or in the week it went to. A week whose copy does not exist yet
+        // is left alone: a copy holding one job would claim the week holds one job, and the
+        // weekly page writes the whole thing (step included) the first time that week opens.
+        const lift = (ag) => {
+          let row = null;
+          Object.keys(ag.cells).forEach((k) => {
+            const keep = ag.cells[k].filter((r) => { if (same(r.tgt)) { row = row || r; return false; } return true; });
+            if (keep.length) ag.cells[k] = keep; else delete ag.cells[k];
+          });
+          return row;
+        };
+        const fresh = () => ({ title: stepTitle || "Project step", kind: "project", done: false, tgt: { p: tgt.p, s: tgt.s } });
+        let row = null;
+        try {
+          const ag = await store.get(agendaKeyOf(weekEnding), { type: "json" });
+          if (ag && ag.cells) {
+            row = lift(ag);
+            if (to && !toWeek) ag.cells[to] = (ag.cells[to] || []).concat([row || fresh()]);
+            await store.set(agendaKeyOf(weekEnding), JSON.stringify(ag));
+            agenda = ag;
+          }
+        } catch { /* the cache is disposable; opening the weekly page rewrites it */ }
+        if (toWeek && to) {
+          try {
+            const ag2 = await store.get(agendaKeyOf(toWeek), { type: "json" });
+            if (ag2 && ag2.cells) {
+              const was = lift(ag2);
+              ag2.cells[to] = (ag2.cells[to] || []).concat([was || row || fresh()]);
+              await store.set(agendaKeyOf(toWeek), JSON.stringify(ag2));
+            }
+          } catch { /* as above */ }
+        }
+        return Response.json({ ok: true, weekEnding, agenda });
+      }
       try {
         const ag = await store.get(agendaKeyOf(weekEnding), { type: "json" });
         if (ag && ag.cells) {
-          const same = (t) => t && (tgt.p ? t.p === tgt.p && t.s === tgt.s
-            : t.k === tgt.k && (t.m || "") === (tgt.m || "") && (t.l || "") === (tgt.l || ""));
           const rows = ag.cells[cell] || [];
           const i = rows.findIndex((r) => same(r.tgt));
           if (i >= 0) {
