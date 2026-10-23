@@ -1329,6 +1329,13 @@
   .tl-cx-date input{font:inherit;font-size:16px;color:var(--ink);background:var(--card);border:1px solid var(--line);
     border-radius:var(--r-pill);padding:3px 10px;}
   .tl-cx-date input:focus{outline:none;box-shadow:var(--focus);}
+  /* v253: the way back from a delete, on the list itself */
+  .tl-undo{display:flex;align-items:center;gap:10px;justify-content:space-between;margin:0 0 12px;padding:10px 12px;
+    border-radius:10px;background:var(--ink);color:var(--card);font-size:13px;line-height:1.45;}
+  .tl-undo .tl-cx-err{color:inherit;text-decoration:underline;}
+  .tl-undo-b{flex:0 0 auto;font:inherit;font-size:13px;font-weight:800;cursor:pointer;border:0;border-radius:var(--r-pill);
+    background:var(--card);color:var(--ink);padding:6px 14px;}
+  .tl-undo-b:focus-visible{outline:none;box-shadow:var(--focus);}
   .tl-cx-q{flex:1 1 100%;color:var(--ink);line-height:1.5;margin-bottom:2px;}
   .tl-cx-note,.tl-cx-err{flex:1 1 100%;font-size:12px;}
   .tl-cx-err{color:var(--red);font-weight:700;}
@@ -2841,7 +2848,8 @@ function agendaWeekOf(offset) {
   return ymd(d);
 }
 
-/* THE ONE THING THIS PAGE CAN WRITE TO A PLAN — and, since v251, its one exception:
+/* THE ONE THING THIS PAGE CAN WRITE TO A PLAN — and, since v251, its exceptions:
+   tlDeletePost's { weeklyDelete } (v253: delete everywhere, and its Undo), and
    tlCancelPost's { weeklyCancel }, which takes ONE occurrence off today (or moves it) through
    the weekly page's own skip/move entries. It builds the only payload it is able to build — a
    single boolean at an address the weekly page worked out. The test asserts that every
@@ -4301,7 +4309,7 @@ function renderTodayList() {
   const done = live.filter((j) => j.done).length;
   if (sub) sub.textContent = live.length ? done + " of " + live.length + " done" : "";
   if (!live.length && !parked.length) {
-    body.innerHTML = '<div class="tl-empty"><b>Nothing is planned for today.</b> ' +
+    body.innerHTML = tlUndoHtml() + '<div class="tl-empty"><b>Nothing is planned for today.</b> ' +
       'Jobs come from the time blocks on your <a href="/index.html">weekly planner</a>, and from any ' +
       '<a href="/projects.html">project step</a> with a date. Put something in either and it will be here.' +
       (agendaToday() ? "" : " Your weekly planner has not been opened since it last changed, so today may look emptier than it is — opening it once fixes that.") +
@@ -4311,7 +4319,7 @@ function renderTodayList() {
   // done sinks to the bottom, otherwise the order is the order they come in
   const order = live.filter((j) => !j.done).concat(live.filter((j) => j.done));
   // v233: how far through the day, at a glance
-  body.innerHTML = '<div class="tl-prog" role="progressbar" aria-label="Done today" aria-valuemin="0" aria-valuemax="' + live.length +
+  body.innerHTML = tlUndoHtml() + '<div class="tl-prog" role="progressbar" aria-label="Done today" aria-valuemin="0" aria-valuemax="' + live.length +
       '" aria-valuenow="' + done + '"><i style="width:' + (live.length ? Math.round(done / live.length * 100) : 0) + '%"></i></div>' +
     '<div class="tl-list">' + order.map((j) => tlRowHtml(j, false)).join("") + "</div>" +
     (parked.length
@@ -4344,6 +4352,7 @@ async function tlClick(e) {
   if (!el) return;
   const act = el.dataset.tl;
   if (act === "parked") { tlShowParked = !tlShowParked; renderTodayList(); return; }
+  if (act === "undo-del") return tlUndoGo();      // v253: the bar is not a row
   const rowEl = el.closest("[data-key]");
   const j = rowEl ? tlFind(rowEl.dataset.key) : null;
   if (!j) return;
@@ -4368,6 +4377,7 @@ async function tlClick(e) {
     // one step back: the time, then the day, then (from cancel) the first question, or (from later) closed
     const c = tlCancel || {};
     if (c.stage === "sure" && c.to) tlCancel = { key: j.key, stage: "move", via: c.via, day: c.to };
+    else if (c.stage === "delsure") tlCancel = { key: j.key, stage: "del", via: "" };
     else if (c.stage === "move" && c.day) tlCancel = { key: j.key, stage: "move", via: c.via };
     else tlCancel = c.via === "later" ? null : { key: j.key, stage: "ask" };
     renderTodayList();
@@ -4375,6 +4385,9 @@ async function tlClick(e) {
   }
   if (act === "cx-keep") { tlCancel = null; renderTodayList(); return; }
   if (act === "cx-yes") return tlCancelGo(j);
+  if (act === "cx-del") { tlCancel = { key: j.key, stage: "del", via: "" }; renderTodayList(); return; }
+  if (act === "cx-del-all") { tlCancel = { key: j.key, stage: "delsure", via: "" }; renderTodayList(); return; }
+  if (act === "cx-del-yes") return tlDeleteGo(j);
   // v252: nothing parks any more; a job parked before then can still be brought back
   if (act === "unpark") return tlPark(j, false);
   if (act === "ck") return fmTickCheck(j, el.dataset.ck);
@@ -4498,6 +4511,16 @@ function tlCancelSays(j, to, slot) {
 function tlCancelHtml(j) {
   const c = tlCancel;
   const b = (act, label, cls, extra) => '<button type="button" class="tl-min' + (cls ? " " + cls : "") + '" data-tl="' + act + '"' + (extra || "") + ">" + label + "</button>";
+  /* v253: Delete it → just today (v251's skip, word for word) or everywhere → are you sure */
+  if (c.stage === "del") {
+    return '<div class="tl-sub tl-cx"><span class="tl-cx-q">Delete it just from today, or everywhere?</span>' +
+      b("cx-drop", "Just today") + b("cx-del-all", "Everywhere") + b("cx-back", "Back", "plain") + "</div>";
+  }
+  if (c.stage === "delsure") {
+    return '<div class="tl-sub tl-cx sure"><span class="tl-cx-q"><b>Delete it everywhere?</b> ' + esc(tlDeleteSays(j)) + "</span>" +
+      (c.error ? '<span class="tl-cx-err">' + esc(c.error) + "</span>" : "") +
+      b("cx-del-yes", "Yes, delete it", "warn") + b("cx-keep", "No, keep it", "plain") + "</div>";
+  }
   if (c.stage === "move" && c.day) {
     const slots = tlMoveSlots(j, c.day);
     return '<div class="tl-sub tl-cx"><span class="tl-cx-q">What time, ' + esc(c.day === tlToday() ? "later today" : tlDayShort(c.day)) + "?</span>" +
@@ -4527,7 +4550,7 @@ function tlCancelHtml(j) {
   const canMove = tlCancelDays(j).length > 0 || !!tlStepOf(j);
   return '<div class="tl-sub tl-cx"><span class="tl-cx-q">Not getting to this today?</span>' +
     (canMove ? b("cx-move", "Move to another day") : "") +
-    b("cx-drop", "Forget it today") + b("cx-keep", "Keep it", "plain") +
+    b("cx-drop", "Forget it today") + b("cx-del", "Delete it") + b("cx-keep", "Keep it", "plain") +
     (canMove ? "" : '<span class="tl-cx-note">No days left this week to move it to — a weekly plan move stays inside its week.</span>') + "</div>";
 }
 async function tlCancelGo(j) {
@@ -4599,6 +4622,107 @@ async function tlCancelStep(j, f, to, slot) {
       });
     }
   }
+}
+
+/* ---------- v253: delete — just today, or everywhere ----------
+   Ash: "I need to be able to delete tasks and have the option of deleting it from everywhere,
+   too." Just today is v251's "Forget it today". Everywhere means where the job LIVES:
+     • a project step: deleted on its board (the board's own del:true — kept, hidden), so it
+       leaves the planner and the calendar in every week, because both read the step;
+     • a recurring/training job: off that list for good, every week — the planner's "Remove
+       from all";
+     • a one-off planner task: out of this week's list and every slot it sat in.
+   The way back is on the confirmation itself (the v209/v220 rule): an Undo that puts back
+   exactly what went — the store kept it whole before taking it. */
+let tlUndo = null;      // { title, token, step?, error? } — the last delete, while it can be undone
+const TL_UNDO_MS = 12000;
+function tlDeleteSays(j) {
+  const t = "“" + j.title + "”";
+  const f = tlStepOf(j);
+  if (f) return t + " is deleted from the " + f.project.name + " board, and comes off the weekly planner and the calendar.";
+  if (j.tgt && j.tgt.m) {
+    const list = j.kind === "training" ? "Training list" : "recurring list";
+    return t + " comes off your " + list + " for good — every week, not just today — and off the weekly planner and the calendar.";
+  }
+  return t + " is deleted from this week's planner — its list and its slot on the calendar.";
+}
+function tlUndoHtml() {
+  if (!tlUndo) return "";
+  return '<div class="tl-undo" role="status"><span>' + esc("“" + tlUndo.title + "” deleted everywhere.") +
+    (tlUndo.error ? ' <b class="tl-cx-err">' + esc(tlUndo.error) + "</b>" : "") + "</span>" +
+    '<button type="button" class="tl-undo-b" data-tl="undo-del">Undo</button></div>';
+}
+function tlUndoShow(u) {
+  tlUndo = u;
+  setTimeout(() => { if (tlUndo === u) { tlUndo = null; renderTodayList(); } }, TL_UNDO_MS);
+}
+// the plan's side: one route, which takes the job and keeps it whole for the Undo
+async function tlDeletePost(what) {
+  const r = await fetch(API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ weeklyDelete: Object.assign({ weekEnding: agendaWeekOf(0) }, what) }),
+  });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const out = await r.json();
+  if (out && out.agenda) {
+    wpAgendaToday = out.agenda;
+    if (calWeekOffset === 0) wpAgenda = out.agenda;
+  }
+  return out || {};
+}
+// a step's delete is the board's own: one boolean on one step
+async function tlStepDel(f, on) {
+  const r = await fetch(PROJECTS, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ stepLink: { projectId: f.project.id, stepId: f.step.id, del: !!on } }),
+  });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  f.step.del = !!on;
+}
+async function tlDeleteGo(j) {
+  const f = tlStepOf(j);
+  const fail = () => {
+    tlCancel = { key: j.key, stage: "delsure", via: "", error: "That did not save, so nothing has been deleted. Try again." };
+    renderTodayList();
+  };
+  let token = "";
+  if (f) {
+    try { await tlStepDel(f, true); } catch (e) { return fail(); }
+    // the step is gone; its calendar copies follow. If they will not, take them off this page
+    // anyway — the weekly page rebuilds them from the steps, and this one is deleted.
+    try { token = (await tlDeletePost({ tgt: { p: f.project.id, s: f.step.id } })).token || ""; }
+    catch (e) {
+      const ag = agendaToday();
+      if (ag && ag.cells) Object.keys(ag.cells).forEach((k) => {
+        ag.cells[k] = ag.cells[k].filter((x) => !(x.tgt && x.tgt.p === f.project.id && x.tgt.s === f.step.id));
+      });
+    }
+  } else {
+    try { token = (await tlDeletePost({ tgt: j.tgt })).token || ""; } catch (e) { return fail(); }
+  }
+  if (ftTimer && ftTimer.jobKey === j.key) ftReset();
+  tlCancel = null;
+  delete tlOpen[j.key];
+  tlUndoShow({ title: j.title, token, step: f });
+  fmAfterChange();
+}
+async function tlUndoGo() {
+  const u = tlUndo;
+  if (!u || u.busy) return;
+  u.busy = true;
+  try {
+    if (u.step) await tlStepDel(u.step, false);
+    if (u.token) await tlDeletePost({ undo: u.token });
+  } catch (e) {
+    u.busy = false;
+    u.error = "Could not put it back — try again.";
+    renderTodayList();
+    return;
+  }
+  tlUndo = null;
+  fmAfterChange();
 }
 
 /* On screen first, then told to the board — and put back if the board will not take it. */

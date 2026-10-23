@@ -11,7 +11,7 @@
 //   POST ?upload=1&name=&mime=   raw bytes in the body (4 MB cap) -> { file:{id,name,mime,size} }
 //   POST { project:{…} }  save one project, whole. The page always holds the whole project,
 //                         so a partial write can never half-erase a board.
-//   POST { stepLink:{ projectId, stepId, done?, due?, week?, day?, slot?, check?, addCheck?, delCheck? } }
+//   POST { stepLink:{ projectId, stepId, done?, due?, week?, day?, slot?, check?, addCheck?, delCheck?, del? } }
 //                         v214: the weekly plan's door.
 //         The WEEKLY page calls this, and it is deliberately the narrowest thing that could
 //         work: it can tick one step off, and it can note which week and day that step has
@@ -19,14 +19,15 @@
 //         columns, any other step, or this step's title, notes, files, tags, due date,
 //         urgency or stage. The weekly page never sends a whole project, so it can never
 //         overwrite a board with a stale copy of one. v227: and its due date, because the
-//         due date is what puts a step on a day of the week.
+//         due date is what puts a step on a day of the week. v253: and `del` — the board's
+//         own soft delete (del:true, the step kept) and its Undo (false), from the daily page.
 //   POST { addStep:{ projectId, title, id? } }
 //                         v227: a Buffer task handed to a project — one new step, title
 //         only, in the To do stage. Adds; never edits or removes anything.
 //
 // There is no delete route. Archiving a project and flagging a step are ordinary saves.
 import { cleanProject, listProjects, readProject, writeProject, readFile, writeFile,
-         applyStepDone, applyStepDue, applyStepWeek, applyStepCheck, applyAddStep, applyStepAddCheck, applyStepDelCheck,
+         applyStepDone, applyStepDue, applyStepWeek, applyStepDel, applyStepCheck, applyAddStep, applyStepAddCheck, applyStepDelCheck,
          newId, clip, json, CAP, MIMES } from "../lib/projects.js";
 
 export default async (req) => {
@@ -99,6 +100,8 @@ export default async (req) => {
       if (!project) return json({ error: "No such project" }, 404);
       let changed = false;
       if ("done" in body.stepLink) changed = !!applyStepDone(project, sid, body.stepLink.done) || changed;
+      // v253: deleted (true) or put back (false) — and a deleted step takes nothing else
+      if ("del" in body.stepLink) changed = !!applyStepDel(project, sid, body.stepLink.del) || changed;
       if ("due" in body.stepLink) changed = !!applyStepDue(project, sid, body.stepLink.due) || changed;
       if ("week" in body.stepLink) changed = !!applyStepWeek(project, sid, body.stepLink.week, body.stepLink.day, body.stepLink.slot) || changed;
       // v218: { check: { id, done } } — one checklist item, ticked from the weekly plan

@@ -218,6 +218,7 @@ function bootPage(storage, opts) {
       // v252: the row says which list it came from — the word table is a const, not a function
       DJS.match(/\nconst TL_KIND_WORD = [^\n]*/)[0] + "\n" +
       "function tlWireOnce(){}\n" +
+      "function tlUndoHtml(){ return ''; }\n" +   // v253's undo bar has its own test
       ["tlJobs", "tlWhere", "tlDetailHtml", "tlRowHtml", "renderTodayList"].map((n) => {
         const args = { tlJobs: "", tlWhere: "j", tlDetailHtml: "j", tlRowHtml: "j, isParked", renderTodayList: "" }[n];
         return "function " + n + "(" + args + ")" + bodyOf(DJS, n);

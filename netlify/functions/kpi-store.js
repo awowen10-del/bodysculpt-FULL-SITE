@@ -50,6 +50,8 @@ const RECURRING_DEFAULTS_KEY = "weekly-recurring-defaults";
 // v71: personal Training list — its OWN key, fully separate from the business
 // recurring defaults. Same per-item shape (id/title/days/time/link), no seed list.
 const TRAINING_DEFAULTS_KEY = "weekly-training-defaults";
+// v253: the last thing deleted from the Daily Dashboard, kept whole so Undo can put it back
+const LAST_DELETE_KEY = "weekly-last-delete";
 // v80: daily check-in history — a single blob holding a map { "YYYY-MM-DD": entry }, so every
 // day's answers accumulate and are trivially retrievable as a list for a future AI advisor.
 const DAILY_CHECKINS_KEY = "daily-checkins";
@@ -1619,6 +1621,169 @@ export default async (req) => {
       } catch { /* the cache is disposable; opening the weekly page rewrites it */ }
 
       return Response.json({ ok: true, weekEnding, agenda });
+    }
+
+    // v253 Deleting a job from the Daily Dashboard — EVERYWHERE, with the way back.
+    // POST { weeklyDelete: { weekEnding, tgt } }  → { ok, token, agenda }
+    // POST { weeklyDelete: { weekEnding, undo: token } } → puts back exactly what that took
+    //
+    // Ash: "I need to be able to delete tasks and have the option of deleting it from
+    // everywhere, too." ("Just today" is v251's skip; this is the other answer.) Everywhere is:
+    //   • a recurring/training job: off its LIST for good — the planner's own "Remove from
+    //     all" — and its hand-placed slots and this week's skip/move entries with it;
+    //   • a one-off planner task: out of this week's list and every slot it sat in (v220's ✕);
+    //   • a project step: the page flags it deleted through the projects store (a step is
+    //     never truly removed — del:true); here only the calendar copies are cleaned.
+    // And the calendar copies (weekly-agenda-*) of this week and every later week lose its
+    // rows — a deleted recurring job must not ride on next week's strip either.
+    //
+    // NOTHING IS LOST: everything taken is written to LAST_DELETE_KEY first, with a token,
+    // and undo puts back only what is missing — never a second copy, never over an edit.
+    if (body.weeklyDelete && typeof body.weeklyDelete === "object") {
+      const c = body.weeklyDelete;
+      const weekEnding = typeof c.weekEnding === "string" ? c.weekEnding : "";
+      if (!validWeekDate(weekEnding)) return new Response("Bad weekEnding", { status: 400 });
+      const agendaKeysFrom = async (from) => {
+        const { blobs } = await store.list({ prefix: "weekly-agenda-" });
+        return blobs.map((b) => b.key).filter((k) => validWeekDate(k.slice(14)) && k.slice(14) >= from);
+      };
+
+      if (typeof c.undo === "string") {
+        const stash = await store.get(LAST_DELETE_KEY, { type: "json" });
+        if (!stash || stash.token !== c.undo) return Response.json({ ok: false, error: "That can no longer be undone." }, { status: 404 });
+        if (stash.list) {
+          const key = stash.list === "training" ? TRAINING_DEFAULTS_KEY : RECURRING_DEFAULTS_KEY;
+          const list = (await store.get(key, { type: "json" })) || [];
+          if (!list.some((t) => t && t.id === stash.item.id)) list.splice(Math.min(stash.index, list.length), 0, stash.item);
+          await store.set(key, JSON.stringify(list));
+        }
+        if (stash.plan) {
+          const pkey = weeklyPlanKeyOf(stash.weekEnding);
+          const plan = await store.get(pkey, { type: "json" });
+          if (plan) {
+            if (stash.plan.field) {
+              const arr = Array.isArray(plan[stash.plan.field]) ? plan[stash.plan.field] : [];
+              if (!arr.some((x) => x && x.id === stash.plan.item.id)) arr.splice(Math.min(stash.plan.index, arr.length), 0, stash.plan.item);
+              plan[stash.plan.field] = arr;
+            }
+            const pl = (plan.placements && typeof plan.placements === "object") ? plan.placements : {};
+            Object.entries(stash.plan.cells || {}).forEach(([k, refs]) => {
+              pl[k] = pl[k] || [];
+              refs.forEach((r) => { if (!pl[k].includes(r)) pl[k].push(r); });
+            });
+            plan.placements = pl;
+            if (stash.plan.exception) {
+              plan.exceptions = (plan.exceptions && typeof plan.exceptions === "object" && !Array.isArray(plan.exceptions)) ? plan.exceptions : {};
+              if (!plan.exceptions[stash.plan.ref]) plan.exceptions[stash.plan.ref] = stash.plan.exception;
+            }
+            plan.lastUpdated = new Date().toISOString();
+            await store.set(pkey, JSON.stringify(plan));
+          }
+        }
+        let agenda = null;
+        for (const [akey, cells] of Object.entries(stash.agendas || {})) {
+          try {
+            const ag = await store.get(akey, { type: "json" });
+            if (!ag || !ag.cells) continue;
+            Object.entries(cells).forEach(([k, rows]) => { ag.cells[k] = (ag.cells[k] || []).concat(rows); });
+            await store.set(akey, JSON.stringify(ag));
+            if (akey === agendaKeyOf(stash.weekEnding)) agenda = ag;
+          } catch { /* a cache; the weekly page rewrites it */ }
+        }
+        await store.delete(LAST_DELETE_KEY);
+        return Response.json({ ok: true, weekEnding: stash.weekEnding, agenda });
+      }
+
+      const tgt = cleanTickTarget(c.tgt) || cleanStepTarget(c.tgt);
+      if (!tgt) return new Response("Bad target", { status: 400 });
+      const stash = { token: crypto.randomUUID(), at: new Date().toISOString(), weekEnding, agendas: {} };
+      const id = tgt.k ? tgt.k.split(":")[0] : "";
+      let ref = "";
+
+      if (tgt.m) {
+        stash.list = tgt.m === "trainingDone" ? "training" : "recurring";
+        const key = stash.list === "training" ? TRAINING_DEFAULTS_KEY : RECURRING_DEFAULTS_KEY;
+        const list = await store.get(key, { type: "json" });
+        const i = Array.isArray(list) ? list.findIndex((t) => t && t.id === id) : -1;
+        if (i < 0) return Response.json({ ok: false, error: "That job is not on your list any more." }, { status: 404 });
+        stash.item = list[i]; stash.index = i;
+        ref = stash.list + ":" + id;
+      } else if (tgt.l) {
+        ref = (tgt.l === "bufferItems" ? "buffer" : "project") + ":" + tgt.k;
+      }
+
+      // this week's plan: the one-off item, and every slot / skip-or-move entry for the ref
+      let planOut = null;
+      if (ref) {
+        const pkey = weeklyPlanKeyOf(weekEnding);
+        const plan = await store.get(pkey, { type: "json" });
+        if (!plan && tgt.l) return Response.json({ ok: false, error: "No plan for that week yet." }, { status: 404 });
+        if (plan) {
+          const sp = { ref, cells: {} };
+          if (tgt.l) {
+            const arr = Array.isArray(plan[tgt.l]) ? plan[tgt.l] : [];
+            const i = arr.findIndex((x) => x && x.id === tgt.k);
+            if (i < 0) return Response.json({ ok: false, error: "That job is not in this week any more." }, { status: 404 });
+            sp.field = tgt.l; sp.item = arr[i]; sp.index = i;
+            arr.splice(i, 1);
+          }
+          const pl = (plan.placements && typeof plan.placements === "object") ? plan.placements : {};
+          Object.keys(pl).forEach((k) => {
+            if (!Array.isArray(pl[k]) || !pl[k].includes(ref)) return;
+            sp.cells[k] = [ref];
+            pl[k] = pl[k].filter((r) => r !== ref);
+            if (!pl[k].length) delete pl[k];
+          });
+          if (plan.exceptions && typeof plan.exceptions === "object" && plan.exceptions[ref]) {
+            sp.exception = plan.exceptions[ref];
+            delete plan.exceptions[ref];
+          }
+          planOut = { key: pkey, plan };
+          stash.plan = sp;
+        }
+      }
+
+      // the calendar copies: this week's, and (for a list job or a step) every later week's
+      const same = (t) => t && (tgt.p ? t.p === tgt.p && t.s === tgt.s
+        : tgt.m ? t.m === tgt.m && String(t.k || "").split(":")[0] === id
+        : t.l === tgt.l && t.k === tgt.k);
+      const ags = [];
+      try {
+        const keys = tgt.l ? [agendaKeyOf(weekEnding)] : await agendaKeysFrom(weekEnding);
+        for (const akey of keys) {
+          const ag = await store.get(akey, { type: "json" });
+          if (!ag || !ag.cells) continue;
+          const took = {};
+          Object.keys(ag.cells).forEach((k) => {
+            const rows = Array.isArray(ag.cells[k]) ? ag.cells[k] : [];
+            const out = rows.filter((r) => same(r.tgt));
+            if (!out.length) return;
+            took[k] = out;
+            const keep = rows.filter((r) => !same(r.tgt));
+            if (keep.length) ag.cells[k] = keep; else delete ag.cells[k];
+          });
+          if (Object.keys(took).length) { stash.agendas[akey] = took; ags.push([akey, ag]); }
+          else if (akey === agendaKeyOf(weekEnding)) ags.push([akey, ag]);
+        }
+      } catch { /* the caches are disposable */ }
+
+      // the way back is saved BEFORE anything is taken
+      await store.set(LAST_DELETE_KEY, JSON.stringify(stash));
+      if (stash.list) {
+        const key = stash.list === "training" ? TRAINING_DEFAULTS_KEY : RECURRING_DEFAULTS_KEY;
+        const list = (await store.get(key, { type: "json" })) || [];
+        await store.set(key, JSON.stringify(list.filter((t) => !(t && t.id === id))));
+      }
+      if (planOut) {
+        planOut.plan.lastUpdated = new Date().toISOString();
+        await store.set(planOut.key, JSON.stringify(planOut.plan));
+      }
+      let agenda = null;
+      for (const [akey, ag] of ags) {
+        try { if (stash.agendas[akey]) await store.set(akey, JSON.stringify(ag)); } catch { /* cache */ }
+        if (akey === agendaKeyOf(weekEnding)) agenda = ag;
+      }
+      return Response.json({ ok: true, token: stash.token, weekEnding, agenda });
     }
 
     // v136 Competitors: POST { igCompetitors: [...] }. A whole-list write — the page holds

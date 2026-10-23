@@ -323,6 +323,20 @@ export function applyStepDue(project, stepId, due) {
   s.updatedAt = nowIso();
   return s;
 }
+/* v253: DELETING A STEP FROM THE DAILY PAGE. Ash: "I need to be able to delete tasks and have
+   the option of deleting it from everywhere." It is the board's own delete — del:true, the
+   step and its notes kept — and false is the Undo. It widens stepLink by one boolean on the
+   one step; the title, notes, files, tags, urgency, stage and every other step stay out of
+   reach. (Found by id whether or not it is deleted already, or Undo could not find it.) */
+export function applyStepDel(project, stepId, del) {
+  const s = (project.steps || []).find((x) => x.id === stepId);
+  if (!s) return null;
+  const want = del === true;
+  if (!!s.del === want) return null;
+  s.del = want;
+  s.updatedAt = nowIso();
+  return s;
+}
 /* v227: a Buffer task, handed to a project. It becomes a new step — title only — in the
    board's To do stage (a column called "To do", else the first stage that is not the done
    one). It ADDS one step and touches nothing else on the board. An id may be supplied so a
