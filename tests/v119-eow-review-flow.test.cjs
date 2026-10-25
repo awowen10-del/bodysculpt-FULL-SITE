@@ -300,8 +300,11 @@ const planSaves = (posts, key) => posts.filter((p) => p.body.weeklyPlan && key i
     assert.ok(rowOf("Yoga").includes("wp-eow-li-warn"), "…and is flagged");
     assert.ok(rowOf("Boxing").includes("Not in next week"), "a session with no slot anywhere is not diarised");
     assert.ok(body.includes("<b>2</b> sessions not in next week"), "the count matches the flagged rows");
+    // v255 retired "the training list is read-only": a session with no standing schedule now
+    // offers Set days. The rest of the list is still display only — see v255-diarise-from-the-review.
     const list = body.slice(body.indexOf("<ul"), body.indexOf("</ul>"));
-    assert.ok(!/<input|onclick|onchange/.test(list), "the training list itself is read-only");
+    assert.ok(!/<input|onchange/.test(list), "the training list has no inputs of its own");
+    assert.ok(!rowOf("Lower body").includes("onclick"), "a diarised session has nothing to click");
 
     // reading next week never writes to it
     const { posts } = await boot({});

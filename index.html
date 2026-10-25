@@ -1617,6 +1617,20 @@
   .wp-eow-li-m{flex:none;font-size:11px;font-weight:800;color:var(--ink-dim);white-space:nowrap;}
   .wp-eow-li-warn{border-color:rgba(var(--amber-rgb),.45);}
   .wp-eow-li-warn .wp-eow-li-m{color:var(--amber);}
+  .wp-eow-li-btn{margin-left:8px;background:transparent;border:1px solid rgba(var(--orange-rgb),.45);color:var(--orange-soft);
+    border-radius:7px;padding:3px 8px;font-family:inherit;font-size:11px;font-weight:800;cursor:pointer;}
+  .wp-eow-li-btn:hover{background:var(--orange);border-color:var(--orange);color:var(--on-accent);}
+  .wp-eow-li-form{list-style:none;}
+  .wp-eow-train-form{display:flex;flex-direction:column;gap:9px;border:1px solid var(--line);border-radius:9px;
+    background:var(--navy);padding:11px 12px;}
+  .wp-eow-train-form .wp-popup-days{margin-bottom:0;}
+  .wp-eow-train-name{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;
+    padding:9px 11px;font-family:inherit;font-size:16px;}
+  .wp-eow-train-name:focus{outline:none;border-color:var(--orange);}
+  .wp-eow-train-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .wp-eow-train-row select{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;
+    padding:8px 10px;font-family:inherit;font-size:16px;}
+  .wp-eow-train-msg{color:var(--amber);font-weight:700;}
   .wp-eow-jump{cursor:pointer;}
   .wp-eow-jump:hover{border-color:var(--orange);color:var(--orange-soft);}
   .wp-eow-empty{font-size:12px;color:var(--ink-faint);}
@@ -5426,6 +5440,7 @@ function wpEowOpen(){
   const first = WP_REVIEW_CHECKLIST.findIndex(it=>!rc[it.id]);
   wpEowStep = first === -1 ? WP_REVIEW_CHECKLIST.length : first;
   if(wpEowCloseTimer){ clearTimeout(wpEowCloseTimer); wpEowCloseTimer = null; }
+  wpEowTrainForm = null; wpEowTrainMsg = "";
   wpEowIsOpen = true;
   ov.hidden = false;
   document.body.style.overflow = "hidden";   // the page behind must not scroll
@@ -5447,6 +5462,7 @@ function wpEowClose(){
 }
 function wpEowSet(n){
   const steps = wpEowSteps();
+  if(n !== wpEowStep){ wpEowTrainForm = null; wpEowTrainMsg = ""; }
   wpEowStep = Math.max(0, Math.min(steps.length - 1, n));
   wpEowRender();
 }
@@ -5516,6 +5532,7 @@ function wpEowCommit(){
   if(s.id === "food")    return wpEowSaveNotesField("foodNotes","wpEowFoodEd");
   if(s.id === "todo")    return wpEowSaveNotesField("notes","wpEowNotesEd");
   if(s.id === "reflect") return wpEowSaveReview();
+  if(s.id === "training") return wpEowTrainSave(true);   // v255: a filled-in form isn't lost
 }
 
 /* ---- the steps ---- */
@@ -5528,26 +5545,98 @@ function wpEowSlotLabel(time){
 // v119.2 fixed exactly that: it used to read the task's standing day/slot, so a session
 // hand-placed onto next week's grid still read "No day set", and one placed only on THIS
 // week read as diarised when it wasn't. It now asks next week's plan through the SAME
-// reader the grid uses. Read-only — the Training card and the grid are still where a
-// session is added or moved.
+// reader the grid uses.
+// v255: and you can diarise from here. "Add a session" (name, days, slot) and "Set days" on a
+// session with no standing schedule both go through the Training card's own writers —
+// push onto wpTraining, then wpSetRecurrence(…, "training") — so the session is on the
+// Training card, on every week's grid (next week included, derived from days+time) and on
+// the Daily page's Today list, from the one save. Nothing here writes to next week's record.
+let wpEowTrainForm = null;   // null = closed; { id:"" } = a new session; { id } = set days on that one
+let wpEowTrainMsg = "";
+function wpEowTrainOpen(id){
+  wpEowTrainForm = { id: id || "" };
+  wpEowTrainMsg = "";
+  wpEowRender();
+  const el = document.getElementById(id ? "wpEowTrainSlot" : "wpEowTrainName");
+  if(el && el.focus) el.focus();
+}
+function wpEowTrainCancel(){ wpEowTrainForm = null; wpEowTrainMsg = ""; wpEowRender(); }
+function wpEowTrainFormHtml(){
+  const f = wpEowTrainForm;
+  const it = f.id ? (wpTraining||[]).find(x=>x.id===f.id) : null;
+  if(f.id && !it){ wpEowTrainForm = null; return ""; }
+  const days = (it && wpRecurDays(it)) || [];
+  const cur = (it && it.time && it.time !== "notes") ? it.time : "6-9";
+  const ticks = WP_DAYS.map(([k,l])=>`<label class="wp-day-tick${days.includes(k)?" on":""}"><input type="checkbox" id="wpEowTrainDay_${k}"${days.includes(k)?" checked":""}
+      onchange="this.parentElement.classList.toggle('on',this.checked)">${l}</label>`).join("");
+  const slots = WP_TIME_ROWS.filter(([k])=>k!=="notes").map(([k,l])=>`<option value="${k}"${k===cur?" selected":""}>${l}</option>`).join("");
+  return `<div class="wp-eow-train-form">
+    ${it
+      ? `<div class="wp-eow-prompt">${wpTrainingEmoji(it)} ${wpEsc(it.title)}</div>`
+      : `<input id="wpEowTrainName" class="wp-eow-train-name" placeholder="Session — e.g. Lower body, Swim, 5k run"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();wpEowTrainSave();}">`}
+    <div class="wp-popup-days">${ticks}</div>
+    <div class="wp-eow-train-row">
+      <select id="wpEowTrainSlot">${slots}</select>
+      <button type="button" class="wp-eow-act" onclick="wpEowTrainSave()">${it?"Save days":"Add session"}</button>
+      <button type="button" class="wp-eow-skip" onclick="wpEowTrainCancel()">Cancel</button>
+    </div>
+    ${wpEowTrainMsg?`<div class="wp-eow-hint wp-eow-train-msg">${wpEsc(wpEowTrainMsg)}</div>`:""}
+    <div class="wp-eow-hint">Same time every week on the days you tick. Lands on the Training card, the week grid and Today.</div>
+  </div>`;
+}
+// Reads the form BEFORE any await, so a commit that navigates straight after still saves what
+// was on screen. `quiet` = called from wpEowCommit (Mark done / Skip / close): save only if
+// the form is complete, and never stop the step to complain.
+async function wpEowTrainSave(quiet){
+  if(!wpEowTrainForm || !wpPlan) return;
+  const f = wpEowTrainForm;
+  const nameEl = document.getElementById("wpEowTrainName");
+  const title = nameEl ? String(nameEl.value||"").trim().replace(/^[-•]\s*/,"") : "";
+  const days = WP_DAYS.map(d=>d[0]).filter(k=>{ const c = document.getElementById("wpEowTrainDay_"+k); return !!(c && c.checked); });
+  const slotEl = document.getElementById("wpEowTrainSlot");
+  const slot = (slotEl && slotEl.value) || "6-9";
+  if(!f.id && !title){ if(!quiet){ wpEowTrainMsg = "Give the session a name."; wpEowRender(); } return; }
+  if(!days.length){ if(!quiet){ wpEowTrainMsg = "Tick at least one day."; wpEowRender(); } return; }
+  wpEowTrainForm = null; wpEowTrainMsg = "";
+  await wpLoadTraining();
+  wpTraining = wpTraining || [];
+  let id = f.id;
+  if(!id){
+    id = wpUid();
+    wpTraining.push({ id, title });
+  }
+  await wpSetRecurrence(id, days, slot, "training");   // saves the list + this week, redraws the card
+  wpEowRender();
+}
+
 function wpEowTrainingBodyHtml(){
   const items = (wpTraining||[]).filter(it=>it && String(it.title||"").trim());
-  if(!items.length) return `<div class="wp-eow-empty">No training set up yet — add it on the Training card.</div>`;
+  const form = wpEowTrainForm ? wpEowTrainFormHtml() : "";
+  const addBtn = (wpEowTrainForm && !wpEowTrainForm.id) ? "" :
+    `<button type="button" class="wp-eow-act" onclick="wpEowTrainOpen('')">+ Add a session</button>`;
+  if(!items.length) return `<div class="wp-eow-empty">No training set up yet — add your first session here.</div>` + (form || addBtn);
   if(!wpEowNextPlan) return `<div class="wp-eow-empty">Checking next week's diary…</div>`;
   const cells = wpEowNextWeekCells();
   const rows = items.map(it=>{
     const ref = wpItemRef("training", it.id);
     const where = Object.keys(cells).filter(k=>(cells[k]||[]).includes(ref));
     const when = where.length ? wpEowCellsLabel(where) : "Not in next week";
-    return `<li class="wp-eow-li${where.length?"":" wp-eow-li-warn"}">
+    // "Set days" only where it can fix it: a session with a standing schedule that is still
+    // missing next week was skipped there on purpose, and re-saving its days wouldn't undo that.
+    const fix = (!where.length && !wpRecurDays(it) && !(wpEowTrainForm && wpEowTrainForm.id === it.id))
+      ? `<button type="button" class="wp-eow-li-btn" onclick="wpEowTrainOpen('${it.id}')">Set days</button>` : "";
+    const row = `<li class="wp-eow-li${where.length?"":" wp-eow-li-warn"}">
       <span class="wp-eow-li-t">${wpTrainingEmoji(it)} ${wpEsc(it.title)}</span>
-      <span class="wp-eow-li-m">${wpEsc(when)}</span></li>`;
+      <span class="wp-eow-li-m">${wpEsc(when)}${fix}</span></li>`;
+    return (wpEowTrainForm && wpEowTrainForm.id === it.id) ? row + `<li class="wp-eow-li-form">${form}</li>` : row;
   }).join("");
   const loose = items.filter(it=>!Object.keys(cells).some(k=>(cells[k]||[]).includes(wpItemRef("training", it.id)))).length;
   return `<div class="wp-eow-col-h">Next week · ${wpEsc(wpEowNextWeekLabel())}</div>
     <ul class="wp-eow-list">${rows}</ul>` +
+    ((wpEowTrainForm && !wpEowTrainForm.id) ? form : addBtn) +
     (loose
-      ? `<div class="wp-eow-hint"><b>${loose}</b> session${loose===1?"":"s"} not in next week's diary yet — give it a day with the calendar button on the Training card, or drag it onto next week's grid.</div>`
+      ? `<div class="wp-eow-hint"><b>${loose}</b> session${loose===1?"":"s"} not in next week's diary yet — tap <b>Set days</b>, or drag it onto next week's grid.</div>`
       : `<div class="wp-eow-hint">Every session has a slot next week. Check in with your coach and tick this off.</div>`);
 }
 // Food: the prompt Ash asked for, writing STRAIGHT into the Intentions Around Food tab that
