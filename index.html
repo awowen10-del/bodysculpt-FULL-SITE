@@ -5038,9 +5038,10 @@ function renderWeeklyPlan(){
 
 /* v240: THE WEEK AT A GLANCE — the Health page's shape on the Weekly page. The week as a
    hero with everything planned in it as a ring, this month's focus beside it, and four
-   numbers: project, recurring, buffer and training jobs done out of planned. Counted from
-   the grid as it is drawn (the effective placements), every day of the week, not only the
-   days on screen. Display only. */
+   numbers: project, recurring, buffer and training jobs done out of planned. Recurring and
+   training are counted from the grid as it is drawn (the effective placements), every day of
+   the week, not only the days on screen; project and buffer from their lists (v254). Display
+   only. */
 function wpIco(name, tone){
   return `<span class="wp-hico t-${tone}" aria-hidden="true"><svg class="ic"><use href="#ic-${name}"/></svg></span>`;
 }
@@ -5053,8 +5054,19 @@ function wpWeekStats(){
     (P[key]||[]).forEach(ref=>{
       const src = ref.split(":")[0], it = wpResolveRef(ref);
       if(!it || !by[src]) return;
+      if(src === "project" || src === "buffer") return;   // v254: counted from their lists below
       by[src].t++;
       if(wpIsDone(src, it, day)) by[src].d++;
+    });
+  });
+  // v254: a project or buffer job counts whether or not it has a slot in the grid. Ash moved
+  // ten jobs into next week's Buffer and the tile said 0/1, because only the one booked into a
+  // slot was counted. Every job on the list, once, ticked or not.
+  [["project", wpPlan && wpPlan.projectItems], ["buffer", wpPlan && wpPlan.bufferItems]].forEach(([src, list])=>{
+    (list||[]).forEach(it=>{
+      if(!it || !String(it.title||"").trim()) return;
+      by[src].t++;
+      if(wpIsDone(src, it)) by[src].d++;
     });
   });
   return by;
