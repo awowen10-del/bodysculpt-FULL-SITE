@@ -89,7 +89,7 @@ const read = (f) => fs.readFileSync(path.join(ROOT, f), "utf8");
   assert.ok(/loadGhlForEntry\(document\.getElementById\('e_weekEnding'\)\.value\)/.test(html), "reads GHL when the form opens");
   assert.ok(html.includes("loadGhlForEntry(iso)"), "reads GHL again when the week changes");
   assert.ok(html.includes("ghlLeads:num('e_ghlLeads')"), "GHL leads save with the week");
-  assert.ok(/week\.ghlLeads==='number'[\s\S]{0,80}\? week\.ghlLeads/.test(html), "derive prefers GHL leads");
+  assert.ok(/week\.ghlLeads==='number'[\s\S]{0,140}\? week\.ghlLeads\+\(Number\(week\.ontraportLeads\)\|\|0\)/.test(html), "derive prefers GHL leads");
   const fn = html.slice(html.indexOf("async function loadGhlForEntry"), html.indexOf("function lastRecurring()"));
   assert.ok(!/Store\.save|kpi-store/.test(fn), "the GHL read never saves");
   assert.ok(/if\(ts\.value===''\)\{ ts\.value=sales; \}/.test(fn), "only fills an empty Trial Sales box");

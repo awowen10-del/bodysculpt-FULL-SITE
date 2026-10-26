@@ -1952,11 +1952,11 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
         <button type="button" class="entry-paste-cancel" id="ontraportPasteCancel">Cancel</button>
       </div>
     </div>
-    <input type="hidden" id="e_ontraportLeads">
     <div class="entry-ghl" id="ghlBox" aria-live="polite">Reading 6WC leads and sales from GHL…</div>
     <input type="hidden" id="e_ghlLeads">
     <div class="entry-grid">
       <label>Trial Sales<input type="number" id="e_trialSales" inputmode="numeric" placeholder="0"></label>
+      <label>Website leads (Ontraport)<input type="number" id="e_ontraportLeads" inputmode="numeric" placeholder="0"></label>
       <label>New Members<input type="number" id="e_signups" inputmode="numeric" placeholder="0"></label>
       <label>Cancellations<input type="number" id="e_cancellations" inputmode="numeric" placeholder="0"></label>
       <label>Paused Members<input type="number" id="e_paused" inputmode="numeric" placeholder="0"></label>
@@ -2416,7 +2416,8 @@ function derive(week,prevWeek){
   // adSpend comes from the Facebook step. Leads too, until v256: a week pulled from GHL keeps
   // GHL's 6WC lead count (ghlLeads), which wins over Meta's — GHL is where the leads land.
   const adSpend = (typeof week.adSpend==='number' && !isNaN(week.adSpend)) ? week.adSpend : 0;
-  const leads   = (typeof week.ghlLeads==='number' && !isNaN(week.ghlLeads)) ? week.ghlLeads
+  // v257: plus any leads from the old Ontraport website form, which GHL never sees.
+  const leads   = (typeof week.ghlLeads==='number' && !isNaN(week.ghlLeads)) ? week.ghlLeads+(Number(week.ontraportLeads)||0)
                 : (typeof week.leads==='number'   && !isNaN(week.leads))   ? week.leads   : 0;
   const cpl=leads?adSpend/leads:0;
   const conv=leads?(week.trialSales/leads)*100:0;
@@ -8944,7 +8945,7 @@ async function loadGhlForEntry(weekEnding){
   box.innerHTML=`From GHL: <b>${r.leads.count} lead${r.leads.count===1?'':'s'}</b> · <b>${r.sales.count} 6WC sale${r.sales.count===1?'':'s'}</b>${use}
     <span class="ghl-names">Leads: ${esc(names(r.leads.people,p=>p.name))}</span>
     <span class="ghl-names">Sales: ${esc(names(r.sales.people,p=>`${p.name} (£${p.amount}${p.plan==='pay in two'?', pay in two':''})`))}</span>
-    <span class="ghl-names">Website-form leads still go to Ontraport and aren't in this count.</span>`;
+    <span class="ghl-names">Website-form leads still go to Ontraport: put those in Website leads below.</span>`;
   const btn=document.getElementById('ghlUseSales');
   if(btn) btn.addEventListener('click',()=>{ ts.value=sales; btn.remove(); });
 }
