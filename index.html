@@ -350,6 +350,12 @@
   .entry-import:disabled{opacity:.55;cursor:wait;}
   .entry-import-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;}
   .entry-import-hint{font-size:12px;color:var(--ink-faint);line-height:1.45;}
+  /* v256: the GHL read — 6WC leads and sales, filled in when the form opens */
+  .entry-ghl{margin:0 0 14px;padding:12px 13px;background:var(--navy-2);border:1px solid var(--line);border-radius:11px;font-size:13px;color:var(--ink-dim);line-height:1.5;}
+  .entry-ghl b{color:var(--ink);}
+  .entry-ghl .ghl-names{display:block;margin-top:4px;font-size:12px;color:var(--ink-faint);}
+  .entry-ghl .ghl-use{margin-left:8px;padding:4px 10px;font-size:12px;}
+  .entry-ghl.err{color:var(--red);}
   .entry-paste{margin:-3px 0 15px;padding:13px;background:var(--navy-2);border:1px solid var(--line);border-radius:11px;}
   .entry-paste label{font-size:12px;color:var(--ink-dim);font-weight:700;}
   .entry-paste textarea{width:100%;min-height:92px;margin-top:7px;padding:10px 11px;resize:vertical;
@@ -1947,6 +1953,8 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
       </div>
     </div>
     <input type="hidden" id="e_ontraportLeads">
+    <div class="entry-ghl" id="ghlBox" aria-live="polite">Reading 6WC leads and sales from GHL…</div>
+    <input type="hidden" id="e_ghlLeads">
     <div class="entry-grid">
       <label>Trial Sales<input type="number" id="e_trialSales" inputmode="numeric" placeholder="0"></label>
       <label>New Members<input type="number" id="e_signups" inputmode="numeric" placeholder="0"></label>
@@ -1955,7 +1963,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
       <label>Total Active Trialists<input type="number" id="e_trialists" inputmode="numeric" placeholder="0"></label>
     </div>
     <div class="entry-calc" id="e_recurringPreview">Recurring will calculate from last week.</div>
-    <div class="entry-note">Leads and sales belong to the Facebook Ads step. Total Active Trialists comes from the Ontraport Active Trialists contact group.</div>
+    <div class="entry-note">Leads and Trial Sales come from GHL (6WC leads and 6WC payments). Members, cancellations, paused and Total Active Trialists still come from Ontraport.</div>
     <div class="entry-sub">Optional extras</div>
     <div class="entry-grid">
       <label>Total Active<input type="number" id="e_totalActive" inputmode="numeric" placeholder="—"></label>
@@ -2405,9 +2413,11 @@ function isoWeekNum(iso){
 function fmtDateShort(iso){const d=new Date(iso+'T00:00:00');
   return d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});}
 function derive(week,prevWeek){
-  // adSpend & leads come from the Facebook step; default to 0 if no FB data entered yet
+  // adSpend comes from the Facebook step. Leads too, until v256: a week pulled from GHL keeps
+  // GHL's 6WC lead count (ghlLeads), which wins over Meta's — GHL is where the leads land.
   const adSpend = (typeof week.adSpend==='number' && !isNaN(week.adSpend)) ? week.adSpend : 0;
-  const leads   = (typeof week.leads==='number'   && !isNaN(week.leads))   ? week.leads   : 0;
+  const leads   = (typeof week.ghlLeads==='number' && !isNaN(week.ghlLeads)) ? week.ghlLeads
+                : (typeof week.leads==='number'   && !isNaN(week.leads))   ? week.leads   : 0;
   const cpl=leads?adSpend/leads:0;
   const conv=leads?(week.trialSales/leads)*100:0;
   const netGain=week.signups-week.cancellations;
@@ -8904,6 +8914,40 @@ async function importOntraportFromClipboard(){
     showOntraportPasteFallback(); return false;
   }finally{ btn.disabled=false; }
 }
+/* ===== v256: GHL — 6WC leads and sales for the week =====
+   Read when the form opens and whenever the week changes. Leads go into a hidden field
+   (saved as ghlLeads; derive() prefers it over Meta's count). Trial Sales is filled only when
+   the box is empty — a number already there is Ash's, so it gets a "Use GHL's" button instead.
+   Nothing is saved here; the week saves with the form, as before. */
+let ghlReq=0;
+async function loadGhlForEntry(weekEnding){
+  const box=document.getElementById('ghlBox');
+  if(!box) return;
+  const my=++ghlReq;
+  const esc=s=>String(s==null?'':s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  box.className='entry-ghl';
+  if(!weekEnding || new Date(weekEnding+'T00:00:00Z').getUTCDay()!==6){
+    box.textContent='Pick a Saturday to read 6WC leads and sales from GHL.'; return; }
+  box.textContent='Reading 6WC leads and sales from GHL…';
+  let r;
+  try{ r=await (await fetch('/.netlify/functions/ghl-kpis?weekEnding='+encodeURIComponent(weekEnding))).json(); }
+  catch(e){ r={ok:false,error:'Could not reach GHL — check connection.'}; }
+  if(my!==ghlReq || document.getElementById('e_weekEnding').value!==weekEnding) return; // week changed meanwhile
+  if(!r || !r.ok){ box.className='entry-ghl err'; box.textContent='GHL: '+((r&&r.error)||'no answer')+' Type the numbers in by hand.'; return; }
+  document.getElementById('e_ghlLeads').value=String(r.leads.count);
+  const ts=document.getElementById('e_trialSales');
+  const sales=String(r.sales.count);
+  let use='';
+  if(ts.value===''){ ts.value=sales; }
+  else if(ts.value!==sales){ use=`<button type="button" class="entry-import ghl-use" id="ghlUseSales">Use GHL's ${sales}</button>`; }
+  const names=(list,fmt)=>list.length?list.map(fmt).join(', '):'none';
+  box.innerHTML=`From GHL: <b>${r.leads.count} lead${r.leads.count===1?'':'s'}</b> · <b>${r.sales.count} 6WC sale${r.sales.count===1?'':'s'}</b>${use}
+    <span class="ghl-names">Leads: ${esc(names(r.leads.people,p=>p.name))}</span>
+    <span class="ghl-names">Sales: ${esc(names(r.sales.people,p=>`${p.name} (£${p.amount}${p.plan==='pay in two'?', pay in two':''})`))}</span>
+    <span class="ghl-names">Website-form leads still go to Ontraport and aren't in this count.</span>`;
+  const btn=document.getElementById('ghlUseSales');
+  if(btn) btn.addEventListener('click',()=>{ ts.value=sales; btn.remove(); });
+}
 function lastRecurring(){
   // most recent stored week's recurring value
   if(!WEEKS.length) return null;
@@ -8983,6 +9027,7 @@ function prefillEntryFrom(weekEnding){
   set('e_weekEnding',weekEnding);
   if(w){
     set('e_ontraportLeads',w.ontraportLeads);
+    set('e_ghlLeads',w.ghlLeads);
     set('e_trialSales',w.trialSales);
     set('e_signups',w.signups);
     set('e_cancellations',w.cancellations);
@@ -9002,7 +9047,7 @@ function openEntry(weekEnding, isEdit){
   const title=panel.querySelector('.entry-h strong');
   if(weekEnding){ prefillEntryFrom(weekEnding); }
   else { document.getElementById('e_weekEnding').value=nextWeekEnding();
-    ['e_ontraportLeads','e_trialSales','e_signups','e_cancellations','e_paused','e_trialists','e_totalActive','e_attendance','e_recurringOverride']
+    ['e_ontraportLeads','e_ghlLeads','e_trialSales','e_signups','e_cancellations','e_paused','e_trialists','e_totalActive','e_attendance','e_recurringOverride']
       .forEach(id=>document.getElementById(id).value='');
     updateRecurringPreview(); updateRangeHint(); }
   if(title) title.textContent = isEdit ? 'Edit week' : 'Enter a week';
@@ -9010,6 +9055,7 @@ function openEntry(weekEnding, isEdit){
   document.getElementById('e_totalActive').dataset.touched = isEdit ? '1' : '';
   panel.hidden=false;
   panel.scrollIntoView({behavior:'smooth',block:'start'});
+  loadGhlForEntry(document.getElementById('e_weekEnding').value);
 }
 function wireEntry(){
   const panel=document.getElementById('entryPanel');
@@ -9057,6 +9103,7 @@ function wireEntry(){
     updateRangeHint();
     if(WEEKS.some(w=>w.weekEnding===iso)){ prefillEntryFrom(iso);
       const title=panel.querySelector('.entry-h strong'); if(title) title.textContent='Edit week'; }
+   loadGhlForEntry(iso);
   });
   ['e_signups','e_cancellations','e_recurringOverride'].forEach(id=>
     document.getElementById(id).addEventListener('input',updateRecurringPreview));
@@ -9088,6 +9135,7 @@ function wireEntry(){
     const week={
       weekEnding,
       ontraportLeads:num('e_ontraportLeads'),
+      ghlLeads:num('e_ghlLeads'),
       trialSales:num('e_trialSales')||0,
       signups:s,
       cancellations:c,
@@ -9107,7 +9155,7 @@ function wireEntry(){
       await reloadAndRender(weekEnding);
       const wasEdit = panel.dataset.mode==='edit';
       setTimeout(()=>{ panel.hidden=true; saveBtn.disabled=false;
-        ['e_ontraportLeads','e_trialSales','e_signups','e_cancellations','e_paused','e_trialists','e_totalActive','e_attendance','e_recurringOverride']
+        ['e_ontraportLeads','e_ghlLeads','e_trialSales','e_signups','e_cancellations','e_paused','e_trialists','e_totalActive','e_attendance','e_recurringOverride']
           .forEach(id=>document.getElementById(id).value='');
         document.getElementById('e_totalActive').dataset.touched='';
         // entering a fresh week -> chain into Facebook step; editing -> just close
