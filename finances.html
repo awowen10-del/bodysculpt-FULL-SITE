@@ -154,12 +154,16 @@
     border-radius:10px;padding:8px 10px;font-size:13px;font-weight:600;}
   /* v258: the month picker is its own bar under the tabs, not a small box at the far end of
      them — on a phone the tab row scrolls sideways and the picker was off screen. */
-  .finmonth{display:flex;align-items:center;gap:var(--sp-2);margin:0 0 var(--sp-4);flex-wrap:wrap;}
+  .finmonth{display:flex;align-items:center;gap:var(--sp-2);margin:var(--sp-3) 0 0;flex-wrap:wrap;}
   .finmonth[hidden]{display:none;}
   .finmonth .lab{font-size:12px;font-weight:600;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.06em;}
   .finmonth select{font-family:inherit;background:var(--card);color:var(--ink-strong);
-    border:1.5px solid var(--orange);border-radius:10px;padding:9px 14px;font-size:16px;font-weight:700;
-    min-width:190px;cursor:pointer;}
+    border:1.5px solid var(--orange);border-radius:10px;padding:0 12px;font-size:16px;font-weight:700;
+    height:40px;min-width:150px;cursor:pointer;}
+  /* the arrows match the picker's height so the three read as one control */
+  .finmonth .pb-arrow{height:40px;width:40px;}
+  .finmonth .lab{margin-right:var(--sp-1);}
+  .finmonth .none{margin-left:var(--sp-2);}
   .finmonth select:focus-visible{outline:none;box-shadow:var(--focus);}
   .finmonth .none{font-size:12.5px;color:var(--ink-dim);}
   /* the Year table tab is picked out from the rest so it can be found at a glance */
@@ -4109,14 +4113,13 @@ function renderMonthSel() {
   const sel = $("monthSel");
   const list = pickerMonths();
   sel.innerHTML = list.slice().reverse().map((m) =>
-    `<option value="${m}" ${m === S.ym ? "selected" : ""}>${esc(ymLabel(m))}${
-      S.months.includes(m) ? "" : " — not imported"}</option>`).join("");
+    `<option value="${m}" ${m === S.ym ? "selected" : ""}>${esc(ymLabel(m))}</option>`).join("");
   const i = list.indexOf(S.ym);
   $("mPrev").disabled = i <= 0;
   $("mNext").disabled = i < 0 || i >= list.length - 1;
   const none = $("monthNone");
   none.hidden = S.months.includes(S.ym);
-  none.textContent = "No bank statement imported for " + ymLabel(S.ym) + " yet.";
+  none.textContent = "No statement imported yet.";
 }
 
 async function loadMonths() {
