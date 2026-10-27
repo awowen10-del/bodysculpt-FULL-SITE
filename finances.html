@@ -167,7 +167,7 @@
   .finmonth select:focus-visible{outline:none;box-shadow:var(--focus);}
   .finmonth .none{font-size:12.5px;color:var(--ink-dim);}
   /* the Year table tab is picked out from the rest so it can be found at a glance */
-  .viewtoggle .vt.vt-hl{color:var(--orange);font-weight:600;}
+  .viewtoggle .vt.vt-hl{color:var(--orange);font-weight:600;margin-left:auto;}
   .viewtoggle .vt.vt-hl .ic{width:15px;height:15px;vertical-align:-3px;margin-right:5px;}
   /* ===================== v162: THE SIDE NAV =====================
      Ash: "I no longer want the navigation accessible from the top. I now want a side
@@ -1182,12 +1182,12 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
   </div>
   <div class="viewtoggle" id="tabBar">
     <button class="vt active" data-view="cockpit">Cockpit</button>
-    <button class="vt vt-hl" data-view="table"><svg class="ic"><use href="#ic-grid"/></svg>Year table</button>
     <button class="vt" data-view="import">Import</button>
     <button class="vt" data-view="txns">Transactions</button>
     <button class="vt" data-view="breakdown">Breakdown</button>
     <button class="vt" data-view="report">Report</button>
     <button class="vt" data-view="settings">Settings</button>
+    <button class="vt vt-hl" data-view="table"><svg class="ic"><use href="#ic-grid"/></svg>Year table</button>
   </div>
   <div class="finmonth" id="monthBar">
     <span class="lab" id="monthLab">Month</span>
