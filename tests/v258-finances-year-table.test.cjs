@@ -99,6 +99,23 @@ ok("year figures add up, and leave out transfers and directors loans", () => {
   assert.ok(!("Transfer" in f.catTot) && !("Directors loan" in f.catTot));
 });
 
+// v261: tax is its own line — Ash: "all payments that are tax contributions should be classed
+// as TAX … they are arrears and also current liabilities".
+ok("tax is counted apart, so net before tax ignores it and net after tax does not", () => {
+  const ctx = boot("2026-10-27T12:00:00");
+  const trend = { "2026-01": [
+    { dir: "in", amount: 17000, desc: "STRIPE", cat: "" },
+    { dir: "out", amount: 5107.11, desc: "HMRC VAT", cat: "Tax" },
+    { dir: "out", amount: 18000, desc: "RENT ETC", cat: "Rent" },
+    { dir: "out", amount: 500, desc: "POT", cat: "Transfer" },
+  ] };
+  const f = ctx.yearFigures(["2026-01"], trend);
+  assert.strictEqual(f.ytdTax, 5107.11);
+  assert.strictEqual(Math.round((f.ytdIn - f.ytdOut + f.ytdTax) * 100) / 100, -1000, "before tax");
+  assert.strictEqual(Math.round((f.ytdIn - f.ytdOut) * 100) / 100, -6107.11, "after tax — the cash");
+  assert.strictEqual(vm.runInContext("taxOut", ctx)([{ dir: "out", amount: 9, cat: "Tax" }, { dir: "in", amount: 9, cat: "Tax" }]), 9);
+});
+
 ok("the Year table tab sits in the top bar, picked out, and has a view", () => {
   assert.ok(/<button class="vt vt-hl" data-view="table">[\s\S]*?Year table<\/button>/.test(html));
   assert.ok(html.includes('<div class="view" id="v-table" hidden>'));

@@ -1770,8 +1770,8 @@ const CHECKLIST = [
 const TIPS = {
   cash: ["Cash status", "A traffic light for the month so far. Comfortable means you are in front by more than your cushion. Tight means you are in front, but by less than it. Protect cash means more has gone out this month than came in."],
   in: ["Money in", "Everything that landed in the account this month — memberships, meal sales, anything else. Three things are left out because they are not takings: money you shift between your own accounts, because it was already yours; a directors loan, because you owe it back; and anything you have deleted."],
-  out: ["Money out", "Everything that left the account this month, apart from money moved to your own pots, a directors loan paid to yourself, and anything you have deleted. This is real spending, not money you still have."],
-  net: ["Net movement", "Money in minus money out. A plus means the month added to your cash; a minus means the month ate into it."],
+  out: ["Running costs", "Everything that left the account this month to run the business — apart from tax, which is shown on its own, money moved to your own pots, a directors loan, and anything you have deleted."],
+  net: ["Net before tax", "Money in minus running costs: did the gym cover its costs this month? Tax is left out because VAT is collected over a quarter and paid in one go, and arrears belong to earlier periods — counting either in one month makes that month look worse than it traded. The after-tax figure underneath is what actually happened to your cash."],
   action: ["One cashflow action", "The single most useful thing to do with the money this week, worked out from the numbers above. Do this one thing and the week has paid for itself."],
   pf: ["Profit First", "Every week you split the income the day it arrives: a slice for tax, a slice to invest, and the rest to run the business on. Splitting it first is the whole trick — money that was never in the spending account cannot be accidentally spent."],
   alloc: ["Allocatable income", "The money that came in this week that you split into pots. Only the sources you have chosen count — normally Stripe and GoCardless, which is your membership income. Anything else that came in is left out of the split."],
@@ -2684,6 +2684,13 @@ const transfersIn = (rows) => sum(rows, (r) => r.dir === "in" && isTransfer(r));
    and a loan is not a pot move. */
 const loanIn = (rows) => sum(rows, (r) => r.dir === "in" && isDirLoan(r));
 const loanOut = (rows) => sum(rows, (r) => r.dir === "out" && isDirLoan(r));
+/* v261: payments to HMRC — VAT, PAYE, arrears — are the "Tax" category. Ash: "all payments
+   that are tax contributions should be classed as TAX … they are arrears and also current
+   liabilities". They still count in moneyOut (the cash really left); the cockpit and the
+   year table show them on their own line, so a quarterly VAT bill does not make one month
+   look like a losing month. */
+const TAX = "Tax";
+const taxOut = (rows) => sum(rows, (r) => r.dir === "out" && !notCounted(r) && r.cat === TAX);
 
 /* Cash status and the one action, both straight off the sheet's own formulas so the
    traffic light means exactly what it always meant:
@@ -2714,7 +2721,7 @@ function cashflowAction(net, needs) {
 }
 
 function renderStats() {
-  const inn = moneyIn(S.rows), out = moneyOut(S.rows), net = inn - out;
+  const inn = moneyIn(S.rows), out = moneyOut(S.rows), net = inn - out, tax = taxOut(S.rows);
   const needs = S.rows.filter((r) => r.dir === "out" && !r.cat).length;
   // v258: a month with no statement in it yet is not a "tight" month — it is an unknown one
   const empty = !(S.all || []).length;
@@ -2722,8 +2729,8 @@ function renderStats() {
   const cards = [
     [cash.tone, "Cash status", "cash", cash.word, cash.sub],
     ["good", "Money in", "in", money0(inn), "Received in " + ymLabel(S.ym) + "."],
-    ["", "Money out", "out", money0(out), "Spent in " + ymLabel(S.ym) + "."],
-    [net >= 0 ? "good" : "bad", "Net movement", "net", money0(net), "In minus out — your cushion."],
+    ["", "Running costs", "out", money0(out - tax), tax ? "Plus " + money0(tax) + " tax paid." : "No tax paid this month."],
+    [net + tax >= 0 ? "good" : "bad", "Net before tax", "net", money0(net + tax), "After tax: " + money0(net) + "."],
   ];
   // Needs Review is not a fifth number. A lonely "4" in a headline tile says nothing; the
   // strip below says what it is, why it matters and where to go, in one line you can click.
@@ -4151,10 +4158,10 @@ function yearMonths(year) {
    test can check the sums. trend: ym -> live rows (missing = not imported). */
 function yearFigures(span, trend) {
   const col = (ym) => trend[ym] || [];
-  const fig = { inn: {}, out: {}, src: {}, cat: {} };
+  const fig = { inn: {}, out: {}, tax: {}, src: {}, cat: {} };
   for (const ym of span) {
     const rows = col(ym);
-    fig.inn[ym] = moneyIn(rows); fig.out[ym] = moneyOut(rows);
+    fig.inn[ym] = moneyIn(rows); fig.out[ym] = moneyOut(rows); fig.tax[ym] = taxOut(rows);
     for (const r of rows) {
       if (notCounted(r)) continue;
       if (r.dir === "in") {
@@ -4169,7 +4176,7 @@ function yearFigures(span, trend) {
     }
   }
   const tot = (o) => span.reduce((a, ym) => a + (o[ym] || 0), 0);
-  fig.ytdIn = tot(fig.inn); fig.ytdOut = tot(fig.out);
+  fig.ytdIn = tot(fig.inn); fig.ytdOut = tot(fig.out); fig.ytdTax = tot(fig.tax);
   fig.srcTot = {}; for (const k in fig.src) fig.srcTot[k] = tot(fig.src[k]);
   fig.catTot = {}; for (const k in fig.cat) fig.catTot[k] = tot(fig.cat[k]);
   return fig;
@@ -4190,13 +4197,13 @@ async function renderYear() {
   if (S.months.includes(S.ym)) S.trend[S.ym] = S.rows;
   const trend = {}; for (const ym of have) trend[ym] = S.trend[ym];
   const f = yearFigures(span, trend);
-  const net = f.ytdIn - f.ytdOut, n = have.length || 1;
+  const net = f.ytdIn - f.ytdOut, pre = net + f.ytdTax, n = have.length || 1;
   $("ytStats").innerHTML = [
-    ["good", "Money in this year", money0(f.ytdIn), money0(f.ytdIn / n) + " a month on average."],
-    ["", "Money out this year", money0(f.ytdOut), money0(f.ytdOut / n) + " a month on average."],
-    [net >= 0 ? "good" : "bad", "Net this year", money0(net), "In minus out, " + year + " so far."],
-    ["", "Months imported", have.length + " of " + span.length,
-      have.length === span.length ? "Every month is in." : "Months without a statement show as —."],
+    ["good", "Money in this year", money0(f.ytdIn), money0(f.ytdIn / n) + " a month on average, over "
+      + have.length + " of " + span.length + " months imported."],
+    [pre >= 0 ? "good" : "bad", "Net before tax", money0(pre), money0(pre / n) + " a month on average."],
+    ["", "Tax paid this year", money0(f.ytdTax), "VAT, HMRC and arrears."],
+    [net >= 0 ? "good" : "bad", "Net after tax", money0(net), "What the year has really added to your cash."],
   ].map(([tone, lab, val, sub]) => `<div class="fin-stat ${tone}"><div class="lab">${esc(lab)}</div>
       <div class="val">${esc(val)}</div><div class="sub">${esc(sub)}</div></div>`).join("");
 
@@ -4209,13 +4216,17 @@ async function renderYear() {
   const head = `<thead><tr><th>${esc(year)}</th>${span.map((ym) =>
     `<th><button type="button" data-ym="${ym}" title="Open ${esc(ymLabel(ym))}">${esc(ymLabel(ym).split(" ")[0])}</button>${
       S.months.includes(ym) ? "" : `<span class="nd">not imported</span>`}</th>`).join("")}<th class="ytd">Year to date</th></tr></thead>`;
+  const netRow = (label, v, total) => `<tr class="tot"><td>${esc(label)}</td>${span.map((ym) => {
+    const x = v(ym);
+    return !S.months.includes(ym) ? `<td class="num faint">—</td>` : `<td class="num" style="${tone(x)}">${money0(x)}</td>`; }).join("")}${ytd(total, tone(total))}</tr>`;
   const sec = (t) => `<tr class="sec"><td>${esc(t)}</td>${span.map(() => "<td></td>").join("")}<td class="ytd"></td></tr>`;
   const line = (label, by, total, cls) => `<tr${cls ? ` class="${cls}"` : ""}><td>${esc(label)}</td>${
     span.map((ym) => cell(ym, by[ym] || 0)).join("")}${ytd(total)}</tr>`;
   let body = `<tr class="tot"><td>Money in</td>${span.map((ym) => cell(ym, f.inn[ym], green)).join("")}${ytd(f.ytdIn, green)}</tr>`
-    + `<tr class="tot"><td>Money out</td>${span.map((ym) => cell(ym, f.out[ym])).join("")}${ytd(f.ytdOut)}</tr>`
-    + `<tr class="tot"><td>Net</td>${span.map((ym) => { const v = f.inn[ym] - f.out[ym];
-        return !S.months.includes(ym) ? `<td class="num faint">—</td>` : `<td class="num" style="${tone(v)}">${money0(v)}</td>`; }).join("")}${ytd(net, tone(net))}</tr>`;
+    + `<tr class="tot"><td>Running costs</td>${span.map((ym) => cell(ym, f.out[ym] - f.tax[ym])).join("")}${ytd(f.ytdOut - f.ytdTax)}</tr>`
+    + netRow("Net before tax", (ym) => f.inn[ym] - f.out[ym] + f.tax[ym], pre)
+    + `<tr><td>Tax paid</td>${span.map((ym) => cell(ym, f.tax[ym])).join("")}${ytd(f.ytdTax)}</tr>`
+    + netRow("Net after tax", (ym) => f.inn[ym] - f.out[ym], net);
   const srcs = Object.keys(SRC_LABEL).filter((k) => f.srcTot[k]);
   if (srcs.length) body += sec("Money in, by where it came from")
     + srcs.map((k) => line(SRC_LABEL[k], f.src[k], f.srcTot[k])).join("");
