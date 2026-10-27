@@ -778,11 +778,21 @@
   table.yt td.faint{color:var(--ink-faint);font-weight:400;}
   /* v265: the Debts tab */
   .dl-alarms{display:grid;gap:8px;margin-bottom:var(--sp-4);}
-  .dl-first{display:grid;gap:18px;}
+  .dl-first{display:grid;gap:20px;}
+  .dl-sub{font-size:15px;color:var(--ink-dim);margin-top:2px;}
+  .dl-answer{padding:14px 16px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--card-2);}
+  .dl-answer.go{border-color:var(--tint-green);background:rgba(19,101,64,.07);}
+  .dl-answer.stop{border-color:var(--tint-red);background:rgba(143,16,48,.06);}
+  .dl-answer .dl-big{margin:0;} .dl-answer.go .dl-big{color:var(--tint-green);} .dl-answer.stop .dl-big{color:var(--tint-red);}
+  .dl-why{font-size:14px;color:var(--ink-dim);margin-top:4px;}
+  .dl-calc{border-collapse:collapse;margin:10px 0 4px;font-size:15px;font-variant-numeric:tabular-nums;width:100%;max-width:380px;}
+  .dl-calc td{padding:5px 0;} .dl-calc td:last-child{text-align:right;white-space:nowrap;padding-left:16px;}
+  .dl-calc small{color:var(--ink-faint);font-size:12px;}
+  .dl-calc tr.eq td{border-top:2px solid var(--ink-strong);font-weight:800;padding-top:8px;}
+  .dl-calc.bills{font-size:13px;max-width:460px;} .dl-calc.bills td{border-bottom:1px solid var(--line);} .dl-calc.bills td:first-child{white-space:nowrap;padding-right:12px;color:var(--ink-dim);}
+  .dl-bankin{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:10px 0;font-size:13px;color:var(--ink-dim);} .dl-bankin .fin-in{width:140px;}
   .dl-lab{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);}
-  .dl-total{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin-top:2px;}
-  .dl-total>b{font-size:30px;font-weight:800;color:var(--ink-strong);font-variant-numeric:tabular-nums;}
-  .dl-total span{font-size:14px;color:var(--ink-dim);}
+  .dl-total{font-size:34px;font-weight:800;color:var(--ink-strong);font-variant-numeric:tabular-nums;line-height:1.1;}
   .dl-adv .dl-big{margin:2px 0 4px;}
   .dl-all{margin-top:var(--sp-4);}
   .dl-all>summary{cursor:pointer;list-style:none;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-md);
@@ -4741,7 +4751,7 @@ function renderDebts() {
   // Everything else sits behind one tap, so the page answers before it explains.
   root.innerHTML = `<section><div class="card dl-first">${debtTotalHtml(st)}${debtAdvisorHtml(st, adv)}${debtProgressHtml(st)}</div></section>
     <details class="dl-all" data-open="all"${S.debtOpen.all ? " open" : ""}><summary>Show me everything</summary>
-    ${debtAlarmsHtml(st) + debtStatsHtml(st) + debtWaterfallHtml(st) + debtPotsHtml(st) + debtProjectionHtml(st)
+    ${debtAlarmsHtml(st) + debtToolsHtml(st, adv) + debtStatsHtml(st) + debtWaterfallHtml(st) + debtPotsHtml(st) + debtProjectionHtml(st)
     + debtMilestonesHtml(st) + debtReviewHtml(st) + debtNeedsReviewHtml(st)}</details>`;
   debtCelebrate(st);
   debtLoadPot(st);
@@ -4781,37 +4791,45 @@ function debtAlarmsHtml(st) {
   return out.length ? `<section class="dl-alarms">${out.join("")}</section>` : "";
 }
 
+/* v267: "If a 5 year old can't understand it, I can't understand it." One answer in a
+   coloured box; the sum behind the tap is four lines and a total, in whole pounds. */
 function debtAdvisorHtml(st, a) {
-  const t = a.target;
-  const head = a.x === null ? `Enter today's bank balance to get a number.`
-    : a.x > 0 && t ? `You can safely pay <b>${money0(Math.floor(a.x))}</b> extra to <b>${esc(t.name)}</b> today.`
-    : `Nothing extra this time — and nothing new goes on a card.`;
-  const next = [10, 29].map((d) => nextDayOfMonth(st.today, d, true)).sort()[0];
-  return `<div class="dl-adv">
-    <div class="dl-lab">Today</div>
-    <div class="dl-big">${head}</div>
+  const t = a.target, yes = a.x !== null && a.x > 0 && t;
+  const head = a.x === null ? "Type in what's in the bank to get an answer."
+    : yes ? `Pay <b>${money0(Math.floor(a.x))}</b> extra to ${esc(t.name)} today.`
+    : "Don't pay anything extra today.";
+  const why = a.x === null ? "" : yes ? "That's what is spare after bills, tax and your safety money."
+    : "The bills coming up need the money first.";
+  const neg = (v) => "− " + money0(v);
+  const bank = a.bank && a.bank.amount != null ? a.bank.amount : null;
+  return `<div class="dl-answer ${a.x === null ? "" : yes ? "go" : "stop"}">
+    <div class="dl-big">${head}</div>${why ? `<div class="dl-why">${why}</div>` : ""}</div>
     <details class="dl-det" data-open="how"${S.debtOpen.how ? " open" : ""}><summary>How is this worked out?</summary>
-    <div class="hint" style="margin:6px 0">Sweep days are the 10th (after wages) and the 29th (after rent and Neil). Next: ${dayLabel(next)}.</div>
-    <div class="dl-sum">
-      <span>Bank ${a.bank && a.bank.amount != null ? money(a.bank.amount) : "<i>enter</i>"}${a.bank && a.bank.date ? ` <small>(${a.bank.source === "manual" ? "typed" : "statement"} ${dmy(a.bank.date)})</small>` : ""}</span>
-      <span>− due in the next 14 days ${money(a.committedTotal)}</span>
-      <span>− tax pot share ${money(a.taxRing)} <small>(${S.settings.potTaxPct}% of ${money0(a.income)} taken since ${dmy(a.since)})</small></span>
-      <span>− safety floor ${money(a.floor)}</span>
-      <span class="eq">= ${a.x === null ? "—" : money(a.x)}</span></div>
-    <details class="dl-det"><summary>What is due in the next 14 days (${a.committed.length})</summary>
-      ${a.committed.length ? `<div class="fin-tw"><table class="fin"><tbody>${a.committed.map((c) =>
-        `<tr><td class="dt">${dmy(c.date)}</td><td>${esc(c.what)}${c.kind === "regular" ? ` <small class="faint">— paid on about this day for 3 months</small>` : ""}</td><td class="num">${money(c.amount)}</td></tr>`).join("")}</tbody></table></div>`
-        : `<div class="hint">Nothing regular is due.</div>`}
-      <div class="hint">Worked out from the last three months' statements. Your own pay is left out — it is yours to time.</div></details>
+    <table class="dl-calc"><tbody>
+      <tr><td>In the bank${a.bank && a.bank.date ? ` <small>on ${dayLabel(a.bank.date)}</small>` : ""}</td><td>${bank === null ? "?" : money0(bank)}</td></tr>
+      <tr><td>Bills in the next 2 weeks</td><td>${neg(a.committedTotal)}</td></tr>
+      <tr><td>Put away for tax</td><td>${neg(a.taxRing)}</td></tr>
+      <tr><td>Always keep</td><td>${neg(a.floor)}</td></tr>
+      <tr class="eq"><td>Left over</td><td class="${a.x !== null && a.x < 0 ? "bad" : "good"}">${a.x === null ? "?" : (a.x < 0 ? neg(-a.x) : money0(a.x))}</td></tr>
+    </tbody></table>
+    <label class="dl-bankin">Different in the bank today? <input class="fin-in" id="dlBank" type="number" step="0.01" placeholder="Type it" value="${a.bank && a.bank.source === "manual" ? a.bank.amount : ""}"></label>
+    <details class="dl-det"><summary>See the bills</summary>
+      ${a.committed.length ? `<table class="dl-calc bills"><tbody>${a.committed.map((c) =>
+        `<tr><td>${dayLabel(c.date)}</td><td>${esc(c.what)}</td><td>${money0(c.amount)}</td></tr>`).join("")}</tbody></table>`
+        : `<div class="hint">No bills due.</div>`}</details>
+    </details>`;
+}
+/* Logging a payment and the safety money: things you do now and then, not every visit. */
+function debtToolsHtml(st, a) {
+  const t = a.target;
+  return `<section><div class="card"><div class="chead">Paid something? Change your safety money?</div>
     <div class="dl-row">
-      <label>Bank balance now <input class="fin-in" id="dlBank" type="number" step="0.01" placeholder="from statement" value="${a.bank && a.bank.source === "manual" ? a.bank.amount : ""}"></label>
-      <label>Safety floor <input class="fin-in" id="dlFloor" type="number" step="100" value="${a.floor}"></label>
       ${t ? `<label>I paid ${esc(t.name)} <input class="fin-in" id="dlPaid" type="number" step="0.01" placeholder="£"></label>
       <button class="abtn primary" id="dlPaidBtn" data-debt="${esc(t.id)}"><span>Log payment</span></button>` : ""}
+      <label>Always keep in the bank <input class="fin-in" id="dlFloor" type="number" step="100" value="${a.floor}"></label>
     </div>
-    <div class="hint">A payment you log here waits for the bank line and drops out by itself when the next import brings it in.</div>
-    </details>
-  </div>`;
+    <div class="hint">A payment you log here disappears by itself once it shows on a bank statement. Sweep days are the 10th and the 29th.</div>
+  </div></section>`;
 }
 
 /* Business debts with a balance entered: where they started, where they are, what they cost today. */
@@ -4827,15 +4845,16 @@ function debtTotals(st) {
 }
 function debtTotalHtml(st) {
   const t = debtTotals(st);
-  return `<div class="dl-lab">Owed</div>
-    <div class="dl-total"><b>${money0(t.now)}</b> <span>costing <b class="bad">${money(t.today)}</b> in interest today</span></div>
-    ${t.unknown.length ? `<div class="hint" style="margin:2px 0 0">Plus ${t.unknown.map((d) => esc(d.name)).join(", ")} — enter from statement.</div>` : ""}`;
+  return `<div><div class="dl-lab">You owe</div>
+    <div class="dl-total">${money0(t.now)}</div>
+    <div class="dl-sub">Interest costs you about <b class="bad">${money0(t.today)} a day</b>.</div></div>`;
 }
 function debtProgressHtml(st) {
   const t = debtTotals(st);
   const pct = t.start > 0 ? Math.max(0, Math.min(100, (t.start - t.now) / t.start * 100)) : 0;
-  return `<div class="dl-prog"><div class="dl-bar big"><i style="width:${pct.toFixed(1)}%"></i></div>
-    <div class="dl-barlab"><span>Start ${money0(t.start)}</span><span>${t.now > t.start ? `<b class="bad">${money0(t.now - t.start)} more than at the start</b>` : `<b>${pct.toFixed(1)}%</b> paid off`}</span><span>£0</span></div></div>`;
+  return `<div class="dl-prog"><div class="dl-sub">${t.now > t.start ? `You owe <b class="bad">${money0(t.now - t.start)} more</b> than when you started.`
+      : `Paid off so far: <b>${pct < 1 && pct > 0 ? pct.toFixed(1) : Math.round(pct)}%</b>`}</div>
+    <div class="dl-bar big"><i style="width:${pct.toFixed(1)}%"></i></div></div>`;
 }
 function debtStatsHtml(st) {
   const { L, today } = st;
@@ -4858,7 +4877,7 @@ function debtStatsHtml(st) {
   }
   return `<section><div class="card">
     <div class="cardhead"><div><div class="chead">Paying it off</div>
-      <div class="csub">Business debts with a balance entered.</div></div></div>
+      <div class="csub">Business debts with a balance entered.${debtTotals(st).unknown.length ? " Still need a figure: " + debtTotals(st).unknown.map((d) => esc(d.name)).join(", ") + "." : ""}</div></div></div>
     <div class="fin-stats">
       <div class="fin-stat ${start - now >= 0 ? "good" : "bad"}"><div class="lab">Paid off</div><div class="val">${money0(start - now)}</div><div class="sub">${start - now >= 0 ? "Down since you started tracking." : "UP since you started — new borrowing."}</div></div>
       <div class="fin-stat good"><div class="lab">Interest saved</div><div class="val">${money0(saved)}</div><div class="sub">Against paying only the minimum.${saved ? "" : " Starts counting at the first statement date."}</div></div>

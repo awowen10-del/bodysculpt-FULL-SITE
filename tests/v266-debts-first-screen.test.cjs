@@ -103,8 +103,9 @@ ok("the first screen is three things; everything else is behind one closed expan
   assert.ok(rest, "the expander is there");
   assert.ok(/<details class="dl-all" data-open="all">/.test(html), "…and closed by default");
   assert.ok(/<summary>Show me everything<\/summary>/.test(html));
-  assert.ok(/in interest today/.test(first), "total owed with today's interest");
-  assert.ok(/Nothing extra this time/.test(first), "the advisor's answer");
+  assert.ok(/You owe/.test(first) && /a day<\/b>/.test(first), "total owed with what interest costs a day");
+  assert.ok(/Don.t pay anything extra today\./.test(first), "the advisor's answer, in plain words");
+  assert.ok(!/dlFloor|dlPaid|Funding Circle term loan/.test(first), "no inputs or missing-figure lists up top");
   assert.ok(/dl-bar big/.test(first), "the progress bar");
   assert.ok(/How is this worked out\?/.test(first) && /<details class="dl-det" data-open="how">/.test(first), "the sum is behind a closed tap");
   for (const k of ["dl-alarm", "The order", "When it is all gone", "Milestones", "Month in review", "dl-chart", "dlWhatIf", "Interest saved"])
