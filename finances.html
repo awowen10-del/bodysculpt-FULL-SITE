@@ -152,6 +152,19 @@
   .pb-jump:hover{border-color:var(--orange);color:var(--ink);}
   .monthpick select{font-family:inherit;background:var(--card);color:var(--ink);border:1px solid var(--line);
     border-radius:10px;padding:8px 10px;font-size:13px;font-weight:600;}
+  /* v258: the month picker is its own bar under the tabs, not a small box at the far end of
+     them — on a phone the tab row scrolls sideways and the picker was off screen. */
+  .finmonth{display:flex;align-items:center;gap:var(--sp-2);margin:0 0 var(--sp-4);flex-wrap:wrap;}
+  .finmonth[hidden]{display:none;}
+  .finmonth .lab{font-size:12px;font-weight:600;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.06em;}
+  .finmonth select{font-family:inherit;background:var(--card);color:var(--ink-strong);
+    border:1.5px solid var(--orange);border-radius:10px;padding:9px 14px;font-size:16px;font-weight:700;
+    min-width:190px;cursor:pointer;}
+  .finmonth select:focus-visible{outline:none;box-shadow:var(--focus);}
+  .finmonth .none{font-size:12.5px;color:var(--ink-dim);}
+  /* the Year table tab is picked out from the rest so it can be found at a glance */
+  .viewtoggle .vt.vt-hl{color:var(--orange);font-weight:600;}
+  .viewtoggle .vt.vt-hl .ic{width:15px;height:15px;vertical-align:-3px;margin-right:5px;}
   /* ===================== v162: THE SIDE NAV =====================
      Ash: "I no longer want the navigation accessible from the top. I now want a side
      navigation" — with a reference: a quiet left rail, the brand at the top, small grey
@@ -746,6 +759,19 @@
   table.fin td.in{color:var(--tint-green);} table.fin td.out{color:var(--ink);}
   table.fin td.dt{white-space:nowrap;color:var(--ink-dim);font-variant-numeric:tabular-nums;}
   table.fin td.ds{max-width:420px;}
+  /* v258: the year table — the first column stays put while the months scroll sideways */
+  table.yt th:first-child,table.yt td:first-child{position:sticky;left:0;z-index:1;background:var(--card);
+    white-space:nowrap;}
+  table.yt th:first-child{z-index:3;background:var(--navy-2);}
+  table.yt th{text-align:right;white-space:nowrap;}
+  table.yt th button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;
+    text-decoration:underline dotted;text-underline-offset:3px;}
+  table.yt th .nd{display:block;font-size:10.5px;font-weight:500;color:var(--ink-faint);text-transform:none;letter-spacing:0;}
+  table.yt td.ytd,table.yt th.ytd{background:var(--card-2);}
+  table.yt tr.sec td{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+    color:var(--ink-dim);background:var(--navy-2);padding-top:10px;}
+  table.yt tr.tot td{font-weight:800;}
+  table.yt td.faint{color:var(--ink-faint);font-weight:400;}
   .desc{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   tr.needs td.ds .desc{font-weight:600;}
   tr.needs{background:rgba(var(--amber-rgb),.06);}
@@ -1152,14 +1178,35 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
   </div>
   <div class="viewtoggle" id="tabBar">
     <button class="vt active" data-view="cockpit">Cockpit</button>
+    <button class="vt vt-hl" data-view="table"><svg class="ic"><use href="#ic-grid"/></svg>Year table</button>
     <button class="vt" data-view="import">Import</button>
     <button class="vt" data-view="txns">Transactions</button>
     <button class="vt" data-view="breakdown">Breakdown</button>
     <button class="vt" data-view="report">Report</button>
     <button class="vt" data-view="settings">Settings</button>
-    <div class="vt-right"><div class="monthpick"><span>Month</span><select id="monthSel"></select></div></div>
+  </div>
+  <div class="finmonth" id="monthBar">
+    <span class="lab" id="monthLab">Month</span>
+    <button class="pb-arrow" id="mPrev" title="Previous month" aria-label="Previous month">←</button>
+    <select id="monthSel" aria-label="Month"></select>
+    <button class="pb-arrow" id="mNext" title="Next month" aria-label="Next month">→</button>
+    <span class="none" id="monthNone" hidden></span>
   </div>
 </header>
+
+<!-- ============================= YEAR TABLE ============================= -->
+<div class="view" id="v-table" hidden>
+  <div class="fin-stats" id="ytStats"></div>
+  <section>
+    <div class="card">
+      <div class="ctitle" id="ytTitle">The year so far</div>
+      <div class="hint" style="margin-top:0;margin-bottom:10px;">Every month this year side by side, with the
+        year-to-date total on the right. Tap a month's name to open it. Transfers, directors loans and
+        deleted rows are left out, the same as everywhere else on this page.</div>
+      <div class="fin-tw"><table class="fin yt" id="ytTbl"></table></div>
+    </div>
+  </section>
+</div>
 
 <!-- ============================= COCKPIT ============================= -->
 <div class="view" id="v-cockpit">
@@ -2140,8 +2187,7 @@ function downloadFile(name, text, mime) {
 /* Which months the export covers, newest span ending at the month on screen. */
 function exportMonths() {
   const n = Number($("expRange").value) || 1;
-  const idx = S.months.indexOf(S.ym);
-  const end = idx < 0 ? S.months.length : idx + 1;
+  const end = spanEnd();
   const span = S.months.slice(Math.max(0, end - n), end);
   return span.length ? span : [S.ym];
 }
@@ -2666,7 +2712,9 @@ function cashflowAction(net, needs) {
 function renderStats() {
   const inn = moneyIn(S.rows), out = moneyOut(S.rows), net = inn - out;
   const needs = S.rows.filter((r) => r.dir === "out" && !r.cat).length;
-  const cash = cashStatus(net);
+  // v258: a month with no statement in it yet is not a "tight" month — it is an unknown one
+  const empty = !(S.all || []).length;
+  const cash = empty ? { tone: "", word: "—", sub: "No bank statement yet." } : cashStatus(net);
   const cards = [
     [cash.tone, "Cash status", "cash", cash.word, cash.sub],
     ["good", "Money in", "in", money0(inn), "Received in " + ymLabel(S.ym) + "."],
@@ -2707,7 +2755,9 @@ function renderStats() {
 
   ckAutoReview(needs);
 
-  const act = cashflowAction(net, needs);
+  const act = empty ? { tone: "warn", text: "Import " + ymLabel(S.ym) + "'s bank statement",
+    why: "Nothing from the bank is in for " + ymLabel(S.ym) + " yet, so every figure on this page reads zero until it is. Download it from Santander and drop it on the Import tab." }
+    : cashflowAction(net, needs);
   const card = $("actionCard");
   card.className = "card action-card " + act.tone;
   $("actionText").textContent = act.text;
@@ -3201,8 +3251,8 @@ function renderBreakdown() {
 }
 
 async function renderTrend() {
-  const idx = S.months.indexOf(S.ym);
-  const span = S.months.slice(Math.max(0, (idx < 0 ? S.months.length : idx + 1) - 6), (idx < 0 ? S.months.length : idx + 1));
+  const end = spanEnd();
+  const span = S.months.slice(Math.max(0, end - 6), end);
   if (!span.length) { $("trendTbl").innerHTML = ""; return; }
   await Promise.all(span.map(async (ym) => {
     if (S.trend[ym]) return;
@@ -3353,8 +3403,7 @@ function applyWizard() {
    things to stop paying for.
    ===================================================================== */
 function reportMonths() {
-  const idx = S.months.indexOf(S.ym);
-  const end = idx < 0 ? S.months.length : idx + 1;
+  const end = spanEnd();
   const n = Number(($("repRange") && $("repRange").value) || 3);
   return S.months.slice(Math.max(0, end - n), end);
 }
@@ -3720,8 +3769,7 @@ async function buildWeekChallenge() {
   const week = await rowsForWeek(ws);
 
   // six months of history behind it, so every supplier can be quoted at a yearly rate
-  const idx = S.months.indexOf(S.ym);
-  const end = idx < 0 ? S.months.length : idx + 1;
+  const end = spanEnd();
   const span = S.months.slice(Math.max(0, end - 6), end);
   await Promise.all(span.map(async (ym) => {
     if (ym === S.ym) S.trend[ym] = S.rows;
@@ -4026,7 +4074,11 @@ async function saveSettings() {
 function setView(v) {
   S.view = v;
   document.querySelectorAll("#tabBar .vt").forEach((b) => b.classList.toggle("active", b.dataset.view === v));
-  ["cockpit", "import", "txns", "breakdown", "report", "settings"].forEach((k) => { $("v-" + k).hidden = k !== v; });
+  ["cockpit", "table", "import", "txns", "breakdown", "report", "settings"].forEach((k) => { $("v-" + k).hidden = k !== v; });
+  // the month matters to every view but these two
+  $("monthBar").hidden = v === "import" || v === "settings";
+  $("monthLab").textContent = v === "table" ? "Year of" : "Month";
+  if (v === "table") renderYear();
   if (v === "txns") renderTxns();
   if (v === "breakdown") renderBreakdown();
   if (v === "report") renderReport();
@@ -4034,17 +4086,143 @@ function setView(v) {
   try { localStorage.setItem("fin.view", v); } catch {}
 }
 
+/* v258: the picker offers every month from January of this year to now, whether or not a
+   statement has been imported for it — the current month used to be missing until its
+   statement went in, so October simply was not there in October. Older months appear when
+   they hold data. S.months stays "months with data"; only the picker reads this list. */
+function pickerMonths() {
+  const now = ymOf(ymd(new Date()));
+  const set = new Set(S.months);
+  for (let m = 1; m <= Number(now.slice(5)); m++) set.add(now.slice(0, 4) + "-" + pad(m));
+  if (S.ym) set.add(S.ym);
+  return [...set].sort();
+}
+
+/* How many stored months run up to and including the month on screen — the end of every
+   "last N months" span. A month with no statement yet counts the ones before it. */
+function spanEnd() {
+  const n = S.months.filter((m) => m <= S.ym).length;
+  return n || S.months.length;
+}
+
 function renderMonthSel() {
   const sel = $("monthSel");
-  const list = S.months.length ? S.months : [S.ym];
+  const list = pickerMonths();
   sel.innerHTML = list.slice().reverse().map((m) =>
-    `<option value="${m}" ${m === S.ym ? "selected" : ""}>${esc(ymLabel(m))}</option>`).join("");
+    `<option value="${m}" ${m === S.ym ? "selected" : ""}>${esc(ymLabel(m))}${
+      S.months.includes(m) ? "" : " — not imported"}</option>`).join("");
+  const i = list.indexOf(S.ym);
+  $("mPrev").disabled = i <= 0;
+  $("mNext").disabled = i < 0 || i >= list.length - 1;
+  const none = $("monthNone");
+  none.hidden = S.months.includes(S.ym);
+  none.textContent = "No bank statement imported for " + ymLabel(S.ym) + " yet.";
 }
 
 async function loadMonths() {
   try { S.months = (await api("finmonths=1")).months || []; } catch { S.months = []; }
-  if (!S.ym) S.ym = S.months.length ? S.months[S.months.length - 1] : ymOf(ymd(new Date()));
+  if (!S.ym) S.ym = ymOf(ymd(new Date()));
   renderMonthSel();
+}
+
+async function goMonth(ym) {
+  S.ym = ym; S.bdOpen = null;
+  await loadMonth();
+  if (S.view === "table") renderYear();
+}
+
+/* =====================================================================
+   v258: THE YEAR TABLE — January to now, one column a month and a
+   year-to-date total, read from the same stored months as everything else.
+   ===================================================================== */
+const SRC_LABEL = { stripe: "Stripe", gocardless: "GoCardless", sumup: "SumUp", other: "Other" };
+function yearMonths(year) {
+  const now = ymOf(ymd(new Date()));
+  const last = year === now.slice(0, 4) ? Number(now.slice(5)) : 12;
+  const out = [];
+  for (let m = 1; m <= last; m++) out.push(year + "-" + pad(m));
+  return out;
+}
+
+/* The figures for a set of months, as plain numbers — kept apart from the drawing so the
+   test can check the sums. trend: ym -> live rows (missing = not imported). */
+function yearFigures(span, trend) {
+  const col = (ym) => trend[ym] || [];
+  const fig = { inn: {}, out: {}, src: {}, cat: {} };
+  for (const ym of span) {
+    const rows = col(ym);
+    fig.inn[ym] = moneyIn(rows); fig.out[ym] = moneyOut(rows);
+    for (const r of rows) {
+      if (notCounted(r)) continue;
+      if (r.dir === "in") {
+        const k = SRC_LABEL[sourceOf(r.desc)] ? sourceOf(r.desc) : "other";
+        const o = fig.src[k] = fig.src[k] || {};
+        o[ym] = (o[ym] || 0) + r.amount;
+      } else if (r.dir === "out") {
+        const c = r.cat || "Uncategorised";
+        const o = fig.cat[c] = fig.cat[c] || {};
+        o[ym] = (o[ym] || 0) + r.amount;
+      }
+    }
+  }
+  const tot = (o) => span.reduce((a, ym) => a + (o[ym] || 0), 0);
+  fig.ytdIn = tot(fig.inn); fig.ytdOut = tot(fig.out);
+  fig.srcTot = {}; for (const k in fig.src) fig.srcTot[k] = tot(fig.src[k]);
+  fig.catTot = {}; for (const k in fig.cat) fig.catTot[k] = tot(fig.cat[k]);
+  return fig;
+}
+
+async function renderYear() {
+  const year = S.ym.slice(0, 4);
+  const span = yearMonths(year);
+  const have = span.filter((ym) => S.months.includes(ym));
+  $("ytTitle").textContent = year + " — " + ymLabel(span[0]).split(" ")[0] + " to "
+    + ymLabel(span[span.length - 1]).split(" ")[0];
+  try {
+    await Promise.all(have.map(async (ym) => {
+      if (ym === S.ym) S.trend[ym] = S.rows;
+      else if (!S.trend[ym]) S.trend[ym] = liveOf((await api("fintxns=" + ym)).rows || []);
+    }));
+  } catch (e) { $("ytTbl").innerHTML = `<tbody><tr><td>Could not load the year: ${esc(e.message)}</td></tr></tbody>`; return; }
+  if (S.months.includes(S.ym)) S.trend[S.ym] = S.rows;
+  const trend = {}; for (const ym of have) trend[ym] = S.trend[ym];
+  const f = yearFigures(span, trend);
+  const net = f.ytdIn - f.ytdOut, n = have.length || 1;
+  $("ytStats").innerHTML = [
+    ["good", "Money in this year", money0(f.ytdIn), money0(f.ytdIn / n) + " a month on average."],
+    ["", "Money out this year", money0(f.ytdOut), money0(f.ytdOut / n) + " a month on average."],
+    [net >= 0 ? "good" : "bad", "Net this year", money0(net), "In minus out, " + year + " so far."],
+    ["", "Months imported", have.length + " of " + span.length,
+      have.length === span.length ? "Every month is in." : "Months without a statement show as —."],
+  ].map(([tone, lab, val, sub]) => `<div class="fin-stat ${tone}"><div class="lab">${esc(lab)}</div>
+      <div class="val">${esc(val)}</div><div class="sub">${esc(sub)}</div></div>`).join("");
+
+  const cell = (ym, v, style) => !S.months.includes(ym)
+    ? `<td class="num faint">—</td>`
+    : `<td class="num${v ? "" : " faint"}"${style ? ` style="${style}"` : ""}>${v ? money0(v) : "—"}</td>`;
+  const ytd = (v, style) => `<td class="num ytd"${style ? ` style="${style}"` : ""}>${money0(v)}</td>`;
+  const green = "color:var(--tint-green)";
+  const tone = (v) => v >= 0 ? "color:var(--tint-green)" : "color:var(--tint-red)";
+  const head = `<thead><tr><th>${esc(year)}</th>${span.map((ym) =>
+    `<th><button type="button" data-ym="${ym}" title="Open ${esc(ymLabel(ym))}">${esc(ymLabel(ym).split(" ")[0])}</button>${
+      S.months.includes(ym) ? "" : `<span class="nd">not imported</span>`}</th>`).join("")}<th class="ytd">Year to date</th></tr></thead>`;
+  const sec = (t) => `<tr class="sec"><td>${esc(t)}</td>${span.map(() => "<td></td>").join("")}<td class="ytd"></td></tr>`;
+  const line = (label, by, total, cls) => `<tr${cls ? ` class="${cls}"` : ""}><td>${esc(label)}</td>${
+    span.map((ym) => cell(ym, by[ym] || 0)).join("")}${ytd(total)}</tr>`;
+  let body = `<tr class="tot"><td>Money in</td>${span.map((ym) => cell(ym, f.inn[ym], green)).join("")}${ytd(f.ytdIn, green)}</tr>`
+    + `<tr class="tot"><td>Money out</td>${span.map((ym) => cell(ym, f.out[ym])).join("")}${ytd(f.ytdOut)}</tr>`
+    + `<tr class="tot"><td>Net</td>${span.map((ym) => { const v = f.inn[ym] - f.out[ym];
+        return !S.months.includes(ym) ? `<td class="num faint">—</td>` : `<td class="num" style="${tone(v)}">${money0(v)}</td>`; }).join("")}${ytd(net, tone(net))}</tr>`;
+  const srcs = Object.keys(SRC_LABEL).filter((k) => f.srcTot[k]);
+  if (srcs.length) body += sec("Money in, by where it came from")
+    + srcs.map((k) => line(SRC_LABEL[k], f.src[k], f.srcTot[k])).join("");
+  const cats = Object.keys(f.catTot).sort((a, b) => f.catTot[b] - f.catTot[a]);
+  if (cats.length) body += sec("Money out, by category")
+    + cats.map((c) => line(c, f.cat[c], f.catTot[c])).join("");
+  $("ytTbl").innerHTML = head + "<tbody>" + body + "</tbody>";
+  $("ytTbl").querySelectorAll("th button[data-ym]").forEach((b) => {
+    b.onclick = async () => { await goMonth(b.dataset.ym); setView("cockpit"); };
+  });
 }
 
 async function loadMonth() {
@@ -4060,7 +4238,11 @@ async function loadMonth() {
 function wire() {
   document.querySelectorAll("#tabBar .vt").forEach((b) => { b.onclick = () => setView(b.dataset.view); });
 
-  $("monthSel").onchange = async () => { S.ym = $("monthSel").value; S.bdOpen = null; await loadMonth(); };
+  $("monthSel").onchange = () => goMonth($("monthSel").value);
+  const step = (d) => { const l = pickerMonths(), i = l.indexOf(S.ym) + d;
+    if (i >= 0 && i < l.length) goMonth(l[i]); };
+  $("mPrev").onclick = () => step(-1);
+  $("mNext").onclick = () => step(1);
 
   // Import: drop zone + picker.
   const drop = $("drop"), file = $("fileIn");
@@ -4187,7 +4369,7 @@ async function init() {
   await loadWeek();
   let v = "cockpit";
   try { v = localStorage.getItem("fin.view") || "cockpit"; } catch {}
-  setView(["cockpit", "import", "txns", "breakdown", "report", "settings"].includes(v) ? v : "cockpit");
+  setView(["cockpit", "table", "import", "txns", "breakdown", "report", "settings"].includes(v) ? v : "cockpit");
   if (!S.months.length) setView("import");
 }
 init();

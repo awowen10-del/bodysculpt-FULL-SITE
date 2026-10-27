@@ -270,8 +270,9 @@ ok("every page carries the v122 stamp, and finances is stamped as its own build"
 ok("the finance page stands apart from the weekly/monthly/quarterly cadence", () => {
   const bar = /<div class="viewtoggle" id="tabBar">([\s\S]*?)<\/div>/.exec(FIN);
   assert.ok(bar, "finances.html has a section bar");
-  const tabs = [...bar[1].matchAll(/<button[^>]*>([\s\S]*?)<\/button>/g)].map((m) => m[1].trim());
-  assert.deepStrictEqual(tabs, ["Cockpit", "Import", "Transactions", "Breakdown", "Report", "Settings"]);
+  const tabs = [...bar[1].matchAll(/<button[^>]*>([\s\S]*?)<\/button>/g)].map((m) => m[1].replace(/<svg[\s\S]*?<\/svg>/, "").trim());
+  // v258 added the Year table (Ash, 27 Oct: a table of the year "highlighted in the top bar")
+  assert.deepStrictEqual(tabs, ["Cockpit", "Year table", "Import", "Transactions", "Breakdown", "Report", "Settings"]);
   // it must not borrow the planning pages' week/month picker chrome
   assert.ok(!/class="periodbar"/.test(FIN), "no weekly period bar on the finance page");
 });
