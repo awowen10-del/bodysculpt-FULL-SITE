@@ -776,6 +776,15 @@
     color:var(--ink-dim);background:var(--navy-2);padding-top:10px;}
   table.yt tr.tot td{font-weight:800;}
   table.yt td.faint{color:var(--ink-faint);font-weight:400;}
+  /* v263: ten months and a total fit a laptop screen without a sideways scroll — tighter
+     cells, and the table no longer inherits table.fin's 640px floor. A phone still scrolls,
+     with the row names pinned. */
+  table.fin.yt{min-width:0;font-size:12.5px;}
+  table.yt th,table.yt td{padding:7px 6px;}
+  table.yt th:first-child,table.yt td:first-child{padding-left:11px;}
+  table.yt td:last-child,table.yt th:last-child{padding-right:11px;}
+  /* a section heading spans the row, so its long words no longer set the first column's width */
+  table.yt tr.sec td{position:static;}
   .desc{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   tr.needs td.ds .desc{font-weight:600;}
   tr.needs{background:rgba(var(--amber-rgb),.06);}
@@ -4184,7 +4193,10 @@ function yearFigures(span, trend) {
 
 async function renderYear() {
   const year = S.ym.slice(0, 4);
+  // v263: months at the END of the year with no statement yet (this month, before its
+  // statement is in) are left off — a column of dashes only pushes the total off screen.
   const span = yearMonths(year);
+  while (span.length > 1 && !S.months.includes(span[span.length - 1])) span.pop();
   const have = span.filter((ym) => S.months.includes(ym));
   $("ytTitle").textContent = year + " — " + ymLabel(span[0]).split(" ")[0] + " to "
     + ymLabel(span[span.length - 1]).split(" ")[0];
@@ -4215,11 +4227,11 @@ async function renderYear() {
   const tone = (v) => v >= 0 ? "color:var(--tint-green)" : "color:var(--tint-red)";
   const head = `<thead><tr><th>${esc(year)}</th>${span.map((ym) =>
     `<th><button type="button" data-ym="${ym}" title="Open ${esc(ymLabel(ym))}">${esc(ymLabel(ym).split(" ")[0])}</button>${
-      S.months.includes(ym) ? "" : `<span class="nd">not imported</span>`}</th>`).join("")}<th class="ytd">Year to date</th></tr></thead>`;
+      S.months.includes(ym) ? "" : `<span class="nd">not imported</span>`}</th>`).join("")}<th class="ytd">Total</th></tr></thead>`;
   const netRow = (label, v, total) => `<tr class="tot"><td>${esc(label)}</td>${span.map((ym) => {
     const x = v(ym);
     return !S.months.includes(ym) ? `<td class="num faint">—</td>` : `<td class="num" style="${tone(x)}">${money0(x)}</td>`; }).join("")}${ytd(total, tone(total))}</tr>`;
-  const sec = (t) => `<tr class="sec"><td>${esc(t)}</td>${span.map(() => "<td></td>").join("")}<td class="ytd"></td></tr>`;
+  const sec = (t) => `<tr class="sec"><td colspan="${span.length + 2}">${esc(t)}</td></tr>`;
   const line = (label, by, total, cls) => `<tr${cls ? ` class="${cls}"` : ""}><td>${esc(label)}</td>${
     span.map((ym) => cell(ym, by[ym] || 0)).join("")}${ytd(total)}</tr>`;
   let body = `<tr class="tot"><td>Money in</td>${span.map((ym) => cell(ym, f.inn[ym], green)).join("")}${ytd(f.ytdIn, green)}</tr>`
