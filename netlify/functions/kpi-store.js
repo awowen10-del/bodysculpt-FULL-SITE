@@ -610,15 +610,14 @@ const FIN_NOTES_KEY = "finance-notes";
 const FIN_WEEK_PREFIX = "finance-week-";     // + "YYYY-MM-DD" (the Thursday it starts)
 function finTxnKeyOf(ym) { return FIN_TXN_PREFIX + ym; }
 
-/* v262: Banked Revenue is what actually LANDED IN THE BANK that month. Ash, 27 Oct:
-   "Banked revenue and what landed should be the same surely?" — it used to be the month's
-   Stripe/GoCardless/SumUp sales minus fees, which goes by the day a customer paid, so
-   payouts that crossed a month end showed in the wrong month. Worked out on every read
-   from the Finances store with the same rule as the Finances page's Money in (no own-
-   account transfers, no directors loans, nothing deleted). Never stored: a later import
-   or recategorisation changes it with no second copy to fall out of step. A month with no
-   statement keeps the stored sales-based figure, so 2025 and the quarterly reviews built
-   on it are untouched. */
+/* v262/v264: `bankIn` — what actually LANDED IN THE BANK that month, from the Finances
+   store with the same rule as that page's Money in (no own-account transfers, no
+   directors loans, nothing deleted). Worked out on every read, never stored.
+   v262 laid it over `banked`; v264 takes that back. Ash: "charged revenue is what we made,
+   and then banked revenue is what we made minus what we paid fees". The gap that made the
+   override necessary was stale revenue boxes, not a wrong definition — once Jan–Aug were
+   refilled from the takings pull, Charged agreed with the accountant within £436. So
+   `banked` is Charged - Fees again, and bankIn rides alongside as the check. */
 function finMoneyIn(rows) {
   return rows.reduce((a, r) => a + (r && r.dir === "in" && !r.del
     && r.cat !== "Transfer" && r.cat !== "Directors loan" ? Number(r.amount) || 0 : 0), 0);
@@ -631,12 +630,7 @@ async function withBankIn(store, months) {
     let saved = null;
     try { saved = await store.get(finTxnKeyOf(m.ym), { type: "json" }); } catch { saved = null; }
     const rows = saved && Array.isArray(saved.rows) ? saved.rows : [];
-    if (rows.length) {
-      out.salesAfterFees = typeof m.charged === "number"
-        ? Math.round((m.charged - (Number(m.processingFees) || 0)) * 100) / 100 : m.banked;
-      out.bankIn = Math.round(finMoneyIn(rows) * 100) / 100;
-      out.banked = out.bankIn;
-    }
+    if (rows.length) out.bankIn = Math.round(finMoneyIn(rows) * 100) / 100;
     return out;
   }));
 }
@@ -2001,7 +1995,7 @@ export default async (req) => {
     // Save one monthly record (manual entries + overrides), keyed by ym "YYYY-MM".
     // Additive: does not touch the weekly "weeks" store. Upsert, never duplicate.
     if (body.month && body.month.ym) {
-      // v262: bankIn / salesAfterFees are worked out on read, never stored
+      // v262: bankIn is worked out on read, never stored (salesAfterFees: v262 only, gone)
       delete body.month.bankIn; delete body.month.salesAfterFees;
       const months = (await store.get(MONTHS_KEY, { type: "json" })) || [];
       const i = months.findIndex((m) => m.ym === body.month.ym);

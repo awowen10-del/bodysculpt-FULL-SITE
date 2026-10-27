@@ -1,10 +1,10 @@
-// v262: Banked Revenue = what landed in the bank that month.
+// v262 → v264: Banked Revenue and the bank.
 //
-// Ash, 27 Oct: "Why is my banked revenue in the monthly KPI sheet showing 19,982?" … "Banked
-// revenue and what landed should be the same surely?" It was Charged - Fees, which goes by
-// the day a customer paid; August's last payouts fell on a bank-holiday weekend and landed
-// in September. The server now lays the Finances page's Money in over `banked` on every
-// read of the monthly records — and only where a statement exists.
+// v262 laid what landed in the bank over `banked`. v264 takes that back — Ash: "charged
+// revenue is what we made, and then banked revenue is what we made minus what we paid fees".
+// The real fault was stale revenue boxes; once refilled from the takings pull, Charged
+// agreed with the accountant. So `banked` stays the stored Charged - Fees, and the server
+// adds `bankIn` (the Finances page's Money in) beside it as a check, never stored.
 const assert = require("assert");
 const fs = require("fs");
 const os = require("os");
@@ -47,17 +47,16 @@ const SEED = () => ({
 });
 
 (async () => {
-  console.log("v262 banked is the bank:");
+  console.log("v264 banked and the bank:");
   let pass = 0; const ok = async (n, f) => { await f(); pass++; console.log("  ok " + n); };
 
-  await ok("a month with a statement reads its banked from the bank", async () => {
+  await ok("a month with a statement gets bankIn beside an untouched banked", async () => {
     globalThis.__fakeStore = fakeStore(SEED());
     const h = await loadHandler();
     const { months } = await (await GET(h, "monthly=1")).json();
     const aug = months.find((m) => m.ym === "2026-08");
     assert.strictEqual(aug.bankIn, 18548, "Stripe + GC; transfer, loan and deleted left out; money out ignored");
-    assert.strictEqual(aug.banked, 18548);
-    assert.strictEqual(aug.salesAfterFees, 19981.96, "the old figure is still there, named for what it is");
+    assert.strictEqual(aug.banked, 19981.96, "banked is Charged - Fees, not overwritten");
     assert.strictEqual(aug.leads, 132, "nothing else on the record moves");
   });
 
@@ -80,7 +79,7 @@ const SEED = () => ({
     const stored = JSON.parse(st._m.get("months")).find((m) => m.ym === "2026-08");
     assert.ok(!("bankIn" in stored) && !("salesAfterFees" in stored));
     assert.strictEqual(stored.banked, 19981.96, "the stored sales figure is not overwritten by a save");
-    assert.strictEqual(res.months.find((m) => m.ym === "2026-08").banked, 18548, "the reply carries the bank figure too");
+    assert.strictEqual(res.months.find((m) => m.ym === "2026-08").bankIn, 18548, "the reply carries the bank figure too");
   });
 
   console.log(pass + " passed");
