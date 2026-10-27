@@ -939,7 +939,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
     <div class="entry-h"><strong>Enter figures — <span id="moneyPanelLabel"></span></strong>
       <button class="entry-close" id="moneyClose"><svg class="ic"><use href="#ic-close"/></svg></button></div>
 
-    <div class="esub">Revenue <span style="text-transform:none;font-weight:600;color:var(--ink-faint);">— Charged, Banked &amp; Avg Transaction Price calculate automatically</span></div>
+    <div class="esub">Revenue <span style="text-transform:none;font-weight:600;color:var(--ink-faint);">— Charged &amp; Avg Transaction Price calculate automatically; Banked comes from your bank statement</span></div>
     <div class="tk-bar">
       <button class="abtn" id="tkPull" type="button">Pull from Stripe, GoCardless &amp; SumUp</button>
       <span class="msg" id="tkMsg"></span>
@@ -952,7 +952,8 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
       <label class="f">Other Revenue (£)<input type="number" step="0.01" id="m_otherRev" inputmode="decimal" placeholder="0"></label>
       <label class="f">Processing Fees (£)<input type="number" step="0.01" id="m_processingFees" inputmode="decimal" placeholder="0"></label>
       <label class="f calc">Charged Revenue (£) <span class="calc-tag">auto</span><input type="text" id="m_charged" readonly tabindex="-1" placeholder="—"></label>
-      <label class="f calc">Banked Revenue (£) <span class="calc-tag">auto</span><input type="text" id="m_banked" readonly tabindex="-1" placeholder="—"></label>
+      <label class="f calc">Banked Revenue (£) <span class="calc-tag">auto</span><input type="text" id="m_banked" readonly tabindex="-1" placeholder="—"><span class="calc-hint" id="bankedHint"></span></label>
+      <label class="f calc">Sales after fees (£) <span class="calc-tag">auto</span><input type="text" id="m_salesAfterFees" readonly tabindex="-1" placeholder="—"><span class="calc-hint">Charged minus fees, by the day customers paid</span></label>
       <label class="f calc">Avg Transaction Price (£) <span class="calc-tag">auto</span><input type="text" id="m_atp" readonly tabindex="-1" placeholder="—"></label>
     </div>
 
@@ -1243,7 +1244,10 @@ function computed(ym, field){
       return n(r) + n(t) + n(u) + n(o);
     }
     case "banked": {
-      // Banked = Charged - Processing Fees
+      // v262: what landed in the bank that month, from the Finances statements (bankIn,
+      // worked out by the server). Only a month with no statement falls back to the old
+      // sales-based figure: Charged - Processing Fees.
+      if(isNum(man(ym, "bankIn"))) return man(ym, "bankIn");
       const ch = computed(ym, "charged");
       if(!isNum(ch)) return null;
       const f = g("processingFees");
@@ -1828,7 +1832,13 @@ function updateLiveCalcFields(){
   const atp = (charged>0 && isNum(effRec) && effRec>0) ? charged/effRec : null;
 
   document.getElementById("m_charged").value = charged ? gbp(charged) : "—";
-  document.getElementById("m_banked").value = (recRev||trialRev||upRev||otherRev||fees) ? gbp(banked) : "—";
+  const typed = recRev||trialRev||upRev||otherRev||fees;
+  const bankIn = man(curYm, "bankIn");
+  document.getElementById("m_salesAfterFees").value = typed ? gbp(banked) : "—";
+  document.getElementById("m_banked").value = isNum(bankIn) ? gbp(bankIn) : (typed ? gbp(banked) : "—");
+  document.getElementById("bankedHint").textContent = isNum(bankIn)
+    ? "What landed in your bank — from Income & Expenses"
+    : "No bank statement for this month yet — showing sales after fees";
   document.getElementById("m_atp").value = isNum(atp) ? gbp(atp) : "—";
 
   // recurring hint: show the rolling suggestion when no manual override is typed
@@ -1881,7 +1891,9 @@ async function saveMoney(){
   // Persist COMPUTED revenue as snapshots so other pages (quarterly roll-up) keep working.
   // These are derived from the manual inputs above, never typed directly.
   const chargedC = computed(curYm, "charged");
-  const bankedC  = computed(curYm, "banked");
+  // v262: the STORED banked stays the sales-based figure (charged - fees); the bank figure
+  // is laid over it on every read, so a month without a statement still has a value.
+  const bankedC  = isNum(chargedC) ? chargedC - n(man(curYm, "processingFees")) : null;
   const atpC     = computed(curYm, "atp");
   const recurringC = computed(curYm, "recurring");
   if(isNum(chargedC)) rec.charged = Math.round(chargedC*100)/100; else delete rec.charged;
@@ -1895,8 +1907,8 @@ async function saveMoney(){
   // v226: the bank payments Ash marked as membership in the takings review travel with the
   // month, so a re-pull puts them back instead of quietly dropping them from the boxes.
   if(tkCur && tkCur.month === curYm) rec.bankPicks = Object.assign({}, tkPicks);
-  // drop any legacy stored field no longer used
-  delete rec.expense;
+  // drop any legacy stored field no longer used; bankIn/salesAfterFees are worked out on read
+  delete rec.expense; delete rec.bankIn; delete rec.salesAfterFees;
   try{
     await saveMonth(rec);
     msg.textContent = "Saved ✓";

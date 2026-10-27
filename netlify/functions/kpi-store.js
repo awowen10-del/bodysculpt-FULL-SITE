@@ -609,6 +609,37 @@ const FIN_RULES_KEY = "finance-rules";
 const FIN_NOTES_KEY = "finance-notes";
 const FIN_WEEK_PREFIX = "finance-week-";     // + "YYYY-MM-DD" (the Thursday it starts)
 function finTxnKeyOf(ym) { return FIN_TXN_PREFIX + ym; }
+
+/* v262: Banked Revenue is what actually LANDED IN THE BANK that month. Ash, 27 Oct:
+   "Banked revenue and what landed should be the same surely?" — it used to be the month's
+   Stripe/GoCardless/SumUp sales minus fees, which goes by the day a customer paid, so
+   payouts that crossed a month end showed in the wrong month. Worked out on every read
+   from the Finances store with the same rule as the Finances page's Money in (no own-
+   account transfers, no directors loans, nothing deleted). Never stored: a later import
+   or recategorisation changes it with no second copy to fall out of step. A month with no
+   statement keeps the stored sales-based figure, so 2025 and the quarterly reviews built
+   on it are untouched. */
+function finMoneyIn(rows) {
+  return rows.reduce((a, r) => a + (r && r.dir === "in" && !r.del
+    && r.cat !== "Transfer" && r.cat !== "Directors loan" ? Number(r.amount) || 0 : 0), 0);
+}
+async function withBankIn(store, months) {
+  return Promise.all(months.map(async (m) => {
+    if (!m || !validYm(m.ym)) return m;
+    const out = { ...m };
+    delete out.bankIn;
+    let saved = null;
+    try { saved = await store.get(finTxnKeyOf(m.ym), { type: "json" }); } catch { saved = null; }
+    const rows = saved && Array.isArray(saved.rows) ? saved.rows : [];
+    if (rows.length) {
+      out.salesAfterFees = typeof m.charged === "number"
+        ? Math.round((m.charged - (Number(m.processingFees) || 0)) * 100) / 100 : m.banked;
+      out.bankIn = Math.round(finMoneyIn(rows) * 100) / 100;
+      out.banked = out.bankIn;
+    }
+    return out;
+  }));
+}
 function finWeekKeyOf(d) { return FIN_WEEK_PREFIX + d; }
 
 // The expense categories carried over from the sheet's SUMMARY block, in its order.
@@ -723,7 +754,7 @@ export default async (req) => {
   if (req.method === "GET" && url.searchParams.get("monthly") === "1") {
     const months = (await store.get(MONTHS_KEY, { type: "json" })) || [];
     months.sort((a, b) => (a.ym < b.ym ? -1 : 1));
-    return Response.json({ months });
+    return Response.json({ months: await withBankIn(store, months) });
   }
 
   // Quarterly planning: GET ?planning=YYYY-QN returns that quarter's planning object
@@ -1970,13 +2001,15 @@ export default async (req) => {
     // Save one monthly record (manual entries + overrides), keyed by ym "YYYY-MM".
     // Additive: does not touch the weekly "weeks" store. Upsert, never duplicate.
     if (body.month && body.month.ym) {
+      // v262: bankIn / salesAfterFees are worked out on read, never stored
+      delete body.month.bankIn; delete body.month.salesAfterFees;
       const months = (await store.get(MONTHS_KEY, { type: "json" })) || [];
       const i = months.findIndex((m) => m.ym === body.month.ym);
       if (i >= 0) months[i] = { ...months[i], ...body.month };
       else months.push(body.month);
       months.sort((a, b) => (a.ym < b.ym ? -1 : 1));
       await store.set(MONTHS_KEY, JSON.stringify(months));
-      return Response.json({ ok:true, month: body.month, months });
+      return Response.json({ ok:true, month: body.month, months: await withBankIn(store, months) });
     }
 
     // Bulk monthly seed: merge many month records in ONE atomic write.
