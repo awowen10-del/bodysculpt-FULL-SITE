@@ -778,6 +778,18 @@
   table.yt td.faint{color:var(--ink-faint);font-weight:400;}
   /* v265: the Debts tab */
   .dl-alarms{display:grid;gap:8px;margin-bottom:var(--sp-4);}
+  .dl-first{display:grid;gap:18px;}
+  .dl-lab{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);}
+  .dl-total{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin-top:2px;}
+  .dl-total>b{font-size:30px;font-weight:800;color:var(--ink-strong);font-variant-numeric:tabular-nums;}
+  .dl-total span{font-size:14px;color:var(--ink-dim);}
+  .dl-adv .dl-big{margin:2px 0 4px;}
+  .dl-all{margin-top:var(--sp-4);}
+  .dl-all>summary{cursor:pointer;list-style:none;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-md);
+    background:var(--card);font-weight:700;color:var(--ink-strong);text-align:center;}
+  .dl-all>summary::-webkit-details-marker{display:none;}
+  .dl-all[open]>summary{margin-bottom:var(--sp-4);}
+  .dl-items{margin:8px 0 0;padding-left:18px;font-size:12.5px;} .dl-items .warn{color:var(--amber, #b7791f);}
   .dl-alarm{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;padding:11px 14px;border-radius:var(--r-md);
     border:1px solid var(--line);background:var(--card);font-size:13px;}
   .dl-alarm b{letter-spacing:.03em;}
@@ -1975,7 +1987,7 @@ const S = {
   stored: {},         // ym -> rows AS STORED (deleted included) — the ledger needs bounced pairs
   debtDoc: null,      // the saved debts (or the seed until first saved)
   debtRows: null,     // every stored row, loaded when the tab first opens
-  debtEdit: null, debtLedger: null, debtWhatIf: 0,
+  debtEdit: null, debtLedger: null, debtWhatIf: 0, debtOpen: { all: false, how: false },
 };
 
 /* ---------- the category engine ------------------------------------------
@@ -2786,8 +2798,12 @@ const taxOut = (rows) => sum(rows, (r) => r.dir === "out" && !notCounted(r) && r
      net <  0                       -> Protect cash
    The buffer was hardcoded at £2,000 in the sheet; here it is a setting, because it is
    a judgement about this business rather than a fact. */
-function cashStatus(net) {
+function cashStatus(net, dc) {
   const buffer = Number(S.settings.cashBuffer) || 0;
+  // v266: the month can be in front while the bank cannot cover what is due — the Debts
+  // advisor's answer wins, and an unpaid HMRC never reads as comfortable.
+  if (dc && dc.short) return { tone: "bad", word: "Protect cash", sub: "Bank is " + money0(-dc.x) + " short of what is due — see Debts." };
+  if (dc && dc.hmrc) return { tone: "watch", word: "Tight", sub: "HMRC has had nothing since " + dc.hmrc + "." };
   if (net >= buffer) return { tone: "good", word: "Comfortable", sub: "In front by more than " + money0(buffer) + "." };
   if (net >= 0) return { tone: "watch", word: "Tight", sub: "In front, but not by much." };
   return { tone: "bad", word: "Protect cash", sub: "Spending is ahead of income." };
@@ -2795,8 +2811,13 @@ function cashStatus(net) {
 
 /* The sheet's ONE CASHFLOW ACTION, in its own order of precedence: a negative month
    outranks everything, then anything uncategorised, then a thin cushion. */
-function cashflowAction(net, needs) {
+function cashflowAction(net, needs, dc) {
   const buffer = Number(S.settings.cashBuffer) || 0;
+  if (dc && dc.short) return { tone: "stop", text: "Protect cash — nothing extra to debts",
+    why: "The bank (" + money0(dc.bank) + ") is " + money0(-dc.x) + " short of covering the next 14 days' bills, the tax pot share and the "
+      + money0(dc.floor) + " floor." + (dc.hmrc ? " HMRC has had nothing since " + dc.hmrc + "." : "") + " Nothing new on a card." };
+  if (dc && dc.hmrc) return { tone: "stop", text: "Sort HMRC's Time to Pay",
+    why: "Nothing has gone to HMRC since " + dc.hmrc + ". Agree the monthly amount and enter it on the Debts tab." };
   if (net < 0) return { tone: "stop", text: "Hold non-essential spend",
     why: "The month is " + money0(Math.abs(net)) + " down. Start with anything marked Can Cut on the Breakdown." };
   if (needs) return { tone: "warn", text: "Categorise this month",
@@ -2812,7 +2833,8 @@ function renderStats() {
   const needs = S.rows.filter((r) => r.dir === "out" && !r.cat).length;
   // v258: a month with no statement in it yet is not a "tight" month — it is an unknown one
   const empty = !(S.all || []).length;
-  const cash = empty ? { tone: "", word: "—", sub: "No bank statement yet." } : cashStatus(net);
+  const dc = empty ? null : debtCashCheck();
+  const cash = empty ? { tone: "", word: "—", sub: "No bank statement yet." } : cashStatus(net, dc);
   const cards = [
     [cash.tone, "Cash status", "cash", cash.word, cash.sub],
     ["good", "Money in", "in", money0(inn), "Received in " + ymLabel(S.ym) + "."],
@@ -2855,11 +2877,36 @@ function renderStats() {
 
   const act = empty ? { tone: "warn", text: "Import " + ymLabel(S.ym) + "'s bank statement",
     why: "Nothing from the bank is in for " + ymLabel(S.ym) + " yet, so every figure on this page reads zero until it is. Download it from Santander and drop it on the Import tab." }
-    : cashflowAction(net, needs);
+    : cashflowAction(net, needs, dc);
   const card = $("actionCard");
   card.className = "card action-card " + act.tone;
   $("actionText").textContent = act.text;
   $("actionWhy").textContent = act.why;
+}
+
+/* v266: what the Debts advisor says today, for the cockpit — only when the cockpit is on the
+   current month (the advisor is about today's bank, not a past month). null until the debt
+   rows are loaded; they load in the background and the tiles redraw when they land. */
+function debtCashCheck() {
+  const today = ymd(new Date());
+  if (!S.debtDoc || S.ym !== ymOf(today)) return null;
+  if (!S.debtRows) { debtRowsSoon(); return null; }
+  const L = debtLedgers(S.debtDoc, S.debtRows, today);
+  const a = debtAdvisor(S.debtDoc, S.debtRows, L, today, S.settings);
+  const h = S.debtDoc.debts.find((d) => d.kind === "hmrc");
+  let hmrc = null;
+  // only once a balance is entered — no figure, no proof anything is owed
+  if (h && (debtBalance(h, L[h.id]) ?? 0) > 0.005) {
+    const last = L[h.id].filter((e) => e.type === "payment" && !e.bounced && e.amount < 0).map((e) => e.date).sort().pop();
+    if (!last || (new Date(today) - new Date(last)) / 864e5 > 35) hmrc = last ? dmy(last) : "records began";
+  }
+  return { x: a.x, short: a.x !== null && a.x < 0, bank: a.bank && a.bank.amount, floor: a.floor, hmrc };
+}
+let debtRowsLoading = null;
+function debtRowsSoon() {
+  if (debtRowsLoading) return;
+  debtRowsLoading = debtLoadAll().then((rows) => { if (!S.debtRows) S.debtRows = rows; renderStats(); })
+    .catch(() => {}).finally(() => { debtRowsLoading = null; });
 }
 
 /* The Thursday on or before a date — the start of the pot-move week. */
@@ -4580,12 +4627,13 @@ function debtMilestones(doc, L, proj) {
 function debtMonthReview(doc, L, ym) {
   const biz = doc.debts.filter((d) => !d.personal);
   let paid = 0, interest = 0, borrowed = 0, bounced = 0, due = 0;
+  const items = [];   // v266: the lines that used to be banners, kept with their month
   for (const d of biz) for (const e of L[d.id]) {
     if (ymOf(e.date) !== ym) continue;
     if (e.type === "payment" && !e.bounced && e.amount < 0) paid += -e.amount;
-    if (e.type === "payment" && e.bounced && e.amount < 0) bounced++;
+    if (e.type === "payment" && e.bounced && e.amount < 0) { bounced++; items.push({ kind: "bounced", text: d.name + " " + money(-e.amount) + " bounced on " + dmy(e.date) }); }
     if (e.type === "interest" || e.type === "fee") interest += e.amount;
-    if (e.type === "borrowing") borrowed += e.amount;
+    if (e.type === "borrowing") { borrowed += e.amount; items.push({ kind: "borrowing", text: d.name + " +" + money(e.amount) + " borrowed on " + dmy(e.date) }); }
   }
   for (const d of biz) if (d.contract.type === "fixed") due += d.contract.amount || 0;
   const net = paid - interest - borrowed;
@@ -4597,7 +4645,7 @@ function debtMonthReview(doc, L, ym) {
       : "New borrowing of " + money0(borrowed) + " undid " + Math.round(borrowed / paid * 100) + "% of the " + money0(paid) + " paid off.")
     : bounced ? bounced + " payment" + (bounced === 1 ? "" : "s") + " bounced — check the account had cover on the day."
     : paid ? "Clean month: " + money0(paid) + " paid, nothing new borrowed." : "Nothing paid against the debts yet this month.";
-  return { ym, paid, interest, borrowed, bounced, net, due, verdict, tracked };
+  return { ym, paid, interest, borrowed, bounced, net, due, verdict, tracked, items };
 }
 
 /* ---------- the tab: loading, saving, retagging ---------- */
@@ -4662,8 +4710,12 @@ function debtState() {
       cleared: bal !== null && bal <= 0.005 };
   }
   const order = debtOrder(doc);
-  const states = doc.debts.filter((d) => !d.personal && info[d.id].bal !== null && info[d.id].bal > 0.005)
+  const owing = doc.debts.filter((d) => !d.personal && info[d.id].bal !== null && info[d.id].bal > 0.005)
     .map((d) => ({ d, bal: info[d.id].bal, plans: info[d.id].plans }));
+  // v266: a debt with a balance but no monthly payment cannot be projected. Run through the
+  // projection it only grows — HMRC with no Time to Pay amount printed £4m of "interest".
+  const unproj = owing.filter((s) => !debtProjectable(s.d, s.bal, s.plans));
+  const states = owing.filter((s) => !unproj.includes(s));
   const start = ymOf(today);
   const rec = debtRecommendedOrder(doc.debts);
   const P = {
@@ -4673,8 +4725,11 @@ function debtState() {
     rollRec: debtProject(states, "roll", 0, rec, start),
     whatIf: debtProject(states, "roll", Number(S.debtWhatIf) || 0, order, start),
   };
-  return { doc, today, L, info, order, states, P, rec };
+  return { doc, today, L, info, order, states, unproj, P, rec };
 }
+/* Something is paid every month, so the balance has somewhere to go. */
+const debtProjectable = (d, bal, plans) => debtDue(d, bal, plans) > 0.005 || debtMinDue(d, bal, plans) > 0.005;
+const debtNeedsWhat = (d) => d.contract.type === "ttp" || d.kind === "hmrc" ? "Enter Time to Pay to project" : "Enter the monthly payment to project";
 
 function renderDebts() {
   const root = $("debtsRoot");
@@ -4682,9 +4737,12 @@ function renderDebts() {
   const st = debtState();
   const { doc, today, L, info, P } = st;
   const adv = debtAdvisor(doc, S.debtRows, L, today, S.settings);
-  root.innerHTML = debtAlarmsHtml(st) + debtAdvisorHtml(st, adv) + debtProgressHtml(st)
-    + debtWaterfallHtml(st) + debtPotsHtml(st) + debtProjectionHtml(st)
-    + debtMilestonesHtml(st) + debtReviewHtml(st) + debtNeedsReviewHtml(st);
+  // v266: the first screen is three things — what is owed, what to do today, how far along.
+  // Everything else sits behind one tap, so the page answers before it explains.
+  root.innerHTML = `<section><div class="card dl-first">${debtTotalHtml(st)}${debtAdvisorHtml(st, adv)}${debtProgressHtml(st)}</div></section>
+    <details class="dl-all" data-open="all"${S.debtOpen.all ? " open" : ""}><summary>Show me everything</summary>
+    ${debtAlarmsHtml(st) + debtStatsHtml(st) + debtWaterfallHtml(st) + debtPotsHtml(st) + debtProjectionHtml(st)
+    + debtMilestonesHtml(st) + debtReviewHtml(st) + debtNeedsReviewHtml(st)}</details>`;
   debtCelebrate(st);
   debtLoadPot(st);
 }
@@ -4692,7 +4750,9 @@ function renderDebts() {
 function debtAlarmsHtml(st) {
   const { doc, L, today } = st;
   const out = [];
-  const cutoff = ymAdd(ymOf(today), -2);
+  // v266: only THIS month's problems are banners. Earlier ones live in the month in review,
+  // where they are history rather than something to act on today.
+  const cutoff = ymOf(today);
   // NEW BORROWING — the single most important alarm on the page.
   const borrow = {};
   for (const d of doc.debts) if (!d.personal) for (const e of L[d.id]) {
@@ -4703,9 +4763,9 @@ function debtAlarmsHtml(st) {
     out.push(`<div class="dl-alarm red"><b>NEW BORROWING — ${esc(ymLabel(ym))}</b>${list.map(({ d, e }) =>
       `<span>${esc(d.name)} +${money(e.amount)} on ${dmy(e.date)}</span>`).join("")}</div>`);
   }
-  // Bounced payments, any time.
+  // Bounced payments, this month.
   const bounced = [];
-  for (const d of doc.debts) for (const e of L[d.id]) if (e.bounced && e.amount < 0) bounced.push({ d, e });
+  for (const d of doc.debts) for (const e of L[d.id]) if (e.bounced && e.amount < 0 && ymOf(e.date) >= cutoff) bounced.push({ d, e });
   if (bounced.length) out.push(`<div class="dl-alarm amber"><b>PAYMENT BOUNCED</b>${bounced.map(({ d, e }) =>
     `<span>${esc(d.name)} ${money(-e.amount)} on ${dmy(e.date)}</span>`).join("")}</div>`);
   // HMRC: Time to Pay sits on top of every list; silence from it is an alarm.
@@ -4727,10 +4787,11 @@ function debtAdvisorHtml(st, a) {
     : a.x > 0 && t ? `You can safely pay <b>${money0(Math.floor(a.x))}</b> extra to <b>${esc(t.name)}</b> today.`
     : `Nothing extra this time — and nothing new goes on a card.`;
   const next = [10, 29].map((d) => nextDayOfMonth(st.today, d, true)).sort()[0];
-  return `<section><div class="card dl-adv">
-    <div class="cardhead"><div><div class="chead">How much can I pay today?</div>
-      <div class="csub">Sweep days are the 10th (after wages) and the 29th (after rent and Neil). Next: ${dayLabel(next)}.</div></div></div>
+  return `<div class="dl-adv">
+    <div class="dl-lab">Today</div>
     <div class="dl-big">${head}</div>
+    <details class="dl-det" data-open="how"${S.debtOpen.how ? " open" : ""}><summary>How is this worked out?</summary>
+    <div class="hint" style="margin:6px 0">Sweep days are the 10th (after wages) and the 29th (after rent and Neil). Next: ${dayLabel(next)}.</div>
     <div class="dl-sum">
       <span>Bank ${a.bank && a.bank.amount != null ? money(a.bank.amount) : "<i>enter</i>"}${a.bank && a.bank.date ? ` <small>(${a.bank.source === "manual" ? "typed" : "statement"} ${dmy(a.bank.date)})</small>` : ""}</span>
       <span>− due in the next 14 days ${money(a.committedTotal)}</span>
@@ -4749,17 +4810,36 @@ function debtAdvisorHtml(st, a) {
       <button class="abtn primary" id="dlPaidBtn" data-debt="${esc(t.id)}"><span>Log payment</span></button>` : ""}
     </div>
     <div class="hint">A payment you log here waits for the bank line and drops out by itself when the next import brings it in.</div>
-  </div></section>`;
+    </details>
+  </div>`;
 }
 
-function debtProgressHtml(st) {
-  const { doc, info, L, P, today } = st;
+/* Business debts with a balance entered: where they started, where they are, what they cost today. */
+function debtTotals(st) {
+  const { doc, info } = st;
   const biz = doc.debts.filter((d) => !d.personal && info[d.id].bal !== null);
   const start = biz.reduce((a, d) => a + debtOpening(d), 0);
   const now = biz.reduce((a, d) => a + Math.max(0, info[d.id].bal), 0);
-  const pct = start > 0 ? Math.max(0, Math.min(100, (start - now) / start * 100)) : 0;
   const ticking = biz.filter((d) => info[d.id].bal > 0 && debtMonthlyRate(d) > 0)
     .map((d) => ({ d, v: info[d.id].bal * debtMonthlyRate(d) * 12 / 365 })).sort((a, b) => b.v - a.v);
+  const unknown = doc.debts.filter((d) => !d.personal && info[d.id].bal === null);
+  return { biz, start, now, ticking, today: ticking.reduce((a, t) => a + t.v, 0), unknown };
+}
+function debtTotalHtml(st) {
+  const t = debtTotals(st);
+  return `<div class="dl-lab">Owed</div>
+    <div class="dl-total"><b>${money0(t.now)}</b> <span>costing <b class="bad">${money(t.today)}</b> in interest today</span></div>
+    ${t.unknown.length ? `<div class="hint" style="margin:2px 0 0">Plus ${t.unknown.map((d) => esc(d.name)).join(", ")} — enter from statement.</div>` : ""}`;
+}
+function debtProgressHtml(st) {
+  const t = debtTotals(st);
+  const pct = t.start > 0 ? Math.max(0, Math.min(100, (t.start - t.now) / t.start * 100)) : 0;
+  return `<div class="dl-prog"><div class="dl-bar big"><i style="width:${pct.toFixed(1)}%"></i></div>
+    <div class="dl-barlab"><span>Start ${money0(t.start)}</span><span>${t.now > t.start ? `<b class="bad">${money0(t.now - t.start)} more than at the start</b>` : `<b>${pct.toFixed(1)}%</b> paid off`}</span><span>£0</span></div></div>`;
+}
+function debtStatsHtml(st) {
+  const { L, today } = st;
+  const { biz, start, now, ticking } = debtTotals(st);
   // Interest saved so far: what minimum-only would have charged since the opening date, less
   // what has actually been charged. Zero until the first statement date has passed.
   let saved = 0;
@@ -4776,13 +4856,10 @@ function debtProgressHtml(st) {
     if (biz.some((d) => L[d.id].some((e) => e.type === "borrowing" && ymOf(e.date) === ym))) break;
     streak++;
   }
-  const unknown = doc.debts.filter((d) => !d.personal && info[d.id].bal === null);
   return `<section><div class="card">
     <div class="cardhead"><div><div class="chead">Paying it off</div>
-      <div class="csub">Business debts with a balance entered. ${unknown.length ? unknown.length + " still need a figure from a statement: " + unknown.map((d) => esc(d.name)).join(", ") + "." : ""}</div></div></div>
-    <div class="dl-bar big"><i style="width:${pct.toFixed(1)}%"></i></div>
-    <div class="dl-barlab"><span>Start ${money0(start)}</span><span><b>${money0(now)}</b> now · ${pct.toFixed(1)}% done</span><span>£0</span></div>
-    <div class="fin-stats" style="margin-top:14px">
+      <div class="csub">Business debts with a balance entered.</div></div></div>
+    <div class="fin-stats">
       <div class="fin-stat ${start - now >= 0 ? "good" : "bad"}"><div class="lab">Paid off</div><div class="val">${money0(start - now)}</div><div class="sub">${start - now >= 0 ? "Down since you started tracking." : "UP since you started — new borrowing."}</div></div>
       <div class="fin-stat good"><div class="lab">Interest saved</div><div class="val">${money0(saved)}</div><div class="sub">Against paying only the minimum.${saved ? "" : " Starts counting at the first statement date."}</div></div>
       <div class="fin-stat bad"><div class="lab">Interest ticking today</div><div class="val">${ticking.length ? money(ticking.reduce((a, t) => a + t.v, 0)) : "£0"}</div><div class="sub">${ticking.length ? esc(ticking[0].d.name) + " is costing " + money(ticking[0].v) + " today." : "Nothing with a known rate."}</div></div>
@@ -4959,8 +5036,11 @@ async function debtLoadPot(st) {
 }
 
 function debtProjectionHtml(st) {
-  const { P, doc, info, states } = st;
-  if (!states.length) return "";
+  const { P, doc, info, states, unproj } = st;
+  if (!states.length && !unproj.length) return "";
+  const waits = unproj.map((s) => `<tr><td>${esc(s.d.name)}</td><td colspan="3" class="num faint">${esc(debtNeedsWhat(s.d))}</td></tr>`).join("");
+  const free = (p) => unproj.length ? `<span class="faint">Not until ${esc(unproj.map((s) => s.d.name).join(" and "))} can be projected</span>`
+    : debtLabelYm(p.free) + `<div class="dl-meta">${money0(p.interest)}</div>`;
   const rows = states.map((s) => `<tr><td>${esc(s.d.name)}</td>
     <td class="num">${debtLabelYm(P.min.clears[s.d.id])}<div class="dl-meta">${money0(P.min.perDebt[s.d.id])}</div></td>
     <td class="num">${debtLabelYm(P.plan.clears[s.d.id])}<div class="dl-meta">${money0(P.plan.perDebt[s.d.id])}</div></td>
@@ -4971,13 +5051,12 @@ function debtProjectionHtml(st) {
       <div class="csub">Only debts with a balance entered. Under each date: the interest it will cost.</div></div></div>
     ${debtChartSvg(P.whatIf, states)}
     <div class="fin-tw"><table class="fin"><thead><tr><th>Debt</th><th style="text-align:right">Minimum only</th><th style="text-align:right">Current plan</th><th style="text-align:right">Plan + roll-on</th></tr></thead>
-      <tbody>${rows}<tr class="dl-tot"><td>Debt-free</td><td class="num">${debtLabelYm(P.min.free)}<div class="dl-meta">${money0(P.min.interest)}</div></td>
-      <td class="num">${debtLabelYm(P.plan.free)}<div class="dl-meta">${money0(P.plan.interest)}</div></td>
-      <td class="num">${debtLabelYm(P.roll.free)}<div class="dl-meta">${money0(P.roll.interest)}</div></td></tr></tbody></table></div>
-    <div class="hint">Plan + roll-on saves <b>${money0(P.min.interest - P.roll.interest)}</b> of interest against minimum-only.</div>
+      <tbody>${rows}${waits}<tr class="dl-tot"><td>Debt-free</td>${unproj.length ? `<td colspan="3" class="num">${free(P.min)}</td>`
+        : `<td class="num">${free(P.min)}</td><td class="num">${free(P.plan)}</td><td class="num">${free(P.roll)}</td>`}</tr></tbody></table></div>
+    ${states.length ? `<div class="hint">Plan + roll-on saves <b>${money0(P.min.interest - P.roll.interest)}</b> of interest against minimum-only${unproj.length ? " on the debts above with a payment" : ""}.</div>` : ""}
     <div class="dl-whatif"><label>What if I found <b id="dlWiVal">${money0(wi)}</b> extra a month?
       <input type="range" id="dlWhatIf" min="0" max="2000" step="50" value="${wi}"></label>
-      <div id="dlWiOut">${wi ? `Debt-free <b>${debtLabelYm(P.whatIf.free)}</b> instead of ${debtLabelYm(P.roll.free)}, saving <b>${money0(P.roll.interest - P.whatIf.interest)}</b> more interest.` : "Slide to see what each extra £100 a month is worth."}</div></div>
+      <div id="dlWiOut">${wi ? `${unproj.length ? "Those debts clear" : "Debt-free"} <b>${debtLabelYm(P.whatIf.free)}</b> instead of ${debtLabelYm(P.roll.free)}, saving <b>${money0(P.roll.interest - P.whatIf.interest)}</b> more interest.` : "Slide to see what each extra £100 a month is worth."}</div></div>
   </div></section>`;
 }
 function debtChartSvg(proj, states) {
@@ -5026,12 +5105,18 @@ function debtMilestonesHtml(st) {
 
 function debtReviewHtml(st) {
   const ym = ymOf(st.today);
-  const cards = [ymAdd(ym, -1), ym].map((m) => debtMonthReview(st.doc, st.L, m)).map((r) =>
+  // this month and last, then any earlier month that had new borrowing or a bounce
+  const seen = new Set();
+  for (const d of st.doc.debts) for (const e of st.L[d.id]) seen.add(ymOf(e.date));
+  const yms = [ym, ymAdd(ym, -1)].concat([...seen].filter((m) => m < ymAdd(ym, -1)).sort().reverse()
+    .filter((m) => { const r = debtMonthReview(st.doc, st.L, m); return r.borrowed > 0 || r.bounced > 0; }));
+  const cards = yms.map((m) => debtMonthReview(st.doc, st.L, m)).map((r) =>
     `<div class="card"><div class="chead">${esc(ymLabel(r.ym))}${r.ym === ym ? " so far" : ""}</div>
       <div class="dl-rev"><span>Paid <b>${money0(r.paid)}</b></span><span>Interest <b>${r.tracked ? money0(r.interest) : "not tracked yet"}</b></span>
       <span class="${r.borrowed ? "bad" : ""}">New borrowing <b>${money0(r.borrowed)}</b></span><span class="${r.bounced ? "bad" : ""}">Bounced <b>${r.bounced}</b></span>
       <span>Net reduction <b class="${r.net >= 0 ? "good" : "bad"}">${money0(r.net)}</b></span></div>
-      <div class="hint" style="margin-top:6px">${esc(r.verdict)}</div></div>`).join("");
+      <div class="hint" style="margin-top:6px">${esc(r.verdict)}</div>
+      ${r.items.length ? `<ul class="dl-items">${r.items.map((i) => `<li class="${i.kind === "borrowing" ? "bad" : "warn"}">${esc(i.text)}</li>`).join("")}</ul>` : ""}</div>`).join("");
   return `<section><div class="ctitle" style="margin:0 0 8px">Month in review</div><div class="dl-two">${cards}</div></section>`;
 }
 
@@ -5153,12 +5238,17 @@ function wireDebts() {
     if (t.id === "dlTaxPot") { doc.settings.taxPot = t.value === "" ? null : { amount: Number(t.value), date: ymd(new Date()) }; renderDebts(); await saveDebts(); return; }
     if (t.id === "dlWhatIf") { doc.settings.whatIf = Number(t.value) || 0; await saveDebts(); }
   });
+  // toggle does not bubble, so listen on the way down
+  root.addEventListener("toggle", (e) => {
+    const k = e.target.dataset && e.target.dataset.open;
+    if (k) S.debtOpen[k] = e.target.open;
+  }, true);
   root.addEventListener("input", (e) => {
     if (e.target.id !== "dlWhatIf") return;
     S.debtWhatIf = Number(e.target.value) || 0;
     const st = debtState();
     $("dlWiVal").textContent = money0(S.debtWhatIf);
-    $("dlWiOut").innerHTML = S.debtWhatIf ? `Debt-free <b>${debtLabelYm(st.P.whatIf.free)}</b> instead of ${debtLabelYm(st.P.roll.free)}, saving <b>${money0(st.P.roll.interest - st.P.whatIf.interest)}</b> more interest.` : "Slide to see what each extra £100 a month is worth.";
+    $("dlWiOut").innerHTML = S.debtWhatIf ? `${st.unproj.length ? "Those debts clear" : "Debt-free"} <b>${debtLabelYm(st.P.whatIf.free)}</b> instead of ${debtLabelYm(st.P.roll.free)}, saving <b>${money0(st.P.roll.interest - st.P.whatIf.interest)}</b> more interest.` : "Slide to see what each extra £100 a month is worth.";
     const chart = e.target.closest(".card").querySelector(".dl-chart");
     if (chart) { const w = document.createElement("div"); w.innerHTML = debtChartSvg(st.P.whatIf, st.states);
       chart.nextElementSibling.remove(); chart.replaceWith(...w.children); }

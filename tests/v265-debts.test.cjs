@@ -77,9 +77,10 @@ ok("Capital on Tap: DDs are payments, receipts are borrowing, and only entries a
   assert.strictEqual(s.info.cot.bal, 8403.75, "8,004.17 − 800.42 + 1,200 — September is history");
 });
 
-ok("NEW BORROWING is flagged for September and October", () => {
+ok("NEW BORROWING is a banner for October; September's is in the month in review (v266)", () => {
   const html = run("debtAlarmsHtml(debtState())");
-  assert.ok(html.includes("NEW BORROWING — Oct 2026") && html.includes("NEW BORROWING — Sep 2026"));
+  assert.ok(html.includes("NEW BORROWING — Oct 2026") && !html.includes("NEW BORROWING — Sep 2026"));
+  assert.ok(run("debtReviewHtml(debtState())").includes("Capital on Tap +£2,090.74 borrowed on 16/09/2026"));
 });
 
 ok("the May reversals are bounced payments on HMRC, FlexiPay and the term loan", () => {
