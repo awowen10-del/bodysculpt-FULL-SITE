@@ -776,6 +776,60 @@
     color:var(--ink-dim);background:var(--navy-2);padding-top:10px;}
   table.yt tr.tot td{font-weight:800;}
   table.yt td.faint{color:var(--ink-faint);font-weight:400;}
+  /* v265: the Debts tab */
+  .dl-alarms{display:grid;gap:8px;margin-bottom:var(--sp-4);}
+  .dl-alarm{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;padding:11px 14px;border-radius:var(--r-md);
+    border:1px solid var(--line);background:var(--card);font-size:13px;}
+  .dl-alarm b{letter-spacing:.03em;}
+  .dl-alarm.red{border-color:var(--tint-red);background:rgba(143,16,48,.07);color:var(--tint-red);}
+  .dl-alarm.amber{border-color:var(--amber, #b7791f);background:rgba(183,121,31,.08);}
+  .dl-alarm.go{border-color:var(--tint-green);background:rgba(19,101,64,.07);color:var(--tint-green);}
+  .dl-big{font-size:20px;font-weight:700;color:var(--ink-strong);margin:6px 0 10px;line-height:1.35;}
+  .dl-big.small{font-size:16px;}
+  .dl-big .bad,.dl-rev .bad,.bad{color:var(--tint-red);} .dl-big .good,.good{color:var(--tint-green);}
+  .dl-sum{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13px;color:var(--ink-dim);font-variant-numeric:tabular-nums;}
+  .dl-sum .eq{font-weight:800;color:var(--ink-strong);}
+  .dl-sum small,.dl-meta,.faint{color:var(--ink-faint);font-size:11.5px;}
+  .dl-row{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-top:12px;}
+  .dl-row label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink-dim);}
+  .dl-row .fin-in{width:150px;}
+  .dl-det{margin-top:10px;font-size:13px;} .dl-det summary{cursor:pointer;color:var(--ink-dim);}
+  .dl-bar{height:8px;border-radius:99px;background:var(--navy-2);overflow:hidden;margin:8px 0 2px;}
+  .dl-bar.big{height:16px;}
+  .dl-bar i{display:block;height:100%;background:var(--tint-green);border-radius:99px;}
+  .dl-barlab{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-dim);}
+  .dl-list{display:grid;gap:10px;}
+  .dl-debt{border:1px solid var(--line);border-radius:var(--r-md);padding:12px 14px;background:var(--card);}
+  .dl-debt.personal{background:var(--card-2);border-style:dashed;}
+  .dl-debt.cleared{opacity:.7;}
+  .dl-top{display:flex;justify-content:space-between;gap:12px;}
+  .dl-name{font-weight:700;color:var(--ink-strong);}
+  .dl-bal{text-align:right;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .dl-bal .tbd{font-weight:600;font-size:12.5px;color:var(--ink-faint);font-style:italic;}
+  .dl-tag{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:99px;background:var(--navy-2);
+    color:var(--ink-dim);margin-left:6px;vertical-align:1px;}
+  .dl-tag.top{background:rgba(143,16,48,.1);color:var(--tint-red);} .dl-tag.go{background:rgba(19,101,64,.1);color:var(--tint-green);}
+  .dl-acts{display:flex;gap:12px;align-items:center;margin-top:6px;font-size:12.5px;}
+  .dl-mv{display:inline-flex;gap:2px;}
+  .linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--ink-dim);text-decoration:underline;cursor:pointer;}
+  .dl-edit{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);display:grid;gap:10px;}
+  .dl-edit textarea{width:100%;font-family:ui-monospace,monospace;font-size:12.5px;}
+  tr.dl-before td{color:var(--ink-faint);} tr.dl-borrow td{color:var(--tint-red);font-weight:700;}
+  .dl-chart{width:100%;height:auto;display:block;margin:4px 0 6px;}
+  .dl-chart text{font-size:10px;fill:var(--ink-faint);} .dl-chart .ax{stroke:var(--line);}
+  .dl-legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--ink-dim);margin-bottom:10px;}
+  .dl-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;}
+  .dl-whatif{margin-top:12px;font-size:13px;} .dl-whatif input{width:100%;max-width:420px;display:block;margin:6px 0;}
+  .dl-shelf{display:flex;flex-wrap:wrap;gap:8px;}
+  .dl-trophy{padding:6px 10px;border-radius:99px;background:rgba(19,101,64,.1);color:var(--tint-green);font-weight:700;font-size:12.5px;}
+  .dl-two{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);}
+  .dl-rev{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13px;color:var(--ink-dim);margin-top:6px;}
+  .dl-cover{display:inline-block;margin-top:8px;padding:4px 10px;border-radius:99px;font-weight:700;font-size:12.5px;}
+  .dl-cover.good{background:rgba(19,101,64,.1);} .dl-cover.bad{background:rgba(143,16,48,.1);}
+  tr.dl-tot td{font-weight:800;border-top:2px solid var(--line);}
+  @media(max-width:700px){ .dl-two{grid-template-columns:1fr;} .dl-big{font-size:17px;} .dl-row .fin-in{width:130px;}
+    /* the balance goes under the name, so a long name is not squeezed into a column */
+    .dl-top{flex-direction:column;gap:2px;} .dl-bal{text-align:left;} }
   /* v263: ten months and a total fit a laptop screen without a sideways scroll — tighter
      cells, and the table no longer inherits table.fin's 640px floor. A phone still scrolls,
      with the row names pinned. */
@@ -1191,6 +1245,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
   </div>
   <div class="viewtoggle" id="tabBar">
     <button class="vt active" data-view="cockpit">Cockpit</button>
+    <button class="vt" data-view="debts">Debts</button>
     <button class="vt" data-view="import">Import</button>
     <button class="vt" data-view="txns">Transactions</button>
     <button class="vt" data-view="breakdown">Breakdown</button>
@@ -1206,6 +1261,9 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
     <span class="none" id="monthNone" hidden></span>
   </div>
 </header>
+
+<!-- =============================== DEBTS =============================== -->
+<div class="view" id="v-debts" hidden><div id="debtsRoot"></div></div>
 
 <!-- ============================= YEAR TABLE ============================= -->
 <div class="view" id="v-table" hidden>
@@ -1416,7 +1474,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
       <div class="ctitle">Profit First</div>
       <div class="maprow">
         <div><label>Tax pot %</label><input class="fin-in" id="sTax" type="number" min="0" max="100" step="0.5"></div>
-        <div><label>Investment pot %</label><input class="fin-in" id="sInv" type="number" min="0" max="100" step="0.5"></div>
+        <div><label id="sInvLab">Investment pot %</label><input class="fin-in" id="sInv" type="number" min="0" max="100" step="0.5"></div>
         <div><label>Comfortable above</label><input class="fin-in" id="sBuffer" type="number" min="0" step="100"></div>
         <div><label>Week starts</label><select id="sDow">
           <option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option>
@@ -1754,7 +1812,9 @@ const liveOf = (rows) => (rows || []).filter((r) => !r.del);
    the Settings list is in and whether or not it mentions them. */
 function catList() {
   const base = (S.settings.categories || DEFAULT_CATS).filter((c) => c !== TRANSFER && c !== DIRLOAN);
-  return base.concat([TRANSFER, DIRLOAN]);
+  // v265: one "Debt: <name>" category per debt, so a debt payment can be shown and set
+  const debts = ((S.debtDoc && S.debtDoc.debts) || []).map((d) => d.cat).filter((c) => c && !base.includes(c));
+  return base.concat(debts, [TRANSFER, DIRLOAN]);
 }
 /* The nine recurring jobs from the sheet's WEEKLY CHECKLIST, ids fixed so a tick
    survives a wording change. */
@@ -1779,8 +1839,8 @@ const CHECKLIST = [
 const TIPS = {
   cash: ["Cash status", "A traffic light for the month so far. Comfortable means you are in front by more than your cushion. Tight means you are in front, but by less than it. Protect cash means more has gone out this month than came in."],
   in: ["Money in", "Everything that landed in the account this month — memberships, meal sales, anything else. Three things are left out because they are not takings: money you shift between your own accounts, because it was already yours; a directors loan, because you owe it back; and anything you have deleted."],
-  out: ["Running costs", "Everything that left the account this month to run the business — apart from tax, which is shown on its own, money moved to your own pots, a directors loan, and anything you have deleted."],
-  net: ["Net before tax", "Money in minus running costs: did the gym cover its costs this month? Tax is left out because VAT is collected over a quarter and paid in one go, and arrears belong to earlier periods — counting either in one month makes that month look worse than it traded. The after-tax figure underneath is what actually happened to your cash."],
+  out: ["Running costs", "Everything that left the account this month to run the business — apart from tax and debt repayments, which are shown on their own, money moved to your own pots, a directors loan, and anything you have deleted."],
+  net: ["Net before tax & debts", "Money in minus running costs: did the gym cover its costs this month? Tax and debt repayments are left out — VAT is paid in quarterly lumps, arrears and loans belong to earlier periods — so the month is judged on how it traded. The figure underneath takes both off: what actually happened to your cash."],
   action: ["One cashflow action", "The single most useful thing to do with the money this week, worked out from the numbers above. Do this one thing and the week has paid for itself."],
   pf: ["Profit First", "Every week you split the income the day it arrives: a slice for tax, a slice to invest, and the rest to run the business on. Splitting it first is the whole trick — money that was never in the spending account cannot be accidentally spent."],
   alloc: ["Allocatable income", "The money that came in this week that you split into pots. Only the sources you have chosen count — normally Stripe and GoCardless, which is your membership income. Anything else that came in is left out of the split."],
@@ -1911,6 +1971,11 @@ const S = {
   pending: null,      // a parsed-but-not-yet-imported file
   bdOpen: null,       // which breakdown category is expanded
   trend: {},          // ym -> rows, for the six-month table
+  // v265: the Debts tab
+  stored: {},         // ym -> rows AS STORED (deleted included) — the ledger needs bounced pairs
+  debtDoc: null,      // the saved debts (or the seed until first saved)
+  debtRows: null,     // every stored row, loaded when the tab first opens
+  debtEdit: null, debtLedger: null, debtWhatIf: 0,
 };
 
 /* ---------- the category engine ------------------------------------------
@@ -2525,6 +2590,11 @@ function buildRows(t, map, fmt) {
     if (looksLikeTransfer(desc)) { row.cat = TRANSFER; row.km = ""; if (dir === "in") row.src = "transfer"; }
     else if (dir === "out") { const g = categorise(desc); row.cat = g.cat; row.km = g.km; }
     else { row.cat = ""; row.km = ""; row.src = sourceOf(desc); }
+    // v265: a payment to a debt says so, whatever the rules guessed; a draw from a lender is
+    // borrowed money, never income
+    const debt = S.debtDoc && debtOfRow(row, S.debtDoc.debts);
+    if (debt && dir === "out") { row.cat = debt.cat; row.km = ""; }
+    if (debt && dir === "in" && !row.cat) row.cat = DIRLOAN;
     out.push(row);
   }
   out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
@@ -2663,6 +2733,14 @@ async function commitImport() {
     }
     if (S.rules.length) await post({ finRules: S.rules });
   } catch (e) { $("importMsg").textContent = "Could not save: " + e.message; $("doImport").disabled = false; return; }
+  // v265: the statement's closing balance feeds "How much can I pay today?"
+  const close = statementClosing(p.tables, p.fmt);
+  if (close && S.debtDoc) {
+    const cur = S.debtDoc.settings.bank;
+    if (!cur || !cur.date || close.date >= cur.date) { S.debtDoc.settings.bank = close; await saveDebts(); }
+  }
+  for (const ym of Object.keys(byMonth)) S.stored[ym] = byMonth[ym];
+  S.debtRows = null;
   S.pending = null;
   // The six-month table caches a month's rows once fetched. An import can touch several
   // months at once, so drop the whole cache rather than leave the Breakdown showing
@@ -2730,7 +2808,7 @@ function cashflowAction(net, needs) {
 }
 
 function renderStats() {
-  const inn = moneyIn(S.rows), out = moneyOut(S.rows), net = inn - out, tax = taxOut(S.rows);
+  const inn = moneyIn(S.rows), out = moneyOut(S.rows), net = inn - out, tax = taxOut(S.rows), debt = debtOut(S.rows);
   const needs = S.rows.filter((r) => r.dir === "out" && !r.cat).length;
   // v258: a month with no statement in it yet is not a "tight" month — it is an unknown one
   const empty = !(S.all || []).length;
@@ -2738,8 +2816,8 @@ function renderStats() {
   const cards = [
     [cash.tone, "Cash status", "cash", cash.word, cash.sub],
     ["good", "Money in", "in", money0(inn), "Received in " + ymLabel(S.ym) + "."],
-    ["", "Running costs", "out", money0(out - tax), tax ? "Plus " + money0(tax) + " tax paid." : "No tax paid this month."],
-    [net + tax >= 0 ? "good" : "bad", "Net before tax", "net", money0(net + tax), "After tax: " + money0(net) + "."],
+    ["", "Running costs", "out", money0(out - tax - debt), (tax || debt) ? "Plus " + [tax ? money0(tax) + " tax" : "", debt ? money0(debt) + " debt repayments" : ""].filter(Boolean).join(" and ") + "." : "No tax or debt paid this month."],
+    [net + tax + debt >= 0 ? "good" : "bad", "Net before tax & debts", "net", money0(net + tax + debt), "After both: " + money0(net) + "."],
   ];
   // Needs Review is not a fifth number. A lonely "4" in a headline tile says nothing; the
   // strip below says what it is, why it matters and where to go, in one line you can click.
@@ -2839,7 +2917,7 @@ function renderWeek() {
     : "";
   $("pfPots").innerHTML =
     `<div class="pot tax"><i class="dot"></i><span class="k">Tax pot · ${s.potTaxPct}%${tipBtn("tax")}</span><span class="n">${money(tax)}</span></div>
-     <div class="pot inv"><i class="dot"></i><span class="k">Investment pot · ${s.potInvestPct}%${tipBtn("inv")}</span><span class="n">${money(inv)}</span></div>
+     <div class="pot inv"><i class="dot"></i><span class="k">${potInvName()} · ${s.potInvestPct}%${tipBtn("inv")}</span><span class="n">${money(inv)}</span></div>
      <div class="pot ops"><i class="dot"></i><span class="k">Left to run on${tipBtn("ops")}</span><span class="n">${money(ops)}</span></div>`;
 
   // What Santander actually shows leaving for the pots this week. This is the honest
@@ -2867,12 +2945,12 @@ function renderWeek() {
     doBox.className = "pf-do done";
     doK.textContent = "Done this week";
     $("pfMovedMsg").textContent = "Moved " + money(S.week.tax) + " to the tax pot and "
-      + money(S.week.invest) + " to the investment pot.";
+      + money(S.week.invest) + " to the " + potInvName().toLowerCase() + ".";
   } else if (allocatable) {
     doBox.className = "pf-do";
     doK.textContent = "Do this now";
     $("pfMovedMsg").textContent = "Move " + money(tax) + " to the tax pot and " + money(inv)
-      + " to the investment pot, before you spend anything else.";
+      + " to the " + potInvName().toLowerCase() + ", before you spend anything else.";
   } else {
     doBox.className = "pf-do idle";
     doK.textContent = "Nothing to move";
@@ -3220,7 +3298,7 @@ async function onCellChange(el) {
 function saveMonth(ym, rows) {
   clearTimeout(saveT);
   saveT = setTimeout(async () => {
-    try { await post({ finTxns: { ym, rows } }); if (S.ym === ym) renderStats(); }
+    try { await post({ finTxns: { ym, rows } }); if (S.ym === ym) renderStats(); S.stored[ym] = rows; S.debtRows = null; }
     catch (e) { toast("Could not save: " + e.message); }
   }, 600);
 }
@@ -4006,7 +4084,10 @@ async function putOnClipboard(text, tail) {
 /* =====================================================================
    SETTINGS
    ===================================================================== */
+/* v265: the 4% pot is the Debt pot while any business debt costs more than 10% a year. */
+const potInvName = () => (debtHot(S.debtDoc) ? "Debt pot" : "Investment pot");
 function renderSettings() {
+  if ($("sInvLab")) $("sInvLab").textContent = potInvName() + " %";
   const s = S.settings;
   $("sTax").value = s.potTaxPct; $("sInv").value = s.potInvestPct;
   $("sBuffer").value = s.cashBuffer;
@@ -4089,14 +4170,1036 @@ async function saveSettings() {
 }
 
 /* =====================================================================
+   v265: DEBTS — pay every business debt off, in the right order.
+   Ash: "I want to pay every business debt off, in the right order, and I want this tab
+   to make me do it." Three rules shape everything below:
+     1. A balance is the opening figure Ash typed from a statement PLUS a ledger, and the
+        ledger is worked out from the imported transactions every time — never stored —
+        so it cannot drift from the statements it came from. Only what the bank cannot
+        know (a statement reconciliation, an "I paid £___" before the import) is stored.
+     2. Nothing is invented. A debt with no opening balance shows "enter from statement"
+        and is left out of every total and projection rather than guessed at.
+     3. One transaction belongs to at most one debt, decided by that debt's match words.
+   ===================================================================== */
+const DEBT_PREFIX = "Debt: ";
+const DEBT_REVERSAL = /DIRECT DEBIT REVERSAL/i;
+const isDebtPay = (r) => r.dir === "out" && String(r.cat || "").startsWith(DEBT_PREFIX);
+const debtOut = (rows) => sum(rows, (r) => isDebtPay(r) && !notCounted(r));
+
+/* Seed: Ash's own figures as of 27 Oct 2026. Every null is "enter from statement". */
+const DEBT_SEED = {
+  debts: [
+    { id: "cot", name: "Capital on Tap", lender: "Capital on Tap", cat: "Debt: Capital on Tap", kind: "card",
+      opening: { amount: 8004.17, date: "2026-10-09", note: "Card *7303. Statement 10/09–09/10 charged £252.39 interest." },
+      cost: { type: "monthly_pct", value: 3.74 }, statementDay: 9,
+      contract: { type: "fixed", amount: 1200, day: 16, minPct: 10, minAmt: 100,
+        note: "Card terms: 10% of the balance, at least £100. Set to a fixed £1,200 by direct debit." },
+      payMatch: ["CAPITAL ON TAP REF"], borrowMatch: ["FROM CAPITAL ON TAP"], excludeMatch: [] },
+    { id: "flexi", name: "Funding Circle FlexiPay", lender: "Funding Circle", cat: "Debt: FlexiPay", kind: "flexipay",
+      opening: { amount: null, date: "2026-10-27", note: "Balance = the instalments still to pay. Check against the FlexiPay overview." },
+      cost: { type: "fee_per_draw_pct", value: 4.9, approx: true },
+      contract: { type: "plans", note: "Each draw is paid back in 3 monthly instalments, fee included." },
+      payMatch: ["FUNDING CIRCLE REF"], borrowMatch: [], excludeMatch: ["6BP27PA"],
+      plans: [{ ref: "JWT5X3B", inst: 368.53, left: 1, day: 27 }, { ref: "BP5SVV9", inst: 83.92, left: 1, day: 13 },
+        { ref: "E9Q5DDV", inst: 83.92, left: 2, day: 5 }, { ref: "6PMT34X", inst: 119.00, left: 2, day: 27 }] },
+    { id: "fcloan", name: "Funding Circle term loan", lender: "Funding Circle", cat: "Debt: Funding Circle loan", kind: "term_loan",
+      opening: { amount: null, date: null }, cost: { type: "unknown" },
+      contract: { type: "fixed", amount: 238.08, day: 23 }, payMatch: ["FUNDING CIRCLE REF 6BP27PA"], borrowMatch: [], excludeMatch: [] },
+    { id: "sanloan", name: "Santander business loan", lender: "Santander", cat: "Debt: Santander loan", kind: "term_loan",
+      opening: { amount: null, date: null }, cost: { type: "unknown" },
+      contract: { type: "fixed", amount: 268, day: 6, note: "About £268 — it moves by a few pence each month." },
+      payMatch: ["SAN UK BUS LOANS"], borrowMatch: [], excludeMatch: [] },
+    { id: "neil", name: "Neil Beresford buyout", lender: "Neil Beresford", cat: "Debt: Neil buyout", kind: "buyout", noExtra: true,
+      opening: { amount: null, date: null, note: "About 12 × £1,000 left as of Sep 2026 — enter the exact figure." },
+      cost: { type: "none", value: 0 }, contract: { type: "fixed", amount: 1000, day: 27, note: "Paid on the 26th–28th, from the Debt pot first." },
+      payMatch: ["NEIL BERESFORD"], borrowMatch: [], excludeMatch: [] },
+    { id: "hmrc", name: "HMRC", lender: "HMRC", cat: "Debt: HMRC", kind: "hmrc",
+      opening: { amount: null, date: null, note: "Over £50,000 — split by VAT / PAYE / Corporation Tax still to be entered." },
+      cost: { type: "apr_pct", value: 8.5, approx: true }, contract: { type: "ttp", note: "Time to Pay being re-agreed." },
+      payMatch: ["HMRC NDDS", "HMRC MY-DRS", "ADVANTIS CREDIT"], borrowMatch: [], excludeMatch: [],
+      hmrc: { heads: { vat: null, paye: null, ct: null, other: null }, ttp: { amount: null, day: null, start: null }, due: [] } },
+    { id: "very", name: "Very", lender: "Very", cat: "Debt: Very", kind: "other", personal: true,
+      opening: { amount: null, date: null, note: "Personal debt paid from the business." },
+      cost: { type: "unknown" }, contract: { type: "fixed", amount: 100, day: 25 },
+      payMatch: ["CARD PAYMENT TO VERY"], borrowMatch: [], excludeMatch: [] },
+  ],
+  manual: [],
+  settings: { floor: 2500, order: [], whatIf: 0, bank: null, taxPot: null, baseline: null },
+};
+
+/* ---------- matching ---------- */
+function debtPatHit(desc, p) {
+  const m = /^\/(.+)\/([a-z]*)$/.exec(p);
+  if (m) { try { return new RegExp(m[1], m[2].includes("i") ? m[2] : m[2] + "i").test(desc); } catch { return false; } }
+  return String(desc || "").toUpperCase().includes(String(p).toUpperCase());
+}
+const debtHits = (desc, list) => (list || []).some((p) => p && debtPatHit(desc, p));
+function debtRefOf(desc) { const m = /\bREF[.:]?\s*([A-Z0-9]{5,})/i.exec(desc || ""); return m ? m[1].toUpperCase() : ""; }
+/* The one debt a transaction belongs to, or null. A reversal is matched separately. */
+function debtOfRow(r, debts) {
+  if (DEBT_REVERSAL.test(r.desc)) return null;
+  for (const d of debts) {
+    if (debtHits(r.desc, d.excludeMatch)) continue;
+    if (r.dir === "out" && debtHits(r.desc, d.payMatch)) return d;
+    if (r.dir === "in" && debtHits(r.desc, d.borrowMatch)) return d;
+  }
+  return null;
+}
+
+/* ---------- costs ---------- */
+function debtEffCost(d) {
+  const c = d.cost || {};
+  if (c.type === "monthly_pct" && c.value != null) return Math.pow(1 + c.value / 100, 12) - 1;
+  if (c.type === "apr_pct" && c.value != null) return c.value / 100;
+  if (c.type === "fee_per_draw_pct" && c.value != null) return c.value * 4 / 100;   // 3 instalments ≈ ×4, approximate
+  if (c.type === "none") return 0;
+  return null;
+}
+function debtMonthlyRate(d) {
+  const c = d.cost || {};
+  if (c.type === "monthly_pct" && c.value != null) return c.value / 100;
+  if (c.type === "apr_pct" && c.value != null) return c.value / 1200;
+  return 0;
+}
+function debtCostLabel(d) {
+  const e = debtEffCost(d), c = d.cost || {};
+  if (e === null) return "cost: enter from statement";
+  if (c.type === "monthly_pct") return c.value + "% a month (≈" + Math.round(e * 100) + "% a year)";
+  if (c.type === "fee_per_draw_pct") return c.value + "% fee per draw (≈" + Math.round(e * 100) + "% a year, approx.)";
+  if (c.type === "none") return "0% — interest free";
+  return (c.approx ? "≈" : "") + c.value + "% a year" + (c.approx ? " (approx.)" : "");
+}
+
+/* ---------- the ledger ----------
+   rows: EVERY stored transaction, deleted ones included (a bounced pair was deleted from
+   the totals, and is still a bounced payment here). Returns per-debt entries, oldest first,
+   each {date,type,amount(+ raises the balance),src,id,desc,before,bounced,note}. */
+function debtLedgers(doc, rows, today) {
+  const debts = doc.debts;
+  const L = {}; for (const d of debts) L[d.id] = [];
+  const sorted = rows.slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  const pays = [];
+  for (const r of sorted) {
+    const d = debtOfRow(r, debts);
+    if (!d) continue;
+    const before = !d.opening.date || r.date <= d.opening.date;
+    const e = { date: r.date, type: r.dir === "out" ? "payment" : "borrowing",
+      amount: r.dir === "out" ? -r.amount : r.amount, src: "import", id: r.id, desc: r.desc, del: !!r.del, before };
+    L[d.id].push(e);
+    if (r.dir === "out") pays.push({ d, e, ref: debtRefOf(r.desc) });
+  }
+  // Bounces: a reversal names the same REF as the payment it undoes.
+  for (const r of sorted) {
+    if (r.dir !== "in" || !DEBT_REVERSAL.test(r.desc)) continue;
+    const ref = debtRefOf(r.desc);
+    const p = pays.find((x) => !x.e.bounced && x.ref && x.ref === ref && Math.abs(x.e.amount + r.amount) < 0.01
+      && r.date >= x.e.date && (new Date(r.date) - new Date(x.e.date)) / 864e5 <= 10);
+    if (!p) continue;
+    p.e.bounced = true;
+    L[p.d.id].push({ date: r.date, type: "payment", amount: r.amount, src: "import", id: r.id, desc: r.desc,
+      del: !!r.del, before: p.e.before, bounced: true, note: "Bounced — the payment came back" });
+  }
+  // A row deleted from the totals for any OTHER reason is not a debt event.
+  for (const id of Object.keys(L)) L[id] = L[id].filter((e) => !e.del || e.bounced);
+  // FlexiPay: a payment against a reference never seen before the opening date is a NEW
+  // draw — a new plan of 3 instalments, fee included, and new borrowing.
+  for (const d of debts) {
+    if (d.kind !== "flexipay") continue;
+    const seen = new Set((d.plans || []).map((p) => p.ref));
+    for (const e of L[d.id]) {
+      const ref = debtRefOf(e.desc);
+      if (e.before) { if (ref) seen.add(ref); continue; }
+      if (e.type !== "payment" || e.bounced || !ref || seen.has(ref)) continue;
+      seen.add(ref);
+      const total = Math.round(-e.amount * 3 * 100) / 100;
+      const fee = Math.round(total * (d.cost.value || 0) / (100 + (d.cost.value || 0)) * 100) / 100;
+      L[d.id].push({ date: e.date, type: "borrowing", amount: total, src: "computed", desc: "New FlexiPay plan " + ref,
+        before: false, newPlan: ref, note: "3 × " + money(-e.amount) + ", about " + money(fee) + " of it the 4.9% fee" });
+    }
+  }
+  // Manual entries. An "I paid £___" waits for the import and drops out once the matching
+  // bank line arrives (same debt, same amount, within ten days).
+  for (const m of doc.manual || []) {
+    const d = debts.find((x) => x.id === m.debtId); if (!d) continue;
+    let reconciled = false;
+    if (m.pending && m.type === "payment") {
+      const hit = L[d.id].find((e) => e.src === "import" && e.type === "payment" && !e.bounced && !e.usedBy
+        && Math.abs(-e.amount - Math.abs(m.amount)) < 0.01 && e.date >= addDays(m.date, -2) && e.date <= addDays(m.date, 10));
+      if (hit) { hit.usedBy = m.id; reconciled = true; }
+    }
+    if (reconciled) continue;
+    L[d.id].push({ date: m.date, type: m.type, amount: m.type === "payment" ? -Math.abs(m.amount) : m.amount,
+      src: "manual", id: m.id, desc: m.note || (m.pending ? "I paid (waiting for the bank line)" : "Entered by hand"),
+      before: !!(d.opening.date && m.date <= d.opening.date), pending: m.pending });
+  }
+  for (const id of Object.keys(L)) L[id].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  // Interest the lender will have charged, posted on each statement date since opening.
+  for (const d of debts) {
+    const r = debtMonthlyRate(d);
+    if (!r || debtOpening(d) === null || !d.opening.date) continue;
+    const sd = d.statementDay || Number(d.opening.date.slice(8));
+    let t = nextDayOfMonth(d.opening.date, sd, false);
+    while (t <= today) {
+      const bal = debtOpening(d) + L[d.id].filter((e) => !e.before && e.date <= t).reduce((a, e) => a + e.amount, 0);
+      if (bal > 0) L[d.id].push({ date: t, type: "interest", amount: Math.round(bal * r * 100) / 100, src: "computed",
+        desc: "Interest, worked out at " + debtCostLabel(d), before: false, computed: true });
+      L[d.id].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+      t = nextDayOfMonth(t, sd, false);
+    }
+  }
+  return L;
+}
+/* The next date with day-of-month `day` strictly after (or, with same=true, on or after) s. */
+function nextDayOfMonth(s, day, same) {
+  const d = new Date(s + "T12:00:00");
+  let y = d.getFullYear(), m = d.getMonth();
+  for (let i = 0; i < 3; i++) {
+    const last = new Date(y, m + 1, 0).getDate();
+    const c = ymd(new Date(y, m, Math.min(day, last), 12));
+    if (same ? c >= s : c > s) return c;
+    m++; if (m > 11) { m = 0; y++; }
+  }
+  return s;
+}
+/* Opening balance: typed from a statement, or — for FlexiPay — the instalments still due. */
+function debtOpening(d) {
+  if (d.opening && d.opening.amount != null) return d.opening.amount;
+  if (d.kind === "flexipay" && (d.plans || []).length) return Math.round(d.plans.reduce((a, p) => a + p.inst * p.left, 0) * 100) / 100;
+  return null;
+}
+function debtBalance(d, entries) {
+  const o = debtOpening(d);
+  if (o === null) return null;
+  return Math.round((o + entries.filter((e) => !e.before).reduce((a, e) => a + e.amount, 0)) * 100) / 100;
+}
+/* FlexiPay plans as they stand now: seed plans minus instalments paid since, plus new draws. */
+function debtPlansNow(d, entries) {
+  const plans = (d.plans || []).map((p) => ({ ...p }));
+  for (const e of entries) {
+    if (e.before || e.bounced) continue;
+    if (e.newPlan) { plans.push({ ref: e.newPlan, inst: Math.round(e.amount / 3 * 100) / 100, left: 3, day: Number(e.date.slice(8)) }); continue; }
+    if (e.type !== "payment" || e.src !== "import") continue;
+    const p = plans.find((x) => x.ref === debtRefOf(e.desc));
+    if (p && p.left > 0) p.left--;
+  }
+  return plans.filter((p) => p.left > 0);
+}
+/* What the contract asks for in a month, given where the debt stands. */
+function debtDue(d, bal, plans) {
+  const c = d.contract || {};
+  if (c.type === "plans") return (plans || []).reduce((a, p) => a + (p.left > 0 ? p.inst : 0), 0);
+  if (c.type === "ttp") return (d.hmrc && d.hmrc.ttp && d.hmrc.ttp.amount) || 0;
+  if (c.type === "fixed") return Math.min(bal == null ? (c.amount || 0) : Math.max(0, bal), c.amount || 0);
+  return 0;
+}
+function debtMinDue(d, bal, plans) {
+  const c = d.contract || {};
+  if (c.minPct != null) return Math.min(Math.max(0, bal), Math.max(c.minAmt || 0, bal * c.minPct / 100));
+  return debtDue(d, bal, plans);
+}
+
+/* ---------- the waterfall ----------
+   Contractual payments are the floor and are always assumed paid; HMRC's Time to Pay sits
+   at the top of every list. EXTRA money goes to the dearest debt first. A 0% debt (Neil)
+   and a personal one (Very) never take extra, whatever the order says. */
+const debtTakesExtra = (d) => !d.noExtra && !d.personal && debtEffCost(d) !== 0;
+function debtRecommendedOrder(debts) {
+  return debts.filter(debtTakesExtra).slice().sort((a, b) => {
+    const x = debtEffCost(a), y = debtEffCost(b);
+    if (x === null && y === null) return 0; if (x === null) return 1; if (y === null) return -1;
+    return y - x;
+  }).map((d) => d.id);
+}
+function debtOrder(doc) {
+  const rec = debtRecommendedOrder(doc.debts);
+  const own = (doc.settings.order || []).filter((id) => rec.includes(id));
+  return own.length ? own.concat(rec.filter((id) => !own.includes(id))) : rec;
+}
+const ymAdd = (ym, n) => { const [y, m] = ym.split("-").map(Number); const t = y * 12 + (m - 1) + n;
+  return Math.floor(t / 12) + "-" + pad(t % 12 + 1); };
+
+/* Project month by month to zero. mode: "min" (minimum the lender asks), "plan" (the
+   contract plus each debt's own fixed extra) or "roll" (that, plus whatever cleared debts
+   free up, plus `extra` a month, all down `order`). Only debts with a known balance. */
+function debtProject(states, mode, extra, order, startYm) {
+  const S2 = states.map((s) => ({ ...s, plans: (s.plans || []).map((p) => ({ ...p })), int: 0, clear: s.bal <= 0.005 ? startYm : null, freed: 0 }));
+  const months = [];
+  let freedPool = 0;
+  for (let i = 1; i <= 600 && S2.some((s) => s.bal > 0.005); i++) {
+    const ym = ymAdd(startYm, i);
+    for (const s of S2) {
+      if (s.bal <= 0.005) continue;
+      const it = s.bal * debtMonthlyRate(s.d); s.int += it; s.bal += it;
+      const due = mode === "min" ? debtMinDue(s.d, s.bal, s.plans) : debtDue(s.d, s.bal, s.plans);
+      const pay = Math.min(s.bal, due); s.bal -= pay; s.last = due;
+      for (const p of s.plans) if (p.left > 0) p.left--;
+      if (mode !== "min" && s.d.extra && debtTakesExtra(s.d)) s.bal -= Math.min(s.bal, s.d.extra);
+    }
+    if (mode === "roll") {
+      let pool = (extra || 0) + freedPool;
+      for (const id of order) {
+        const s = S2.find((x) => x.d.id === id);
+        // a 0% or personal debt never takes extra, whatever order it was handed
+        if (!s || s.bal <= 0.005 || pool <= 0 || !debtTakesExtra(s.d)) continue;
+        const pay = Math.min(s.bal, pool); s.bal -= pay; pool -= pay;
+      }
+    }
+    for (const s of S2) if (s.bal <= 0.005 && !s.clear) {
+      s.bal = 0; s.clear = ym;
+      // its payment rolls onto the next debt down the order, from the following month
+      if (mode === "roll") freedPool += (s.last || 0) + (s.d.extra || 0);
+    }
+    months.push({ ym, bals: Object.fromEntries(S2.map((s) => [s.d.id, Math.max(0, s.bal)])) });
+  }
+  const interest = S2.reduce((a, s) => a + s.int, 0);
+  const clears = Object.fromEntries(S2.map((s) => [s.d.id, s.clear]));
+  const free = S2.every((s) => s.clear) ? S2.map((s) => s.clear).sort().pop() : null;
+  return { months, interest, clears, free, perDebt: Object.fromEntries(S2.map((s) => [s.d.id, s.int])) };
+}
+
+/* ---------- "How much can I pay today?" ---------- */
+function debtRegularPayments(rows, today, debts) {
+  // A payment is regular when the same payee was paid within ±4 days of the same day of
+  // the month in each of the last three complete months. Debts are added separately, and
+  // Ash's own pay is left out: it is his to time, not a bill.
+  const cur = ymOf(today), ms = [ymAdd(cur, -1), ymAdd(cur, -2), ymAdd(cur, -3)];
+  // a debt is matched on its words, not its category — an older row may predate the tag
+  const pool = rows.filter((r) => r.dir === "out" && !r.del && !notCounted(r) && !isDebtPay(r)
+    && !(debts && debtOfRow(r, debts)) && !/TO ASHLEY OWEN/i.test(r.desc));
+  const by = {};
+  for (const r of pool) { const k = merchantOf(r.desc); (by[k] = by[k] || []).push(r); }
+  const out = [];
+  for (const [k, list] of Object.entries(by)) {
+    // each payment needs its OWN partner in both earlier months — a one-off extra to someone
+    // paid monthly anyway must not borrow their regular payment's history
+    const used = new Set();
+    const partner = (ym, day, amt) => {
+      const c = list.filter((x) => !used.has(x) && ymOf(x.date) === ym && Math.abs(Number(x.date.slice(8)) - day) <= 4)
+        .sort((a, b) => Math.abs(a.amount - amt) - Math.abs(b.amount - amt))[0];
+      if (c) used.add(c);
+      return c;
+    };
+    for (const r of list.filter((x) => ymOf(x.date) === ms[0]).sort((a, b) => b.amount - a.amount)) {
+      const day = Number(r.date.slice(8));
+      const p1 = partner(ms[1], day, r.amount), p2 = p1 && partner(ms[2], day, r.amount);
+      if (p1 && p2) out.push({ what: k, amount: r.amount, day, cat: r.cat });
+    }
+  }
+  // "already paid?" asks about the month the payment falls due in, not this month — on the
+  // 27th, the wages due on the 7th are next month's, and this month's 7th is long paid
+  return { list: out, paidIn: (what, day, ym) => (by[what] || []).some((x) => ymOf(x.date) === ym && Math.abs(Number(x.date.slice(8)) - day) <= 4) };
+}
+function debtAdvisor(doc, rows, L, today, finSettings) {
+  const end = addDays(today, 14);
+  const reg = debtRegularPayments(rows, today, doc.debts);
+  const committed = [];
+  for (const p of reg.list) {
+    const due = nextDayOfMonth(today, p.day, true);
+    if (due <= end && !reg.paidIn(p.what, p.day, ymOf(due))) committed.push({ what: p.what, amount: p.amount, date: due, kind: "regular" });
+  }
+  for (const d of doc.debts) {
+    const bal = debtBalance(d, L[d.id]);
+    if (bal !== null && bal <= 0.005) continue;
+    const paidIn = (ym) => L[d.id].some((e) => e.type === "payment" && !e.bounced && e.src === "import" && ymOf(e.date) === ym);
+    if (d.contract.type === "plans") {
+      for (const p of debtPlansNow(d, L[d.id])) {
+        const due = nextDayOfMonth(today, p.day || 27, true);
+        const paid = L[d.id].some((e) => e.type === "payment" && e.src === "import" && ymOf(e.date) === ymOf(due) && debtRefOf(e.desc) === p.ref);
+        if (due <= end && !paid) committed.push({ what: d.name + " " + p.ref, amount: p.inst, date: due, kind: "debt" });
+      }
+      continue;
+    }
+    const day = d.contract.type === "ttp" ? d.hmrc && d.hmrc.ttp && d.hmrc.ttp.day : d.contract.day;
+    const amt = debtDue(d, bal, null);
+    if (!day || !amt) continue;
+    const due = nextDayOfMonth(today, day, true);
+    if (due <= end && !paidIn(ymOf(due))) committed.push({ what: d.name, amount: amt, date: due, kind: "debt" });
+  }
+  committed.sort((a, b) => (a.date < b.date ? -1 : 1));
+  const committedTotal = committed.reduce((a, c) => a + c.amount, 0);
+  // The tax pot's share of card and direct-debit takings since the last pot move.
+  const moves = rows.filter((r) => r.dir === "out" && !r.del && isTransfer(r)).map((r) => r.date).sort();
+  const since = moves.length ? moves[moves.length - 1] : addDays(today, -7);
+  const alloc = (finSettings && finSettings.allocatable) || ["stripe", "gocardless"];
+  const income = rows.filter((r) => r.dir === "in" && !r.del && !notCounted(r) && r.date > since && alloc.includes(r.src || sourceOf(r.desc)))
+    .reduce((a, r) => a + r.amount, 0);
+  const taxRing = Math.round(income * ((finSettings && finSettings.potTaxPct) || 15)) / 100;
+  const bank = doc.settings.bank;
+  const floor = doc.settings.floor == null ? 2500 : doc.settings.floor;
+  const x = bank && bank.amount != null ? bank.amount - committedTotal - taxRing - floor : null;
+  const order = debtOrder(doc);
+  const target = order.map((id) => doc.debts.find((d) => d.id === id))
+    .find((d) => { const b = debtBalance(d, L[d.id]); return b !== null && b > 0.005; }) || null;
+  return { bank, committed, committedTotal, since, income, taxRing, floor, x, target };
+}
+
+/* ---------- milestones ---------- */
+const DEBT_MILESTONES = [
+  { key: "first", label: "First debt cleared" },
+  { key: "cot-5k", label: "Capital on Tap under £5,000", debt: "cot", below: 5000 },
+  { key: "cot-0", label: "Capital on Tap cleared", debt: "cot", below: 0.005 },
+  { key: "flexi-0", label: "FlexiPay cleared", debt: "flexi", below: 0.005 },
+  { key: "hmrc-40k", label: "HMRC under £40,000", debt: "hmrc", below: 40000 },
+  { key: "hmrc-25k", label: "HMRC under £25,000", debt: "hmrc", below: 25000 },
+  { key: "hmrc-10k", label: "HMRC under £10,000", debt: "hmrc", below: 10000 },
+  { key: "free", label: "Business debt-free" },
+];
+/* The first date a debt's running balance went below `below`, from the ledger. */
+function debtCrossed(d, entries, below) {
+  let bal = debtOpening(d); if (bal === null) return null;
+  if (bal < below) return null;   // was already below when tracking began — not an achievement
+  for (const e of entries.filter((x) => !x.before)) { bal += e.amount; if (bal < below) return e.date; }
+  return null;
+}
+function debtMilestones(doc, L, proj) {
+  const biz = doc.debts.filter((d) => !d.personal);
+  const known = biz.filter((d) => debtOpening(d) !== null);
+  const clearDates = known.map((d) => debtCrossed(d, L[d.id], 0.005)).filter(Boolean).sort();
+  return DEBT_MILESTONES.map((m) => {
+    let hit = null, when = null, applies = true;
+    if (m.debt) {
+      const d = doc.debts.find((x) => x.id === m.debt);
+      if (!d || debtOpening(d) === null) applies = false;
+      else {
+        hit = debtCrossed(d, L[d.id], m.below);
+        if (!hit && proj) { const row = proj.months.find((x) => x.bals[d.id] !== undefined && x.bals[d.id] < m.below); when = row ? row.ym : null; }
+      }
+    } else if (m.key === "first") {
+      hit = clearDates[0] || null;
+      if (!hit && proj) when = Object.values(proj.clears).filter(Boolean).sort()[0] || null;
+    } else if (m.key === "free") {
+      const unknown = biz.length !== known.length;
+      if (unknown) applies = false;
+      else { hit = clearDates.length === known.length ? clearDates[clearDates.length - 1] : null; when = proj ? proj.free : null; }
+    }
+    return { ...m, hit, when, applies };
+  });
+}
+
+/* ---------- a month in review ---------- */
+function debtMonthReview(doc, L, ym) {
+  const biz = doc.debts.filter((d) => !d.personal);
+  let paid = 0, interest = 0, borrowed = 0, bounced = 0, due = 0;
+  for (const d of biz) for (const e of L[d.id]) {
+    if (ymOf(e.date) !== ym) continue;
+    if (e.type === "payment" && !e.bounced && e.amount < 0) paid += -e.amount;
+    if (e.type === "payment" && e.bounced && e.amount < 0) bounced++;
+    if (e.type === "interest" || e.type === "fee") interest += e.amount;
+    if (e.type === "borrowing") borrowed += e.amount;
+  }
+  for (const d of biz) if (d.contract.type === "fixed") due += d.contract.amount || 0;
+  const net = paid - interest - borrowed;
+  // interest is only known from the first statement date after an opening balance
+  const tracked = biz.some((d) => debtMonthlyRate(d) && d.opening.date && ymOf(nextDayOfMonth(d.opening.date, d.statementDay || 1, false)) <= ym);
+  const verdict = borrowed > 0
+    ? (borrowed >= paid
+      ? "New borrowing of " + money0(borrowed) + " was more than the " + money0(paid) + " paid off — the debt went up."
+      : "New borrowing of " + money0(borrowed) + " undid " + Math.round(borrowed / paid * 100) + "% of the " + money0(paid) + " paid off.")
+    : bounced ? bounced + " payment" + (bounced === 1 ? "" : "s") + " bounced — check the account had cover on the day."
+    : paid ? "Clean month: " + money0(paid) + " paid, nothing new borrowed." : "Nothing paid against the debts yet this month.";
+  return { ym, paid, interest, borrowed, bounced, net, due, verdict, tracked };
+}
+
+/* ---------- the tab: loading, saving, retagging ---------- */
+const debtClone = (x) => JSON.parse(JSON.stringify(x));
+/* Every stored month, deleted rows included — the ledger needs the bounced pairs. */
+async function debtLoadAll() {
+  const out = [];
+  for (const ym of S.months) {
+    if (!S.stored[ym]) S.stored[ym] = (await api("fintxns=" + ym)).rows || [];
+    out.push(...S.stored[ym]);
+  }
+  return out;
+}
+async function saveDebts(msg) {
+  try {
+    S.debtDoc = (await post({ finDebts: S.debtDoc })).doc;
+    if (msg) toast(msg);
+  } catch (e) { toast("Could not save: " + e.message); }
+}
+/* Give each debt payment its "Debt: <name>" category, and take it back off a row that no
+   longer matches. The category it had before is kept in the row's note, so this is
+   reversible row by row. Only months that actually change are written. */
+function debtRetagRows(rows, debts) {
+  let n = 0;
+  for (const r of rows) {
+    if (r.dir !== "out") continue;
+    const d = debtOfRow(r, debts);
+    if (d && r.cat !== d.cat) {
+      if (!r.note && r.cat && !String(r.cat).startsWith(DEBT_PREFIX)) r.note = "Category before the Debts tab: " + r.cat;
+      r.cat = d.cat; r.km = ""; n++;
+    } else if (!d && String(r.cat || "").startsWith(DEBT_PREFIX)) {
+      const m = /^Category before the Debts tab: (.+)$/.exec(r.note || "");
+      r.cat = m ? m[1] : ""; if (m) r.note = ""; n++;
+    }
+  }
+  return n;
+}
+async function debtRetagAll() {
+  let months = 0;
+  for (const ym of S.months) {
+    const rows = S.stored[ym] || ((await api("fintxns=" + ym)).rows || []);
+    S.stored[ym] = rows;
+    if (debtRetagRows(rows, S.debtDoc.debts)) {
+      await post({ finTxns: { ym, rows } });
+      S.trend[ym] = liveOf(rows); months++;
+      if (ym === S.ym) { S.all = rows; S.rows = liveOf(rows); }
+    }
+  }
+  return months;
+}
+
+/* ---------- the tab: drawing ---------- */
+const DEBT_COLOURS = ["#b4532a", "#3d6b8c", "#6b8e4e", "#8c5a8c", "#c08a2d", "#4f7f7a", "#7a6a5a"];
+const debtLabelYm = (ym) => ym ? ymLabel(ym) : "—";
+function debtState() {
+  const doc = S.debtDoc, today = ymd(new Date());
+  const L = debtLedgers(doc, S.debtRows, today);
+  const info = {};
+  for (const d of doc.debts) {
+    const bal = debtBalance(d, L[d.id]);
+    info[d.id] = { d, bal, plans: d.kind === "flexipay" ? debtPlansNow(d, L[d.id]) : [], cost: debtEffCost(d),
+      cleared: bal !== null && bal <= 0.005 };
+  }
+  const order = debtOrder(doc);
+  const states = doc.debts.filter((d) => !d.personal && info[d.id].bal !== null && info[d.id].bal > 0.005)
+    .map((d) => ({ d, bal: info[d.id].bal, plans: info[d.id].plans }));
+  const start = ymOf(today);
+  const rec = debtRecommendedOrder(doc.debts);
+  const P = {
+    min: debtProject(states, "min", 0, order, start),
+    plan: debtProject(states, "plan", 0, order, start),
+    roll: debtProject(states, "roll", 0, order, start),
+    rollRec: debtProject(states, "roll", 0, rec, start),
+    whatIf: debtProject(states, "roll", Number(S.debtWhatIf) || 0, order, start),
+  };
+  return { doc, today, L, info, order, states, P, rec };
+}
+
+function renderDebts() {
+  const root = $("debtsRoot");
+  if (!S.debtDoc || !S.debtRows) { root.innerHTML = `<div class="fin-empty">Loading your debts…</div>`; return; }
+  const st = debtState();
+  const { doc, today, L, info, P } = st;
+  const adv = debtAdvisor(doc, S.debtRows, L, today, S.settings);
+  root.innerHTML = debtAlarmsHtml(st) + debtAdvisorHtml(st, adv) + debtProgressHtml(st)
+    + debtWaterfallHtml(st) + debtPotsHtml(st) + debtProjectionHtml(st)
+    + debtMilestonesHtml(st) + debtReviewHtml(st) + debtNeedsReviewHtml(st);
+  debtCelebrate(st);
+  debtLoadPot(st);
+}
+
+function debtAlarmsHtml(st) {
+  const { doc, L, today } = st;
+  const out = [];
+  const cutoff = ymAdd(ymOf(today), -2);
+  // NEW BORROWING — the single most important alarm on the page.
+  const borrow = {};
+  for (const d of doc.debts) if (!d.personal) for (const e of L[d.id]) {
+    if (e.type === "borrowing" && ymOf(e.date) >= cutoff) (borrow[ymOf(e.date)] = borrow[ymOf(e.date)] || []).push({ d, e });
+  }
+  for (const ym of Object.keys(borrow).sort().reverse()) {
+    const list = borrow[ym];
+    out.push(`<div class="dl-alarm red"><b>NEW BORROWING — ${esc(ymLabel(ym))}</b>${list.map(({ d, e }) =>
+      `<span>${esc(d.name)} +${money(e.amount)} on ${dmy(e.date)}</span>`).join("")}</div>`);
+  }
+  // Bounced payments, any time.
+  const bounced = [];
+  for (const d of doc.debts) for (const e of L[d.id]) if (e.bounced && e.amount < 0) bounced.push({ d, e });
+  if (bounced.length) out.push(`<div class="dl-alarm amber"><b>PAYMENT BOUNCED</b>${bounced.map(({ d, e }) =>
+    `<span>${esc(d.name)} ${money(-e.amount)} on ${dmy(e.date)}</span>`).join("")}</div>`);
+  // HMRC: Time to Pay sits on top of every list; silence from it is an alarm.
+  const h = doc.debts.find((d) => d.kind === "hmrc");
+  if (h) {
+    const last = L[h.id].filter((e) => e.type === "payment" && !e.bounced && e.amount < 0).map((e) => e.date).sort().pop();
+    const days = last ? Math.round((new Date(today) - new Date(last)) / 864e5) : null;
+    if (!last || days > 35) out.push(`<div class="dl-alarm red"><b>HMRC — NO PAYMENT SINCE ${last ? dmy(last) : "records began"}</b>
+      <span>${days ? days + " days. " : ""}${h.hmrc && h.hmrc.ttp && h.hmrc.ttp.amount ? "Time to Pay is " + money(h.hmrc.ttp.amount) + " a month." : "Time to Pay amount: enter from HMRC's letter."}</span></div>`);
+  }
+  const dom = Number(today.slice(8));
+  if (dom === 10 || dom === 29) out.push(`<div class="dl-alarm go"><b>SWEEP DUE TODAY</b><span>Run the advisor below and pay the extra.</span></div>`);
+  return out.length ? `<section class="dl-alarms">${out.join("")}</section>` : "";
+}
+
+function debtAdvisorHtml(st, a) {
+  const t = a.target;
+  const head = a.x === null ? `Enter today's bank balance to get a number.`
+    : a.x > 0 && t ? `You can safely pay <b>${money0(Math.floor(a.x))}</b> extra to <b>${esc(t.name)}</b> today.`
+    : `Nothing extra this time — and nothing new goes on a card.`;
+  const next = [10, 29].map((d) => nextDayOfMonth(st.today, d, true)).sort()[0];
+  return `<section><div class="card dl-adv">
+    <div class="cardhead"><div><div class="chead">How much can I pay today?</div>
+      <div class="csub">Sweep days are the 10th (after wages) and the 29th (after rent and Neil). Next: ${dayLabel(next)}.</div></div></div>
+    <div class="dl-big">${head}</div>
+    <div class="dl-sum">
+      <span>Bank ${a.bank && a.bank.amount != null ? money(a.bank.amount) : "<i>enter</i>"}${a.bank && a.bank.date ? ` <small>(${a.bank.source === "manual" ? "typed" : "statement"} ${dmy(a.bank.date)})</small>` : ""}</span>
+      <span>− due in the next 14 days ${money(a.committedTotal)}</span>
+      <span>− tax pot share ${money(a.taxRing)} <small>(${S.settings.potTaxPct}% of ${money0(a.income)} taken since ${dmy(a.since)})</small></span>
+      <span>− safety floor ${money(a.floor)}</span>
+      <span class="eq">= ${a.x === null ? "—" : money(a.x)}</span></div>
+    <details class="dl-det"><summary>What is due in the next 14 days (${a.committed.length})</summary>
+      ${a.committed.length ? `<div class="fin-tw"><table class="fin"><tbody>${a.committed.map((c) =>
+        `<tr><td class="dt">${dmy(c.date)}</td><td>${esc(c.what)}${c.kind === "regular" ? ` <small class="faint">— paid on about this day for 3 months</small>` : ""}</td><td class="num">${money(c.amount)}</td></tr>`).join("")}</tbody></table></div>`
+        : `<div class="hint">Nothing regular is due.</div>`}
+      <div class="hint">Worked out from the last three months' statements. Your own pay is left out — it is yours to time.</div></details>
+    <div class="dl-row">
+      <label>Bank balance now <input class="fin-in" id="dlBank" type="number" step="0.01" placeholder="from statement" value="${a.bank && a.bank.source === "manual" ? a.bank.amount : ""}"></label>
+      <label>Safety floor <input class="fin-in" id="dlFloor" type="number" step="100" value="${a.floor}"></label>
+      ${t ? `<label>I paid ${esc(t.name)} <input class="fin-in" id="dlPaid" type="number" step="0.01" placeholder="£"></label>
+      <button class="abtn primary" id="dlPaidBtn" data-debt="${esc(t.id)}"><span>Log payment</span></button>` : ""}
+    </div>
+    <div class="hint">A payment you log here waits for the bank line and drops out by itself when the next import brings it in.</div>
+  </div></section>`;
+}
+
+function debtProgressHtml(st) {
+  const { doc, info, L, P, today } = st;
+  const biz = doc.debts.filter((d) => !d.personal && info[d.id].bal !== null);
+  const start = biz.reduce((a, d) => a + debtOpening(d), 0);
+  const now = biz.reduce((a, d) => a + Math.max(0, info[d.id].bal), 0);
+  const pct = start > 0 ? Math.max(0, Math.min(100, (start - now) / start * 100)) : 0;
+  const ticking = biz.filter((d) => info[d.id].bal > 0 && debtMonthlyRate(d) > 0)
+    .map((d) => ({ d, v: info[d.id].bal * debtMonthlyRate(d) * 12 / 365 })).sort((a, b) => b.v - a.v);
+  // Interest saved so far: what minimum-only would have charged since the opening date, less
+  // what has actually been charged. Zero until the first statement date has passed.
+  let saved = 0;
+  for (const d of biz) {
+    const charged = L[d.id].filter((e) => !e.before && e.type === "interest").reduce((a, e) => a + e.amount, 0);
+    const n = L[d.id].filter((e) => !e.before && e.type === "interest").length;
+    if (!n) continue;
+    saved += Math.max(0, debtMinInterest(d, n) - charged);
+  }
+  // No-new-borrowing streak: whole months in a row, ending now, with no draw-down.
+  let streak = 0;
+  for (let i = 0; i < 24; i++) {
+    const ym = ymAdd(ymOf(today), -i);
+    if (biz.some((d) => L[d.id].some((e) => e.type === "borrowing" && ymOf(e.date) === ym))) break;
+    streak++;
+  }
+  const unknown = doc.debts.filter((d) => !d.personal && info[d.id].bal === null);
+  return `<section><div class="card">
+    <div class="cardhead"><div><div class="chead">Paying it off</div>
+      <div class="csub">Business debts with a balance entered. ${unknown.length ? unknown.length + " still need a figure from a statement: " + unknown.map((d) => esc(d.name)).join(", ") + "." : ""}</div></div></div>
+    <div class="dl-bar big"><i style="width:${pct.toFixed(1)}%"></i></div>
+    <div class="dl-barlab"><span>Start ${money0(start)}</span><span><b>${money0(now)}</b> now · ${pct.toFixed(1)}% done</span><span>£0</span></div>
+    <div class="fin-stats" style="margin-top:14px">
+      <div class="fin-stat ${start - now >= 0 ? "good" : "bad"}"><div class="lab">Paid off</div><div class="val">${money0(start - now)}</div><div class="sub">${start - now >= 0 ? "Down since you started tracking." : "UP since you started — new borrowing."}</div></div>
+      <div class="fin-stat good"><div class="lab">Interest saved</div><div class="val">${money0(saved)}</div><div class="sub">Against paying only the minimum.${saved ? "" : " Starts counting at the first statement date."}</div></div>
+      <div class="fin-stat bad"><div class="lab">Interest ticking today</div><div class="val">${ticking.length ? money(ticking.reduce((a, t) => a + t.v, 0)) : "£0"}</div><div class="sub">${ticking.length ? esc(ticking[0].d.name) + " is costing " + money(ticking[0].v) + " today." : "Nothing with a known rate."}</div></div>
+      <div class="fin-stat ${streak ? "good" : "bad"}"><div class="lab">No new borrowing</div><div class="val">${streak} month${streak === 1 ? "" : "s"}</div><div class="sub">${streak ? "In a row. Keep it going." : "Reset — something was drawn this month."}</div></div>
+    </div>
+  </div></section>`;
+}
+/* Interest the minimum-only path would have charged over the first n statement periods. */
+function debtMinInterest(d, n) {
+  let bal = debtOpening(d), int = 0; const r = debtMonthlyRate(d);
+  for (let i = 0; i < n && bal > 0; i++) { const it = bal * r; int += it; bal += it; bal -= Math.min(bal, debtMinDue(d, bal, d.plans)); }
+  return int;
+}
+
+function debtWaterfallHtml(st) {
+  const { doc, info, L, order, P, rec } = st;
+  const hm = doc.debts.filter((d) => d.kind === "hmrc");
+  const extra = order.map((id) => doc.debts.find((d) => d.id === id)).filter((d) => d && d.kind !== "hmrc");
+  const rest = doc.debts.filter((d) => !hm.includes(d) && !extra.includes(d));
+  const list = hm.concat(extra, rest);
+  const costMore = P.roll.interest - P.rollRec.interest;
+  const own = (doc.settings.order || []).length;
+  const rolls = [];
+  for (const d of list) {
+    const c = P.roll.clears[d.id];
+    if (!c) continue;
+    // the first debt down the order that is still owing when this one clears
+    const next = order.map((id) => doc.debts.find((x) => x.id === id))
+      .find((x) => x && x.id !== d.id && (!P.roll.clears[x.id] || P.roll.clears[x.id] > c));
+    const pay = d.contract.type === "plans" ? "instalments roll" : money0(debtDue(d, null, null)) + "/month rolls";
+    if (next) rolls.push(`When ${esc(d.name)} clears (est. ${ymLabel(c)}) its ${pay} onto ${esc(next.name)}.`);
+  }
+  return `<section><div class="card">
+    <div class="cardhead"><div><div class="chead">The order</div>
+      <div class="csub">Every contractual payment is paid first — HMRC's Time to Pay at the top. Extra money goes to the dearest debt.</div></div></div>
+    ${own && Math.abs(costMore) >= 1 ? `<div class="dl-alarm amber"><b>Your order costs ${money0(costMore)} more in interest than the recommended one.</b><span><button class="linkbtn" id="dlOrderReset">Go back to the recommended order</button></span></div>` : ""}
+    <div class="dl-list">${list.map((d, i) => debtRowHtml(st, d, extra.indexOf(d), extra.length)).join("")}</div>
+    ${rolls.length ? `<div class="hint">${rolls.join(" ")}</div>` : ""}
+  </div></section>`;
+}
+function debtRowHtml(st, d, pos, n) {
+  const { info, L, P } = st;
+  const x = info[d.id];
+  const open = debtOpening(d);
+  const pct = x.bal !== null && open > 0 ? Math.max(0, Math.min(100, (open - x.bal) / open * 100)) : 0;
+  const clears = P.roll.clears[d.id];
+  const due = d.contract.type === "plans" ? x.plans.reduce((a, p) => a + p.inst, 0) : debtDue(d, x.bal, null);
+  const dueTxt = d.contract.type === "ttp" ? (due ? money(due) + "/month Time to Pay" : "Time to Pay: enter from HMRC")
+    : d.contract.type === "plans" ? money(due) + " due next month (" + x.plans.length + " plan" + (x.plans.length === 1 ? "" : "s") + ")"
+    : due ? money(due) + "/month" + (d.contract.day ? " on the " + d.contract.day + nth(d.contract.day) : "") : "—";
+  const tag = d.kind === "hmrc" ? `<span class="dl-tag top">Top — contractual</span>`
+    : d.personal ? `<span class="dl-tag">Personal — not in business totals</span>`
+    : d.noExtra ? `<span class="dl-tag">0% — never overpaid</span>`
+    : pos === 0 ? `<span class="dl-tag go">Extra goes here</span>` : "";
+  const neil = d.noExtra && debtEffCost(d) === 0
+    ? `<div class="hint">0% — paying early saves £0. His ${money0(d.contract.amount || 0)} rolls onto the next debt when he clears${clears ? " (est. " + ymLabel(clears) + ")" : ""}.</div>` : "";
+  const moves = pos >= 0 ? `<span class="dl-mv"><button class="iconbtn" data-up="${esc(d.id)}" ${pos === 0 ? "disabled" : ""} aria-label="Move up">↑</button><button class="iconbtn" data-down="${esc(d.id)}" ${pos === n - 1 ? "disabled" : ""} aria-label="Move down">↓</button></span>` : "";
+  return `<div class="dl-debt ${d.personal ? "personal" : ""} ${x.cleared ? "cleared" : ""}" data-debt="${esc(d.id)}">
+    <div class="dl-top"><div><div class="dl-name">${esc(d.name)} ${tag}</div>
+      <div class="dl-meta">${esc(debtCostLabel(d))} · ${dueTxt}</div></div>
+      <div class="dl-bal">${x.bal === null ? `<span class="tbd">enter from statement</span>` : x.cleared ? `<span class="good">Cleared</span>` : money(x.bal)}
+        <div class="dl-meta">${x.bal !== null && !x.cleared ? (clears ? "clears " + ymLabel(clears) + " at current plan" : "not clearing at current plan") : ""}</div></div></div>
+    ${x.bal !== null && !x.cleared ? `<div class="dl-bar"><i style="width:${pct.toFixed(1)}%"></i></div>` : ""}
+    ${neil}
+    <div class="dl-acts">${moves}<button class="linkbtn" data-edit="${esc(d.id)}">${S.debtEdit === d.id ? "Close" : "Edit / reconcile"}</button>
+      <button class="linkbtn" data-ledger="${esc(d.id)}">${S.debtLedger === d.id ? "Hide history" : "History (" + L[d.id].length + ")"}</button></div>
+    ${S.debtEdit === d.id ? debtEditHtml(st, d) : ""}
+    ${S.debtLedger === d.id ? debtLedgerHtml(st, d) : ""}
+  </div>`;
+}
+const nth = (n) => (n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th");
+function debtLedgerHtml(st, d) {
+  const L = st.L[d.id];
+  if (!L.length) return `<div class="hint">No payments matched yet. Check the match words under Edit.</div>`;
+  const label = { payment: "Payment", borrowing: "BORROWING", interest: "Interest", fee: "Fee", adjustment: "Adjustment" };
+  return `<div class="fin-tw" style="margin-top:8px"><table class="fin"><tbody>${L.slice().reverse().map((e) =>
+    `<tr class="${e.before ? "dl-before" : ""} ${e.type === "borrowing" ? "dl-borrow" : ""}"><td class="dt">${dmy(e.date)}</td>
+     <td>${esc(e.bounced ? (e.amount < 0 ? "Payment — BOUNCED" : "Came back") : label[e.type])}${e.pending ? " (waiting for the bank line)" : ""}${e.src === "computed" ? " <small class=\"faint\">worked out</small>" : ""}
+       <div class="dl-meta">${esc(e.note || e.desc || "")}${e.before ? " — before the opening balance, history only" : ""}</div></td>
+     <td class="num">${e.amount > 0 ? "+" : "−"}${money(Math.abs(e.amount))}</td></tr>`).join("")}</tbody></table></div>`;
+}
+function debtEditHtml(st, d) {
+  const v = (x) => (x === null || x === undefined ? "" : esc(String(x)));
+  const bal = st.info[d.id].bal;
+  const s = d.statement || {};
+  const diff = s.amount != null && bal !== null ? s.amount - bal : null;
+  const h = d.hmrc || {};
+  return `<div class="dl-edit" data-form="${esc(d.id)}">
+    <div class="maprow">
+      <div><label>Opening balance (£)</label><input class="fin-in" data-k="opening.amount" type="number" step="0.01" value="${v(d.opening.amount)}" placeholder="${d.kind === "flexipay" ? "from the plans" : "enter from statement"}"></div>
+      <div><label>As of</label><input class="fin-in" data-k="opening.date" type="date" value="${v(d.opening.date)}"></div>
+      <div><label>Cost</label><select class="fin-in" data-k="cost.type">${[["monthly_pct", "% a month"], ["apr_pct", "% a year"], ["fee_per_draw_pct", "% fee per draw"], ["none", "0% / none"], ["unknown", "not known yet"]]
+        .map(([k, l]) => `<option value="${k}" ${d.cost.type === k ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+      <div><label>Rate</label><input class="fin-in" data-k="cost.value" type="number" step="0.01" value="${v(d.cost.value)}"></div>
+      <div><label>Payment (£/month)</label><input class="fin-in" data-k="contract.amount" type="number" step="0.01" value="${v(d.contract.amount)}" ${d.contract.type === "plans" ? "disabled placeholder=\"from the plans\"" : ""}></div>
+      <div><label>Day of month</label><input class="fin-in" data-k="contract.day" type="number" min="1" max="31" value="${v(d.contract.day)}"></div>
+      <div><label>Extra I add (£/month)</label><input class="fin-in" data-k="extra" type="number" step="10" value="${v(d.extra)}" ${debtTakesExtra(d) ? "" : "disabled"}></div>
+    </div>
+    <div class="maprow">
+      <div style="grid-column:span 2"><label>Payments look like (comma-separated)</label><input class="fin-in" data-k="payMatch" value="${v((d.payMatch || []).join(", "))}"></div>
+      <div style="grid-column:span 2"><label>New borrowing looks like</label><input class="fin-in" data-k="borrowMatch" value="${v((d.borrowMatch || []).join(", "))}"></div>
+      <div style="grid-column:span 2"><label>But never these</label><input class="fin-in" data-k="excludeMatch" value="${v((d.excludeMatch || []).join(", "))}"></div>
+    </div>
+    ${d.kind === "flexipay" ? `<div><label>Plans — one a line: REF instalment left day</label><textarea class="fin-in" data-k="plans" rows="4">${esc((d.plans || []).map((p) => [p.ref, p.inst, p.left, p.day || ""].join(" ")).join("\n"))}</textarea></div>` : ""}
+    ${d.kind === "hmrc" ? `<div class="maprow">
+      ${["vat", "paye", "ct", "other"].map((k) => `<div><label>${{ vat: "VAT", paye: "PAYE / NIC", ct: "Corporation Tax", other: "Other" }[k]} owed</label><input class="fin-in" data-k="hmrc.heads.${k}" type="number" step="0.01" value="${v(h.heads && h.heads[k])}" placeholder="enter"></div>`).join("")}
+      <div><label>Time to Pay £/month</label><input class="fin-in" data-k="hmrc.ttp.amount" type="number" step="0.01" value="${v(h.ttp && h.ttp.amount)}"></div>
+      <div><label>TTP day</label><input class="fin-in" data-k="hmrc.ttp.day" type="number" min="1" max="31" value="${v(h.ttp && h.ttp.day)}"></div>
+    </div>
+    <div><label>Current taxes due — one a line: what amount date (e.g. VAT 4200 2026-12-07)</label><textarea class="fin-in" data-k="hmrc.due" rows="3">${esc((h.due || []).map((x) => [x.what, x.amount ?? "", x.date || ""].join(" ")).join("\n"))}</textarea></div>
+    <div class="hint">Enter the heads and the opening balance becomes their total.</div>` : ""}
+    <div class="maprow">
+      <div><label>Statement balance (£)</label><input class="fin-in" data-k="statement.amount" type="number" step="0.01" value="${v(s.amount)}"></div>
+      <div><label>Statement date</label><input class="fin-in" data-k="statement.date" type="date" value="${v(s.date)}"></div>
+      <div style="grid-column:span 2;align-self:end">${diff !== null && Math.abs(diff) >= 0.01
+        ? `The ledger says ${money(bal)} — ${money(Math.abs(diff))} ${diff > 0 ? "less" : "more"} than the statement. <button class="abtn" data-recon="${esc(d.id)}"><span>Post ${diff > 0 ? "+" : "−"}${money(Math.abs(diff))} (reconciled to ${dmy(s.date)})</span></button>`
+        : diff !== null ? "Matches the statement." : "Type the closing balance from the lender's statement to check the ledger."}</div>
+    </div>
+    <div><label>Notes</label><input class="fin-in" data-k="notes" value="${v(d.notes)}"></div>
+    ${d.opening.note ? `<div class="hint">${esc(d.opening.note)}</div>` : ""}${d.contract.note ? `<div class="hint">${esc(d.contract.note)}</div>` : ""}
+    <div class="actionbar"><button class="abtn primary" data-save="${esc(d.id)}"><span>Save</span></button></div>
+  </div>`;
+}
+
+function debtPotsHtml(st) {
+  const { doc, L, today } = st;
+  const neil = doc.debts.find((d) => d.id === "neil");
+  const hot = debtHot(doc);
+  const ym = ymOf(today);
+  const neilPaid = neil && L.neil.some((e) => e.type === "payment" && !e.bounced && ymOf(e.date) === ym);
+  const h = doc.debts.find((d) => d.kind === "hmrc");
+  const next = h && h.hmrc ? (h.hmrc.due || []).filter((x) => x.date && x.date >= today).sort((a, b) => (a.date < b.date ? -1 : 1))[0] : null;
+  const tp = doc.settings.taxPot;
+  const cover = next && next.amount != null && tp && tp.amount != null ? tp.amount - next.amount : null;
+  return `<section class="ck-grid"><div class="ck-main"><div class="card">
+      <div class="chead">${hot ? "Debt pot" : "Investment pot"} — Neil first</div>
+      <div class="csub">${hot ? "Renamed from the Investment pot while any debt costs more than 10% a year." : "No debt costs more than 10% a year — it can be the Investment pot again."}</div>
+      <div id="dlPot" class="dl-big small">${neilPaid ? "Neil is paid for " + esc(ymLabel(ym)) + "." : "Working out this month's pot…"}</div>
+      <div class="hint">Its first call is Neil's £1,000 on the 26th–28th. Anything above £1,000 in a month goes to the top debt as extra. Neil is never overpaid.</div>
+    </div></div>
+    <aside class="ck-rail"><div class="card dl-ring">
+      <div class="chead">Current taxes (ring-fenced)</div>
+      <div class="csub">This money is not available for debt or anything else.</div>
+      <div class="dl-big small">${tp && tp.amount != null ? money(tp.amount) + " in the tax pot" : "Tax pot: enter from statement"}</div>
+      <div>${next ? "Next: " + esc(next.what) + " " + (next.amount != null ? money(next.amount) : "amount to enter") + " on " + dmy(next.date) : "Next VAT / PAYE: enter under HMRC → Edit."}</div>
+      ${cover !== null ? `<div class="dl-cover ${cover >= 0 ? "good" : "bad"}">${cover >= 0 ? "Will cover it" : "Short by " + money(-cover)}</div>` : ""}
+      <div class="dl-row"><label>Tax pot balance <input class="fin-in" id="dlTaxPot" type="number" step="0.01" value="${tp && tp.amount != null ? tp.amount : ""}" placeholder="from statement"></label></div>
+    </div></aside></section>`;
+}
+/* Any business debt dearer than 10% a year with something still owed. */
+function debtHot(doc) {
+  if (!doc) return false;
+  const L = S.debtRows ? debtLedgers(doc, S.debtRows, ymd(new Date())) : null;
+  return doc.debts.some((d) => !d.personal && (debtEffCost(d) || 0) > 0.10
+    && (!L || (debtBalance(d, L[d.id]) ?? 1) > 0.005));
+}
+/* The Debt pot this month: what the logged weekly moves put in it. */
+async function debtLoadPot(st) {
+  const el = $("dlPot"); if (!el || /paid for/.test(el.textContent)) return;
+  const ym = ymOf(st.today);
+  let ws = weekStartOf(ym + "-01", S.settings.weekStartDow);
+  if (ws < ym + "-01") ws = addDays(ws, 7);
+  let pot = 0;
+  try {
+    for (; ws <= st.today && ymOf(ws) === ym; ws = addDays(ws, 7)) {
+      const w = (await api("finweek=" + ws)).week;
+      if (w && w.moved) pot += Number(w.invest) || 0;
+    }
+  } catch { el.textContent = "Could not read this month's pot moves."; return; }
+  const gap = 1000 - pot;
+  el.innerHTML = gap > 0
+    ? `Debt pot ${money0(pot)} — Neil needs £1,000 — <b class="bad">${money0(gap)} from operating cash</b>`
+    : `Debt pot ${money0(pot)} — Neil's £1,000 is covered${pot > 1000 ? `, and <b class="good">${money0(pot - 1000)}</b> can go to the top debt as extra` : ""}.`;
+}
+
+function debtProjectionHtml(st) {
+  const { P, doc, info, states } = st;
+  if (!states.length) return "";
+  const rows = states.map((s) => `<tr><td>${esc(s.d.name)}</td>
+    <td class="num">${debtLabelYm(P.min.clears[s.d.id])}<div class="dl-meta">${money0(P.min.perDebt[s.d.id])}</div></td>
+    <td class="num">${debtLabelYm(P.plan.clears[s.d.id])}<div class="dl-meta">${money0(P.plan.perDebt[s.d.id])}</div></td>
+    <td class="num">${debtLabelYm(P.roll.clears[s.d.id])}<div class="dl-meta">${money0(P.roll.perDebt[s.d.id])}</div></td></tr>`).join("");
+  const wi = Number(S.debtWhatIf) || 0;
+  return `<section><div class="card">
+    <div class="cardhead"><div><div class="chead">When it is all gone</div>
+      <div class="csub">Only debts with a balance entered. Under each date: the interest it will cost.</div></div></div>
+    ${debtChartSvg(P.whatIf, states)}
+    <div class="fin-tw"><table class="fin"><thead><tr><th>Debt</th><th style="text-align:right">Minimum only</th><th style="text-align:right">Current plan</th><th style="text-align:right">Plan + roll-on</th></tr></thead>
+      <tbody>${rows}<tr class="dl-tot"><td>Debt-free</td><td class="num">${debtLabelYm(P.min.free)}<div class="dl-meta">${money0(P.min.interest)}</div></td>
+      <td class="num">${debtLabelYm(P.plan.free)}<div class="dl-meta">${money0(P.plan.interest)}</div></td>
+      <td class="num">${debtLabelYm(P.roll.free)}<div class="dl-meta">${money0(P.roll.interest)}</div></td></tr></tbody></table></div>
+    <div class="hint">Plan + roll-on saves <b>${money0(P.min.interest - P.roll.interest)}</b> of interest against minimum-only.</div>
+    <div class="dl-whatif"><label>What if I found <b id="dlWiVal">${money0(wi)}</b> extra a month?
+      <input type="range" id="dlWhatIf" min="0" max="2000" step="50" value="${wi}"></label>
+      <div id="dlWiOut">${wi ? `Debt-free <b>${debtLabelYm(P.whatIf.free)}</b> instead of ${debtLabelYm(P.roll.free)}, saving <b>${money0(P.roll.interest - P.whatIf.interest)}</b> more interest.` : "Slide to see what each extra £100 a month is worth."}</div></div>
+  </div></section>`;
+}
+function debtChartSvg(proj, states) {
+  const ms = proj.months; if (!ms.length) return "";
+  const W = 640, H = 200, pl = 44, pb = 22, pt = 8, pr = 8;
+  const ids = states.map((s) => s.d.id);
+  const tot0 = states.reduce((a, s) => a + s.bal, 0);
+  const pts = [{ bals: Object.fromEntries(states.map((s) => [s.d.id, s.bal])) }].concat(ms);
+  const max = Math.max(tot0, ...ms.map((m) => ids.reduce((a, id) => a + (m.bals[id] || 0), 0))) || 1;
+  const x = (i) => pl + (W - pl - pr) * i / (pts.length - 1 || 1);
+  const y = (v) => pt + (H - pt - pb) * (1 - v / max);
+  let below = pts.map(() => 0);
+  const paths = ids.map((id, k) => {
+    const top = pts.map((p, i) => below[i] + (p.bals[id] || 0));
+    const d = "M" + top.map((v, i) => x(i).toFixed(1) + "," + y(v).toFixed(1)).join("L")
+      + "L" + below.map((v, i) => [i, v]).reverse().map(([i, v]) => x(i).toFixed(1) + "," + y(v).toFixed(1)).join("L") + "Z";
+    below = top;
+    return `<path d="${d}" fill="${DEBT_COLOURS[k % DEBT_COLOURS.length]}" fill-opacity=".85"><title>${esc(states[k].d.name)}</title></path>`;
+  }).join("");
+  const step = Math.max(1, Math.ceil(pts.length / 8));
+  const ticks = pts.map((p, i) => i % step === 0 && i ? `<text x="${x(i)}" y="${H - 6}" text-anchor="middle">${esc(ymLabel(p.ym).replace(" 20", " '"))}</text>` : "").join("");
+  return `<svg class="dl-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Projected balances to zero">
+    <text x="${pl - 6}" y="${y(max) + 4}" text-anchor="end">${money0(max)}</text><text x="${pl - 6}" y="${y(0)}" text-anchor="end">£0</text>
+    <line x1="${pl}" x2="${W - pr}" y1="${y(0)}" y2="${y(0)}" class="ax"/>${paths}${ticks}</svg>
+    <div class="dl-legend">${states.map((s, k) => `<span><i style="background:${DEBT_COLOURS[k % DEBT_COLOURS.length]}"></i>${esc(s.d.name)}</span>`).join("")}</div>`;
+}
+
+function debtMilestonesHtml(st) {
+  const ms = debtMilestones(st.doc, st.L, st.P.roll).filter((m) => m.applies);
+  const hit = ms.filter((m) => m.hit), next = ms.find((m) => !m.hit && m.when);
+  const base = st.doc.settings.baseline;
+  let ahead = "";
+  if (next && base && base.when && base.when[next.key]) {
+    const days = Math.round((new Date(base.when[next.key] + "-01") - new Date(next.when + "-01")) / 864e5);
+    ahead = days === 0 ? " — on plan" : days > 0 ? ` — ${days} days ahead of plan` : ` — ${-days} days behind plan`;
+  }
+  return `<section><div class="card">
+    <div class="cardhead"><div><div class="chead">Milestones</div><div class="csub">Dated from the bank, the day each one happened.</div></div>
+      <div class="cardhead-r"><button class="pb-jump" id="dlBaseline">${base ? "Re-lock plan" : "Lock in this plan"}</button></div></div>
+    ${next ? `<div class="dl-big small">Next: ${esc(next.label)} — est. ${ymLabel(next.when)}${ahead}</div>` : ""}
+    <div class="dl-shelf">${hit.length ? hit.map((m) => `<span class="dl-trophy">★ ${esc(m.label)} <small>${dmy(m.hit)}</small></span>`).join("")
+      : `<span class="hint" style="margin:0">The shelf is empty — the first one is ${next ? esc(next.label.toLowerCase()) : "coming"}.</span>`}</div>
+    ${!base ? `<div class="hint">Lock in the plan to see whether you are ahead or behind it as the months go.</div>` : ""}
+  </div></section>`;
+}
+
+function debtReviewHtml(st) {
+  const ym = ymOf(st.today);
+  const cards = [ymAdd(ym, -1), ym].map((m) => debtMonthReview(st.doc, st.L, m)).map((r) =>
+    `<div class="card"><div class="chead">${esc(ymLabel(r.ym))}${r.ym === ym ? " so far" : ""}</div>
+      <div class="dl-rev"><span>Paid <b>${money0(r.paid)}</b></span><span>Interest <b>${r.tracked ? money0(r.interest) : "not tracked yet"}</b></span>
+      <span class="${r.borrowed ? "bad" : ""}">New borrowing <b>${money0(r.borrowed)}</b></span><span class="${r.bounced ? "bad" : ""}">Bounced <b>${r.bounced}</b></span>
+      <span>Net reduction <b class="${r.net >= 0 ? "good" : "bad"}">${money0(r.net)}</b></span></div>
+      <div class="hint" style="margin-top:6px">${esc(r.verdict)}</div></div>`).join("");
+  return `<section><div class="ctitle" style="margin:0 0 8px">Month in review</div><div class="dl-two">${cards}</div></section>`;
+}
+
+function debtNeedsReviewHtml(st) {
+  const { doc } = st;
+  const since = addDays(st.today, -60);
+  const words = [...new Set(doc.debts.map((d) => String(d.lender || "").toUpperCase()).filter((w) => w.length >= 4))];
+  const list = S.debtRows.filter((r) => !r.del && r.date >= since && !DEBT_REVERSAL.test(r.desc) && !debtOfRow(r, doc.debts)
+    && words.some((w) => String(r.desc).toUpperCase().includes(w)));
+  if (!list.length) return "";
+  return `<section><div class="card"><div class="chead">Needs review</div>
+    <div class="csub">These mention a lender but no debt claimed them. If one is a debt payment, add its words to that debt under Edit.</div>
+    <div class="fin-tw"><table class="fin"><tbody>${list.map((r) => `<tr><td class="dt">${dmy(r.date)}</td><td class="ds"><span class="desc">${esc(r.desc)}</span></td><td class="num">${r.dir === "in" ? "+" : "−"}${money(r.amount)}</td></tr>`).join("")}</tbody></table></div>
+  </div></section>`;
+}
+
+function debtCelebrate(st) {
+  for (const d of st.doc.debts) {
+    if (!st.info[d.id].cleared || d.personal) continue;
+    const k = "fin.debt.cleared." + d.id;
+    let seen = false; try { seen = !!localStorage.getItem(k); } catch {}
+    if (seen) continue;
+    try { localStorage.setItem(k, "1"); } catch {}
+    const next = st.order.map((id) => st.doc.debts.find((x) => x.id === id)).find((x) => x && x.id !== d.id && !st.info[x.id].cleared);
+    toast("🎉 " + d.name + " is CLEARED." + (next ? " Its payment rolls onto " + next.name + " from next month." : ""));
+  }
+}
+
+/* ---------- the tab: what the controls do ---------- */
+function debtReadForm(id) {
+  const form = document.querySelector(`.dl-edit[data-form="${id}"]`);
+  const d = debtClone(S.debtDoc.debts.find((x) => x.id === id));
+  const val = (k) => { const el = form.querySelector(`[data-k="${k}"]`); return el ? el.value.trim() : undefined; };
+  const num = (k) => { const s = val(k); return s === undefined ? undefined : s === "" ? null : Number(s); };
+  const list = (k) => (val(k) || "").split(",").map((x) => x.trim()).filter(Boolean);
+  d.opening.amount = num("opening.amount"); d.opening.date = val("opening.date") || null;
+  d.cost.type = val("cost.type"); d.cost.value = num("cost.value");
+  if (d.contract.type !== "plans") d.contract.amount = num("contract.amount");
+  d.contract.day = num("contract.day");
+  d.extra = num("extra") || null;
+  d.payMatch = list("payMatch"); d.borrowMatch = list("borrowMatch"); d.excludeMatch = list("excludeMatch");
+  d.statement = { amount: num("statement.amount"), date: val("statement.date") || null };
+  d.notes = val("notes") || "";
+  if (d.kind === "flexipay") d.plans = (val("plans") || "").split("\n").map((l) => l.trim().split(/\s+/)).filter((p) => p[0])
+    .map(([ref, inst, left, day]) => ({ ref: ref.toUpperCase(), inst: Number(inst) || 0, left: Number(left) || 0, day: Number(day) || null }));
+  if (d.kind === "hmrc") {
+    d.hmrc = d.hmrc || {};
+    d.hmrc.heads = Object.fromEntries(["vat", "paye", "ct", "other"].map((k) => [k, num("hmrc.heads." + k)]));
+    d.hmrc.ttp = { ...(d.hmrc.ttp || {}), amount: num("hmrc.ttp.amount"), day: num("hmrc.ttp.day") };
+    d.hmrc.due = (val("hmrc.due") || "").split("\n").map((l) => l.trim()).filter(Boolean).map((l) => {
+      const m = /^(.+?)\s+([\d.]+)?\s*(\d{4}-\d{2}-\d{2})?$/.exec(l) || [];
+      return { what: (m[1] || l).trim(), amount: m[2] ? Number(m[2]) : null, date: m[3] || null };
+    });
+    const heads = Object.values(d.hmrc.heads).filter((x) => x != null);
+    if (heads.length && d.opening.amount == null) d.opening.amount = Math.round(heads.reduce((a, x) => a + x, 0) * 100) / 100;
+  }
+  return d;
+}
+function wireDebts() {
+  const root = $("debtsRoot");
+  root.addEventListener("click", async (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    const doc = S.debtDoc;
+    if (b.dataset.edit) { S.debtEdit = S.debtEdit === b.dataset.edit ? null : b.dataset.edit; renderDebts(); return; }
+    if (b.dataset.ledger) { S.debtLedger = S.debtLedger === b.dataset.ledger ? null : b.dataset.ledger; renderDebts(); return; }
+    if (b.dataset.up || b.dataset.down) {
+      const order = debtOrder(doc), id = b.dataset.up || b.dataset.down, i = order.indexOf(id), j = i + (b.dataset.up ? -1 : 1);
+      if (i < 0 || j < 0 || j >= order.length) return;
+      [order[i], order[j]] = [order[j], order[i]];
+      doc.settings.order = order; renderDebts(); await saveDebts(); return;
+    }
+    if (b.id === "dlOrderReset") { doc.settings.order = []; renderDebts(); await saveDebts("Back to the recommended order"); return; }
+    if (b.dataset.save) {
+      const d = debtReadForm(b.dataset.save);
+      const before = debtClone(doc);
+      doc.debts = doc.debts.map((x) => (x.id === d.id ? d : x));
+      S.debtEdit = null; renderDebts();
+      await saveDebts();
+      const moved = await debtRetagAll();
+      toastUndo(d.name + " saved" + (moved ? " — " + moved + " month" + (moved === 1 ? "" : "s") + " re-tagged" : ""), "Undo", async () => {
+        S.debtDoc = before; await saveDebts(); await debtRetagAll(); renderDebts(); });
+      renderDebts(); return;
+    }
+    if (b.dataset.recon) {
+      const d = doc.debts.find((x) => x.id === b.dataset.recon);
+      const st = debtState(); const bal = st.info[d.id].bal;
+      const diff = Math.round((d.statement.amount - bal) * 100) / 100;
+      const m = { id: "m" + Date.now().toString(36), debtId: d.id, date: d.statement.date, type: "adjustment", amount: diff,
+        note: "Reconciled to statement " + dmy(d.statement.date) };
+      doc.manual.push(m); renderDebts();
+      await saveDebts();
+      toastUndo("Reconciled to the statement", "Undo", async () => { doc.manual = doc.manual.filter((x) => x.id !== m.id); await saveDebts(); renderDebts(); });
+      return;
+    }
+    if (b.id === "dlPaidBtn") {
+      const amt = Number($("dlPaid").value); if (!(amt > 0)) { toast("Type the amount you paid"); return; }
+      const m = { id: "m" + Date.now().toString(36), debtId: b.dataset.debt, date: ymd(new Date()), type: "payment", amount: amt, pending: true,
+        note: "I paid — waiting for the bank line" };
+      doc.manual.push(m); renderDebts();
+      await saveDebts();
+      toastUndo("Logged " + money(amt) + " — it will match itself to the bank line", "Undo", async () => {
+        doc.manual = doc.manual.filter((x) => x.id !== m.id); await saveDebts(); renderDebts(); });
+      return;
+    }
+    if (b.id === "dlBaseline") {
+      const st = debtState();
+      doc.settings.baseline = { date: st.today, when: Object.fromEntries(debtMilestones(doc, st.L, st.P.roll)
+        .filter((m) => m.when && !m.hit).map((m) => [m.key, m.when])) };
+      await saveDebts("Plan locked — you will see whether you are ahead or behind it"); renderDebts();
+    }
+  });
+  root.addEventListener("change", async (e) => {
+    const t = e.target, doc = S.debtDoc;
+    if (t.id === "dlBank") {
+      doc.settings.bank = t.value === "" ? (S.debtImportBank || null) : { amount: Number(t.value), date: ymd(new Date()), source: "manual" };
+      renderDebts(); await saveDebts(); return;
+    }
+    if (t.id === "dlFloor") { doc.settings.floor = Number(t.value) || 0; renderDebts(); await saveDebts(); return; }
+    if (t.id === "dlTaxPot") { doc.settings.taxPot = t.value === "" ? null : { amount: Number(t.value), date: ymd(new Date()) }; renderDebts(); await saveDebts(); return; }
+    if (t.id === "dlWhatIf") { doc.settings.whatIf = Number(t.value) || 0; await saveDebts(); }
+  });
+  root.addEventListener("input", (e) => {
+    if (e.target.id !== "dlWhatIf") return;
+    S.debtWhatIf = Number(e.target.value) || 0;
+    const st = debtState();
+    $("dlWiVal").textContent = money0(S.debtWhatIf);
+    $("dlWiOut").innerHTML = S.debtWhatIf ? `Debt-free <b>${debtLabelYm(st.P.whatIf.free)}</b> instead of ${debtLabelYm(st.P.roll.free)}, saving <b>${money0(st.P.roll.interest - st.P.whatIf.interest)}</b> more interest.` : "Slide to see what each extra £100 a month is worth.";
+    const chart = e.target.closest(".card").querySelector(".dl-chart");
+    if (chart) { const w = document.createElement("div"); w.innerHTML = debtChartSvg(st.P.whatIf, st.states);
+      chart.nextElementSibling.remove(); chart.replaceWith(...w.children); }
+  });
+}
+async function openDebts() {
+  if (!S.debtRows) { renderDebts(); S.debtRows = await debtLoadAll(); }
+  S.debtWhatIf = S.debtDoc.settings.whatIf || 0;
+  renderDebts();
+}
+
+/* The closing balance of an imported statement: the newest row's Balance column. Santander
+   lists newest first, so the first row of the latest day is the closing one; a file in
+   oldest-first order is read the other way round. */
+function statementClosing(tables, fmt) {
+  let best = null;
+  for (const { t } of tables) {
+    const bi = t.headers.findIndex((h) => /balance/i.test(String(h)));
+    if (bi < 0) continue;
+    const map = guessMapping(t);
+    const rows = t.rows.map((r) => ({ date: toDate(r[map.date], fmt), bal: toAmount(r[bi]) })).filter((r) => r.date && r.bal !== null);
+    if (!rows.length) continue;
+    const newestFirst = rows[0].date >= rows[rows.length - 1].date;
+    const top = rows.reduce((a, r) => (r.date > a ? r.date : a), "");
+    const day = rows.filter((r) => r.date === top);
+    const pick = newestFirst ? day[0] : day[day.length - 1];
+    if (!best || pick.date > best.date) best = { amount: pick.bal, date: pick.date, source: "import" };
+  }
+  return best;
+}
+
+/* =====================================================================
    WIRING
    ===================================================================== */
 function setView(v) {
   S.view = v;
   document.querySelectorAll("#tabBar .vt").forEach((b) => b.classList.toggle("active", b.dataset.view === v));
-  ["cockpit", "table", "import", "txns", "breakdown", "report", "settings"].forEach((k) => { $("v-" + k).hidden = k !== v; });
-  // the month matters to every view but these two
-  $("monthBar").hidden = v === "import" || v === "settings";
+  ["cockpit", "debts", "table", "import", "txns", "breakdown", "report", "settings"].forEach((k) => { $("v-" + k).hidden = k !== v; });
+  // the month matters to every view but these three
+  $("monthBar").hidden = v === "import" || v === "settings" || v === "debts";
+  if (v === "debts") openDebts();
   $("monthLab").textContent = v === "table" ? "Year of" : "Month";
   if (v === "table") renderYear();
   if (v === "txns") renderTxns();
@@ -4167,10 +5270,10 @@ function yearMonths(year) {
    test can check the sums. trend: ym -> live rows (missing = not imported). */
 function yearFigures(span, trend) {
   const col = (ym) => trend[ym] || [];
-  const fig = { inn: {}, out: {}, tax: {}, src: {}, cat: {} };
+  const fig = { inn: {}, out: {}, tax: {}, debt: {}, src: {}, cat: {} };
   for (const ym of span) {
     const rows = col(ym);
-    fig.inn[ym] = moneyIn(rows); fig.out[ym] = moneyOut(rows); fig.tax[ym] = taxOut(rows);
+    fig.inn[ym] = moneyIn(rows); fig.out[ym] = moneyOut(rows); fig.tax[ym] = taxOut(rows); fig.debt[ym] = debtOut(rows);
     for (const r of rows) {
       if (notCounted(r)) continue;
       if (r.dir === "in") {
@@ -4185,7 +5288,7 @@ function yearFigures(span, trend) {
     }
   }
   const tot = (o) => span.reduce((a, ym) => a + (o[ym] || 0), 0);
-  fig.ytdIn = tot(fig.inn); fig.ytdOut = tot(fig.out); fig.ytdTax = tot(fig.tax);
+  fig.ytdIn = tot(fig.inn); fig.ytdOut = tot(fig.out); fig.ytdTax = tot(fig.tax); fig.ytdDebt = tot(fig.debt);
   fig.srcTot = {}; for (const k in fig.src) fig.srcTot[k] = tot(fig.src[k]);
   fig.catTot = {}; for (const k in fig.cat) fig.catTot[k] = tot(fig.cat[k]);
   return fig;
@@ -4209,13 +5312,13 @@ async function renderYear() {
   if (S.months.includes(S.ym)) S.trend[S.ym] = S.rows;
   const trend = {}; for (const ym of have) trend[ym] = S.trend[ym];
   const f = yearFigures(span, trend);
-  const net = f.ytdIn - f.ytdOut, pre = net + f.ytdTax, n = have.length || 1;
+  const net = f.ytdIn - f.ytdOut, pre = net + f.ytdTax + f.ytdDebt, n = have.length || 1;
   $("ytStats").innerHTML = [
     ["good", "Money in this year", money0(f.ytdIn), money0(f.ytdIn / n) + " a month on average, over "
       + have.length + " of " + span.length + " months imported."],
-    [pre >= 0 ? "good" : "bad", "Net before tax", money0(pre), money0(pre / n) + " a month on average."],
-    ["", "Tax paid this year", money0(f.ytdTax), "VAT, HMRC and arrears."],
-    [net >= 0 ? "good" : "bad", "Net after tax", money0(net), "What the year has really added to your cash."],
+    [pre >= 0 ? "good" : "bad", "Net before tax & debts", money0(pre), money0(pre / n) + " a month on average."],
+    ["", "Tax & debts paid", money0(f.ytdTax + f.ytdDebt), money0(f.ytdTax) + " tax, " + money0(f.ytdDebt) + " debt repayments."],
+    [net >= 0 ? "good" : "bad", "Net after both", money0(net), "What the year has really added to your cash."],
   ].map(([tone, lab, val, sub]) => `<div class="fin-stat ${tone}"><div class="lab">${esc(lab)}</div>
       <div class="val">${esc(val)}</div><div class="sub">${esc(sub)}</div></div>`).join("");
 
@@ -4235,10 +5338,11 @@ async function renderYear() {
   const line = (label, by, total, cls) => `<tr${cls ? ` class="${cls}"` : ""}><td>${esc(label)}</td>${
     span.map((ym) => cell(ym, by[ym] || 0)).join("")}${ytd(total)}</tr>`;
   let body = `<tr class="tot"><td>Money in</td>${span.map((ym) => cell(ym, f.inn[ym], green)).join("")}${ytd(f.ytdIn, green)}</tr>`
-    + `<tr class="tot"><td>Running costs</td>${span.map((ym) => cell(ym, f.out[ym] - f.tax[ym])).join("")}${ytd(f.ytdOut - f.ytdTax)}</tr>`
-    + netRow("Net before tax", (ym) => f.inn[ym] - f.out[ym] + f.tax[ym], pre)
+    + `<tr class="tot"><td>Running costs</td>${span.map((ym) => cell(ym, f.out[ym] - f.tax[ym] - f.debt[ym])).join("")}${ytd(f.ytdOut - f.ytdTax - f.ytdDebt)}</tr>`
+    + netRow("Net before tax & debts", (ym) => f.inn[ym] - f.out[ym] + f.tax[ym] + f.debt[ym], pre)
     + `<tr><td>Tax paid</td>${span.map((ym) => cell(ym, f.tax[ym])).join("")}${ytd(f.ytdTax)}</tr>`
-    + netRow("Net after tax", (ym) => f.inn[ym] - f.out[ym], net);
+    + `<tr><td>Debt repayments</td>${span.map((ym) => cell(ym, f.debt[ym])).join("")}${ytd(f.ytdDebt)}</tr>`
+    + netRow("Net after both", (ym) => f.inn[ym] - f.out[ym], net);
   const srcs = Object.keys(SRC_LABEL).filter((k) => f.srcTot[k]);
   if (srcs.length) body += sec("Money in, by where it came from")
     + srcs.map((k) => line(SRC_LABEL[k], f.src[k], f.srcTot[k])).join("");
@@ -4375,8 +5479,11 @@ function wire() {
 
 async function init() {
   wire();
+  wireDebts();
   try {
-    const [st, ru, nt] = await Promise.all([api("finsettings=1"), api("finrules=1"), api("finnotes=1")]);
+    const [st, ru, nt, db] = await Promise.all([api("finsettings=1"), api("finrules=1"), api("finnotes=1"),
+      api("findebts=1").catch(() => ({ doc: null }))]);
+    S.debtDoc = db.doc || debtClone(DEBT_SEED);
     S.settings = st.settings; S.rules = ru.rules || [];
     S.notes = (nt.notes && nt.notes.facts) || [];
     S.notesPrev = (nt.notes && nt.notes.previous) || [];
@@ -4386,6 +5493,7 @@ async function init() {
       transferKeyword: "BODYSCULPT TRANSFORMATION CENTRES",
       allocatable: ["stripe", "gocardless"], categories: DEFAULT_CATS };
     S.rules = []; S.notes = []; S.notesPrev = [];
+    S.debtDoc = debtClone(DEBT_SEED);
     toast("Working offline — changes will not save");
   }
   bustRules();
@@ -4395,7 +5503,7 @@ async function init() {
   await loadWeek();
   let v = "cockpit";
   try { v = localStorage.getItem("fin.view") || "cockpit"; } catch {}
-  setView(["cockpit", "table", "import", "txns", "breakdown", "report", "settings"].includes(v) ? v : "cockpit");
+  setView(["cockpit", "debts", "table", "import", "txns", "breakdown", "report", "settings"].includes(v) ? v : "cockpit");
   if (!S.months.length) setView("import");
 }
 init();

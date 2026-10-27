@@ -608,7 +608,81 @@ const FIN_RULES_KEY = "finance-rules";
 // structured, because the value is in the wording he used.
 const FIN_NOTES_KEY = "finance-notes";
 const FIN_WEEK_PREFIX = "finance-week-";     // + "YYYY-MM-DD" (the Thursday it starts)
+// v265: the Debts tab. ONE blob: the debts (what Ash entered from statements), the manual
+// ledger entries ("I paid £___", statement reconciliations) and the tab's settings.
+// Payments and draw-downs are NOT stored here — they are worked out from the imported
+// transactions every time, so a balance can never drift from the statements it came from.
+const FIN_DEBTS_KEY = "finance-debts";
 function finTxnKeyOf(ym) { return FIN_TXN_PREFIX + ym; }
+
+/* v265: whitelist + coerce the Debts document. Every field is named; anything else is
+   dropped. A missing number stays null ("enter from statement") — it is never turned
+   into 0, because a 0 balance would claim a debt is cleared. */
+const DEBT_KINDS = ["card", "flexipay", "term_loan", "buyout", "hmrc", "other"];
+const DEBT_COSTS = ["monthly_pct", "apr_pct", "fee_per_draw_pct", "none", "unknown"];
+const DEBT_CONTRACTS = ["fixed", "plans", "ttp", "none"];
+const DEBT_ENTRY_TYPES = ["payment", "borrowing", "interest", "fee", "adjustment"];
+function dNum(v) { if (v === null || v === undefined || v === "") return null;
+  const x = Number(v); return Number.isFinite(x) ? Math.round(x * 100) / 100 : null; }
+function dDate(v) { return typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null; }
+function dDay(v) { const x = Number(v); return Number.isInteger(x) && x >= 1 && x <= 31 ? x : null; }
+function dStrs(a, n) { return (Array.isArray(a) ? a : []).map((x) => finStr(x, 80)).filter(Boolean).slice(0, n); }
+function cleanDebt(d) {
+  if (!d || typeof d !== "object") return null;
+  const id = finStr(d.id, 40).replace(/[^a-z0-9_-]/gi, "");
+  if (!id) return null;
+  const c = d.contract || {}, cost = d.cost || {}, o = d.opening || {}, h = d.hmrc || null, sb = d.statement || null;
+  return {
+    id, name: finStr(d.name, 60), lender: finStr(d.lender, 60), cat: finStr(d.cat, 34),
+    kind: DEBT_KINDS.includes(d.kind) ? d.kind : "other",
+    personal: d.personal === true, noExtra: d.noExtra === true,
+    opening: { amount: dNum(o.amount), date: dDate(o.date), note: finStr(o.note, 200) },
+    cost: { type: DEBT_COSTS.includes(cost.type) ? cost.type : "unknown", value: dNum(cost.value), approx: cost.approx === true },
+    contract: { type: DEBT_CONTRACTS.includes(c.type) ? c.type : "none", amount: dNum(c.amount),
+      day: dDay(c.day), minPct: dNum(c.minPct), minAmt: dNum(c.minAmt), note: finStr(c.note, 200) },
+    statementDay: dDay(d.statementDay),
+    payMatch: dStrs(d.payMatch, 12), borrowMatch: dStrs(d.borrowMatch, 12), excludeMatch: dStrs(d.excludeMatch, 12),
+    extra: dNum(d.extra),
+    statement: sb && typeof sb === "object" ? { amount: dNum(sb.amount), date: dDate(sb.date) } : null,
+    plans: (Array.isArray(d.plans) ? d.plans : []).slice(0, 60).map((p) => ({
+      ref: finStr(p && p.ref, 20).toUpperCase(), inst: dNum(p && p.inst),
+      left: Math.max(0, Math.min(36, Math.round(Number(p && p.left) || 0))), day: dDay(p && p.day) })).filter((p) => p.ref),
+    hmrc: h && typeof h === "object" ? {
+      heads: { vat: dNum(h.heads && h.heads.vat), paye: dNum(h.heads && h.heads.paye),
+        ct: dNum(h.heads && h.heads.ct), other: dNum(h.heads && h.heads.other) },
+      ttp: { amount: dNum(h.ttp && h.ttp.amount), day: dDay(h.ttp && h.ttp.day), start: dDate(h.ttp && h.ttp.start) },
+      due: (Array.isArray(h.due) ? h.due : []).slice(0, 12).map((x) => ({
+        what: finStr(x && x.what, 40), amount: dNum(x && x.amount), date: dDate(x && x.date) })).filter((x) => x.what),
+    } : null,
+    notes: finStr(d.notes, 1000),
+  };
+}
+function cleanDebtDoc(raw) {
+  const r = raw && typeof raw === "object" ? raw : {};
+  const st = r.settings || {};
+  const debts = (Array.isArray(r.debts) ? r.debts : []).map(cleanDebt).filter(Boolean).slice(0, 30);
+  const ids = new Set(debts.map((d) => d.id));
+  return {
+    debts,
+    manual: (Array.isArray(r.manual) ? r.manual : []).slice(0, 500).map((m) => ({
+      id: finStr(m && m.id, 40), debtId: finStr(m && m.debtId, 40), date: dDate(m && m.date),
+      type: DEBT_ENTRY_TYPES.includes(m && m.type) ? m.type : "adjustment",
+      amount: dNum(m && m.amount), pending: !!(m && m.pending), note: finStr(m && m.note, 200),
+    })).filter((m) => m.id && ids.has(m.debtId) && m.date && m.amount !== null),
+    settings: {
+      floor: dNum(st.floor) === null ? 2500 : dNum(st.floor),
+      order: dStrs(st.order, 30).filter((x) => ids.has(x)),
+      whatIf: dNum(st.whatIf) || 0,
+      bank: st.bank && typeof st.bank === "object" ? { amount: dNum(st.bank.amount), date: dDate(st.bank.date),
+        source: st.bank.source === "manual" ? "manual" : "import" } : null,
+      taxPot: st.taxPot && typeof st.taxPot === "object" ? { amount: dNum(st.taxPot.amount), date: dDate(st.taxPot.date) } : null,
+      baseline: st.baseline && typeof st.baseline === "object" ? { date: dDate(st.baseline.date),
+        when: Object.fromEntries(Object.entries(st.baseline.when || {}).slice(0, 30)
+          .map(([k, v]) => [finStr(k, 40), finStr(v, 7)]).filter(([k, v]) => k && /^\d{4}-\d{2}$/.test(v))) } : null,
+    },
+    lastUpdated: new Date().toISOString(),
+  };
+}
 
 /* v262/v264: `bankIn` — what actually LANDED IN THE BANK that month, from the Finances
    store with the same rule as that page's Money in (no own-account transfers, no
@@ -899,6 +973,12 @@ export default async (req) => {
     return Response.json({ rules: Array.isArray(rules) ? rules : [] });
   }
 
+  // GET ?findebts=1 → { doc } — the Debts tab (null until first saved; the page seeds it).
+  if (req.method === "GET" && url.searchParams.get("findebts") === "1") {
+    const saved = (await store.get(FIN_DEBTS_KEY, { type: "json" })) || null;
+    return Response.json({ doc: saved && saved.current ? saved.current : null });
+  }
+
   // GET ?finnotes=1 → { notes } — the standing brief that travels with every AI prompt.
   if (req.method === "GET" && url.searchParams.get("finnotes") === "1") {
     const saved = (await store.get(FIN_NOTES_KEY, { type: "json" })) || null;
@@ -1033,6 +1113,15 @@ export default async (req) => {
         lastUpdated: new Date().toISOString() };
       await store.set(FIN_NOTES_KEY, JSON.stringify(notes));
       return Response.json({ ok: true, notes });
+    }
+
+    // v265: save the Debts document whole. The version before it is kept beside it, so a
+    // bad edit is one step back rather than a loss.
+    if (body.finDebts && typeof body.finDebts === "object") {
+      const prev = (await store.get(FIN_DEBTS_KEY, { type: "json" })) || {};
+      const current = cleanDebtDoc(body.finDebts);
+      await store.set(FIN_DEBTS_KEY, JSON.stringify({ current, previous: prev.current || null }));
+      return Response.json({ ok: true, doc: current });
     }
 
     // Save one week's pot move. Body { finWeek: { weekStart, moved, tax, invest, note, checklist } }.

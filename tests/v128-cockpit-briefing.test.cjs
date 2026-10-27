@@ -183,7 +183,9 @@ const ok = (name, fn) => { fn(); pass++; console.log("  ok " + name); };
     ok("…and once it is done, it says so instead of asking again", () => {
       assert.strictEqual(el("pfDoK").textContent, "Done this week");
       assert.strictEqual(el("pfDo").className, "pf-do done");
-      assert.ok(/^Moved £300\.00 to the tax pot and £80\.00 to the investment pot\./.test(el("pfMovedMsg").textContent));
+      // v265: the 4% pot is called the Debt pot while a debt dearer than 10% a year is owed —
+      // the seeded debts include Capital on Tap at 3.74% a month, so here it is the debt pot
+      assert.ok(/^Moved £300\.00 to the tax pot and £80\.00 to the debt pot\./.test(el("pfMovedMsg").textContent));
       assert.strictEqual(el("ckProgress").textContent, "2 of 9 done", "ticking it moves the bar too");
       assert.strictEqual(el("ckBar").style.width, "22%");
     });
