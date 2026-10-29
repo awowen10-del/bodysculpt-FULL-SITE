@@ -99,13 +99,15 @@ const world = () => ({
     assert.ok(d.notes.includes("judged against"), "the notes came with it");
     assert.strictEqual(arr(d.files).length, 1, "and the files");
 
-    // a step with nothing on it offers nothing — no empty panel, no button
+    // v268 changed this: the panel is also where a step is MOVED from, so a step with
+    // nothing written on it still opens — it needs moving as much as any other. Its row
+    // button carries no count, because there is no checklist to count.
     const bare = ctx.wpProjItemById("ps-s_bare");
     assert.ok(bare && S.plan.projectItems.includes(bare), "a pulled step never placed on a day stays in this week's list");
-    assert.strictEqual(ctx.wpStepDetail(bare), null,
-      "a step with no notes, no checklist and no files has nothing to open");
-    assert.strictEqual(ctx.wpStepNoteBtnHtml(bare, false), "", "…so it gets no button on its row");
-    assert.strictEqual(ctx.wpStepNoteBtnHtml(bare, true), "", "…and none on its chip");
+    assert.ok(ctx.wpStepDetail(bare), "a step with no notes, no checklist and no files still opens (to be moved)");
+    assert.ok(/ic-note/.test(ctx.wpStepNoteBtnHtml(bare, false)) && !/<span>/.test(ctx.wpStepNoteBtnHtml(bare, false)),
+      "…with a button on its row and no checklist count");
+    assert.ok(/ic-note/.test(ctx.wpStepNoteBtnHtml(bare, true)), "…and one on its chip");
     // an ordinary buffer task was never pulled from anywhere
     assert.strictEqual(ctx.wpStepFor(S.plan.bufferItems[0]), null, "a task that came from nowhere has no step");
 

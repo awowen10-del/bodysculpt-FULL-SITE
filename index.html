@@ -1291,6 +1291,20 @@
     color:var(--ink-dim);background:var(--card);border:1px solid var(--line);border-radius:8px;
     padding:8px 14px;cursor:pointer;}
   .wp-sn-ckadd button:hover{border-color:var(--orange);color:var(--orange-soft);}
+  /* v268: Move — Tomorrow, or a date and Move */
+  .wp-sn-move{display:flex;flex-wrap:wrap;gap:7px;align-items:stretch;}
+  .wp-sn-mv{flex:none;display:inline-flex;align-items:center;gap:7px;font-family:inherit;font-size:13px;font-weight:700;
+    color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 13px;cursor:pointer;}
+  .wp-sn-mv span{font-weight:600;color:var(--ink-faint);}
+  .wp-sn-mv:hover:not(:disabled){border-color:var(--orange);color:var(--orange-soft);}
+  .wp-sn-mv:disabled{opacity:.45;cursor:default;}
+  .wp-sn-pick{flex:1;min-width:150px;display:inline-flex;align-items:center;gap:7px;
+    background:var(--card);border:1px solid var(--line);border-radius:8px;padding:0 10px;}
+  .wp-sn-pick .ic{width:14px;height:14px;flex:none;color:var(--ink-faint);}
+  .wp-sn-pick input{flex:1;min-width:0;font-family:inherit;font-size:13px;color:var(--ink);
+    background:transparent;border:0;padding:8px 0;}
+  .wp-sn-pick input:focus{outline:none;}
+  .wp-sn-pick:focus-within{border-color:var(--orange);box-shadow:0 0 0 3px rgba(var(--orange-rgb),.13);}
   .wp-sn-files{display:flex;flex-wrap:wrap;gap:7px;}
   .wp-sn-files a{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
     color:var(--ink-dim);background:var(--navy-2);border:1px solid var(--line);border-radius:8px;
@@ -6058,15 +6072,14 @@ function wpStepFor(item){
   const step = project && (project.steps||[]).find(x=>x.id===sid && !x.del);
   return step ? { project, step } : null;
 }
-// is there anything worth opening? A step with no notes, no checklist and no files has
-// nothing this panel could tell you that the title does not.
+// v268: every step opens, even one with no notes, no checklist and no files — the panel is
+// also where it is MOVED from now, and a bare step needs moving as much as any other.
 function wpStepDetail(item){
   const f = wpStepFor(item);
   if(!f) return null;
   const notes = String(f.step.notes||"").trim();
   const list = Array.isArray(f.step.checklist) ? f.step.checklist : [];
   const files = Array.isArray(f.step.files) ? f.step.files : [];
-  if(!notes && !list.length && !files.length) return null;
   return { ...f, notes, list, files, done:list.filter(c=>c.done).length };
 }
 // the little button that opens it, on a list row and on a grid chip
@@ -6074,7 +6087,7 @@ function wpStepNoteBtnHtml(item, compact){
   const d = wpStepDetail(item);
   if(!d) return "";
   const count = d.list.length ? `${d.done}/${d.list.length}` : "";
-  const label = `Notes and checklist for ${wpEsc(item.title||"this step")}`;
+  const label = `Open ${wpEsc(item.title||"this step")} — notes, checklist, move it`;
   if(compact){
     return `<button type="button" class="wp-chip-note" title="${label}" aria-label="${label}"
       onclick="event.preventDefault();event.stopPropagation();wpOpenStepNotes('${wpEsc(item.id)}')"><svg class="ic"><use href="#ic-note"/></svg></button>`;
@@ -6122,6 +6135,7 @@ function wpRenderStepNotes(){
   if(!body) return;
   body.innerHTML =
     (meta.length ? `<div class="wp-sn-meta">${meta.map(m=>`<span>${m}</span>`).join("")}</div>` : "") +
+    wpStepMoveHtml(item, d.step) +
     (d.notes
       ? `<div class="wp-sn-sec"><div class="wp-sn-cap">Notes</div><div class="wp-anchor-notes-view">${wpNotesToEditorHtml(d.step.notes)}</div></div>`
       : `<div class="wp-sn-sec"><div class="wp-sn-cap">Notes</div><div class="wp-sn-none">Nothing written down for this one.</div></div>`) +
@@ -6147,7 +6161,8 @@ function wpRenderStepNotes(){
           `<a href="/.netlify/functions/projects?file=${encodeURIComponent(f.id)}" target="_blank" rel="noopener">
              <svg class="ic"><use href="#ic-note"/></svg>${wpEsc(f.name)}</a>`).join("")}</div></div>`
       : "") +
-    `<div class="wp-sn-foot">Ticking, adding and deleting here all happen on the board too — this is
+    `<div class="wp-sn-foot">Moving it here moves it on the board, the daily page and the calendar.
+       Ticking, adding and deleting here all happen on the board too — this is
        the same checklist, not a copy of it. The notes are written on the board:
        <a href="/projects.html#board">open it there</a> to change them.</div>`;
 }
@@ -6412,6 +6427,74 @@ async function wpStepTakeOff(item){
   if(await wpStepLinkWrite(f.project, f.step, { week:"" })){
     wpToastUndo('"' + String(f.step.title||"Step").slice(0, 40) + '" taken off this week', ()=>wpStepLinkWrite(f.project, f.step, was));
   }
+}
+/* v268: MOVE IT FROM ITS PANEL. Ash: "I should be able to move it here. A simple Move:
+   tomorrow, and then a calendar to select the date. And again that should move everywhere."
+
+   It is the drag (wpStepMoveTo) with a date instead of a cell, so it can cross weeks: the
+   step's own day and week are written through stepLink, and its date too if it has one — the
+   v252 rule, an undated step is not handed a deadline. It keeps its time block. The board,
+   the daily page and this grid all read the step, so that one write moves it everywhere. The
+   only copy is the daily calendar's display cache: this week's is rewritten by the render, and
+   a move into another week takes its row there through the store's weeklyCancel, the same
+   way the daily page's "later" does. The way back is on the confirmation. */
+function wpYmdAdd(ymd, n){ const d = new Date(ymd+"T00:00:00Z"); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); }
+function wpYmdShort(ymd){
+  const d = new Date(String(ymd)+"T00:00:00Z");
+  if(isNaN(d)) return String(ymd);
+  const DN = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  return DN[d.getUTCDay()] + " " + wpStepDueLabel(ymd);
+}
+// the date a step is on now: its due date, or the day it was pulled to. "" if neither.
+function wpStepDateOf(st){
+  if(st.due) return st.due;
+  return st.week && WP_DAYS.some(d=>d[0]===st.day) ? wpDateOfDay(st.week, st.day) : "";
+}
+function wpStepMoveHtml(item, st){
+  const today = wpLocalToday(), on = wpStepDateOf(st);
+  const tom = wpYmdAdd(today, 1);
+  // already on tomorrow: the useful one-tap is the day after it
+  const next = on === tom ? { ymd: wpYmdAdd(on, 1), label: "Day after" } : { ymd: tom, label: "Tomorrow" };
+  const id = wpEsc(item.id);
+  return `<div class="wp-sn-sec"><div class="wp-sn-cap">Move${on ? " — on " + wpEsc(wpYmdShort(on)) + " now" : ""}</div>
+    <div class="wp-sn-move">
+      <button type="button" class="wp-sn-mv" onclick="wpStepMoveToDate('${id}','${next.ymd}')">${next.label}<span>${wpEsc(wpYmdShort(next.ymd))}</span></button>
+      <span class="wp-sn-pick"><svg class="ic"><use href="#ic-calendar"/></svg>
+        <input type="date" id="wpSnDate" value="${wpEsc(on || tom)}" aria-label="Pick a date to move it to"
+          oninput="document.getElementById('wpSnDateGo').disabled=!this.value||this.value==='${wpEsc(on)}'"></span>
+      <button type="button" class="wp-sn-mv" id="wpSnDateGo" ${on ? "disabled" : ""}
+        onclick="wpStepMoveToDate('${id}',document.getElementById('wpSnDate').value)">Move</button>
+    </div></div>`;
+}
+// the daily calendar's copy of the step: out of `fromWeek`, onto `cell` of `toWeek`
+function wpMoveCalendarCopy(projectId, st, fromWeek, toWeek, cell){
+  if(!fromWeek || !toWeek || fromWeek === toWeek) return;
+  try{
+    fetch(WP_STORE, { method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ weeklyCancel:{ weekEnding: fromWeek, tgt:{ p: projectId, s: st.id },
+        cell:"", to: cell, toWeek, title: String(st.title||"") } }) }).catch(()=>{});
+  }catch(e){ /* the cache is disposable; opening that week rewrites it */ }
+}
+async function wpStepMoveToDate(itemId, ymd){
+  const f = wpStepFor(wpProjItemById(itemId));
+  if(!f || !/^\d{4}-\d{2}-\d{2}$/.test(String(ymd))) return;
+  const st = f.step, from = wpStepDateOf(st);
+  if(ymd === from) return;
+  const fromWeek = from ? wpWeekOfYmd(from) : "";
+  const at = fromWeek ? wpStepCell(st, fromWeek) : null;
+  const slot = at && WP_STEP_SLOTS.includes(at.slot) ? at.slot : "";
+  const week = wpWeekOfYmd(ymd), day = wpDayOfYmd(ymd);
+  const was = { week: st.week||"", day: st.day||"", slot: st.slot||"" };
+  const fields = { week, day, slot };
+  if(st.due){ was.due = st.due; fields.due = ymd; }
+  const wasCell = at && at.day ? (at.slot || WP_ANY) + ":" + at.day : "";
+  wpCloseStepNotes();
+  if(!(await wpStepLinkWrite(f.project, st, fields))) return;
+  // a step that was on no day was in nobody's calendar; one that was is lifted out of its week
+  wpMoveCalendarCopy(f.project.id, st, fromWeek || wpWeekEnding, week, (slot || WP_ANY) + ":" + day);
+  wpToastUndo('"' + String(st.title||"Step").slice(0, 40) + '" moved to ' + wpYmdShort(ymd), async ()=>{
+    if(await wpStepLinkWrite(f.project, st, was) && wasCell) wpMoveCalendarCopy(f.project.id, st, week, fromWeek, wasCell);
+  });
 }
 async function wpMigrateStepCopies(){
   if(!wpPlan || !wpProjects.loaded) return;
