@@ -6,6 +6,7 @@ const { boot, openPlan } = require("./lib/monthly-env.cjs");
 
 const root = path.join(__dirname, "..");
 const FN = fs.readFileSync(path.join(root, "netlify/functions/ask-claude.js"), "utf8");
+const AGENT = fs.readFileSync(path.join(root, "netlify/functions/ask-claude-agent.js"), "utf8");
 const YM = "2026-11";
 const ymdOffset = (n) => { const d = new Date(); d.setDate(d.getDate() + n);
   return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
@@ -32,8 +33,9 @@ const projects = () => [{ id: "p1", name: "Website move", status: "active", arch
   /* ---------- the door is safe by construction ---------- */
   assert.ok(FN.includes('name: "bodysculpt-ask"'), "it has its own store");
   assert.ok(!/bodysculpt-kpi/.test(FN), "and cannot reach the KPI store");
-  assert.ok(/timingSafeEqual/.test(FN) && /job\.status !== "running"/.test(FN), "a job answers once, with its own token");
-  assert.ok(!/token: job\.token/.test(FN.slice(FN.indexOf("function publicJob"), FN.indexOf("export default"))), "the token is never handed back");
+  assert.ok(!/bodysculpt-kpi/.test(AGENT), "nor can the agent's door");
+  assert.ok(/timingSafeEqual/.test(AGENT) && /job\.status !== "running"/.test(AGENT), "a job answers once, with its own token");
+  assert.ok(!/job\.token/.test(FN.slice(FN.indexOf("function publicJob"), FN.indexOf("export default"))), "the token is never handed back");
   assert.ok(/MAX_PER_HOUR/.test(FN), "starting jobs is capped");
 
   /* ---------- switched off until the keys are there ---------- */

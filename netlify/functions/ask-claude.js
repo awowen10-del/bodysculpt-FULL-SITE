@@ -4,8 +4,9 @@
 //
 //   GET  ?status=1          { configured } — the page shows nothing until the keys are set
 //   GET  ?job=<id>          { status, proposal?, error? } — the token is never returned
-//   POST { ask:{ text, month } }                     start a job
-//   POST { result:{ jobId, token, proposal|error } } the agent hands its answer back
+//   POST { ask:{ text, month } }   start a job
+//
+// v271: this address sits behind the password. The run itself uses ask-claude-agent.
 //
 // IT HAS ITS OWN STORE, "bodysculpt-ask", so nothing here can reach the KPI data. It stores
 // jobs and nothing else. Each job gets a one-use token that travels in the fired text, so
@@ -13,8 +14,8 @@
 //
 // Fire token: CLAUDE_ROUTINE_TOKEN. Routine id: CLAUDE_ROUTINE_ID. Neither reaches the browser.
 import { getStore } from "@netlify/blobs";
-import { randomBytes, timingSafeEqual } from "node:crypto";
-import { JOB_PREFIX, MAX_TEXT, MAX_PER_HOUR, JOB_MINUTES, cleanProposal, fireText } from "../lib/ask-claude.js";
+import { randomBytes } from "node:crypto";
+import { JOB_PREFIX, MAX_TEXT, MAX_PER_HOUR, JOB_MINUTES, fireText } from "../lib/ask-claude.js";
 
 const json = (o, status = 200) => Response.json(o, { status });
 const store = () => getStore({ name: "bodysculpt-ask", consistency: "strong" });
@@ -22,10 +23,6 @@ const env = (k) => (globalThis.Netlify && Netlify.env ? Netlify.env.get(k) : pro
 const configured = () => !!(env("CLAUDE_ROUTINE_TOKEN") && /^trig_[A-Za-z0-9]+$/.test(env("CLAUDE_ROUTINE_ID")));
 const validJob = (id) => typeof id === "string" && /^[a-f0-9]{24}$/.test(id);
 
-function sameToken(a, b) {
-  const x = Buffer.from(String(a || "")), y = Buffer.from(String(b || ""));
-  return x.length === y.length && x.length > 0 && timingSafeEqual(x, y);
-}
 function publicJob(job) {
   const expired = job.status === "running" && Date.now() - Date.parse(job.startedAt) > JOB_MINUTES * 60000;
   return { ok: true, status: expired ? "failed" : job.status, proposal: job.proposal || null,
@@ -47,20 +44,6 @@ export default async (req) => {
 
   let body;
   try { body = await req.json(); } catch { return json({ error: "Bad JSON" }, 400); }
-
-  if (body && body.result) {
-    const { jobId, token, proposal, error } = body.result;
-    if (!validJob(jobId)) return json({ error: "Bad job" }, 400);
-    const job = await s.get(JOB_PREFIX + jobId, { type: "json" });
-    if (!job || !sameToken(job.token, token)) return json({ error: "Not allowed" }, 403);
-    if (job.status !== "running") return json({ error: "Already answered" }, 409);
-    const clean = cleanProposal(proposal);
-    const done = clean
-      ? { ...job, status: "done", proposal: clean, finishedAt: new Date().toISOString() }
-      : { ...job, status: "failed", error: typeof error === "string" && error ? error.slice(0, 300) : "Claude couldn't build a plan from that." };
-    await s.setJSON(JOB_PREFIX + jobId, done);
-    return json({ ok: true });
-  }
 
   if (body && body.ask) {
     if (!configured()) return json({ error: "Claude isn't connected yet." }, 503);
@@ -88,5 +71,5 @@ export default async (req) => {
     }
     return json({ ok: true, job: job.id });
   }
-  return json({ error: "Send { ask } or { result }" }, 400);
+  return json({ error: "Send { ask }" }, 400);
 };

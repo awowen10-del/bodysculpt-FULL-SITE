@@ -4,6 +4,7 @@
 // scheduled function (30s wall) that asks the background one (15-min wall) to do the work,
 // carrying the shared secret that { all } demands. 05:00 UTC, after the ads sync and the
 // follower snapshot. See netlify.toml.
+import { internalHeaders } from "../lib/internal.js";
 export default async () => {
   const log = (e) => console.log("[ig-scrape-scheduled] " + JSON.stringify(e));
   const base = process.env.URL || process.env.DEPLOY_PRIME_URL || process.env.DEPLOY_URL;
@@ -14,7 +15,7 @@ export default async () => {
   }
   try {
     const res = await fetch(base + "/.netlify/functions/ig-scrape-background", {
-      method: "POST", headers: { "Content-Type": "application/json", "x-scrape-trigger": secret }, body: JSON.stringify({ all: true }),
+      method: "POST", headers: { ...internalHeaders(), "Content-Type": "application/json", "x-scrape-trigger": secret }, body: JSON.stringify({ all: true }),
     });
     log({ stage: "triggered", status: res.status });
   } catch (e) { log({ stage: "trigger_failed", message: String((e && e.message) || "") }); }

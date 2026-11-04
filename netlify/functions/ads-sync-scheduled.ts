@@ -17,6 +17,7 @@
  * `x-sync-trigger` header. Required env: URL (Netlify-provided), SYNC_TRIGGER_SECRET.
  */
 
+import { internalHeaders } from '../lib/internal.js'
 function log(event: { stage: string; [key: string]: unknown }): void {
   console.log(`[ads-sync-scheduled] ${JSON.stringify(event)}`)
 }
@@ -40,7 +41,7 @@ export default async (): Promise<Response> => {
   try {
     const res = await fetch(`${base}/.netlify/functions/ads-sync-background`, {
       method: 'POST',
-      headers: { 'x-sync-trigger': secret },
+      headers: { ...internalHeaders(), 'x-sync-trigger': secret },
     })
     // A background function replies 202 immediately; anything else means the
     // trigger did not land, which the logs will show.

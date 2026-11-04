@@ -13,6 +13,7 @@
  * (Netlify-provided). If the secret or URL is missing the forward is treated as a
  * failure (502) and logged 'misconfigured'.
  */
+import { internalHeaders } from '../lib/internal.js'
 import {
   handleSyncTrigger,
   type TriggerResult,
@@ -41,7 +42,7 @@ async function forwardToBackground(): Promise<TriggerResult> {
   }
   const res = await fetch(`${base}/.netlify/functions/ads-sync-background`, {
     method: 'POST',
-    headers: { 'x-sync-trigger': secret },
+    headers: { ...internalHeaders(), 'x-sync-trigger': secret },
   })
   return { ok: res.ok, status: res.status }
 }

@@ -13,6 +13,7 @@
 //
 // Every call needs the browser's device key (X-Device-Key) — the one google-auth.js gave it
 // when Ash connected Gmail. This reads his mail, so a stranger with the URL gets nothing.
+import { internalHeaders } from "../lib/internal.js";
 import { deviceOk, gmailGet, threadDetail } from "../lib/gmail.js";
 import { writeReply, triageForPage, readJSON, RUN_KEY, env, clip } from "../lib/mail-drafts.js";
 
@@ -58,7 +59,7 @@ export default async (req) => {
       if (run.running && Date.now() - (run.startedAt || 0) < 14 * 60 * 1000) return json({ ok: true, started: false, running: true });
       const base = process.env.URL || process.env.DEPLOY_PRIME_URL || process.env.DEPLOY_URL || new URL(req.url).origin;
       const res = await fetch(base + "/.netlify/functions/mail-drafts-background", {
-        method: "POST", headers: { "Content-Type": "application/json", "x-mail-trigger": secret }, body: JSON.stringify({ trigger: "page" }),
+        method: "POST", headers: { ...internalHeaders(), "Content-Type": "application/json", "x-mail-trigger": secret }, body: JSON.stringify({ trigger: "page" }),
       });
       return json({ ok: res.status < 300, started: res.status < 300, running: res.status < 300 });
     }

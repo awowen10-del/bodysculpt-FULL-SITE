@@ -9,10 +9,7 @@ Ash runs Bodysculpt Warrington. He finds a blank planning screen overwhelming an
 
 ## Read first
 
-All of these are read-only GET requests:
-
-- Projects: `https://bodysculptdashboard.netlify.app/.netlify/functions/projects?list=1`
-- This month's plan: `https://bodysculptdashboard.netlify.app/.netlify/functions/kpi-store?monthlyplan=YYYY-MM`
+The dashboard is behind a password. The routine running you gives you one snapshot address for this job. A GET request to it returns `projects`, `plan`, `rocks` and `quarterTag`.
 
 Ignore archived projects and steps with `del: true`. A step is open if `done` is false. A step's day is its `due` date, or its `week` (a Monday) plus `day`.
 

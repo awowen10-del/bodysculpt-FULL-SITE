@@ -21,6 +21,7 @@
 // in that thread — it never takes a channel or a thread from the request. So the most a
 // stranger who found this address could do is reply in a thread already on Ash's card, and
 // he would see it there. Undo can only delete a message this function itself posted.
+import { internalHeaders } from "../lib/internal.js";
 import {
   env, clip, slack, readBrief, readState, patchState, linkMentions, slackEscape, redraft, UNDO_SECONDS,
 } from "../lib/slack.js";
@@ -87,7 +88,7 @@ export default async (req) => {
       }
       const base = process.env.URL || process.env.DEPLOY_PRIME_URL || process.env.DEPLOY_URL || new URL(req.url).origin;
       const res = await fetch(base + "/.netlify/functions/slack-brief-background", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trigger: "page" }),
+        method: "POST", headers: { ...internalHeaders(), "Content-Type": "application/json" }, body: JSON.stringify({ trigger: "page" }),
       });
       return json({ ok: res.status < 300, started: res.status < 300, building: res.status < 300 });
     }

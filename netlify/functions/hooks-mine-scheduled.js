@@ -5,6 +5,7 @@
 // wall) to do the work, carrying the shared secret that { all } demands. 05:30 UTC, half an
 // hour after the scrape, so the flames it reads are last night's and Instagram's video links
 // are still warm. See netlify.toml.
+import { internalHeaders } from "../lib/internal.js";
 export default async () => {
   const log = (e) => console.log("[hooks-mine-scheduled] " + JSON.stringify(e));
   const base = process.env.URL || process.env.DEPLOY_PRIME_URL || process.env.DEPLOY_URL;
@@ -16,7 +17,7 @@ export default async () => {
   }
   try {
     const res = await fetch(base + "/.netlify/functions/hooks-mine-background", {
-      method: "POST", headers: { "Content-Type": "application/json", "x-mine-trigger": secret }, body: JSON.stringify({ all: true }),
+      method: "POST", headers: { ...internalHeaders(), "Content-Type": "application/json", "x-mine-trigger": secret }, body: JSON.stringify({ all: true }),
     });
     log({ stage: "triggered", status: res.status });
   } catch (e) { log({ stage: "trigger_failed", message: String((e && e.message) || "") }); }
