@@ -10,6 +10,7 @@
 // Who gets through without signing in:
 //   · ask-claude-agent, which checks a one-use job token of its own. That is how the cloud
 //     Claude run gets in, and it can reach only the job it was started for.
+//   · /mcp/<key>, the Grok connector, which checks its own long secret.
 //   · the login page itself.
 //   · jobs inside the site that call each other, carrying the signed x-dashboard-internal key.
 const COOKIE = "bs_session";
@@ -74,7 +75,7 @@ export default async (req, context) => {
   const path = url.pathname;
   const secret = readEnv("DASHBOARD_PASSWORD");
   if (!secret) return context.next();
-  if (path === AGENT_PATH) return context.next();
+  if (path === AGENT_PATH || path.startsWith("/mcp/")) return context.next();
 
   if (path === "/login" && req.method === "POST") {
     const form = await req.formData().catch(() => null);
