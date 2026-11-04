@@ -7,6 +7,9 @@
 [functions."mentor-ai"]
   timeout = 26
 
+[functions."grok-connector"]
+  timeout = 26
+
 # v236: the Food hub's photo reader (Claude Haiku 5.5 reading the butcher's sign). Quick, but
 # a photo plus a cold start can pass the 10s default. Planning runs in food-background.js,
 # which as a background function gets 15 minutes on its own.
