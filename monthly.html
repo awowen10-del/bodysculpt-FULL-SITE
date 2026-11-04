@@ -587,6 +587,17 @@
      the ONE exception — no .mp-item may take an align-self, or the row goes ragged. */
   .mp-tiles .mp-add{margin-top:0;align-self:start;min-height:44px;}
   .mp-tiles .mp-rock{margin-bottom:0;}
+  /* v270: talk it through with Claude */
+  .mpx-talk{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--line);}
+  .mpx-talk label{font-size:14px;font-weight:600;}
+  .mpx-talk small{font-size:13.5px;color:var(--ink-dim);}
+  #mpBody .mpx-talk textarea{min-height:96px;font-size:16px;line-height:1.45;box-sizing:border-box;}
+  .mpx-wait{padding:12px 14px;border-radius:var(--r-md);background:var(--card-2);border:1px solid var(--line);font-size:14px;}
+  .mpx-prop{display:flex;flex-direction:column;gap:12px;padding:14px;border:2px solid var(--orange);border-radius:var(--r-lg);background:var(--card);}
+  .mpx-prop h3{margin:0;font-family:var(--font-display);font-size:16px;font-weight:700;}
+  .mpx-prop p{margin:0;font-size:14px;color:var(--ink-dim);}
+  .mpx-prop-line{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid var(--line);font-size:14px;}
+  .mpx-prop-line b{flex:none;font-size:12.5px;font-weight:700;color:var(--ink-dim);}
   /* v269: the month and its projects */
   .mpx-tile{gap:10px !important;}
   .mpx-head{display:flex;flex-direction:column;gap:3px;width:100%;min-height:44px;padding:0;border:0;background:none;
@@ -2447,6 +2458,7 @@ async function renderMonthlyPlan(){
   let data = null;
   try{ data = await fetch(STORE + "?monthlyplan=" + encodeURIComponent(ym)).then(x=>x.json()); }catch(e){ data = null; }
   await mpLoadProjects();   // v269: never blocks the plan — a failure just leaves mpProjects null
+  await mpAskLoad(ym);      // v270: the same; with no Claude connection the box stays hidden
   const plan = (data && data.plan) || { ym, focus:[], priorities:[], notes:"", review:{wins:"",notDone:"",carryForward:"",blockers:""}, lastUpdated:"" };
   plan.focus = plan.focus || [];
   plan.priorities = mpClearPriorityRockLinks(plan.priorities || []);
@@ -2599,7 +2611,7 @@ function drawMonthlyPlan(){
   const focusEmpty = p.focus.length ? "" : `<div class="mp-rocks-empty">What are the 1–3 things that matter most this month? Pick from your projects below or add a new one.</div>`;
   const focusBox = `<div class="mp-box">
     ${mpSaveHeader("This Month's Focus","focus","")}
-    <div class="mp-box-body">${focusEmpty}${focusTiles?`<div class="mp-tiles">${focusTiles}</div>`:""}${mpAddHtml()}</div>
+    <div class="mp-box-body">${mpAskHtml()}${focusEmpty}${focusTiles?`<div class="mp-tiles">${focusTiles}</div>`:""}${mpAddHtml()}</div>
   </div>`;
 
   // v103: the personal item now matches the business focus item — a visible done state
@@ -3648,6 +3660,154 @@ function mpSetRock(v){
   it.rockRef = v;
   drawMonthlyPlan();
   return mpCommit("focus");
+}
+
+/* ===================== v270: TALK IT THROUGH =====================
+   Ash can't start from a blank page, so he talks, and his own cloud Claude agent turns that
+   into a proposed month using the monthly-planning skill. The agent never writes to a project
+   or a plan. Its answer waits here until he presses the button, and then the page applies it
+   through the same narrow routes as every other control. Grok joins by calling the same door.
+   The box stays hidden until the connection is switched on. */
+const MP_ASK = "/.netlify/functions/ask-claude";
+const MP_ASK_POLL = 4000;
+let mpAskReady = false;
+let mpAsk = { job:"", status:"", proposal:null, error:"", text:"" };
+let mpAskTimer = null;
+function mpAskKey(ym){ return "bodysculpt:askJob:" + ym; }
+async function mpAskLoad(ym){
+  clearTimeout(mpAskTimer);
+  mpAsk = { job:"", status:"", proposal:null, error:"", text:"" };
+  try{
+    const r = await fetch(MP_ASK + "?status=1").then(x=>x.ok ? x.json() : null);
+    mpAskReady = !!(r && r.configured);
+  }catch(e){ mpAskReady = false; }
+  if(!mpAskReady) return;
+  let saved = "";
+  try{ saved = localStorage.getItem(mpAskKey(ym)) || ""; }catch(e){}
+  if(saved){ mpAsk.job = saved; mpAsk.status = "running"; mpAskPoll(ym); }
+}
+async function mpAskPoll(ym){
+  clearTimeout(mpAskTimer);
+  if(!mpAsk.job || ym !== mpYm) return;
+  let r = null;
+  try{ r = await fetch(MP_ASK + "?job=" + encodeURIComponent(mpAsk.job)).then(x=>x.ok ? x.json() : null); }catch(e){}
+  if(ym !== mpYm) return;
+  if(r && r.status === "running"){ mpAskTimer = setTimeout(()=>mpAskPoll(ym), MP_ASK_POLL); return; }
+  if(!r){ mpAskForget(); mpRedrawAll(); return; }
+  mpAsk.status = r.status; mpAsk.proposal = r.proposal; mpAsk.error = r.error || "";
+  mpRedrawAll();
+}
+function mpAskForget(){
+  try{ localStorage.removeItem(mpAskKey(mpYm)); }catch(e){}
+  const text = mpAsk.text;
+  mpAsk = { job:"", status:"", proposal:null, error:"", text };
+}
+function mpAskDismiss(){ mpAskForget(); mpRedrawAll(); }
+async function mpAskStart(){
+  const text = String(mpAsk.text||"").trim();
+  if(!text){ mpToast("Say what's on your mind first."); return; }
+  const ym = mpYm;
+  mpAsk.status = "running"; mpAsk.error = "";
+  mpRedrawAll();
+  let r = null;
+  try{
+    const res = await fetch(MP_ASK, { method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ ask:{ text, month:ym } }) });
+    r = await res.json();
+  }catch(e){}
+  if(!r || !r.job){
+    mpAsk.status = "failed"; mpAsk.error = (r && r.error) || "Claude couldn't be reached. Please try again.";
+    mpRedrawAll();
+    return;
+  }
+  mpAsk.job = r.job;
+  try{ localStorage.setItem(mpAskKey(ym), r.job); }catch(e){}
+  mpAskTimer = setTimeout(()=>mpAskPoll(ym), MP_ASK_POLL);
+}
+function mpAskHtml(){
+  if(!mpAskReady) return "";
+  const month = esc(mpMonthName());
+  if(mpAsk.status === "running") return `<div class="mpx-talk"><div class="mpx-wait" role="status">Claude is working on your plan. It usually takes about a minute.</div></div>`;
+  if(mpAsk.status === "done" && mpAsk.proposal){
+    const pr = mpAsk.proposal;
+    const list = pr.projects.map(p=>`<div><h3>${esc(p.name)}</h3><p>${esc(p.goal)}</p>
+      ${p.steps.map(s=>`<div class="mpx-prop-line"><span>${esc(s.title)}</span><b>${s.day?esc(mpYmdLabel(s.day)):"No day yet"}</b></div>`).join("")}</div>`).join("");
+    return `<div class="mpx-talk"><div class="mpx-prop">
+      <div class="mpx-cap">Claude's plan</div>
+      ${pr.summary?`<p>${esc(pr.summary)}</p>`:""}
+      ${list}
+      ${pr.leftOut.length?`<p>Left out: ${esc(pr.leftOut.join("; "))}</p>`:""}
+      ${pr.question?`<p><b>Claude asks:</b> ${esc(pr.question)}</p>`:""}
+      <div class="mpx-days" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+        <button type="button" class="mpx-btn mpx-primary" onclick="mpApplyProposal()">Add to ${month}</button>
+        <button type="button" class="mpx-btn" onclick="mpAskDismiss()">Start again</button>
+      </div></div></div>`;
+  }
+  const err = mpAsk.status === "failed" ? `<div class="mpx-warn" role="alert">${esc(mpAsk.error||"That didn't work. Please try again.")}</div>` : "";
+  return `<div class="mpx-talk">${err}
+    <label for="mpxTalk">What's on your mind for ${month}?</label>
+    <textarea id="mpxTalk" placeholder="Just say it however it comes out" oninput="mpAsk.text=this.value">${esc(mpAsk.text||"")}</textarea>
+    <small>On a phone, tap the microphone on your keyboard. Nothing saves until you say yes.</small>
+    <button type="button" class="mpx-btn mpx-primary" onclick="mpAskStart()">Turn this into a plan</button>
+  </div>`;
+}
+function mpDayFields(s, ymd){
+  const was = { week:s.week||"", day:s.day||"", slot:s.slot||"" };
+  const fields = { week:mpWeekOf(ymd), day:mpDayOf(ymd), slot:s.slot||"" };
+  if(s.due){ was.due = s.due; fields.due = ymd; }
+  return { was, fields };
+}
+async function mpApplyProposal(given){
+  const plan = given || mpAsk.proposal;
+  if(!plan) return;
+  if(mpProjects === null){ mpToast("Your projects haven't loaded yet. Tap Try again."); return; }
+  mpSyncFromDom();
+  const focusBefore = JSON.parse(JSON.stringify(mpPlan.focus));
+  const undo = [];
+  const today = mpLocalToday();
+  const same = (a, b) => String(a||"").trim().toLowerCase() === String(b||"").trim().toLowerCase();
+  try{
+    for(const x of plan.projects){
+      let p = mpProjectById(x.projectId) || (mpProjects||[]).find(q=>same(q.name, x.name) && !q.archived);
+      if(!p) p = await mpCreateProject(x.name);
+      p.steps = p.steps || [];
+      let it = mpPlan.focus.find(f=>f.projectId === p.id);
+      if(!it){ it = { id:mpQid(), title:p.name, rockRef:"", notes:"", done:false, projectId:p.id }; mpPlan.focus.push(it); }
+      if(x.goal) it.goal = x.goal;
+      for(const s of x.steps){
+        let st = p.steps.find(q=>q.id === s.stepId && !q.del) || p.steps.find(q=>same(q.title, s.title) && !q.del);
+        if(!st){
+          const r = await mpPostProject({ addStep:{ projectId:p.id, title:s.title,
+            id:"s_"+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4) } });
+          if(!r.step) continue;
+          st = r.step; p.steps.push(st);
+          undo.push({ p, id:st.id, fields:{ del:true } });
+        }
+        if(!s.day || s.day < today || st.done || mpStepDate(st) === s.day) continue;
+        const from = mpStepDate(st), d = mpDayFields(st, s.day);
+        const r = await mpPostProject({ stepLink:Object.assign({ projectId:p.id, stepId:st.id }, d.fields) });
+        Object.assign(st, d.fields);
+        if(r.step) mpPutStep(p, r.step);
+        if(from) mpMoveCalendarCopy(p, st, mpWeekOf(from), d.fields.week, (d.fields.slot||MP_ANY)+":"+d.fields.day);
+        undo.unshift({ p, id:st.id, fields:d.was });
+      }
+    }
+  }catch(e){
+    mpToast("Part of that didn't save. Check your projects below.");
+  }
+  mpAskForget();
+  mpAsk.text = "";
+  drawMonthlyPlan();
+  await mpSaveSection("focus");
+  mpToast("Added to " + mpMonthName(), async ()=>{
+    for(const u of undo){
+      try{ await mpPostProject({ stepLink:Object.assign({ projectId:u.p.id, stepId:u.id }, u.fields) }); }catch(e){}
+    }
+    await mpLoadProjects();
+    mpPlan.focus = focusBefore;
+    drawMonthlyPlan();
+    await mpSaveSection("focus");
+  });
 }
 
 /* ---- the way back goes on the confirmation ---- */

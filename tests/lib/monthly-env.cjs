@@ -229,6 +229,7 @@ async function boot(opts = {}) {
       let body = {};
       try { body = JSON.parse(o.body); } catch (e) {}
       posts.push({ url: u, body });
+      if (body.addStep) return reply({ ok: true, step: { id: body.addStep.id, title: body.addStep.title, due: "", week: "", day: "", slot: "", done: false, del: false } });
       if (body.monthlyPlan && body.monthlyPlan.ym) {
         // mirror kpi-store: shallow merge over the existing record for that month
         const ym = body.monthlyPlan.ym;
@@ -249,6 +250,7 @@ async function boot(opts = {}) {
     }
     // v269: the project list. Omit opts.projects and it fails, as a bad connection would.
     if (u.includes("projects?list=1") && opts.projects) return reply({ ok: true, projects: opts.projects });
+    if (u.includes("ask-claude?status=1")) return reply({ ok: true, configured: !!opts.askClaude });
     if (u.includes("monthly=1")) return reply({ months: opts.months || [] });
     if (u.includes("seed=YES")) return reply({ ok: true, written: 0, months: [] });
     return Promise.resolve({ ok: false, status: 404, json: async () => ({}) });
