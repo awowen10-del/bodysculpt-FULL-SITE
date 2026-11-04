@@ -72,7 +72,6 @@ const page = (html, status) => new Response(html, { status,
 export default async (req, context) => {
   const url = new URL(req.url);
   const path = url.pathname;
-  if (url.searchParams.get("gateprobe")) return new Response("gate");
   const secret = readEnv("DASHBOARD_PASSWORD");
   if (!secret) return context.next();
   if (path === AGENT_PATH) return context.next();
