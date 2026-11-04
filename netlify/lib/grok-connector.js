@@ -26,7 +26,7 @@ const tool = (name, description, inputSchema, readOnly) => ({ name, description,
 
 export const TOOLS = [
   tool("get_my_projects", "Lists Ash's live projects with progress, what is late and the next step.", obj({}), true),
-  tool("get_month_plan", "Shows the projects on a month, each with its goal and next step, and the projects not on it.", obj({ month: P.month }), true),
+  tool("get_month_plan", "Shows the whole Monthly page for a month, section by section: This Month's Focus, Personal Priorities, Notes & Issues and the Month-End Review, plus the projects not on it.", obj({ month: P.month }), true),
   tool("get_project", "Shows one project's open steps with their ids. Use before changing a step.", obj({ project: P.project }, ["project"]), true),
   tool("add_project_to_month", "Puts an existing project on a month, with an optional one-line goal.", obj({ project: P.project, goal: { type: "string" }, month: P.month, confirmed: P.confirmed }, ["project"])),
   tool("create_project", "Creates a new project and puts it on a month. Check get_my_projects first so a project is not made twice.", obj({ name: { type: "string" }, goal: { type: "string" }, month: P.month, confirmed: P.confirmed }, ["name"])),
@@ -35,6 +35,8 @@ export const TOOLS = [
   tool("add_step", "Adds a step to a project, with an optional day.", obj({ project: P.project, title: { type: "string" }, day: P.day, confirmed: P.confirmed }, ["project", "title"])),
   tool("set_step_day", "Gives a step a day, or moves it to another. It then shows on Weekly and Today.", obj({ project: P.project, stepId: P.stepId, day: P.day, confirmed: P.confirmed }, ["project", "stepId", "day"])),
   tool("tick_step", "Marks a step done, or not done with done:false.", obj({ project: P.project, stepId: P.stepId, done: { type: "boolean" }, confirmed: P.confirmed }, ["project", "stepId"])),
+  tool("add_personal_priority", "Adds an item to Personal Priorities & Projects on Monthly: life outside the business.", obj({ title: { type: "string" }, month: P.month, confirmed: P.confirmed }, ["title"])),
+  tool("save_month_notes", "Adds to Notes & Issues on Monthly. What is there already stays.", obj({ notes: { type: "string" }, month: P.month, confirmed: P.confirmed }, ["notes"])),
   tool("get_month_review", "Gathers what happened in a month for the review: its plan, the steps finished, its numbers and any review already written. Leave month out for last month.", obj({ month: P.month }), true),
   tool("save_month_review", "Saves the Month-End Review on Monthly. Only the parts given are changed.", obj({ month: P.month, wins: { type: "string", description: "What moved and the wins" }, notDone: { type: "string", description: "What didn't move" }, carryForward: { type: "string", description: "What carries into next month" }, blockers: { type: "string", description: "Issues and blockers" }, confirmed: P.confirmed })),
   tool("ask_claude_for_plan", "Hands Ash's thoughts to his Claude agent, which has his monthly-planning skill. Saves nothing. Returns a job id. It takes about a minute, so tell him, then use get_claude_plan.", obj({ thoughts: { type: "string" }, month: P.month }, ["thoughts"])),
@@ -45,10 +47,12 @@ export const TOOLS = [
 
 export const INSTRUCTIONS = "Ash's Bodysculpt dashboard. He talks to you, often out loud on his phone, so keep replies short and spoken. "
   + "He finds a blank planning page hard, so ask one question at a time and do the organising for him. "
-  + "When he says let's review last month: use get_month_review, tell him briefly what you found, then ask about what moved, what didn't, what carries forward and what got in the way, one at a time. Read the finished review back, then use save_month_review. "
-  + "When he says let's plan the month: use get_month_plan and any carry-forward from the review, ask one question at a time, then put the projects on the month with a goal for each, add the steps, and give each project a next step with a day. Save it project by project. "
+  + "When he asks you to fill out his monthly plan: use get_month_plan and work down the page in order. "
+  + "This Month's Focus first: which projects matter, a goal for each, the steps, and a next step with a day for each. Then Personal Priorities. Then Notes & Issues. "
+  + "Ask one question at a time, only about sections that are still empty, and then fill them in from his answers. He should not have to think about tools or sections. "
+  + "When he asks you to review a month: use get_month_review, tell him briefly what you found, ask what moved, what didn't, what carries forward and what got in the way, then save it with save_month_review. "
   + "Month tools state today's date, so use that to work out which month he means. If he has not planned the current month yet, check whether that is the one he means by next month. "
-  + "When a change tool says it is not done yet, read those words to him and wait for a clear yes before calling it again with confirmed true. "
+  + "When a change tool says it is not done yet, read it to him and wait for a clear yes before calling it again with confirmed true. To save him saying yes over and over, you may read out a section's changes together, and one yes covers everything you read out. "
   + "Never set confirmed true on your own say-so. Never say something is saved until the tool says so. If he says undo, use undo_last_change.";
 
 class Say extends Error {}
@@ -180,7 +184,14 @@ export async function callTool(name, a, api, today) {
       });
       const ids = new Set(focus.map((f) => f.projectId).filter(Boolean));
       const off = (projects || []).filter((p) => !p.archived && !ids.has(p.id) && !finished(p)).map((p) => p.name);
-      return "Today is " + today + ". This is " + ym + ". " + (on.length ? "On the month:\n" + on.join("\n") : "Nothing is on the month yet.") + (off.length ? "\nNot on the month: " + off.join(", ") : "");
+      const personal = (plan.priorities || []).filter((x) => x && String(x.title || "").trim()).map((x) => x.title + " (" + (x.status || "Not Started") + ")");
+      const review = Object.entries(REVIEW_PARTS).filter(([k]) => plan.review && String(plan.review[k] || "").trim()).map(([k]) => REVIEW_PARTS[k]);
+      return ["Today is " + today + ". This is " + ym + ".",
+        "This Month's Focus: " + (on.length ? "\n" + on.join("\n") : "empty."),
+        "Personal Priorities: " + (personal.length ? personal.join("; ") : "empty."),
+        "Notes & Issues: " + (String(plan.notes || "").trim() ? plan.notes : "empty."),
+        "Month-End Review: " + (review.length ? "has " + review.join(", ") : "empty."),
+      ].concat(off.length ? ["Projects not on this month: " + off.join(", ")] : []).join("\n");
     }
     case "get_project": {
       const p = findProject(await api.projects(), a.project);
@@ -257,6 +268,25 @@ export async function callTool(name, a, api, today) {
       await followDone(api, p, today.slice(0, 7));
       await remember(api, s.title + (done ? " ticked" : " unticked"), [{ k: "link", projectId: p.id, stepId: s.id, fields: { done: !done } }]);
       return "Saved. " + s.title + (done ? " is done." : " is open again.");
+    }
+    case "add_personal_priority": {
+      const ym = monthOf(a, today), title = clip(a.title, 400);
+      if (!title) throw new Say("What's the priority?");
+      if (!a.confirmed) return notYet("add to Personal Priorities for " + ym + ": " + title);
+      const plan = await api.plan(ym), before = Array.isArray(plan.priorities) ? plan.priorities : [];
+      if (before.some((x) => x && same(x.title, title))) return "That's already on Personal Priorities.";
+      await api.savePart(ym, { priorities: before.concat([{ id: "mprj-" + Math.random().toString(36).slice(2, 9), title, owner: "Ash", status: "Not Started", notes: "" }]) });
+      await remember(api, title + " added to Personal Priorities", [{ k: "part", ym, part: { priorities: before } }]);
+      return "Saved.";
+    }
+    case "save_month_notes": {
+      const ym = monthOf(a, today), notes = clip(a.notes, 4000);
+      if (!notes) throw new Say("What's the note?");
+      if (!a.confirmed) return notYet("add to Notes & Issues for " + ym + ": " + notes);
+      const plan = await api.plan(ym), before = String(plan.notes || "");
+      await api.savePart(ym, { notes: before.trim() ? before.trimEnd() + "\n" + notes : notes });
+      await remember(api, "Notes added for " + ym, [{ k: "part", ym, part: { notes: before } }]);
+      return "Saved.";
     }
     case "get_month_review": {
       const ym = a.month ? monthOf(a, today) : previousMonth(today.slice(0, 7));
@@ -341,6 +371,7 @@ export async function callTool(name, a, api, today) {
       for (const op of last.ops) {
         if (op.k === "focus") await api.savePlan(op.ym, op.focus);
         else if (op.k === "review") await api.saveReview(op.ym, op.review);
+        else if (op.k === "part") await api.savePart(op.ym, op.part);
         else await api.stepLink({ projectId: op.projectId, stepId: op.stepId, ...op.fields });
       }
       await api.undoSave(stack);
@@ -360,7 +391,7 @@ export async function handleRpc(msg, api, today) {
   switch (msg.method) {
     case "initialize":
       return reply({ protocolVersion: (msg.params && msg.params.protocolVersion) || "2025-06-18",
-        capabilities: { tools: {} }, serverInfo: { name: "bodysculpt-dashboard", version: "1.2.0" }, instructions: INSTRUCTIONS });
+        capabilities: { tools: {} }, serverInfo: { name: "bodysculpt-dashboard", version: "1.3.0" }, instructions: INSTRUCTIONS });
     case "ping": return reply({});
     case "tools/list": return reply({ tools: TOOLS });
     case "tools/call": {

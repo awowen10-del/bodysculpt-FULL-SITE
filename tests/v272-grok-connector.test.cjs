@@ -31,6 +31,7 @@ function fakeApi() {
       state.projects.find((p) => p.id === a.projectId).steps.push(s); return s; },
     createProject: async (name) => { log.push(["createProject", name]); const p = { id: "pn", name, status: "active", steps: [] }; state.projects.push(p); return p; },
     calendar: async (c) => { log.push(["calendar", c]); },
+    savePart: async (ym, part) => { log.push(["savePart", ym, part]); Object.assign(state.plan, part); },
     saveReview: async (ym, r) => { log.push(["saveReview", ym, r]); state.plan.review = r; },
     monthNumbers: async () => ({ ym: "2026-10", signups: 12, cancellations: 3, adSpend: null }),
     askStart: async (t, m) => { log.push(["askStart", t, m]); return "J1"; },
@@ -54,7 +55,8 @@ const writes = (log) => log.filter((l) => ["savePlan", "stepLink", "addStep", "c
     const late = projectsText([{ name: "L", status: "paused", steps: [{ title: "Old", due: "2026-10-30", notes: "PRIVATE" }] }], TODAY);
     assert.ok(late.includes("1 late") && late.includes("late, was 2026-10-30") && !late.includes("PRIVATE"), late);
     const m = await callTool("get_month_plan", {}, api, TODAY);
-    assert.ok(m.includes("Not on the month: Website move, Christmas Shred"), m);
+    assert.ok(m.includes("Projects not on this month: Website move, Christmas Shred"), m);
+    for (const part of ["This Month's Focus:", "Personal Priorities: empty.", "Notes & Issues: empty.", "Month-End Review: empty."]) assert.ok(m.includes(part), part);
     const p = await callTool("get_project", { project: "website" }, api, TODAY);
     assert.ok(p.includes("b: Dated job on 2026-11-09") && p.includes("a: Phone number, no day yet") && !p.includes("Deleted"), p);
   }
@@ -127,6 +129,28 @@ const writes = (log) => log.filter((l) => ["savePlan", "stepLink", "addStep", "c
     assert.ok(!state.projects[1].steps[0].done, "undo unticks");
     assert.strictEqual(await callTool("undo_last_change", {}, api, TODAY), "There's nothing to undo.");
     assert.ok(!log.some((l) => l[0] === "project"), "a whole project is never sent");
+  }
+
+  /* ---------- the rest of the page ---------- */
+  {
+    const { api, log, state } = fakeApi();
+    state.plan.notes = "First note";
+    state.plan.priorities = [{ id: "mprj-1", title: "Sleep", owner: "Ash", status: "In Progress", notes: "keep" }];
+    assert.ok((await callTool("add_personal_priority", { title: "Holiday" }, api, TODAY)).startsWith("NOT DONE YET"));
+    assert.ok((await callTool("save_month_notes", { notes: "Watch ads" }, api, TODAY)).startsWith("NOT DONE YET"));
+    assert.ok(!log.some((l) => l[0] === "savePart"), "no yes, no write");
+    await callTool("add_personal_priority", { title: "Holiday", confirmed: true }, api, TODAY);
+    assert.strictEqual(state.plan.priorities.length, 2);
+    assert.strictEqual(state.plan.priorities[0].notes, "keep", "what was there stays");
+    assert.strictEqual(state.plan.priorities[1].status, "Not Started");
+    await callTool("undo_last_change", {}, api, TODAY);
+    assert.strictEqual(state.plan.priorities.length, 1, "undo takes it off");
+    await callTool("save_month_notes", { notes: "Watch ads", confirmed: true }, api, TODAY);
+    assert.strictEqual(state.plan.notes, "First note\nWatch ads", "notes add, never replace");
+    await callTool("undo_last_change", {}, api, TODAY);
+    assert.strictEqual(state.plan.notes, "First note", "undo puts the note back");
+    const m = await callTool("get_month_plan", {}, api, TODAY);
+    assert.ok(m.includes("Personal Priorities: Sleep (In Progress)") && m.includes("Notes & Issues: First note"), m);
   }
 
   /* ---------- the monthly review ---------- */

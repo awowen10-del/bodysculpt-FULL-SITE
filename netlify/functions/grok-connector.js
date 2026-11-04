@@ -40,6 +40,7 @@ function makeApi(base) {
     plan: async (ym) => (await get("kpi-store?monthlyplan=" + encodeURIComponent(ym))).plan || { ym, focus: [] },
     savePlan: (ym, focus) => post("kpi-store", { monthlyPlan: { ym, focus } }),
     saveReview: (ym, review) => post("kpi-store", { monthlyPlan: { ym, review } }),
+    savePart: (ym, part) => post("kpi-store", { monthlyPlan: { ym, ...part } }),
     monthNumbers: async (ym) => ((await get("kpi-store?monthly=1")).months || []).find((m) => m && m.ym === ym) || null,
     stepLink: (link) => post("projects", { stepLink: link }),
     addStep: async (add) => {
