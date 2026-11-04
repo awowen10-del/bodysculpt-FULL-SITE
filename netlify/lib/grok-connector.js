@@ -35,6 +35,8 @@ export const TOOLS = [
   tool("add_step", "Adds a step to a project, with an optional day.", obj({ project: P.project, title: { type: "string" }, day: P.day, confirmed: P.confirmed }, ["project", "title"])),
   tool("set_step_day", "Gives a step a day, or moves it to another. It then shows on Weekly and Today.", obj({ project: P.project, stepId: P.stepId, day: P.day, confirmed: P.confirmed }, ["project", "stepId", "day"])),
   tool("tick_step", "Marks a step done, or not done with done:false.", obj({ project: P.project, stepId: P.stepId, done: { type: "boolean" }, confirmed: P.confirmed }, ["project", "stepId"])),
+  tool("get_month_review", "Gathers what happened in a month for the review: its plan, the steps finished, its numbers and any review already written. Leave month out for last month.", obj({ month: P.month }), true),
+  tool("save_month_review", "Saves the Month-End Review on Monthly. Only the parts given are changed.", obj({ month: P.month, wins: { type: "string", description: "What moved and the wins" }, notDone: { type: "string", description: "What didn't move" }, carryForward: { type: "string", description: "What carries into next month" }, blockers: { type: "string", description: "Issues and blockers" }, confirmed: P.confirmed })),
   tool("ask_claude_for_plan", "Hands Ash's thoughts to his Claude agent, which has his monthly-planning skill. Saves nothing. Returns a job id. It takes about a minute, so tell him, then use get_claude_plan.", obj({ thoughts: { type: "string" }, month: P.month }, ["thoughts"])),
   tool("get_claude_plan", "Reads the plan Claude built for a job, or says it is still working.", obj({ job: { type: "string" } }, ["job"]), true),
   tool("apply_claude_plan", "Saves Claude's whole plan to the month: projects, goals, steps and days.", obj({ job: { type: "string" }, confirmed: P.confirmed }, ["job"])),
@@ -43,6 +45,9 @@ export const TOOLS = [
 
 export const INSTRUCTIONS = "Ash's Bodysculpt dashboard. He talks to you, often out loud on his phone, so keep replies short and spoken. "
   + "He finds a blank planning page hard, so ask one question at a time and do the organising for him. "
+  + "When he says let's review last month: use get_month_review, tell him briefly what you found, then ask about what moved, what didn't, what carries forward and what got in the way, one at a time. Read the finished review back, then use save_month_review. "
+  + "When he says let's plan the month: use get_month_plan and any carry-forward from the review, ask one question at a time, then put the projects on the month with a goal for each, add the steps, and give each project a next step with a day. Save it project by project. "
+  + "Month tools state today's date, so use that to work out which month he means. If he has not planned the current month yet, check whether that is the one he means by next month. "
   + "When a change tool says it is not done yet, read those words to him and wait for a clear yes before calling it again with confirmed true. "
   + "Never set confirmed true on your own say-so. Never say something is saved until the tool says so. If he says undo, use undo_last_change.";
 
@@ -137,6 +142,10 @@ async function moveStep(api, p, s, ymd, ops) {
       to: (fields.slot || "any") + ":" + fields.day, toWeek: fields.week, title: String(s.title || "") });
   }
 }
+const previousMonth = (ym) => { const [y, m] = ym.split("-").map(Number); return m === 1 ? (y - 1) + "-12" : y + "-" + String(m - 1).padStart(2, "0"); };
+const REVIEW_PARTS = { wins: "What moved", notDone: "What didn't move", carryForward: "Carry forward", blockers: "Issues and blockers" };
+const NUMBER_PARTS = { recurringRev: "recurring revenue", trialRev: "trial revenue", upfrontRev: "upfront revenue", otherRev: "other revenue",
+  signups: "sign-ups", cancellations: "cancellations", recurring: "recurring members", leads: "leads", trialSales: "trial sales", adSpend: "ad spend" };
 function planFocus(plan) { return plan && Array.isArray(plan.focus) ? plan.focus : []; }
 const focusItem = (p, goal) => ({ id: "f" + Math.random().toString(36).slice(2, 9), title: p.name, rockRef: "", notes: "", done: false, projectId: p.id, ...(goal ? { goal } : {}) });
 async function followDone(api, p, ym) {
@@ -171,7 +180,7 @@ export async function callTool(name, a, api, today) {
       });
       const ids = new Set(focus.map((f) => f.projectId).filter(Boolean));
       const off = (projects || []).filter((p) => !p.archived && !ids.has(p.id) && !finished(p)).map((p) => p.name);
-      return ym + ". " + (on.length ? "On the month:\n" + on.join("\n") : "Nothing is on the month yet.") + (off.length ? "\nNot on the month: " + off.join(", ") : "");
+      return "Today is " + today + ". This is " + ym + ". " + (on.length ? "On the month:\n" + on.join("\n") : "Nothing is on the month yet.") + (off.length ? "\nNot on the month: " + off.join(", ") : "");
     }
     case "get_project": {
       const p = findProject(await api.projects(), a.project);
@@ -249,6 +258,36 @@ export async function callTool(name, a, api, today) {
       await remember(api, s.title + (done ? " ticked" : " unticked"), [{ k: "link", projectId: p.id, stepId: s.id, fields: { done: !done } }]);
       return "Saved. " + s.title + (done ? " is done." : " is open again.");
     }
+    case "get_month_review": {
+      const ym = a.month ? monthOf(a, today) : previousMonth(today.slice(0, 7));
+      const [projects, plan, month] = await Promise.all([api.projects(), api.plan(ym), api.monthNumbers(ym)]);
+      const lines = ["Today is " + today + ". Reviewing " + ym + "."];
+      const focus = planFocus(plan);
+      lines.push(focus.length ? "Planned: " + focus.map((f) => f.title + (f.done ? " (done)" : " (not done)")).join("; ") : "Nothing was planned on Monthly for this month.");
+      const ticked = [];
+      for (const p of projects) for (const s of liveSteps(p)) {
+        if (s.done && String(s.updatedAt || "").startsWith(ym)) ticked.push(s.title + " (" + p.name + ")");
+      }
+      lines.push(ticked.length ? "Steps ticked off, " + ticked.length + " in all: " + ticked.slice(0, 20).join("; ") : "No steps were ticked off this month.");
+      const nums = Object.entries(NUMBER_PARTS).filter(([k]) => month && typeof month[k] === "number").map(([k, w]) => w + " " + month[k]);
+      lines.push(nums.length ? "Numbers: " + nums.join(", ") : "No numbers are in for this month yet.");
+      const written = Object.entries(REVIEW_PARTS).filter(([k]) => plan && plan.review && String(plan.review[k] || "").trim()).map(([k, w]) => w + ": " + plan.review[k]);
+      lines.push(written.length ? "Already written. " + written.join(". ") : "No review written yet.");
+      return lines.join("\n");
+    }
+    case "save_month_review": {
+      const ym = a.month ? monthOf(a, today) : previousMonth(today.slice(0, 7));
+      const given = Object.keys(REVIEW_PARTS).filter((k) => clip(a[k], 4000));
+      if (!given.length) throw new Say("There's nothing to save yet.");
+      if (!a.confirmed) return notYet("save this review for " + ym + ": " + given.map((k) => REVIEW_PARTS[k] + ": " + clip(a[k], 4000)).join(". "));
+      const plan = await api.plan(ym);
+      const before = { wins: "", notDone: "", carryForward: "", blockers: "", ...((plan && plan.review) || {}) };
+      const review = { ...before };
+      for (const k of given) review[k] = clip(a[k], 4000);
+      await api.saveReview(ym, review);
+      await remember(api, "Review saved for " + ym, [{ k: "review", ym, review: before }]);
+      return "Saved to the review for " + ym + ".";
+    }
     case "ask_claude_for_plan": {
       const text = clip(a.thoughts, 8000);
       if (!text) throw new Say("What's on his mind for the month?");
@@ -301,6 +340,7 @@ export async function callTool(name, a, api, today) {
       if (!last) return "There's nothing to undo.";
       for (const op of last.ops) {
         if (op.k === "focus") await api.savePlan(op.ym, op.focus);
+        else if (op.k === "review") await api.saveReview(op.ym, op.review);
         else await api.stepLink({ projectId: op.projectId, stepId: op.stepId, ...op.fields });
       }
       await api.undoSave(stack);
@@ -320,7 +360,7 @@ export async function handleRpc(msg, api, today) {
   switch (msg.method) {
     case "initialize":
       return reply({ protocolVersion: (msg.params && msg.params.protocolVersion) || "2025-06-18",
-        capabilities: { tools: {} }, serverInfo: { name: "bodysculpt-dashboard", version: "1.1.0" }, instructions: INSTRUCTIONS });
+        capabilities: { tools: {} }, serverInfo: { name: "bodysculpt-dashboard", version: "1.2.0" }, instructions: INSTRUCTIONS });
     case "ping": return reply({});
     case "tools/list": return reply({ tools: TOOLS });
     case "tools/call": {

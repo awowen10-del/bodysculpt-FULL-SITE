@@ -31,6 +31,8 @@ function fakeApi() {
       state.projects.find((p) => p.id === a.projectId).steps.push(s); return s; },
     createProject: async (name) => { log.push(["createProject", name]); const p = { id: "pn", name, status: "active", steps: [] }; state.projects.push(p); return p; },
     calendar: async (c) => { log.push(["calendar", c]); },
+    saveReview: async (ym, r) => { log.push(["saveReview", ym, r]); state.plan.review = r; },
+    monthNumbers: async () => ({ ym: "2026-10", signups: 12, cancellations: 3, adSpend: null }),
     askStart: async (t, m) => { log.push(["askStart", t, m]); return "J1"; },
     askJob: async () => state.job,
     undoLoad: async () => state.undo,
@@ -125,6 +127,27 @@ const writes = (log) => log.filter((l) => ["savePlan", "stepLink", "addStep", "c
     assert.ok(!state.projects[1].steps[0].done, "undo unticks");
     assert.strictEqual(await callTool("undo_last_change", {}, api, TODAY), "There's nothing to undo.");
     assert.ok(!log.some((l) => l[0] === "project"), "a whole project is never sent");
+  }
+
+  /* ---------- the monthly review ---------- */
+  {
+    const { api, log, state } = fakeApi();
+    state.projects[0].steps[2].updatedAt = "2026-10-14T10:00:00Z";
+    state.plan.review = { wins: "Already here", notDone: "", carryForward: "", blockers: "" };
+    const t = await callTool("get_month_review", {}, api, TODAY);
+    assert.ok(t.includes("Today is 2026-11-04. Reviewing 2026-10."), "with no month it means last month: " + t);
+    assert.ok(t.includes("Done job (Website move)"), "the steps finished are there");
+    assert.ok(t.includes("sign-ups 12, cancellations 3") && !t.includes("ad spend"), "and the numbers that exist");
+    assert.ok(t.includes("What moved: Already here"), "and what is already written");
+    assert.ok((await callTool("get_month_review", { month: "2026-01" }, api, TODAY)).includes("Reviewing 2026-01"));
+    assert.ok((await callTool("get_month_review", {}, api, "2026-01-10")).includes("Reviewing 2025-12"), "January looks back to December");
+    const first = await callTool("save_month_review", { notDone: "The ads" }, api, TODAY);
+    assert.ok(first.startsWith("NOT DONE YET") && !log.some((l) => l[0] === "saveReview"), "nothing saves without a yes");
+    await callTool("save_month_review", { notDone: "The ads", confirmed: true }, api, TODAY);
+    assert.deepStrictEqual(state.plan.review, { wins: "Already here", notDone: "The ads", carryForward: "", blockers: "" }, "what was there stays");
+    await callTool("undo_last_change", {}, api, TODAY);
+    assert.strictEqual(state.plan.review.notDone, "", "undo puts the review back");
+    await assert.rejects(callTool("save_month_review", { confirmed: true }, api, TODAY), /nothing to save/);
   }
 
   /* ---------- Claude's plan ---------- */

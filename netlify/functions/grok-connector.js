@@ -39,6 +39,8 @@ function makeApi(base) {
     projects: async () => (await get("projects?list=1")).projects || [],
     plan: async (ym) => (await get("kpi-store?monthlyplan=" + encodeURIComponent(ym))).plan || { ym, focus: [] },
     savePlan: (ym, focus) => post("kpi-store", { monthlyPlan: { ym, focus } }),
+    saveReview: (ym, review) => post("kpi-store", { monthlyPlan: { ym, review } }),
+    monthNumbers: async (ym) => ((await get("kpi-store?monthly=1")).months || []).find((m) => m && m.ym === ym) || null,
     stepLink: (link) => post("projects", { stepLink: link }),
     addStep: async (add) => {
       const r = await post("projects", { addStep: add });
