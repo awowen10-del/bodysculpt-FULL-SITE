@@ -247,6 +247,8 @@ async function boot(opts = {}) {
       const ym = decodeURIComponent(u.split("monthfocus=")[1]);
       return reply({ focus: (plans[ym] && plans[ym].focus) || [] });
     }
+    // v269: the project list. Omit opts.projects and it fails, as a bad connection would.
+    if (u.includes("projects?list=1") && opts.projects) return reply({ ok: true, projects: opts.projects });
     if (u.includes("monthly=1")) return reply({ months: opts.months || [] });
     if (u.includes("seed=YES")) return reply({ ok: true, written: 0, months: [] });
     return Promise.resolve({ ok: false, status: 404, json: async () => ({}) });

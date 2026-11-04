@@ -484,6 +484,8 @@ function quarterTagOfYm(ym) {
 const MONTHLY_FOCUS_STRINGS = {
   title: 400, notes: 20000, linkId: 160, sourceType: 40, monthlyOutcome: 400,
   milestone: 400, successMeasure: 400, sourceQuarter: 20, owner: 60, status: 40,
+  // v269: the project this focus item IS, and what is true of it by the end of this month
+  projectId: 40, goal: 400,
 };
 // v113: whitelist for a recurring task's optional monthly/quarterly cadence. Returns
 // { cadence, rule } only when BOTH the cadence and a fully-valid rule are present; anything

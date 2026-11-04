@@ -126,7 +126,6 @@ function cards(env) {
   {
     const c = cards(env);
     assert.ok(c.focus.includes("This Month's Focus"), "the Focus card is still there");
-    assert.ok(c.focus.includes("link each to a Rock"), "…still framed as Rock-linked business work");
     assert.ok(c.focus.includes("Supports which Rock?"), "…still offers the Rock link");
     assert.ok(/<option value="1" selected>Rock 2: Open the second studio<\/option>/.test(c.focus),
       "…with the linked Rock preselected");

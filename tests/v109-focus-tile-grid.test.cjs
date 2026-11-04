@@ -127,12 +127,9 @@ const month = async (plan) => {
     // the Rock badge follows the link, as before
     assert.ok(tile.includes("↳ Rock 2"), "the Rock badge still names the linked Rock");
 
-    /* ---- the add control is the last tile, not a full-width bar under the grid ---- */
-    assert.ok(focusGrid.indexOf("+ Add focus item") > focusGrid.lastIndexOf('data-focus="f3"'),
-      "the add tile comes after the items");
-    // …and it is emitted INSIDE the grid, which only the source can show unambiguously
-    assert.ok(/<div class="mp-tiles">\$\{focusTiles\}<button class="mp-add" onclick="mpAddFocus\(\)">/.test(HTML),
-      "the focus add control is a cell of the grid");
+    /* ---- v269: focus items are added through the project box under the grid ---- */
+    assert.ok(/\$\{focusTiles\?`<div class="mp-tiles">\$\{focusTiles\}<\/div>`:""\}\$\{mpAddHtml\(\)\}/.test(HTML),
+      "the focus add control sits under the grid");
     assert.ok(/<div class="mp-tiles">\$\{prTiles\}<button class="mp-add" onclick="mpAddPrio\(\)">/.test(HTML),
       "…and so is the personal one");
     // (v110 sized the add cell to its own content instead of the row — see that test)

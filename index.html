@@ -5825,7 +5825,9 @@ function wpMonthlyPickerHtml(){
   // an item needs an id to be linked/de-duped; wpAnchorItems has already dropped untitled ones
   const groups = WP_PULL_GROUPS
     .map(g=>({ kind:g.kind, label:g.label,
-      items:wpAnchorItems(g.kind).filter(p=>p && p.id && !already.has(String(p.id))) }))
+      // v269: a focus item that IS a project is not offered — its steps come in through
+      // "Pull from a project", or a bare copy of its name would sit beside them
+      items:wpAnchorItems(g.kind).filter(p=>p && p.id && !p.projectId && !already.has(String(p.id))) }))
     .filter(g=>g.items.length);
   if(!groups.length) return "";
   const opts = [`<option value="">Pull from Monthly…</option>`].concat(groups.map(g=>

@@ -65,10 +65,9 @@ const ruleOf = (sel) => {
   /* ================= 3. CSS only — markup, handlers and writes unmoved ============== */
   {
     // the add controls are emitted exactly as v109 emitted them, still inside the grid
-    assert.ok(/<div class="mp-tiles">\$\{focusTiles\}<button class="mp-add" onclick="mpAddFocus\(\)">\+ Add focus item<\/button>/.test(HTML),
-      "the focus add control is unchanged and still the grid's last cell");
+    // v269: the focus add control moved to the project box; the personal one stays a cell
     assert.ok(/<div class="mp-tiles">\$\{prTiles\}<button class="mp-add" onclick="mpAddPrio\(\)">\+ Add priority<\/button>/.test(HTML),
-      "…and so is the personal one");
+      "the personal add control is unchanged");
 
     const env = await boot({
       plans: { [AUG]: { ym: AUG, focus: [{ id: "f1", title: "Retention push", rockRef: "", notes: "", done: false }],

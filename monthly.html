@@ -587,6 +587,91 @@
      the ONE exception — no .mp-item may take an align-self, or the row goes ragged. */
   .mp-tiles .mp-add{margin-top:0;align-self:start;min-height:44px;}
   .mp-tiles .mp-rock{margin-bottom:0;}
+  /* v269: the month and its projects */
+  .mpx-tile{gap:10px !important;}
+  .mpx-head{display:flex;flex-direction:column;gap:3px;width:100%;min-height:44px;padding:0;border:0;background:none;
+    color:inherit;font:inherit;text-align:left;cursor:pointer;}
+  .mpx-name{font-family:var(--font-display);font-size:16px;font-weight:700;line-height:1.25;color:var(--ink);}
+  .mpx-goal{font-size:13.5px;line-height:1.4;color:var(--ink-dim);}
+  .mpx-tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+  .mpx-pill{display:inline-flex;padding:4px 9px;border-radius:var(--r-pill);font-size:12px;font-weight:700;white-space:nowrap;background:var(--navy-2);color:var(--ink-dim);}
+  .mpx-steps{background:rgba(var(--blue-rgb),.12);color:var(--tint-blue);}
+  .mpx-day{background:rgba(var(--amber-rgb),.14);color:var(--tint-amber);}
+  .mpx-late{background:rgba(var(--red-rgb),.12);color:var(--tint-red);}
+  .mpx-pill.mpx-ready,.mpx-pill.mpx-finished{background:rgba(var(--green-rgb),.14);color:var(--tint-green);}
+  .mpx-progress{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--ink-dim);}
+  .mpx-bar{height:6px;border-radius:var(--r-pill);background:var(--navy-2);overflow:hidden;}
+  .mpx-bar>div{height:100%;background:var(--orange);border-radius:inherit;}
+  .mpx-bar-big{height:8px;margin-top:8px;}
+  .mpx-bar-big>div{background:var(--green);}
+  .mpx-next{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:var(--r-md);background:var(--card);border:1px solid var(--line);font-size:14px;color:var(--ink-dim);}
+  .mpx-next b{font-weight:600;color:var(--ink);overflow-wrap:anywhere;}
+  .mpx-cap{font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-dim);}
+  .mpx-days{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:auto;}
+  .mpx-btn{min-height:44px;padding:0 10px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--card);color:var(--ink);font:600 14px inherit;font-family:inherit;cursor:pointer;}
+  .mpx-btn:hover{border-color:var(--orange);}
+  .mpx-primary{background:var(--orange);border-color:var(--orange);color:var(--on-accent);}
+  .mpx-primary:hover{background:var(--orange-soft);border-color:var(--orange-soft);}
+  .mpx-wide{width:100%;}
+  .mpx-pick{display:flex;flex-wrap:wrap;gap:6px;}
+  .mpx-pick input{flex:1 1 150px;min-height:44px;box-sizing:border-box;}
+  .mpx-pick .mpx-btn{flex:1 1 110px;}
+  .mpx-head:focus-visible,.mpx-btn:focus-visible,.mpx-tick:focus-visible,.mpx-due:focus-visible,.mpx-x:focus-visible,.mpx-link:focus-visible,.mpx-rocks summary:focus-visible{outline:none;box-shadow:var(--focus);border-radius:var(--r-md);}
+  div.mpx-ready{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:13px 16px;margin-bottom:12px;}
+  .mpx-ready-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:4px 12px;}
+  .mpx-ready-top span{font-size:13.5px;color:var(--ink-dim);}
+  .mpx-add{display:flex;flex-direction:column;gap:7px;margin-top:12px;}
+  .mpx-add label{font-size:14px;font-weight:600;color:var(--ink);}
+  #mpBody .mpx-add input{min-height:48px;font-size:16px;box-sizing:border-box;}
+  #mpxMatch{display:flex;flex-direction:column;gap:6px;}
+  #mpxMatch:empty{display:none;}
+  .mpx-hit-cap{font-size:13.5px;color:var(--ink-dim);}
+  .mpx-warn{margin-top:12px;padding:10px 12px;border-radius:var(--r-md);font-size:14px;background:rgba(var(--amber-rgb),.14);color:var(--tint-amber);}
+  .mpx-shelf-sub{font-size:13.5px;color:var(--ink-dim);margin-bottom:4px;}
+  .mpx-shelf{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--line);}
+  .mpx-shelf:first-of-type{border-top:0;}
+  .mpx-shelf b{display:block;font-weight:600;overflow-wrap:anywhere;}
+  .mpx-shelf small{font-size:13px;color:var(--ink-dim);}
+  .mpx-shelf .mpx-btn{flex:none;padding:0 16px;}
+  .mpx-offline{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;}
+  .mpx-rockline{margin-bottom:12px;padding:11px 14px;border:1px dashed var(--line);border-radius:var(--r-md);font-size:14px;color:var(--ink-dim);}
+  .mpx-rockline a{color:var(--orange-soft);font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:3px;}
+  .mpx-rocks{margin-bottom:12px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);}
+  .mpx-rocks summary{display:flex;align-items:center;gap:6px;min-height:44px;padding:4px 14px;cursor:pointer;font-weight:600;}
+  .mpx-rocks-body{padding:0 14px 14px;}
+  dialog.mpx-sheet{position:fixed;inset:0 0 0 auto;margin:0;width:min(460px,100%);max-width:100%;height:100dvh;max-height:100dvh;padding:0;border:0;
+    border-left:1px solid var(--line);background:var(--card);color:var(--ink);box-sizing:border-box;overflow:hidden;}
+  dialog.mpx-sheet[open]{display:flex;flex-direction:column;}
+  dialog.mpx-sheet::backdrop{background:rgba(var(--backdrop-rgb),.42);}
+  .mpx-sheet-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:16px;border-bottom:1px solid var(--line);}
+  .mpx-sheet-top h2{margin:2px 0 0;font-family:var(--font-display);font-size:19px;font-weight:700;line-height:1.25;}
+  .mpx-sheet-body{flex:1;min-height:0;overflow-y:auto;padding:16px 16px 96px;display:flex;flex-direction:column;gap:16px;}
+  .mpx-sheet-body h3{margin:0 0 4px;font-family:var(--font-display);font-size:15px;font-weight:700;}
+  .mpx-x{flex:none;display:flex;align-items:center;justify-content:center;width:44px;height:44px;border:0;border-radius:var(--r-md);background:var(--navy);color:var(--ink);cursor:pointer;}
+  .mpx-field{display:flex;flex-direction:column;gap:6px;}
+  .mpx-field label{font-size:13.5px;font-weight:600;}
+  .mpx-sheet input:not([type=date]),.mpx-sheet select,.mpx-sheet input[type=date]{width:100%;min-height:48px;box-sizing:border-box;padding:0 12px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--card);color:var(--ink);font:16px inherit;font-family:inherit;}
+  .mpx-addrow{display:flex;gap:8px;}
+  .mpx-addrow input{flex:1;min-width:0;}
+  .mpx-addrow .mpx-btn{flex:none;padding:0 18px;min-height:48px;}
+  .mpx-step{display:flex;flex-direction:column;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);}
+  .mpx-step-line{display:flex;align-items:center;gap:8px;}
+  .mpx-tick{flex:none;width:44px;height:44px;margin:0 -6px;display:flex;align-items:center;justify-content:center;border:0;background:none;cursor:pointer;}
+  .mpx-tick span{display:flex;align-items:center;justify-content:center;width:24px;height:24px;box-sizing:border-box;border:2px solid var(--ink-faint);border-radius:7px;color:transparent;}
+  .mpx-tick.on span{background:var(--green);border-color:var(--green);color:var(--on-accent);}
+  .mpx-tick .ic{width:15px;height:15px;}
+  .mpx-step-t{flex:1;min-width:0;font-size:15px;line-height:1.35;overflow-wrap:anywhere;}
+  .mpx-step-t.off{text-decoration:line-through;color:var(--ink-dim);}
+  .mpx-due{flex:none;min-height:36px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink-dim);font:600 12.5px inherit;font-family:inherit;cursor:pointer;}
+  .mpx-due.none{color:var(--tint-orange);background:rgba(var(--orange-rgb),.08);}
+  .mpx-due.late{color:var(--tint-red);background:rgba(var(--red-rgb),.1);}
+  .mpx-note{margin:8px 0 0;font-size:14px;color:var(--ink-dim);}
+  .mpx-link{min-height:44px;padding:0;border:0;background:none;color:var(--orange-soft);font:600 14px inherit;font-family:inherit;text-align:left;cursor:pointer;text-decoration:underline;text-underline-offset:3px;}
+  .mpx-quiet{color:var(--ink-dim);}
+  .mpx-toast{position:fixed;left:12px;right:12px;bottom:12px;z-index:10001;max-width:440px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;
+    padding:6px 8px 6px 14px;border-radius:12px;background:var(--ink-strong);color:var(--on-accent);font-size:14px;box-sizing:border-box;}
+  dialog .mpx-toast{left:auto;right:12px;width:min(436px,calc(100vw - 24px));}
+  .mpx-toast button{flex:none;min-height:44px;padding:0 12px;border:0;background:none;color:var(--on-accent);font:700 14px inherit;font-family:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:3px;}
   .mp-week-btn{background:transparent;border:1px solid var(--line);color:var(--ink-dim);border-radius:7px;
     padding:5px 11px;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;}
   .mp-week-btn:hover{border-color:var(--orange);color:var(--orange-soft);}
@@ -1308,8 +1393,13 @@ async function loadAll(){
   const now = new Date();
   const thisMonth = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2,"0");
   // Preference order: in-memory selection → saved browser preference → current month → latest.
+  // v269: a month picked last time is only remembered within that calendar month, or the page
+  // keeps opening on an old one. Ash's had been sitting on August.
   let saved = null;
-  try { saved = localStorage.getItem("bodysculpt:selectedMonth"); } catch(e) {}
+  try {
+    const pickedIn = localStorage.getItem("bodysculpt:selectedMonthPickedIn");
+    if(pickedIn === thisMonth) saved = localStorage.getItem("bodysculpt:selectedMonth");
+  } catch(e) {}
   curYm = (curYm && YMS.includes(curYm)) ? curYm
         : (saved && YMS.includes(saved)) ? saved
         : (YMS.includes(thisMonth) ? thisMonth : YMS[YMS.length-1]);
@@ -2198,7 +2288,11 @@ async function runMentor(){
 function setMonth(ym){
   if(!YMS.includes(ym)) return;
   curYm = ym;
-  try { localStorage.setItem("bodysculpt:selectedMonth", curYm); } catch(err) {}
+  try {
+    localStorage.setItem("bodysculpt:selectedMonth", curYm);
+    const n = new Date();
+    localStorage.setItem("bodysculpt:selectedMonthPickedIn", n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0"));
+  } catch(err) {}
   const sel = document.getElementById("monthSel"); if(sel) sel.value = curYm;
   updatePeriodBar();
   renderCurrent();
@@ -2338,6 +2432,7 @@ let mpPlan = null;
 let mpRocks = [];
 let mpQuarterTag = null;
 let mpYm = null;
+let mpProjects = null;  // v269: every project, or null if the list did not load
 
 function mpQid(){ return "f"+Math.random().toString(36).slice(2,9); }
 function mpFmtTime(iso){ if(!iso) return ""; try{ const d=new Date(iso); return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}); }catch(e){ return ""; } }
@@ -2351,6 +2446,7 @@ async function renderMonthlyPlan(){
   document.getElementById("mpBody").innerHTML = `<div class="mp-loading">Loading this month's plan…</div>`;
   let data = null;
   try{ data = await fetch(STORE + "?monthlyplan=" + encodeURIComponent(ym)).then(x=>x.json()); }catch(e){ data = null; }
+  await mpLoadProjects();   // v269: never blocks the plan — a failure just leaves mpProjects null
   const plan = (data && data.plan) || { ym, focus:[], priorities:[], notes:"", review:{wins:"",notDone:"",carryForward:"",blockers:""}, lastUpdated:"" };
   plan.focus = plan.focus || [];
   plan.priorities = mpClearPriorityRockLinks(plan.priorities || []);
@@ -2391,6 +2487,14 @@ function mpSyncFromDom(){
   (mpPlan.focus||[]).forEach(f=>{ if(f && f.id) prevFocus[f.id] = f; });
   body.querySelectorAll('[data-focus]').forEach(el=>{
     const id = el.getAttribute("data-focus");
+    // v269: a project's tile has no inputs — everything on it is the stored item or the project
+    if(el.getAttribute("data-linked")){
+      const kept = Object.assign({}, prevFocus[id] || { id });
+      const proj = mpProjectOf(kept);
+      if(proj) kept.title = proj.name;   // renamed on the board: Weekly's anchor follows
+      focus.push(kept);
+      return;
+    }
     focus.push(Object.assign({}, prevFocus[id] || {}, {
       id,
       title: (el.querySelector('[data-ff="title"]')||{}).value || "",
@@ -2459,10 +2563,6 @@ function drawMonthlyPlan(){
     rocksHtml = `<div class="mp-rocks-empty">No Rocks set for ${esc(mpQuarterTag||"this quarter")} yet.
       Set them in the <a onclick="mpGoToQuarterly()">Quarterly plan</a>, and they'll appear here as your anchor.</div>`;
   }
-  const rocksBox = `<div class="mp-box">
-    <div class="mp-box-h"><span>${mpIco("rocks")}This Quarter's Rocks <span class="mp-hint">${esc(mpQuarterTag||"")} · from Quarterly</span></span></div>
-    <div class="mp-box-body">${rocksHtml}</div>
-  </div>`;
 
   // v109: one tile per focus item, laid out 3-across by .mp-tiles. Everything the old
   // full-width row carried is still here, stacked down the tile instead of spread across
@@ -2476,6 +2576,7 @@ function drawMonthlyPlan(){
     const pn = mpPushNoteOn("focus", id);
     const note = pn ? `<span class="mp-pushnote${pn.warn?" warn":""}">${esc(pn.text)}</span>` : "";
     const picker = mpPushOpenOn("focus", id) ? mpPushPickerHtml("focus", id) : "";
+    if(it.projectId) return mpLinkedTileHtml(it, from, note);
     return `<div class="mp-item${it.done?" done":""}" data-focus="${esc(id)}">
       <input class="mp-title" data-ff="title" value="${esc(it.title||"")}" placeholder="This month's focus…" onblur="mpCommit('focus')">
       <div class="mp-f"><label>Supports which Rock?</label><select data-ff="rockRef" onchange="mpQuickSave()">${mpRockOptions(it.rockRef)}</select></div>
@@ -2483,6 +2584,7 @@ function drawMonthlyPlan(){
       <div class="mp-tile-foot">
         <div class="mp-tile-ctl">
           <label class="mp-done"><input type="checkbox" data-ff="done"${it.done?" checked":""} onchange="mpToggleFocus(this)"><span class="mp-done-lbl">Done</span></label>
+          <button class="mp-week-btn" onclick="mpPromote('${esc(id)}')">Make it a project</button>
           <button class="mp-week-btn" onclick="mpOpenPushForward('${esc(id)}')">↪ Push forward</button>
           ${mpNoteButtonHtml("focus", id, mpHasNote(it))}
           <button class="mp-del" onclick="mpRemoveFocus(this)"><svg class="ic"><use href="#ic-close"/></svg></button>
@@ -2494,10 +2596,10 @@ function drawMonthlyPlan(){
   }).join("");
   // The empty-state line sits ABOVE the grid, full width — inside it, it would render as a
   // lonely one-third-width cell next to the add tile.
-  const focusEmpty = p.focus.length ? "" : `<div class="mp-rocks-empty">What are the 1–3 things this month that move the Rocks forward?</div>`;
+  const focusEmpty = p.focus.length ? "" : `<div class="mp-rocks-empty">What are the 1–3 things that matter most this month? Pick from your projects below or add a new one.</div>`;
   const focusBox = `<div class="mp-box">
-    ${mpSaveHeader("This Month's Focus","focus","link each to a Rock")}
-    <div class="mp-box-body">${focusEmpty}<div class="mp-tiles">${focusTiles}<button class="mp-add" onclick="mpAddFocus()">+ Add focus item</button></div></div>
+    ${mpSaveHeader("This Month's Focus","focus","")}
+    <div class="mp-box-body">${focusEmpty}${focusTiles?`<div class="mp-tiles">${focusTiles}</div>`:""}${mpAddHtml()}</div>
   </div>`;
 
   // v103: the personal item now matches the business focus item — a visible done state
@@ -2558,7 +2660,7 @@ function drawMonthlyPlan(){
     </div></div>
   </div>`;
 
-  document.getElementById("mpBody").innerHTML = mpHeroHtml() + rocksBox + focusBox + prioBox + notesBox + reviewBox;
+  document.getElementById("mpBody").innerHTML = mpHeroHtml() + mpRocksFoldHtml(rocksHtml) + focusBox + mpShelfHtml() + prioBox + notesBox + reviewBox;
 
   if(p.lastUpdated){
     const m = document.getElementById("mpSavedMsg");
@@ -2571,10 +2673,7 @@ function drawMonthlyPlan(){
 function mpHeroHtml(){
   const p = mpPlan || {};
   const focus = (p.focus||[]).filter(f=>f && String(f.title||"").trim());
-  const prio = (p.priorities||[]).filter(f=>f && String(f.title||"").trim());
-  const fDone = focus.filter(f=>f.done).length;
-  const pDone = prio.filter(it=>mpKind("priorities").isDone(it)).length;
-  const linked = focus.filter(f=>f.rockRef!==""&&f.rockRef!=null&&mpRocks[Number(f.rockRef)]).length;
+  const fDone = focus.filter(mpFocusDone).length;
   let eye = "This month", daysLeft = null;
   try{
     const [y,m] = String(mpYm).split("-").map(Number), now = new Date();
@@ -2586,16 +2685,9 @@ function mpHeroHtml(){
   const ring = `<span class="mp-ring" role="img" aria-label="${fDone} of ${focus.length} focus items done"><svg viewBox="0 0 84 84" aria-hidden="true">`+
     `<circle class="trk" cx="42" cy="42" r="${r}"/><circle class="val" cx="42" cy="42" r="${r}" stroke-dasharray="${(c*f).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 42 42)"/></svg>`+
     `<span><b>${fDone}<i>/${focus.length}</i></b><small>focus</small></span></span>`;
-  const tile = (icon, tone, big, small)=>`<div class="mp-stat t-${tone}"><span class="mp-stat-ic"><svg class="ic"><use href="#ic-${icon}"/></svg></span><b>${big}</b><small>${small}</small></div>`;
   return `<div class="mp-hero"><div class="mp-hero-main"><div class="mp-hero-eye">${esc(eye)}</div>
       <div class="mp-hero-title">${esc(ymLabel(mpYm))}</div>
-      <div class="mp-hero-sub">Turn this quarter’s Rocks into this month’s focus${daysLeft!=null?` · <b>${daysLeft}</b> day${daysLeft===1?"":"s"} left`:""}</div></div>${ring}</div>
-    <div class="mp-stats">
-      ${tile("flame","orange",`${fDone}<i>/${focus.length}</i>`,"focus items done")}
-      ${tile("target","slate",`${linked}<i>/${focus.length}</i>`,"linked to a Rock")}
-      ${tile("heart","green",`${pDone}<i>/${prio.length}</i>`,"personal done")}
-      ${tile("calendar","info",daysLeft!=null?String(daysLeft):"–",daysLeft===1?"day left this month":"days left this month")}
-    </div>`;
+      <div class="mp-hero-sub">Choose what matters this month, then give each one a next step and a day${daysLeft!=null?` · <b>${daysLeft}</b> day${daysLeft===1?"":"s"} left`:""}</div></div>${ring}</div>${mpReadinessHtml()}`;
 }
 function mpGoToQuarterly(){ location.href = "quarterly.html"; }
 function mpAddFocus(){ mpSyncFromDom(); mpPlan.focus.push({id:mpQid(),title:"",rockRef:"",notes:"",done:false}); drawMonthlyPlan(); }
@@ -2908,8 +3000,9 @@ const MP_KINDS = {
     list: () => (mpPlan && mpPlan.focus) || [],
     isDone: it => !!it.done,
     // the copy that lands in the target month: title + notes travel, done resets
-    copy: it => ({ id: mpQid(), title: it.title || "", rockRef: (it.rockRef == null ? "" : it.rockRef),
-                   notes: it.notes || "", done: false })
+    copy: it => Object.assign({ id: mpQid(), title: it.title || "", rockRef: (it.rockRef == null ? "" : it.rockRef),
+                   notes: it.notes || "", done: false },
+                   it.projectId ? { projectId: it.projectId } : {})   // v269: the same project next month; the goal is that month's
   },
   priorities: {
     section: "priorities", what: "personal item", noun: "Personal", rowSel: "[data-prio]", rowAttr: "data-pid",
@@ -2983,7 +3076,7 @@ async function mpPushForward(kind, id){
     const tPlan = (r && r.plan) ? r.plan : null;
     const list = (tPlan && Array.isArray(tPlan[k.section])) ? tPlan[k.section].slice() : [];
     // De-dupe guard: this exact item already pushed into that month.
-    if(list.some(f=>f && f.pushedFrom===mpYm && f.pushedFromId===id)){
+    if(list.some(f=>f && ((f.pushedFrom===mpYm && f.pushedFromId===id) || (it.projectId && f.projectId===it.projectId)))){
       mpPushOpen = null;
       mpPushNote = { kind, id, text:"Already in " + ymLabel(target) + " — not copied twice.", warn:true };
       drawMonthlyPlan(); return;
@@ -3102,6 +3195,480 @@ async function mpSaveSection(sectionKey){
     } else if(msg){ msg.textContent = "Save failed"; msg.className = "mp-ssaved"; }
   }catch(e){ if(msg){ msg.textContent = "Couldn't reach store"; msg.className = "mp-ssaved"; } }
   finally{ if(btn){ btn.disabled = false; btn.textContent = "Save"; } }
+}
+
+/* ===================== v269: THE MONTH AND ITS PROJECTS, JOINED =====================
+   Ash: "I need to think of the project within my monthly planning and then for the projects
+   to be pulled into that." He stopped planning after August because it was blank and
+   overwhelming, so this page now starts from what he already has.
+
+   A focus item with a projectId IS that project, seen from the month. The month holds only
+   which projects are on it, plus one line on what is true by the end of it. Every step, date
+   and tick stays on the project and goes through the narrow routes the other pages use
+   (stepLink, addStep), so a stale copy here can never overwrite a board. Only a brand-new
+   project is ever sent whole.
+
+   mpProjects is null when the list did not load. That is never treated as "no projects": a
+   link is only ever removed by Ash, so a bad connection cannot unpick the plan.
+
+   Giving a step a day follows v252/v268: the day and week are written to the step, and its
+   due date moves only if it already had one. An undated step is not handed a deadline. */
+const MP_PROJECTS = "/.netlify/functions/projects";
+const MP_WEEK_DAYS = ["mon","tue","wed","thu","fri","sat","sun"];
+const MP_ANY = "any";
+let mpOpenId = "";      // the focus item whose project panel is open
+let mpDayPick = "";     // which "Pick a day" row is open: "t:<focusId>" or "s:<stepId>"
+let mpShowAll = false;  // the panel shows the next five steps until asked for the rest
+
+async function mpLoadProjects(){
+  try{
+    const r = await fetch(MP_PROJECTS + "?list=1").then(x=>x.ok ? x.json() : null);
+    mpProjects = r && Array.isArray(r.projects) ? r.projects : null;
+  }catch(e){ mpProjects = null; }
+}
+async function mpRetryProjects(){ await mpLoadProjects(); drawMonthlyPlan(); }
+async function mpPostProject(body){
+  const r = await fetch(MP_PROJECTS, { method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify(body) });
+  if(!r.ok) throw new Error("Save failed");
+  const j = await r.json();
+  if(!j || !j.ok) throw new Error("Save failed");
+  return j;
+}
+
+/* ---- dates ---- */
+function mpLocalToday(){ const d = new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function mpYmdAdd(ymd, n){ const d = new Date(ymd+"T00:00:00Z"); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); }
+function mpWeekOf(ymd){ const d = new Date(ymd+"T00:00:00Z"); d.setUTCDate(d.getUTCDate()-((d.getUTCDay()+6)%7)); return d.toISOString().slice(0,10); }
+function mpDayOf(ymd){ return MP_WEEK_DAYS[(new Date(ymd+"T00:00:00Z").getUTCDay()+6)%7]; }
+function mpDateOfDay(week, day){ return mpYmdAdd(week, Math.max(0, MP_WEEK_DAYS.indexOf(day))); }
+function mpYmdLabel(ymd){
+  const t = mpLocalToday();
+  if(ymd === t) return "Today";
+  if(ymd === mpYmdAdd(t, 1)) return "Tomorrow";
+  const d = new Date(ymd+"T00:00:00Z");
+  return ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getUTCDay()]+" "+d.getUTCDate()+" "+MONTHS[d.getUTCMonth()];
+}
+
+/* ---- reading a project ---- */
+function mpProjectById(id){ return (mpProjects||[]).find(p=>p && p.id===id) || null; }
+function mpProjectOf(it){ return it && it.projectId ? mpProjectById(it.projectId) : null; }
+function mpLiveSteps(p){ return ((p && p.steps)||[]).filter(s=>s && !s.del); }
+function mpStepDate(s){ return s.due || (s.week && s.day ? mpDateOfDay(s.week, s.day) : ""); }
+function mpOpenSteps(p){
+  const cols = ((p && p.columns)||[]).map(c=>c.id);
+  const rank = s => { const d = mpStepDate(s); return d ? "0"+d : "1"; };
+  return mpLiveSteps(p).filter(s=>!s.done).sort((a,b)=>{
+    const ra = rank(a), rb = rank(b);
+    if(ra !== rb) return ra < rb ? -1 : 1;
+    return (cols.indexOf(a.col)-cols.indexOf(b.col)) || ((Number(a.order)||0)-(Number(b.order)||0));
+  });
+}
+function mpProjectFinished(p){
+  if(!p) return false;
+  const live = mpLiveSteps(p);
+  return p.status === "done" || (live.length > 0 && live.every(s=>s.done));
+}
+function mpFocusDone(it){ const p = mpProjectOf(it); return p ? mpProjectFinished(p) : !!(it && it.done); }
+// the one thing a project needs from you, in one word or two
+function mpStateOf(p){
+  if(!p) return { key:"missing", label:"Not found", next:null };
+  if(mpProjectFinished(p)) return { key:"finished", label:"Finished", next:null };
+  const next = mpOpenSteps(p)[0] || null;
+  if(!next) return { key:"steps", label:"Needs steps", next:null };
+  const on = mpStepDate(next);
+  if(!on) return { key:"day", label:"Needs a day", next };
+  if(on < mpLocalToday()) return { key:"late", label:"Late", next };
+  return { key:"ready", label:"On your plan", next };
+}
+function mpProgressOf(p){
+  const live = mpLiveSteps(p);
+  const done = live.filter(s=>s.done).length;
+  return { done, total: live.length, pct: live.length ? Math.round(done/live.length*100) : 0 };
+}
+function mpShelf(){
+  const on = new Set(((mpPlan&&mpPlan.focus)||[]).map(f=>f.projectId).filter(Boolean));
+  const rank = { active:0, planned:1, paused:2 };
+  return (mpProjects||[]).filter(p=>p && !p.archived && !on.has(p.id) && !mpProjectFinished(p))
+    .sort((a,b)=>(rank[a.status]||0)-(rank[b.status]||0));
+}
+const MP_PROJECT_WORDS = { planned:"Not started", active:"Running", paused:"Parked" };
+
+/* ---- what the month shows ---- */
+function mpMonthName(){ return MONTHS_LONG[ymParts(mpYm).m]; }
+function mpDayButtonsHtml(fnPrefix, pickKey){
+  const t = mpLocalToday(), tom = mpYmdAdd(t, 1);
+  const pick = mpDayPick === pickKey ? `<div class="mpx-pick">
+      <input type="date" id="mpxDate" value="${tom}" aria-label="Pick a day">
+      <button type="button" class="mpx-btn mpx-primary" onclick="${fnPrefix},document.getElementById('mpxDate').value)">Set this day</button>
+    </div>` : "";
+  return `<div class="mpx-days">
+      <button type="button" class="mpx-btn mpx-primary" onclick="${fnPrefix},'${t}')">Today</button>
+      <button type="button" class="mpx-btn" onclick="${fnPrefix},'${tom}')">Tomorrow</button>
+      <button type="button" class="mpx-btn" onclick="mpTogglePick('${pickKey}')">Pick a day</button>
+    </div>${pick}`;
+}
+function mpLinkedTileHtml(it, fromTag, noteTag){
+  const id = esc(it.id), p = mpProjectOf(it);
+  const loaded = mpProjects !== null;
+  const st = loaded ? mpStateOf(p) : { key:"wait", label:"Not loaded", next:null };
+  const name = p ? p.name : (it.title || "Project");
+  const linked = (it.rockRef!==""&&it.rockRef!=null&&mpRocks[Number(it.rockRef)]);
+  const pr = p ? mpProgressOf(p) : null;
+  const n = st.next, on = n ? mpStepDate(n) : "";
+  const progress = pr && pr.total ? `<div class="mpx-progress">
+      <div class="mpx-bar" role="img" aria-label="${pr.pct}% done"><div style="width:${pr.pct}%"></div></div>
+      <span>${pr.done} of ${pr.total} step${pr.total===1?"":"s"} done</span></div>` : "";
+  const nextBox = n ? `<div class="mpx-next"><span class="mpx-cap">${st.key==="late" ? "Late, needs a new day" : "Next step"}</span>
+      <b>${esc(n.title)}</b><span>${on ? esc(mpYmdLabel(on)) : "No day yet"}</span></div>` : "";
+  const action = st.key==="steps"
+    ? `<button type="button" class="mpx-btn mpx-primary mpx-wide" onclick="mpOpenSheet('${id}')">Add the steps</button>`
+    : (st.key==="late"||st.key==="day") ? mpDayButtonsHtml(`mpSetDay('${esc(p.id)}','${esc(n.id)}'`, "t:"+it.id) : "";
+  return `<div class="mp-item mpx-tile${mpFocusDone(it)?" done":""}" data-focus="${id}" data-linked="1">
+    <button type="button" class="mpx-head" onclick="mpOpenSheet('${id}')" aria-label="Open ${esc(name)}">
+      <span class="mpx-name">${esc(name)}</span>
+      <span class="mpx-goal">${esc(it.goal || "Tap to say what done looks like")}</span>
+    </button>
+    <div class="mpx-tags"><span class="mpx-pill mpx-${st.key}">${st.label}</span>${linked?`<span class="mp-linktag">↳ Rock ${Number(it.rockRef)+1}</span>`:""}${fromTag}${noteTag}</div>
+    ${progress}${nextBox}${action}
+  </div>`;
+}
+function mpReadinessHtml(){
+  const linked = ((mpPlan&&mpPlan.focus)||[]).filter(f=>f.projectId);
+  const n = linked.length;
+  if(!n || mpProjects===null) return "";
+  const ready = linked.filter(f=>["ready","finished"].includes(mpStateOf(mpProjectOf(f)).key)).length;
+  return `<div class="mpx-ready">
+    <div class="mpx-ready-top"><b>${ready} of ${n} ready to go</b><span>${ready===n?"All set":"Each one needs a next step and a day"}</span></div>
+    <div class="mpx-bar mpx-bar-big" role="img" aria-label="${ready} of ${n} ready"><div style="width:${Math.round(ready/n*100)}%"></div></div>
+  </div>`;
+}
+function mpAddHtml(){
+  const count = ((mpPlan&&mpPlan.focus)||[]).filter(f=>f.projectId).length;
+  const warn = count > 3 ? `<div class="mpx-warn">That's ${count} projects. Most months go better with three.</div>` : "";
+  return `${warn}<div class="mpx-add">
+    <label for="mpxNew">What needs to move in ${esc(mpMonthName())}?</label>
+    <input id="mpxNew" placeholder="Type a project name" autocomplete="off" oninput="mpMatchInput(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();mpAddTyped();}">
+    <div id="mpxMatch"></div>
+  </div>`;
+}
+function mpMatchInput(el){
+  const box = document.getElementById("mpxMatch");
+  if(!box) return;
+  const q = String(el.value||"").trim();
+  if(q.length < 2){ box.innerHTML = ""; return; }
+  const ql = q.toLowerCase();
+  const hits = mpShelf().filter(p=>p.name.toLowerCase().includes(ql)).slice(0,3);
+  box.innerHTML = (hits.length ? `<div class="mpx-hit-cap">You already have:</div>` : "") +
+    hits.map(p=>`<button type="button" class="mpx-btn mpx-wide" onclick="mpBring('${esc(p.id)}')">Use "${esc(p.name)}"</button>`).join("") +
+    `<button type="button" class="mpx-btn mpx-wide${hits.length?"":" mpx-primary"}" onclick="mpAddTyped()">Add "${esc(q)}" as a new project</button>`;
+}
+function mpShelfHtml(){
+  if(mpProjects === null) return `<div class="mp-box"><div class="mp-box-body mpx-offline">
+      <span>Your projects didn't load. Your plan is safe.</span>
+      <button type="button" class="mpx-btn" onclick="mpRetryProjects()">Try again</button></div></div>`;
+  const list = mpShelf();
+  if(!list.length) return "";
+  return `<div class="mp-box"><div class="mp-box-h"><span>${mpIco("rocks")}Not in ${esc(mpMonthName())}</span></div>
+    <div class="mp-box-body"><div class="mpx-shelf-sub">Ideas wait here until you plan. Nothing is lost.</div>
+    ${list.map(p=>{ const pr = mpProgressOf(p); return `<div class="mpx-shelf">
+        <span><b>${esc(p.name)}</b><small>${MP_PROJECT_WORDS[p.status]||"Running"} · ${pr.done} of ${pr.total} steps</small></span>
+        <button type="button" class="mpx-btn" onclick="mpBring('${esc(p.id)}')" aria-label="Add ${esc(p.name)} to ${esc(mpMonthName())}">Add</button>
+      </div>`; }).join("")}
+    </div></div>`;
+}
+function mpRocksFoldHtml(rocksHtml){
+  if(!mpRocks.length) return `<div class="mpx-rockline">No Rocks set for ${esc(mpQuarterTag||"this quarter")} yet. <a onclick="mpGoToQuarterly()">Set them in Quarterly</a></div>`;
+  return `<details class="mpx-rocks"><summary>${mpIco("rocks")}This Quarter's Rocks <span class="mp-hint">${mpRocks.length} · ${esc(mpQuarterTag||"")}</span></summary>
+    <div class="mpx-rocks-body">${rocksHtml}</div></details>`;
+}
+
+/* ---- changing the month's list ---- */
+function mpTogglePick(key){
+  mpDayPick = mpDayPick === key ? "" : key;
+  mpRedrawAll();
+  const el = document.getElementById("mpxDate");
+  if(el){ try{ el.focus(); }catch(e){} }
+}
+function mpRedrawAll(){ mpSyncFromDom(); drawMonthlyPlan(); if(mpOpenId) mpDrawSheet(); }
+async function mpBring(projectId, keepOpen){
+  const p = mpProjectById(projectId);
+  if(!p) return;
+  mpSyncFromDom();
+  const it = { id: mpQid(), title: p.name, rockRef:"", notes:"", done:false, projectId };
+  mpPlan.focus.push(it);
+  drawMonthlyPlan();
+  await mpSaveSection("focus");
+  mpToast(p.name + " added to " + mpMonthName(), async ()=>{
+    mpCloseSheet();
+    mpSyncFromDom();
+    mpPlan.focus = mpPlan.focus.filter(f=>f.id !== it.id);
+    drawMonthlyPlan();
+    await mpSaveSection("focus");
+  });
+  if(!mpOpenSteps(p).length || keepOpen) mpOpenSheet(it.id);
+}
+async function mpCreateProject(name){
+  const n = new Date().toISOString();
+  const p = { id: "p_" + Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4),
+    name, summary:"", status:"active", accent:"orange", startDate:"", targetDate:"",
+    columns:[ {id:"todo",name:"To do",done:false}, {id:"doing",name:"Doing",done:false},
+              {id:"waiting",name:"Waiting on",done:false}, {id:"done",name:"Done",done:true} ],
+    steps:[], canvas:[], archived:false, createdAt:n, lastUpdated:n };
+  const r = await mpPostProject({ project:p });
+  const saved = r.project || p;
+  mpProjects.unshift(saved);
+  return saved;
+}
+async function mpAddTyped(){
+  const el = document.getElementById("mpxNew");
+  const name = String(el && el.value || "").trim().slice(0,160);
+  if(!name) return;
+  if(mpProjects === null){ mpToast("Your projects haven't loaded yet. Tap Try again."); return; }
+  const same = mpShelf().find(p=>p.name.toLowerCase() === name.toLowerCase());
+  if(same) return mpBring(same.id);
+  const on = (mpProjects||[]).find(p=>p.name.toLowerCase() === name.toLowerCase() && ((mpPlan.focus||[]).some(f=>f.projectId===p.id)));
+  if(on){ mpToast(on.name + " is already in " + mpMonthName()); return; }
+  try{
+    const p = await mpCreateProject(name);
+    await mpBring(p.id, true);
+  }catch(e){ mpToast("That didn't save. Please try again."); }
+}
+// an old typed focus item becomes a project. Its title, notes, Rock link and tick all stay.
+async function mpPromote(focusId){
+  mpSyncFromDom();
+  const it = mpItemOf("focus", focusId);
+  if(!it) return;
+  const name = String(it.title||"").trim().slice(0,160);
+  if(!name){ mpToast("Give it a name first."); return; }
+  if(mpProjects === null){ mpToast("Your projects haven't loaded yet. Tap Try again."); return; }
+  try{
+    const match = mpShelf().find(p=>p.name.toLowerCase() === name.toLowerCase());
+    const p = match || await mpCreateProject(name);
+    it.projectId = p.id;
+    drawMonthlyPlan();
+    await mpSaveSection("focus");
+    mpOpenSheet(focusId);
+  }catch(e){ mpToast("That didn't save. Please try again."); }
+}
+async function mpTakeOff(focusId){
+  mpSyncFromDom();
+  const i = mpPlan.focus.findIndex(f=>f.id === focusId);
+  if(i < 0) return;
+  const it = mpPlan.focus[i], p = mpProjectOf(it);
+  mpCloseSheet();
+  mpPlan.focus.splice(i, 1);
+  drawMonthlyPlan();
+  await mpSaveSection("focus");
+  mpToast((p ? p.name : "Project") + " taken off " + mpMonthName(), async ()=>{
+    mpSyncFromDom();
+    mpPlan.focus.splice(Math.min(i, mpPlan.focus.length), 0, it);
+    drawMonthlyPlan();
+    await mpSaveSection("focus");
+  });
+}
+async function mpCarry(focusId){
+  mpCloseSheet();
+  mpPushOpen = { kind:"focus", id:focusId, ym: nextYm(mpYm) };
+  await mpPushForward("focus", focusId);
+}
+function mpOpenBoard(projectId){
+  try{ localStorage.setItem("bodysculpt:proj", projectId); }catch(e){}
+  location.href = "/projects.html#board";
+}
+
+/* ---- changing a step: through stepLink and addStep, never a whole project ---- */
+function mpPutStep(p, step){
+  if(!step) return;
+  const i = p.steps.findIndex(s=>s.id === step.id);
+  if(i >= 0) p.steps[i] = step; else p.steps.push(step);
+}
+async function mpLinkStep(p, s, fields){
+  const before = Object.assign({}, s);
+  Object.assign(s, fields);
+  mpRedrawAll();
+  try{
+    const r = await mpPostProject({ stepLink: Object.assign({ projectId:p.id, stepId:s.id }, fields) });
+    if(r.step) mpPutStep(p, r.step);
+    mpRedrawAll();
+    return true;
+  }catch(e){
+    mpPutStep(p, before);
+    mpRedrawAll();
+    mpToast("That didn't save. Please try again.");
+    return false;
+  }
+}
+// the daily calendar's display copy of a dated step, the same way Weekly moves it (v268)
+function mpMoveCalendarCopy(p, s, fromWeek, toWeek, cell){
+  if(!fromWeek || !toWeek || fromWeek === toWeek) return;
+  fetch(STORE, { method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ weeklyCancel:{ weekEnding:fromWeek, tgt:{ p:p.id, s:s.id },
+      cell:"", to:cell, toWeek, title:String(s.title||"") } }) }).catch(()=>{});
+}
+async function mpSetDay(projectId, stepId, ymd){
+  const p = mpProjectById(projectId);
+  const s = p && (p.steps||[]).find(x=>x.id === stepId);
+  if(!s || !/^\d{4}-\d{2}-\d{2}$/.test(String(ymd))) return;
+  const from = mpStepDate(s);
+  if(from === ymd){ mpDayPick = ""; mpRedrawAll(); return; }
+  const was = { week:s.week||"", day:s.day||"", slot:s.slot||"" };
+  const fields = { week:mpWeekOf(ymd), day:mpDayOf(ymd), slot:s.slot||"" };
+  if(s.due){ was.due = s.due; fields.due = ymd; }
+  mpDayPick = "";
+  if(!(await mpLinkStep(p, s, fields))) return;
+  const live = (p.steps||[]).find(x=>x.id === stepId);
+  if(from) mpMoveCalendarCopy(p, live, mpWeekOf(from), fields.week, (fields.slot||MP_ANY)+":"+fields.day);
+  mpToast("Booked: " + mpYmdLabel(ymd), async ()=>{
+    await mpLinkStep(p, (p.steps||[]).find(x=>x.id === stepId), was);
+    if(from) mpMoveCalendarCopy(p, live, fields.week, mpWeekOf(from), (was.slot||MP_ANY)+":"+was.day);
+  });
+}
+async function mpTick(projectId, stepId){
+  const p = mpProjectById(projectId);
+  const s = p && (p.steps||[]).find(x=>x.id === stepId);
+  if(!s) return;
+  const done = !s.done;
+  if(!(await mpLinkStep(p, s, { done }))) return;
+  await mpFollowDone(p);
+  if(done) mpToast("Ticked off", async ()=>{
+    await mpLinkStep(p, (p.steps||[]).find(x=>x.id === stepId), { done:false });
+    await mpFollowDone(p);
+  });
+}
+// one done-state: the month's tick follows the project, so Weekly's anchor reads it right
+async function mpFollowDone(p){
+  mpSyncFromDom();
+  let changed = false;
+  (mpPlan.focus||[]).forEach(f=>{
+    if(f.projectId !== p.id) return;
+    const d = mpProjectFinished(p);
+    if(!!f.done !== d){ f.done = d; changed = true; }
+  });
+  if(changed){ drawMonthlyPlan(); await mpSaveSection("focus"); }
+}
+async function mpAddStep(){
+  const it = mpItemOf("focus", mpOpenId), p = mpProjectOf(it);
+  const el = document.getElementById("mpxStep");
+  const title = String(el && el.value || "").trim().slice(0,240);
+  if(!p || !title) return;
+  try{
+    const r = await mpPostProject({ addStep:{ projectId:p.id, title,
+      id:"s_"+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4) } });
+    if(r.step) p.steps = (p.steps||[]).concat([r.step]);
+    mpShowAll = true;   // the step just typed must not land out of sight
+    if(el) el.value = "";
+    mpRedrawAll();
+    const again = document.getElementById("mpxStep");
+    if(again) again.focus();
+  }catch(e){ mpToast("That step didn't save. Please try again."); }
+}
+
+/* ---- the project panel: a real <dialog>, so focus stays inside it and Escape closes it ---- */
+function mpSheetEl(){
+  let el = document.getElementById("mpxSheet");
+  if(!el){
+    el = document.createElement("dialog");
+    el.id = "mpxSheet";
+    el.className = "mpx-sheet";
+    el.addEventListener("close", ()=>{ mpOpenId = ""; mpDayPick = ""; mpShowAll = false; });
+    el.addEventListener("click", e=>{ if(e.target === el) mpCloseSheet(); });
+    document.body.appendChild(el);
+  }
+  return el;
+}
+function mpOpenSheet(focusId){
+  mpOpenId = focusId; mpDayPick = ""; mpShowAll = false;
+  mpDrawSheet();
+  const el = mpSheetEl();
+  if(!el.open) el.showModal();
+  const first = document.getElementById("mpxStep");
+  if(first && !mpOpenSteps(mpProjectOf(mpItemOf("focus", focusId))).length) first.focus();
+}
+function mpCloseSheet(){ const el = document.getElementById("mpxSheet"); if(el && el.open) el.close(); mpOpenId = ""; }
+function mpStepRowHtml(p, s){
+  const on = mpStepDate(s), key = "s:"+s.id;
+  const late = on && on < mpLocalToday() && !s.done;
+  return `<div class="mpx-step">
+    <div class="mpx-step-line">
+      <button type="button" class="mpx-tick${s.done?" on":""}" onclick="mpTick('${esc(p.id)}','${esc(s.id)}')" aria-pressed="${s.done?"true":"false"}" aria-label="Done: ${esc(s.title)}"><span><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg></span></button>
+      <span class="mpx-step-t${s.done?" off":""}">${esc(s.title)}</span>
+      ${s.done?"":`<button type="button" class="mpx-due${on?(late?" late":""):" none"}" onclick="mpTogglePick('${esc(key)}')">${on?esc(mpYmdLabel(on)):"Add a day"}</button>`}
+    </div>
+    ${mpDayPick===key ? mpDayButtonsHtml(`mpSetDay('${esc(p.id)}','${esc(s.id)}'`, key) : ""}
+  </div>`;
+}
+function mpDrawSheet(){
+  const it = mpItemOf("focus", mpOpenId), p = mpProjectOf(it), el = mpSheetEl();
+  if(!it){ return; }
+  // a half-typed step survives a tick or a day being set while it waits
+  const typing = (document.getElementById("mpxStep")||{}).value || "";
+  const month = esc(mpMonthName());
+  const open = p ? mpOpenSteps(p) : [];
+  const shown = mpShowAll ? open : open.slice(0,5);
+  const doneN = p ? mpLiveSteps(p).filter(s=>s.done).length : 0;
+  const rocks = mpRocks.length ? `<div class="mpx-field"><label for="mpxRock">Supports which Rock?</label>
+      <select id="mpxRock" onchange="mpSetRock(this.value)">${mpRockOptions(it.rockRef)}</select></div>` : "";
+  el.innerHTML = `<div class="mpx-sheet-top">
+      <div><div class="mpx-cap">Project</div><h2>${esc(p ? p.name : (it.title||"Project"))}</h2></div>
+      <button type="button" class="mpx-x" onclick="mpCloseSheet()" aria-label="Close"><svg class="ic" aria-hidden="true"><use href="#ic-close"/></svg></button>
+    </div>
+    <div class="mpx-sheet-body">
+      ${p ? "" : `<p class="mpx-note">This project couldn't be found. The link is kept, nothing has been lost.</p>`}
+      <div class="mpx-field"><label for="mpxGoal">By the end of ${month}, what's true?</label>
+        <input id="mpxGoal" value="${esc(it.goal||"")}" placeholder="One line is plenty" autocomplete="off" onblur="mpSetGoal('${esc(it.id)}',this.value)"></div>
+      ${rocks}
+      <div><h3>Steps</h3>
+        ${!open.length && !doneN ? `<p class="mpx-note">What's the first thing that has to happen? Type it, press Add, keep going.</p>` : ""}
+        ${shown.map(s=>mpStepRowHtml(p, s)).join("")}
+        ${open.length > shown.length ? `<button type="button" class="mpx-link" onclick="mpShowAll=true;mpDrawSheet()">Show all ${open.length} steps</button>` : ""}
+        ${doneN ? `<p class="mpx-note">${doneN} step${doneN===1?"":"s"} already done</p>` : ""}
+      </div>
+      ${p ? `<div class="mpx-field"><label for="mpxStep">Add a step</label>
+        <div class="mpx-addrow"><input id="mpxStep" placeholder="Next thing to do" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();mpAddStep();}">
+        <button type="button" class="mpx-btn mpx-primary" onclick="mpAddStep()">Add</button></div></div>
+      <button type="button" class="mpx-link" onclick="mpOpenBoard('${esc(p.id)}')">Open the full board, canvas and files</button>` : ""}
+      <button type="button" class="mpx-link" onclick="mpCarry('${esc(it.id)}')">Carry into next month too</button>
+      <button type="button" class="mpx-link mpx-quiet" onclick="mpTakeOff('${esc(it.id)}')">Take it off ${month}</button>
+    </div>`;
+  const stepBox = document.getElementById("mpxStep");
+  if(stepBox) stepBox.value = typing;
+}
+// the id comes with it: Escape can close the panel before the field's blur arrives
+function mpSetGoal(focusId, v){
+  const it = mpItemOf("focus", focusId);
+  if(!it) return;
+  it.goal = String(v||"").trim().slice(0,400);
+  drawMonthlyPlan();
+  return mpCommit("focus");
+}
+function mpSetRock(v){
+  const it = mpItemOf("focus", mpOpenId);
+  if(!it) return;
+  it.rockRef = v;
+  drawMonthlyPlan();
+  return mpCommit("focus");
+}
+
+/* ---- the way back goes on the confirmation ---- */
+let mpToastTimer = null;
+function mpToast(msg, undo){
+  const old = document.getElementById("mpxToast");
+  if(old) old.remove();
+  clearTimeout(mpToastTimer);
+  const el = document.createElement("div");
+  el.id = "mpxToast"; el.className = "mpx-toast"; el.setAttribute("role","status");
+  const span = document.createElement("span"); span.textContent = msg; el.appendChild(span);
+  if(undo){
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = "Undo";
+    b.onclick = ()=>{ el.remove(); undo(); };
+    el.appendChild(b);
+  }
+  // an open <dialog> sits above the page, so the toast has to sit inside it
+  const sheet = document.getElementById("mpxSheet");
+  ((sheet && sheet.open) ? sheet : document.body).appendChild(el);
+  mpToastTimer = setTimeout(()=>el.remove(), 7000);
 }
 
 boot();
