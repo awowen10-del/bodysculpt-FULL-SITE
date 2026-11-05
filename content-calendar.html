@@ -334,7 +334,7 @@
      height is left, and its rows share that height. Every state carries a shape as well as a
      colour: full bar, part bar, empty slot, outline for booked, stripes for prep. */
   html,body{height:100%;}
-  .cc{height:100dvh;min-height:690px;display:flex;flex-direction:column;gap:12px;padding:14px 28px 12px;min-width:0;box-sizing:border-box;}
+  .cc{height:100dvh;min-height:560px;display:flex;flex-direction:column;gap:12px;padding:14px 28px 12px;min-width:0;box-sizing:border-box;}
   @media(min-width:901px){ header{display:none;} }
 
   /* the headline: type on the page, nothing boxed */
@@ -359,23 +359,29 @@
   .cc-sigword.ok{color:var(--green);} .cc-sigword.todo{color:var(--amber);} .cc-sigword.bad{color:var(--red);}
 
   /* the year */
-  .cc-board{flex:1 1 auto;min-height:0;background:var(--card);border-radius:20px;box-shadow:var(--shadow-lift);padding:0 22px 12px 0;display:flex;flex-direction:column;overflow:hidden;}
-  .cc-grid{flex:1 1 auto;min-height:0;position:relative;display:grid;grid-template-columns:216px minmax(0,1fr);}
-  .cc-head{grid-column:2;display:grid;grid-template-columns:repeat(52,minmax(0,1fr));position:relative;z-index:2;}
-  .cc-mon{font:inherit;background:none;border:0;cursor:pointer;padding:0 0 0 8px;text-align:left;font-size:13px;font-weight:700;letter-spacing:-.005em;color:var(--ink-dim);display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden;white-space:nowrap;}
+  .cc-board{flex:1 1 auto;min-height:0;background:var(--card);border-radius:20px;box-shadow:var(--shadow-lift);padding:0 0 9px 0;display:flex;flex-direction:column;overflow:hidden;}
+  .cc-grid{flex:1 1 auto;min-height:0;position:relative;display:grid;grid-template-columns:216px 2288px;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--line) transparent;}
+  .cc-grid::-webkit-scrollbar{width:12px;height:12px;}
+  .cc-grid::-webkit-scrollbar-track{background:transparent;}
+  .cc-grid::-webkit-scrollbar-thumb{background:var(--line);border:3px solid var(--card);border-radius:8px;}
+  .cc-grid::-webkit-scrollbar-thumb:hover{background:var(--ink-faint);}
+  .cc-grid::-webkit-scrollbar-corner{background:transparent;}
+  .cc-corner{grid-column:1;grid-row:1 / span 2;position:sticky;top:0;left:0;z-index:8;background:var(--card);}
+  .cc-head{grid-column:2;display:grid;grid-template-columns:repeat(52,minmax(0,1fr));position:sticky;top:0;z-index:7;background:var(--card);}
+  .cc-mon{font:inherit;background:none;border:0;cursor:pointer;padding:0 0 0 12px;text-align:left;font-size:14px;font-weight:700;letter-spacing:-.005em;color:var(--ink-dim);display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden;white-space:nowrap;}
   .cc-mon:hover,.cc-mon.now{color:var(--ink-strong);}
   .cc-mon.focus{color:var(--orange);}
-  .cc-mon b{font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;}
+  .cc-mon b{font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--card);background:var(--orange);padding:2px 5px;border-radius:var(--r-pill);}
   .cc-bands{grid-column:2;grid-row:1 / -1;position:relative;pointer-events:none;}
-  .cc-band{position:absolute;top:0;bottom:0;}
-  .cc-band.alt{background:var(--card-2);}
-  .cc-band.focus{background:rgba(var(--orange-rgb),.075);}
-  .cc-nowline{position:absolute;top:48px;bottom:0;width:1.5px;background:var(--ink-strong);z-index:4;}
+  .cc-band{position:absolute;top:0;bottom:0;border-left:1px solid var(--navy);box-sizing:border-box;}
+  .cc-band.alt{background:none;}
+  .cc-band.focus{background:linear-gradient(180deg,rgba(var(--orange-rgb),.15),rgba(var(--orange-rgb),.045));}
+  .cc-nowline{position:absolute;top:58px;bottom:0;width:1px;background:var(--ink-faint);}
 
   .cc-cap{grid-column:1;padding:0 0 0 24px;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);display:flex;align-items:flex-end;}
-  .cc-lab{grid-column:1;font:inherit;background:none;border:0;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;padding:0 10px 0 24px;min-width:0;color:var(--ink);font-size:13px;font-weight:600;letter-spacing:-.005em;}
+  .cc-lab{grid-column:1;position:sticky;left:0;z-index:6;font:inherit;background:var(--card);border:0;box-shadow:1px 0 0 var(--line);cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;padding:0 10px 0 24px;min-width:0;color:var(--ink);font-size:13px;font-weight:600;letter-spacing:-.005em;}
   .cc-lab:hover{color:var(--orange);}
-  .cc-lab.big{font-family:var(--font-display);font-size:14px;font-weight:800;color:var(--ink-strong);}
+  .cc-lab.big{font-family:var(--font-display);font-size:15px;font-weight:800;color:var(--orange);}
   .cc-labt{min-width:0;display:flex;align-items:baseline;gap:7px;line-height:1.2;}
   .cc-labt span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .cc-labt small{font-size:11px;font-weight:600;color:var(--red);white-space:nowrap;}
@@ -400,15 +406,18 @@
   .cc-bar.k-proj{background:var(--ink-strong);}
   .cc-bar.tight.k-proj .t{color:var(--ink-strong);}
   .cc-bar.k-lead{background:var(--green);} .cc-bar.k-magnet{background:var(--info);} .cc-bar.k-referral{background:var(--blue);} .cc-bar.k-upsell{background:var(--red);}
-  .cc-bar.fixed{max-height:24px;background:var(--orange);}
+  .cc-bar.fixed{max-height:30px;height:calc(100% - 4px);border-radius:9px;background:var(--orange);box-shadow:inset 0 1px 0 color-mix(in srgb,var(--card) 30%,transparent),0 5px 16px rgba(var(--orange-rgb),.42);}
+  .cc-bar.fixed .t{font-family:var(--font-display);font-size:14px;font-weight:800;letter-spacing:-.01em;}
+  .cc-bar.tight.flip .t{left:auto;right:calc(100% + 7px);}
+  .cc-bar.fixed .d{font-size:11.5px;font-weight:600;color:var(--ink-dim);margin-left:7px;}
   .cc-bar.tight{padding:0;overflow:visible;}
   .cc-bar.tight .t{position:absolute;left:calc(100% + 7px);color:var(--teal);overflow:visible;}
   .cc-bar.fixed.tight .t{color:var(--ink-strong);font-weight:800;}
   .cc-bar.atnow:not(.tight){padding-left:16px;}
   .cc-bar.past{opacity:.55;}
-  .cc-prep{position:relative;z-index:1;align-self:center;height:calc(100% - 7px);min-height:10px;max-height:24px;border:0;padding:0;cursor:pointer;background:linear-gradient(90deg,transparent,rgba(var(--orange-rgb),.42));}
+  .cc-prep{position:relative;z-index:1;align-self:center;height:calc(100% - 4px);min-height:10px;max-height:30px;border:0;padding:0;cursor:pointer;background:linear-gradient(90deg,transparent,rgba(var(--orange-rgb),.42));}
 
-  .cc-foot{flex:0 0 auto;display:flex;align-items:center;gap:16px;padding:9px 0 0 24px;font-size:11.5px;color:var(--ink-dim);flex-wrap:wrap;}
+  .cc-foot{flex:0 0 auto;display:flex;align-items:center;gap:16px;padding:8px 22px 0 24px;font-size:11.5px;color:var(--ink-dim);flex-wrap:wrap;}
   .cc-key{display:inline-flex;align-items:center;gap:6px;}
   .cc-key i{display:inline-block;}
   .cc-key .k-done{width:11px;height:11px;border-radius:50%;background:var(--ink-dim);}
@@ -422,10 +431,27 @@
 
   .cc-tip{position:fixed;z-index:60;pointer-events:none;background:var(--ink-strong);color:var(--card);font-size:12px;font-weight:500;padding:5px 8px;border-radius:var(--r-sm);max-width:260px;box-shadow:var(--shadow-lift);}
 
-  .cc-wkh{grid-column:2;display:grid;grid-template-columns:repeat(52,minmax(0,1fr));position:relative;z-index:2;font-size:9.5px;font-weight:600;color:var(--ink-faint);font-variant-numeric:tabular-nums;}
+  .cc-wkh{grid-column:2;display:grid;grid-template-columns:repeat(52,minmax(0,1fr));position:sticky;top:34px;z-index:7;background:var(--card);align-items:center;font-size:11px;font-weight:500;color:var(--ink-faint);font-variant-numeric:tabular-nums;box-shadow:0 1px 0 var(--line);}
   .cc-wkh span{text-align:center;}
-  .cc-wkh span.now{color:var(--card);background:var(--ink-strong);border-radius:4px;font-weight:800;}
-  .cc-lab,.cc-trk{border-top:1px solid var(--navy);}
+  .cc-wkh span.now{color:var(--ink-strong);font-weight:800;}
+  .cc-lab,.cc-trk{border-top:1px solid var(--navy);transition:background var(--tap);}
+  .cc-trk.c-moments{background:rgba(var(--orange-rgb),.075);}
+  .cc-lab.big{background:color-mix(in srgb,var(--orange) 7.5%,var(--card));}
+  .cc-trk:hover,.cc-lab:hover + .cc-trk{background:rgba(var(--teal-rgb),.05);}
+  .cc-lab:hover,.cc-lab:has(+ .cc-trk:hover){background:color-mix(in srgb,var(--teal) 5%,var(--card));}
+  .cc-dot{flex:0 0 auto;width:7px;height:7px;border-radius:50%;background:var(--teal);}
+  .cc-dot.d-email,.cc-dot.d-magnet{background:var(--info);} .cc-dot.d-organic,.cc-dot.d-upsell{background:var(--red);}
+  .cc-dot.d-engage,.cc-dot.d-cases,.cc-dot.d-lead{background:var(--green);} .cc-dot.d-paid,.cc-dot.d-referral{background:var(--blue);} .cc-dot.d-moments{background:var(--orange);}
+  .c-plan .cc-wk,.c-moments .cc-wk{position:relative;}
+  .c-plan .cc-wk:not(:disabled):hover::before,.c-moments .cc-wk:not(:disabled):hover::before{content:"+";position:absolute;inset:0;display:grid;place-items:center;font-size:14px;font-weight:700;color:var(--ink-dim);}
+  .cc-sigbar{display:block;height:3px;border-radius:2px;background:var(--navy-2);overflow:hidden;margin-top:3px;}
+  .cc-sigbar i{display:block;height:100%;border-radius:2px;background:var(--orange);transition:width .6s ease;}
+  @keyframes ccGrow{from{transform:scaleX(0);}}
+  @keyframes ccRise{from{opacity:0;transform:scale(.4);}}
+  .cc-bar,.cc-prep{transform-origin:left center;}
+  .cc-grid.enter .cc-bar,.cc-grid.enter .cc-prep{animation:ccGrow .55s cubic-bezier(.2,.8,.2,1) both;}
+  .cc-grid.enter .cc-wk i{animation:ccRise .4s ease both;}
+  @media (prefers-reduced-motion:reduce){ .cc-grid.enter .cc-bar,.cc-grid.enter .cc-prep,.cc-grid.enter .cc-wk i{animation:none;} }
 
   .cc-drawer{position:fixed;top:0;right:0;bottom:0;width:390px;max-width:100vw;background:var(--card);border-left:1px solid var(--line);box-shadow:var(--shadow-lift);z-index:45;
     transform:translateX(102%);visibility:hidden;transition:transform .2s ease,visibility .2s;display:flex;flex-direction:column;}
@@ -682,6 +708,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 /* PURE:START */
 var CC_START = "2026-11-02";
 var CC_WEEKS = 52;
+var CC_COL = 44;   // one week's width. The grid scrolls, so a week never has to squeeze to fit.
 var CC_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 var CC_ROWS = [
   { k:"email", label:"Email Marketing", sub:"From GoHighLevel", kind:"feed", cls:"c-email", icon:"ic-mail" },
@@ -813,9 +840,9 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
       sigFeed("organic", "Posts", "ic-camera", "c-organic", "this week"), sigAds(), sigNext(next) ];
     $("ccSigs").innerHTML = sigs.join("");
   }
-  function sig(k, cls, ic, title, num, word, tone, wordIc) {
+  function sig(k, cls, ic, title, num, word, tone, wordIc, pct) {
     return '<button type="button" class="cc-sig ' + cls + '" data-act="row" data-k="' + k + '"><span class="cc-sigtop"><span class="cc-sigic">' + icon(ic) + "</span>" + ccEsc(title) +
-      '</span><span class="cc-signum">' + num + '</span><span class="cc-sigword ' + (tone || "") + '">' + (wordIc ? icon(wordIc) : "") + ccEsc(word) + "</span></button>";
+      '</span><span class="cc-signum">' + num + '</span><span class="cc-sigword ' + (tone || "") + '">' + (wordIc ? icon(wordIc) : "") + ccEsc(word) + "</span>" + (pct == null ? "" : '<span class="cc-sigbar"><i style="width:' + Math.min(100, pct) + '%"></i></span>') + "</button>";
   }
   function sigFeed(k, title, ic, cls) {
     var f = feed(k);
@@ -824,7 +851,7 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
     var c = ccWeekCount(f.items, nowWk).length, t = target(k), st = ccStatus(c, t, false);
     var booked = ccWeekCount(f.upcoming, nowWk).length;
     var word = st === "done" ? "Done" : booked ? booked + " booked in" : st === "part" ? (t - c) + " to go" : "To do";
-    return sig(k, cls, ic, title, c + "<small> of " + t + " this week</small>", word, st === "done" ? "ok" : "todo", st === "done" ? "ic-check" : "ic-clock");
+    return sig(k, cls, ic, title, c + "<small> of " + t + " this week</small>", word, st === "done" ? "ok" : "todo", st === "done" ? "ic-check" : "ic-clock", t ? c / t * 100 : 0);
   }
   function sigAds() {
     var f = feed("paid");
@@ -853,16 +880,17 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
     }).join("");
     var nowCol = weeks.indexOf(nowWk);
     var nowX = (nowCol + ccDiffDays(nowWk, today) / 7) / CC_WEEKS * 100;
+    html += '<div class="cc-corner" aria-hidden="true"></div>';
     html += '<div class="cc-bands">' + bands + '<div class="cc-nowline" style="left:' + nowX + '%" aria-hidden="true"></div></div>';
     html += '<div class="cc-wkh" style="grid-row:2" aria-hidden="true">' + weeks.map(function (w) { return '<span' + (w === nowWk ? ' class="now"' : "") + ">" + Number(w.slice(8)) + "</span>"; }).join("") + "</div>";
     html += '<div class="cc-head" style="grid-row:1">' + marks.map(function (m) {
       var mi = Number(m.key.slice(5)) - 1, wide = m.b - m.a >= 3, nm = CC_MONTHS[mi].slice(0, 3);
       return '<button type="button" class="cc-mon' + (m.key === fkey ? " focus" : "") + (m.key === nowKey ? " now" : "") + '" style="grid-column:' + (m.a + 1) + " / " + (m.b + 2) +
-        '" data-act="month" data-ym="' + m.key + '" aria-label="' + CC_MONTHS[mi] + '">' + (wide ? nm : nm.charAt(0)) + (m.key === fkey && (m.b - m.a + 1) * (($("ccGrid").clientWidth - 216) / CC_WEEKS || 18) >= 84 ? "<b>Focus</b>" : "") + "</button>";
+        '" data-act="month" data-ym="' + m.key + '" aria-label="' + CC_MONTHS[mi] + '">' + (wide ? nm : nm.charAt(0)) + (m.key === fkey && (m.b - m.a + 1) * (CC_COL) >= 84 ? "<b>Focus</b>" : "") + "</button>";
     }).join("") + "</div>";
-    var tmpl = "30px 18px";
+    var tmpl = "34px 24px";
     CC_ROWS.forEach(function (r, i) {
-      tmpl += " " + (r.k === "moments" ? "minmax(86px,2.4fr)" : "minmax(32px,1fr)");
+      tmpl += " " + (r.k === "moments" ? "minmax(132px,2.6fr)" : "minmax(44px,1fr)");
       html += labHtml(r, i + 3) + rowHtml(r, i + 3);
     });
     g.style.gridTemplateRows = tmpl;
@@ -871,13 +899,13 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
   function labHtml(r, gr) {
     var f = (r.kind === "feed" || r.kind === "ads") ? feed(r.k) : null;
     var sub = f && !f.ok ? "<small>" + (f.needsKey ? "Needs a new key" : "Can't read it") + "</small>" : "";
-    return '<button type="button" class="cc-lab' + (r.k === "moments" ? " big" : "") + '" style="grid-row:' + gr + '" data-act="row" data-k="' + r.k + '"><span class="cc-labt"><span>' + ccEsc(r.label) + "</span>" + sub + "</span></button>";
+    return '<button type="button" class="cc-lab' + (r.k === "moments" ? " big" : "") + '" style="grid-row:' + gr + '" data-act="row" data-k="' + r.k + '"><i class="cc-dot d-' + r.k + '" aria-hidden="true"></i><span class="cc-labt"><span>' + ccEsc(r.label) + "</span>" + sub + "</span></button>";
   }
   function rowHtml(r, gr) {
     var my = occs(function (i) { return i.cat === r.k; });
-    var boxW = ($("ccGrid").clientWidth - 216) / CC_WEEKS || 18;
+    var boxW = CC_COL;
     var room = function (o, cols) {
-      var need = Math.ceil((o.item.title.length * 6.9 + 12) / boxW);
+      var need = Math.ceil(((o.item.title.length + (o.item.fixed ? 9 : 0)) * 7.4 + 14) / boxW);
       return cols >= need ? 0 : need;
     };
     var laid = ccLanes(my, weeks, room, r.k === "moments" ? 4 : 2);
@@ -892,13 +920,13 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
     var row = "grid-row:" + (lane + 1) + ";";
     var ca = Math.max(0, a), cb = Math.min(CC_WEEKS - 1, b);
     if (o.prep < o.start && a > 0) {
-      out += '<button type="button" tabindex="-1" class="cc-prep" style="' + row + "grid-column:" + (Math.max(0, pa) + 1) + " / " + (Math.min(a, CC_WEEKS) + 1) +
+      out += '<button type="button" tabindex="-1" class="cc-prep" style="animation-delay:' + Math.max(0, pa) * 7 + "ms;" + row + "grid-column:" + (Math.max(0, pa) + 1) + " / " + (Math.min(a, CC_WEEKS) + 1) +
         '" data-act="item" data-id="' + ccEsc(it.id) + '" data-tip="Time to prepare: ' + ccEsc(it.title) + ", " + fmt(o.start) + '"></button>';
     }
     if (a >= CC_WEEKS) return out;
-    var cols = cb - ca + 1, tight = cols * boxW < it.title.length * 6.9 + 14;
-    out += '<button type="button" class="cc-bar k-' + (it.isProj ? "proj" : it.cat) + (it.fixed ? " fixed" : "") + (tight ? " tight" : "") + (o.end < today ? " past" : "") + (ca === 0 ? " atnow" : "") + '" style="' + row + "grid-column:" + (ca + 1) + " / " + (cb + 2) +
-      '" data-act="' + (it.isProj ? "proj" : "item") + '" data-id="' + ccEsc(it.id) + '" data-tip="' + ccEsc(it.title) + ": " + fmt(o.start) + " to " + fmt(o.end) + '"><span class="t">' + ccEsc(it.title) + "</span></button>";
+    var cols = cb - ca + 1, tight = cols * boxW < it.title.length * (it.fixed ? 8 : 6.9) + 18;
+    out += '<button type="button" class="cc-bar k-' + (it.isProj ? "proj" : it.cat) + (it.fixed ? " fixed" : "") + (tight ? " tight" : "") + (o.end < today ? " past" : "") + (ca === 0 ? " atnow" : "") + (tight && (cb + 1) * boxW + (it.title.length + (it.fixed ? 9 : 0)) * 7.6 + 12 > CC_WEEKS * boxW ? " flip" : "") + '" style="animation-delay:' + ca * 7 + "ms;" + row + "grid-column:" + (ca + 1) + " / " + (cb + 2) +
+      '" data-act="' + (it.isProj ? "proj" : "item") + '" data-id="' + ccEsc(it.id) + '" data-tip="' + ccEsc(it.title) + ": " + fmt(o.start) + " to " + fmt(o.end) + '"><span class="t">' + ccEsc(it.title) + (it.fixed && tight ? '<span class="d">' + fmt(o.start) + "</span>" : "") + "</span></button>";
     return out;
   }
   function adBars() {
@@ -1186,7 +1214,12 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
   function loadPulse(fresh) {
     if (fresh) $("ccFresh").textContent = "Checking…";
     return fetch(API + "?pulse=1" + (fresh ? "&fresh=1" : "")).then(function (r) { return r.json(); })
-      .then(function (p) { if (p && p.ok) { pulse = p; renderAll(); } else throw new Error("no"); })
+      .then(function (p) {
+        if (p && p.ok) {
+          pulse = p; renderAll();
+          if (!fresh && plan) { var g = $("ccGrid"); g.classList.add("enter"); setTimeout(function () { g.classList.remove("enter"); }, 1400); }
+        } else throw new Error("no");
+      })
       .catch(function () { $("ccFresh").textContent = "Couldn't check just now"; });
   }
   fetch(API + "?plan=1").then(function (r) { return r.json(); }).then(function (j) {
