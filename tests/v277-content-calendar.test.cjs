@@ -95,8 +95,9 @@ async function main() {
   assert.strictEqual(mo[0], "Black Friday", "a big moment leads, even with overdue work behind it");
   assert.ok(mo.includes("No campaign planned for January yet"), "and it says when the focus month is empty");
   assert.ok(!mo.some((t) => /Deleted|Old/.test(t)), "deleted plans and archived projects stay out");
-  assert.ok(!titles(cu.CU_PAGES["/social.html"]).some((t) => /Launch|tasks|Write it/.test(t)), "projects never show on the social pages");
-  assert.ok(!/projects\?list/.test(PAGE), "the calendar never reads or shows the projects");
+  assert.ok(!titles(cu.CU_PAGES["/social.html"]).some((t) => /Launch|tasks|Write it/.test(t)), "other projects never show on the social pages");
+  assert.ok(Array.from(cu.cuCollect({ items: P, links: { a: "moments" } }, PR, "2026-11-05", cu.CU_PAGES["/social.html"])).some((x) => x.title === "Launch deadline"), "a project made on the calendar does");
+  assert.ok(/links\[p\.id\] && !p\.archived/.test(PAGE), "the calendar shows only the projects made on it");
   assert.deepStrictEqual(Array.from(box.CC_ROWS).map((r) => r.k), ["email", "organic", "engage", "paid", "cases", "tests", "lead", "moments", "referral", "upsell", "offline", "magnet", "other"], "the rows run in the spreadsheet's order");
   assert.strictEqual(Array.from(cu.cuCollect({ items: P }, PR, "2026-11-25", cu.CU_PAGES["/daily.html"]))[1] !== undefined, true, "something to say mid-campaign");
   assert.ok(Array.from(cu.cuCollect({ items: P }, [], "2026-11-25", cu.CU_PAGES["/daily.html"])).some((x) => x.when === "Live now"), "a running moment says so");
@@ -109,6 +110,16 @@ async function main() {
   const lib = path.join(out, "lib.mjs");
   fs.writeFileSync(lib, LIB.replace('import { getStore } from "@netlify/blobs";', "const getStore = () => ({});"));
   const m = await import(lib);
+  let rec = null;
+  const mem = fs.readFileSync(lib, "utf8").replace("const getStore = () => ({});", "const getStore = () => globalThis.__mem;");
+  fs.writeFileSync(lib + ".mjs", mem);
+  globalThis.__mem = { get: async () => rec, setJSON: async (_, v) => { rec = v; } };
+  const mm = await import(lib + ".mjs");
+  await mm.applyOp({ op: "linkProject", id: "p_abc", cat: "moments" });
+  await mm.applyOp({ op: "target", cat: "email", value: 2 });
+  assert.strictEqual(rec.links.p_abc, "moments", "the link is kept through later changes");
+  assert.ok((await mm.applyOp({ op: "linkProject", id: "../bad", cat: "moments" })).error, "a bad id is refused");
+  assert.ok((await mm.applyOp({ op: "linkProject", id: "p_x", cat: "nope" })).error, "a row that does not exist is refused");
   assert.strictEqual(m.mondayOf("2026-11-05"), "2026-11-02");
   assert.strictEqual(m.mondayOf("2026-11-02"), "2026-11-02");
   assert.strictEqual(m.cleanItem({ cat: "nope", title: "x", start: "2026-11-02" }), null, "unknown row refused");

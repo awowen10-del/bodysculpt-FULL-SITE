@@ -48,6 +48,7 @@ export const SEED = () => ({
   ],
   ticks: {},
   targets: { ...DEFAULT_TARGETS },
+  links: {},     // project id -> calendar row, for projects made from the calendar and nothing else
 });
 
 export function cleanItem(raw) {
@@ -66,7 +67,7 @@ export async function readPlan() {
   const raw = await store().get(KEY, { type: "json" });
   if (!raw) return SEED();
   return { items: Array.isArray(raw.items) ? raw.items : [], ticks: raw.ticks || {},
-    targets: { ...DEFAULT_TARGETS, ...(raw.targets || {}) } };
+    targets: { ...DEFAULT_TARGETS, ...(raw.targets || {}) }, links: raw.links || {} };
 }
 const writePlan = (p) => store().setJSON(KEY, { ...p, updatedAt: new Date().toISOString() });
 
@@ -92,6 +93,9 @@ export async function applyOp(body) {
   } else if (body.op === "target") {
     if (!(body.cat in DEFAULT_TARGETS)) return { error: "That row has no weekly target" };
     plan.targets[body.cat] = Math.max(0, Math.min(14, Math.round(Number(body.value) || 0)));
+  } else if (body.op === "linkProject") {
+    if (!/^[A-Za-z0-9_-]{1,40}$/.test(String(body.id || "")) || !CATS.includes(body.cat)) return { error: "That project could not be added to the calendar" };
+    plan.links = { ...plan.links, [body.id]: body.cat };
   } else return { error: "Unknown change" };
   await writePlan(plan);
   return { ok: true, plan };

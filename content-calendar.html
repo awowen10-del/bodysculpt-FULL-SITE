@@ -334,17 +334,17 @@
      height is left, and its rows share that height. Every state carries a shape as well as a
      colour: full bar, part bar, empty slot, outline for booked, stripes for prep. */
   html,body{height:100%;}
-  .cc{height:100dvh;display:flex;flex-direction:column;gap:16px;padding:22px 28px 16px;min-width:0;box-sizing:border-box;}
+  .cc{height:100dvh;min-height:690px;display:flex;flex-direction:column;gap:12px;padding:14px 28px 12px;min-width:0;box-sizing:border-box;}
   @media(min-width:901px){ header{display:none;} }
 
   /* the headline: type on the page, nothing boxed */
   .cc-hero{flex:0 0 auto;display:grid;grid-template-columns:minmax(300px,1fr) auto;gap:32px;align-items:end;}
   .cc-herol{display:flex;flex-direction:column;align-items:flex-start;min-width:0;}
   .cc-kick{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);}
-  .cc-h{font-family:var(--font-display);font-size:38px;line-height:1.05;font-weight:800;letter-spacing:-.03em;color:var(--ink-strong);margin:6px 0 6px;}
-  .cc-sub{font-size:14px;line-height:1.4;color:var(--ink-dim);max-width:56ch;}
-  .cc-ctas{display:flex;gap:18px;margin-top:6px;}
-  .cc-cta{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:13.5px;font-weight:700;color:var(--orange);background:none;border:0;padding:4px 0;min-height:32px;cursor:pointer;}
+  .cc-h{font-family:var(--font-display);font-size:30px;line-height:1.05;font-weight:800;letter-spacing:-.03em;color:var(--ink-strong);margin:3px 0 2px;}
+  .cc-sub{font-size:13px;line-height:1.3;color:var(--ink-dim);display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;}
+  .cc-ctas{display:flex;gap:18px;margin-top:1px;}
+  .cc-cta{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:13px;font-weight:700;color:var(--orange);background:none;border:0;padding:2px 0;min-height:26px;cursor:pointer;}
   .cc-cta .ic{width:14px;height:14px;}
   .cc-cta:hover{color:var(--orange-soft);}
   .cc-sigs{display:grid;grid-template-columns:repeat(4,minmax(112px,auto));}
@@ -352,7 +352,7 @@
   .cc-sig:last-child{padding-right:0;}
   .cc-sigtop{font-size:12.5px;font-weight:600;color:var(--ink-dim);white-space:nowrap;}
   .cc-sigic{display:none;}
-  .cc-signum{font-family:var(--font-display);font-size:30px;font-weight:800;letter-spacing:-.03em;color:var(--ink-strong);line-height:1.1;white-space:nowrap;}
+  .cc-signum{font-family:var(--font-display);font-size:25px;font-weight:800;letter-spacing:-.03em;color:var(--ink-strong);line-height:1.1;white-space:nowrap;}
   .cc-signum small{font-size:13px;font-weight:600;color:var(--ink-faint);letter-spacing:0;}
   .cc-sigword{display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;white-space:nowrap;color:var(--ink-dim);}
   .cc-sigword .ic{width:12px;height:12px;}
@@ -376,10 +376,10 @@
   .cc-lab{grid-column:1;font:inherit;background:none;border:0;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;padding:0 10px 0 24px;min-width:0;color:var(--ink);font-size:13px;font-weight:600;letter-spacing:-.005em;}
   .cc-lab:hover{color:var(--orange);}
   .cc-lab.big{font-family:var(--font-display);font-size:14px;font-weight:800;color:var(--ink-strong);}
-  .cc-labt{min-width:0;display:flex;flex-direction:column;line-height:1.2;}
+  .cc-labt{min-width:0;display:flex;align-items:baseline;gap:7px;line-height:1.2;}
   .cc-labt span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .cc-labt small{font-size:11px;font-weight:600;color:var(--red);white-space:nowrap;}
-  .cc-trk{grid-column:2;position:relative;display:grid;grid-template-columns:repeat(52,minmax(0,1fr));min-width:0;z-index:1;}
+  .cc-trk{grid-column:2;position:relative;display:grid;grid-template-columns:repeat(52,minmax(0,1fr));row-gap:3px;min-width:0;z-index:1;}
   .cc-wk{font:inherit;background:none;border:0;padding:0;margin:0;min-width:0;cursor:pointer;display:grid;place-items:center;grid-row:1 / -1;}
   .cc-wk:disabled{cursor:default;}
   .cc-wk i{display:block;border-radius:50%;width:5px;height:5px;background:var(--navy-2);transition:transform var(--tap);}
@@ -397,6 +397,8 @@
   .cc-bar:hover{filter:brightness(1.08);}
   .cc-bar .t{overflow:hidden;text-overflow:ellipsis;}
   .c-email .cc-bar{background:var(--info);} .c-organic .cc-bar{background:var(--red);} .c-paid .cc-bar,.cc-bar.ads{background:var(--blue);}
+  .cc-bar.k-proj{background:var(--ink-strong);}
+  .cc-bar.tight.k-proj .t{color:var(--ink-strong);}
   .cc-bar.k-lead{background:var(--green);} .cc-bar.k-magnet{background:var(--info);} .cc-bar.k-referral{background:var(--blue);} .cc-bar.k-upsell{background:var(--red);}
   .cc-bar.fixed{max-height:24px;background:var(--orange);}
   .cc-bar.tight{padding:0;overflow:visible;}
@@ -760,7 +762,7 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
   var $ = function (id) { return document.getElementById(id); };
   var today = new Date().toISOString().slice(0, 10);
   var weeks = ccWeeks(today), lastDay = ccAddDays(weeks[weeks.length - 1], 6), nowWk = ccMonday(today);
-  var plan = null, pulse = null, planErr = "", drawer = null, toastT = 0;
+  var projects = [], plan = null, pulse = null, planErr = "", drawer = null, toastT = 0;
 
   function fmt(d) { var m = CC_MONTHS[Number(d.slice(5, 7)) - 1]; return Number(d.slice(8, 10)) + " " + m.slice(0, 3); }
   function icon(n) { return '<svg class="ic" aria-hidden="true"><use href="#' + n + '"/></svg>'; }
@@ -769,9 +771,16 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
   function target(k) { return plan && plan.targets ? Number(plan.targets[k]) || 0 : 0; }
   function feed(k) { return pulse ? (k === "email" ? pulse.emails : k === "organic" ? pulse.posts : pulse.ads) : null; }
 
+  // Only projects made here. Everything else on the Projects page stays there.
+  function ownProjects() {
+    var links = (plan && plan.links) || {};
+    return projects.filter(function (p) { return links[p.id] && !p.archived && p.status !== "done" && p.targetDate; }).map(function (p) {
+      return { id: p.id, isProj: true, cat: links[p.id], title: p.name, start: p.startDate && p.startDate <= p.targetDate ? p.startDate : p.targetDate, end: p.targetDate, prepWeeks: 0 };
+    });
+  }
   function occs(filter) {
     var out = [];
-    live().forEach(function (i) { if (!filter || filter(i)) out = out.concat(ccOccur(i, weeks[0], lastDay)); });
+    live().concat(ownProjects()).forEach(function (i) { if (!filter || filter(i)) out = out.concat(ccOccur(i, weeks[0], lastDay)); });
     return out;
   }
   function monthOccs(y, m) {
@@ -853,7 +862,7 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
     }).join("") + "</div>";
     var tmpl = "30px 18px";
     CC_ROWS.forEach(function (r, i) {
-      tmpl += " " + (r.k === "moments" ? "minmax(62px,2.6fr)" : "minmax(24px,1fr)");
+      tmpl += " " + (r.k === "moments" ? "minmax(86px,2.4fr)" : "minmax(32px,1fr)");
       html += labHtml(r, i + 3) + rowHtml(r, i + 3);
     });
     g.style.gridTemplateRows = tmpl;
@@ -871,7 +880,7 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
       var need = Math.ceil((o.item.title.length * 6.9 + 12) / boxW);
       return cols >= need ? 0 : need;
     };
-    var laid = ccLanes(my, weeks, room, r.k === "moments" ? 3 : 2);
+    var laid = ccLanes(my, weeks, room, r.k === "moments" ? 4 : 2);
     var cells = "", bars = "";
     weeks.forEach(function (w, i) { cells += cellHtml(r, w, i); });
     if (r.k === "paid") bars += adBars();
@@ -888,8 +897,8 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
     }
     if (a >= CC_WEEKS) return out;
     var cols = cb - ca + 1, tight = cols * boxW < it.title.length * 6.9 + 14;
-    out += '<button type="button" class="cc-bar k-' + it.cat + (it.fixed ? " fixed" : "") + (tight ? " tight" : "") + (o.end < today ? " past" : "") + (ca === 0 ? " atnow" : "") + '" style="' + row + "grid-column:" + (ca + 1) + " / " + (cb + 2) +
-      '" data-act="item" data-id="' + ccEsc(it.id) + '" data-tip="' + ccEsc(it.title) + ": " + fmt(o.start) + " to " + fmt(o.end) + '"><span class="t">' + ccEsc(it.title) + "</span></button>";
+    out += '<button type="button" class="cc-bar k-' + (it.isProj ? "proj" : it.cat) + (it.fixed ? " fixed" : "") + (tight ? " tight" : "") + (o.end < today ? " past" : "") + (ca === 0 ? " atnow" : "") + '" style="' + row + "grid-column:" + (ca + 1) + " / " + (cb + 2) +
+      '" data-act="' + (it.isProj ? "proj" : "item") + '" data-id="' + ccEsc(it.id) + '" data-tip="' + ccEsc(it.title) + ": " + fmt(o.start) + " to " + fmt(o.end) + '"><span class="t">' + ccEsc(it.title) + "</span></button>";
     return out;
   }
   function adBars() {
@@ -960,7 +969,7 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
     $("ccDrawer").classList.add("open");
   }
   function planRow(o) {
-    return '<button type="button" class="cc-it" data-act="item" data-id="' + ccEsc(o.item.id) + '">' + ccEsc(o.item.title) + "<small>" + fmt(o.start) + " to " + fmt(o.end) + (o.item.fixed ? " · Non-negotiable" : "") + "</small></button>";
+    return '<button type="button" class="cc-it" data-act="' + (o.item.isProj ? "proj" : "item") + '" data-id="' + ccEsc(o.item.id) + '">' + ccEsc(o.item.title) + "<small>" + fmt(o.start) + " to " + fmt(o.end) + (o.item.fixed ? " · Non-negotiable" : "") + "</small></button>";
   }
   function openWeek(k, wk) {
     var r = rowOf(k), f = feed(k), body = "";
@@ -1014,16 +1023,25 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
       '<div class="cc-acts"><button type="button" class="cc-btn go" data-act="add" data-k="moments" data-wk="' + wk + '">Add to ' + CC_MONTHS[m] + "</button></div>";
     show(CC_MONTHS[m] + " " + y, "", body);
   }
+  function openProj(id) {
+    var p = projects.filter(function (x) { return x.id === id; })[0]; if (!p) return;
+    var steps = (p.steps || []).filter(function (s) { return !s.del; }).sort(function (a, b) { return (a.due || "9") < (b.due || "9") ? -1 : 1; });
+    var body = steps.map(function (s) { return '<div class="cc-it static">' + ccEsc(s.title) + "<small>" + (s.done ? "Done" : s.due ? "Due " + fmt(s.due) : "No date yet") + "</small></div>"; }).join("") || '<div class="cc-empty">No tasks on this project yet.</div>';
+    body += '<div class="cc-acts"><button type="button" class="cc-btn go" data-act="gotoproj" data-id="' + ccEsc(p.id) + '">Open in Projects</button></div>';
+    show(p.name, p.targetDate ? "Deadline " + fmt(p.targetDate) : "No deadline set", body);
+  }
   function taskRow() {
     return '<div class="cc-task"><input name="task" maxlength="240" aria-label="Task"><input type="date" name="when" aria-label="When"><button type="button" class="cc-rm" data-act="rmtask" aria-label="Remove this task">' + icon("ic-close") + "</button></div>";
   }
-  function openProjForm(name, deadline) {
+  function openProjForm(name, deadline, cat) {
+    var opts = CC_ROWS.map(function (r) { return '<option value="' + r.k + '"' + (r.k === (cat || "moments") ? " selected" : "") + ">" + ccEsc(r.label) + "</option>"; }).join("");
     var body = '<form id="ccProjForm" class="cc-db" style="padding:0;overflow:visible" autocomplete="off">' +
       '<label class="cc-f">What\'s the project?<input name="name" maxlength="160" required value="' + ccEsc(name || "") + '"></label>' +
       '<label class="cc-f">Deadline<input type="date" name="deadline" required value="' + ccEsc(deadline || "") + '"></label>' +
+      '<label class="cc-f">Which row on the calendar?<select name="cat">' + opts + "</select></label>" +
       '<div class="cc-taskh"><span>What needs to get done?</span><span>By when?</span><span></span></div><div class="cc-tasks" id="ccTasks">' + taskRow() + taskRow() + taskRow() + "</div>" +
       '<div><button type="button" class="cc-link" data-act="addtask">Add another task</button></div>' +
-      '<div class="cc-empty">It goes straight into Projects, and any task with a date shows up on that day in Weekly, Daily and Monthly.</div>' +
+      '<div class="cc-empty">It shows here and in Projects, and any task with a date lands on that day in Weekly, Daily and Monthly.</div>' +
       '<div class="cc-acts"><button type="submit" class="cc-btn go">Create project</button></div></form>';
     show("New project", "", body);
     var f = $("ccProjForm").elements.name; if (f && !name) f.focus();
@@ -1038,12 +1056,16 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
     var project = { id: ccNewId("p_"), name: form.elements.name.value.trim(), status: "active", accent: "orange", startDate: today,
       targetDate: form.elements.deadline.value, columns: [], steps: steps };
     var btn = form.querySelector('[type="submit"]'); btn.disabled = true;
+    var cat = form.elements.cat.value;
     saveProj(project).then(function (saved) {
       btn.disabled = false;
       if (!saved) return;
       shut();
-      toast("Added to Projects", function () {
-        saveProj(Object.assign({}, saved, { archived: true })).then(function (gone) { if (gone) toast("Project removed"); });
+      send({ op: "linkProject", id: saved.id, cat: cat }).then(function (ok) {
+        if (!ok) return;
+        toast("Added here and to Projects", function () {
+          saveProj(Object.assign({}, saved, { archived: true })).then(function (gone) { if (gone) { renderAll(); toast("Project removed"); } });
+        });
       });
     });
   }
@@ -1053,6 +1075,7 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (res) {
         if (!res.ok || !res.j.project) { toast((res.j && res.j.error) || "That didn't save. Try again."); return null; }
+        projects = projects.filter(function (p) { return p.id !== res.j.project.id; }).concat([res.j.project]);
         return res.j.project;
       }).catch(function () { toast("That didn't save. Check your connection and try again."); return null; });
   }
@@ -1110,9 +1133,14 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
       openForm({ id: "", cat: k, title: "", start: wk < today ? today : wk, end: ccAddDays(wk < today ? today : wk, 6), fixed: isM, yearly: isM, prepWeeks: isM ? 8 : 0, notes: "" }, true);
     } else if (a === "newproj") {
       openProjForm("", "");
+    } else if (a === "proj") {
+      openProj(id);
+    } else if (a === "gotoproj") {
+      try { localStorage.setItem("bodysculpt:proj", id); } catch (e) {}
+      location.href = "/projects.html#board";
     } else if (a === "projfrom") {
       var src = occs(function (x) { return x.id === id; }).filter(function (o) { return o.end >= today; })[0];
-      if (src) openProjForm(src.item.title, src.start);
+      if (src) openProjForm(src.item.title, src.start, src.item.cat);
     } else if (a === "addtask") {
       $("ccTasks").insertAdjacentHTML("beforeend", taskRow());
     } else if (a === "rmtask") {
@@ -1168,6 +1196,9 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
     planErr = "Couldn't load your plan. Refresh the page to try again.";
     $("ccH").textContent = "Your plan didn't load."; $("ccSub").textContent = planErr;
   });
+  fetch(PROJ_API + "?list=1").then(function (r) { return r.json(); }).then(function (j) {
+    projects = (j && j.projects) || []; if (plan) renderAll();
+  }).catch(function () { projects = []; });
   loadPulse(false);
 })();
 </script>
