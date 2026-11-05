@@ -250,6 +250,8 @@
   .sn-money .sn-link:hover{color:var(--orange-soft);background:rgba(var(--orange-rgb),.09);}
   .sn-money .sn-link.active{background:rgba(var(--orange-rgb),.12);color:var(--orange-soft);}
   .sn-money .sn-link.active .ic{color:var(--orange-soft);}
+  /* v277: the Content Calendar is the headline of Social, so it wears its tint at rest */
+  .sn-link.sn-star{background:rgba(var(--red-rgb),.09);color:var(--ink-strong);font-weight:700;}
   .sn-money .sn-link.active::before{background:var(--orange-soft);}
   /* the fold button: beside the brand at the top (v163.1 — Ash: "move it to the top"),
      quiet until hovered, gone in drawer mode */
@@ -876,6 +878,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 <symbol id="ic-megaphone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10.5v3a1.5 1.5 0 0 0 1.5 1.5h2l4.6 3.4c.7.5 1.6 0 1.6-.8V6.4c0-.8-.9-1.3-1.6-.8L7 9H5a1.5 1.5 0 0 0-1.5 1.5z"/><path d="M16.5 9.2a3.6 3.6 0 0 1 0 5.6M18.8 6.6a7 7 0 0 1 0 10.8"/></symbol>
 <symbol id="ic-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></symbol>
 <symbol id="ic-heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/></symbol>
+<symbol id="ic-year" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M7.5 14h5M7.5 17h9"/></symbol>
 </defs></svg>
 <!-- build v243 · social-pages -->
 <aside class="sidenav" id="sideNav" aria-label="Pages">
@@ -905,6 +908,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
     </div>
     <div class="sn-group">
       <span class="sn-cap">Social</span>
+        <a href="/content-calendar.html" class="sn-link sn-star" title="Content Calendar"><svg class="ic"><use href="#ic-year"/></svg><span class="sn-lbl">Content Calendar</span></a>
         <a href="/social.html" class="sn-link" title="Content"><svg class="ic"><use href="#ic-camera"/></svg><span class="sn-lbl">Content</span></a>
         <a href="/ads.html" class="sn-link" title="Facebook Ads"><svg class="ic"><use href="#ic-megaphone"/></svg><span class="sn-lbl">Facebook Ads</span></a>
         <a href="/schedule.html" class="sn-link" title="Scheduling"><svg class="ic"><use href="#ic-clock"/></svg><span class="sn-lbl">Scheduling</span></a>

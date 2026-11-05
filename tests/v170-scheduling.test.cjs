@@ -57,7 +57,7 @@ const POST = (h, body) => h(new Request("https://x/.netlify/functions/schedule-q
     const src = read(f);
     assert.ok(/<a href="\/schedule.html" class="sn-link(?: active)?" title="Scheduling"><svg class="ic"><use href="#ic-clock"\/><\/svg><span class="sn-lbl">Scheduling<\/span><\/a>/.test(src), f + ": Scheduling is in the rail");
     const social = /<span class="sn-cap">Social<\/span>([\s\S]*?)<\/div>/.exec(src)[1];
-    assert.deepStrictEqual([...social.matchAll(/<a href="([^"]+)"/g)].map((m) => m[1]), ["/social.html", "/ads.html", "/schedule.html"], f + ": Social in the asked order");
+    assert.deepStrictEqual([...social.matchAll(/<a href="([^"]+)"/g)].map((m) => m[1]), ["/content-calendar.html", "/social.html", "/ads.html", "/schedule.html"], f + ": Social in the asked order, the Content Calendar first (v277)");
   }
   assert.ok(/class="sn-link active" title="Scheduling"/.test(SCHED), "schedule.html marks itself");
 

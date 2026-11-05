@@ -81,16 +81,16 @@ const PAGES = [
 
     // v162: a link leads with its icon; v163 wrapped the label so the fold can hide it
     const links = [...nav[1].matchAll(/<a href="([^"]+)"([^>]*)><svg class="ic"><use href="#ic-[a-z-]+"\/><\/svg><span class="sn-lbl">([\s\S]*?)<\/span><\/a>/g)];
-    assert.strictEqual(links.length, 12, label + " menu has today, the three periods, Projects (v213), the two KPI doors, the three social pages, Health & Fitness (v236) and finances");
+    assert.strictEqual(links.length, 13, label + " menu has today, the three periods, Projects (v213), the two KPI doors, the Content Calendar (v277), the three social pages, Health & Fitness (v236) and finances");
 
     assert.deepStrictEqual(
       links.map((m) => m[1]),
-      ["/daily.html", "/index.html", "/monthly.html", "/quarterly.html", "/projects.html", "/index.html#kpi", "/monthly.html#kpi", "/social.html", "/ads.html", "/schedule.html", "/health.html", "/finances.html"],
+      ["/daily.html", "/index.html", "/monthly.html", "/quarterly.html", "/projects.html", "/index.html#kpi", "/monthly.html#kpi", "/content-calendar.html", "/social.html", "/ads.html", "/schedule.html", "/health.html", "/finances.html"],
       label + " links to today, the three periods in order, the two KPI tabs, then social (Instagram, Facebook Ads — v167), Health & Fitness (v236), then finances"
     );
     assert.deepStrictEqual(
       links.map((m) => m[3].trim()),
-      ["Daily Dashboard", "Weekly", "Monthly", "Quarterly", "Projects", "Weekly KPIs", "Monthly KPIs", "Content", "Facebook Ads", "Scheduling", "Health &amp; Fitness", "Income &amp; Expenses"],
+      ["Daily Dashboard", "Weekly", "Monthly", "Quarterly", "Projects", "Weekly KPIs", "Monthly KPIs", "Content Calendar", "Content", "Facebook Ads", "Scheduling", "Health &amp; Fitness", "Income &amp; Expenses"],
       label + " labels the periods by period alone"
     );
 
@@ -101,7 +101,7 @@ const PAGES = [
 
     // the page's own link is the active one, and it is the only active one
     const active = links.filter((m) => /class="sn-link active"/.test(m[2]));
-    for (const m of links) assert.ok(/^ class="sn-link(?: active)?" title="[^"]+"$/.test(m[2]), label + " a link carries only its class and a tooltip");
+    for (const m of links) assert.ok(/^ class="sn-link(?: sn-star)?(?: active)?" title="[^"]+"$/.test(m[2]), label + " a link carries only its class and a tooltip");
     assert.strictEqual(active.length, 1, label + " marks exactly one link active");
     assert.strictEqual(active[0][1], self, label + " marks its own link active");
 

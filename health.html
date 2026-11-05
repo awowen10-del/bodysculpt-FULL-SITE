@@ -250,6 +250,8 @@
   .sn-money .sn-link:hover{color:var(--orange-soft);background:rgba(var(--orange-rgb),.09);}
   .sn-money .sn-link.active{background:rgba(var(--orange-rgb),.12);color:var(--orange-soft);}
   .sn-money .sn-link.active .ic{color:var(--orange-soft);}
+  /* v277: the Content Calendar is the headline of Social, so it wears its tint at rest */
+  .sn-link.sn-star{background:rgba(var(--red-rgb),.09);color:var(--ink-strong);font-weight:700;}
   .sn-money .sn-link.active::before{background:var(--orange-soft);}
   /* the fold button: beside the brand at the top (v163.1 — Ash: "move it to the top"),
      quiet until hovered, gone in drawer mode */
@@ -814,6 +816,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 <symbol id="ic-bolt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2.8L5 13.5h6l-1 7.7 8-10.7h-6z"/></symbol>
 <symbol id="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z"/></symbol>
 <symbol id="ic-sparkle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l1.8 5 5 1.8-5 1.8-1.8 5-1.8-5-5-1.8 5-1.8z"/><path d="M18.5 16.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/></symbol>
+<symbol id="ic-year" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M7.5 14h5M7.5 17h9"/></symbol>
 </defs></svg>
 <!-- build v243 · social-pages -->
 <aside class="sidenav" id="sideNav" aria-label="Pages">
@@ -843,6 +846,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
     </div>
     <div class="sn-group">
       <span class="sn-cap">Social</span>
+        <a href="/content-calendar.html" class="sn-link sn-star" title="Content Calendar"><svg class="ic"><use href="#ic-year"/></svg><span class="sn-lbl">Content Calendar</span></a>
         <a href="/social.html" class="sn-link" title="Content"><svg class="ic"><use href="#ic-camera"/></svg><span class="sn-lbl">Content</span></a>
         <a href="/ads.html" class="sn-link" title="Facebook Ads"><svg class="ic"><use href="#ic-megaphone"/></svg><span class="sn-lbl">Facebook Ads</span></a>
         <a href="/schedule.html" class="sn-link" title="Scheduling"><svg class="ic"><use href="#ic-clock"/></svg><span class="sn-lbl">Scheduling</span></a>

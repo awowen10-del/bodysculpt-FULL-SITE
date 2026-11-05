@@ -26,6 +26,8 @@ const SOURCES = [
   ["projects.html", path.join(__dirname, "..", "projects.html")],
   // v236: Health & Fitness is the tenth
   ["health.html", path.join(__dirname, "..", "health.html")],
+  // v277: the Content Calendar is the eleventh
+  ["content-calendar.html", path.join(__dirname, "..", "content-calendar.html")],
 ];
 for (const [label, file] of SOURCES) {
   const tmp = path.join(os.tmpdir(), "bodysculpt-extracted-" + process.pid + "-" + label + ".js");
@@ -47,6 +49,7 @@ for (const fn of ["kpi-store.js", "stripe-feed.js", "instagram-feed.js", "google
                   // v178: the spoken voice, and the AI proxy whose model table it shares a generation with
                   "voice-build-background.js", "../lib/voice.js", "mentor-ai.js",
                   // v192: what to film
+                  "marketing-calendar.js", "../lib/marketing-calendar.js",
                   "../lib/ideas.js", "../lib/learn.js", "../lib/trends.js",
                   // v206: what the post is FOR — the four stages, defined once
                   "../lib/stages.js",

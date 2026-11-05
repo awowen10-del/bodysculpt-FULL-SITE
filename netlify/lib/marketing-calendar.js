@@ -142,7 +142,7 @@ export async function readPosts(env, from, readQueue) {
 
 export async function readAds(env, from, to) {
   const out = { ok: false, campaigns: [], running: [], note: "" };
-  const token = env.META_ACCESS_TOKEN, acct = env.META_AD_ACCOUNT_ID;
+  const token = String(env.META_ACCESS_TOKEN || "").trim(), acct = env.META_AD_ACCOUNT_ID;
   if (!token || !acct) { out.note = "Meta is not connected"; return out; }
   const act = String(acct).startsWith("act_") ? acct : "act_" + acct;
   const [list, ins] = await Promise.all([
@@ -186,7 +186,19 @@ export async function readEmails(env, from) {
   const headers = { Authorization: "Bearer " + key, Version: env.GHL_API_VERSION || "2021-07-28",
     Accept: "application/json", "User-Agent": "Mozilla/5.0 (bodysculpt-dashboard)" };
   const r = await getJson(GHL + "/emails/schedule?" + new URLSearchParams({ locationId: loc, limit: "100", offset: "0" }), headers);
-  out.raw = r;
+  const today = new Date().toISOString().slice(0, 10);
+  for (const s of r.schedules || []) {
+    if (s.deleted || s.archived) continue;
+    const row = { id: clip(s.id || s._id || "", 40), title: clip(s.name || s.subject || "Email", 90),
+      subject: clip(s.subject || "", 120), status: clip(s.status || "", 24) };
+    const when = s.scheduledAt || s.scheduleStartDate || s.startDate || s.sendAt || "";
+    if (s.status === "complete") {
+      const day = String(s.updatedAt || s.lastUpdatedAt || s.createdAt || "").slice(0, 10);
+      if (day >= from) out.items.push({ ...row, day });
+    } else if (s.status !== "draft" && s.status !== "cancelled" && String(when).slice(0, 10) >= today) {
+      out.upcoming.push({ ...row, day: String(when).slice(0, 10) });
+    }
+  }
   out.ok = true;
   return out;
 }
@@ -198,7 +210,8 @@ export async function readPulse(env, deps, { fresh } = {}) {
     const c = await store().get(CACHE_KEY, { type: "json" }).catch(() => null);
     if (c && Date.now() - Date.parse(c.fetchedAt) < CACHE_MS) return { ...c, cached: true };
   }
-  const settle = (p) => p.catch((e) => ({ ok: false, note: feedError(e), items: [], upcoming: [], campaigns: [], running: [] }));
+  const settle = (p) => p.catch((e) => ({ ok: false, note: feedError(e),
+    needsKey: /access token/i.test(String(e && e.message)), items: [], upcoming: [], campaigns: [], running: [] }));
   const [emails, posts, ads] = await Promise.all([
     settle(readEmails(env, from)), settle(readPosts(env, from, deps.readQueue)), settle(readAds(env, from, today)),
   ]);
