@@ -49,7 +49,7 @@ for (const fn of ["kpi-store.js", "stripe-feed.js", "instagram-feed.js", "google
                   // v178: the spoken voice, and the AI proxy whose model table it shares a generation with
                   "voice-build-background.js", "../lib/voice.js", "mentor-ai.js",
                   // v192: what to film
-                  "marketing-calendar.js", "../lib/marketing-calendar.js",
+                  "marketing-calendar.js", "../lib/marketing-calendar.js", "../../coming-up.js",
                   "../lib/ideas.js", "../lib/learn.js", "../lib/trends.js",
                   // v206: what the post is FOR — the four stages, defined once
                   "../lib/stages.js",

@@ -63,7 +63,7 @@ const RETIRED_GLYPHS = ["✕", "▸", "▾", "▲", "▼", "◐", "▶", "×", "
     assert.ok(syms.has("ic-play") && syms.has("ic-megaphone"), label + "the play and megaphone icons are on the sprite");
     // no import of anything — one file, like the others
     // v230: the one shared script every page loads — the focus timer — and nothing else
-    assert.ok(!/<script src="(?!\/focus-timer\.js")|<link rel="stylesheet" href="(?!https:\/\/fonts)/.test(ADS), label + "one file, no bundles");
+    assert.ok(!/<script src="(?!\/(?:focus-timer|coming-up)\.js")|<link rel="stylesheet" href="(?!https:\/\/fonts)/.test(ADS), label + "one file, no bundles");
   }
 
   /* ================= 2. the page talks to one place, and judges nothing ================= */
