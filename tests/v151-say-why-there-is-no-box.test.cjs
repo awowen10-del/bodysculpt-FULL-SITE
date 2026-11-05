@@ -173,7 +173,8 @@ const POST = (h, body) => h(new Request("https://x/.netlify/functions/kpi-store"
     "a task is a different colour from an appointment");
   assert.ok(/href="\/index\.html"/.test(djs), "…and clicking it goes to the plan, not to Google");
   // the day is both things, so the count is both things
-  assert.ok(/todayTasks\.filter\(\(t\) => !t\.done\)\.length/.test(djs),
+  // v276: a job being waited on is not "still to come" for him, so it is left out as well
+  assert.ok(/todayTasks\.filter\(\(t\) => !t\.done && !wtForRow\(t\)\)\.length/.test(djs),
     "'still to come' counts unfinished tasks as well as coming appointments");
   assert.ok(/planned, " \+ mine\.length \+ " booked/.test(djs), "…and says which is which");
   // a week whose plan was never opened says so rather than looking empty

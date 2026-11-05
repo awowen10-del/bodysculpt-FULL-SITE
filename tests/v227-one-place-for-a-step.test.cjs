@@ -376,7 +376,11 @@ const stepOf = (projects, id) => projects[0].steps.find((s) => s.id === id);
      10. THE BOARD WRITES NO WEEK
      ===================================================================== */
   {
-    const pb = bare(PJS);
+    // v276: the board has one read of that store, the waiting list, for the label on a card.
+    // It carries no method and names no plan, so it is lifted out and the rule stays as it was.
+    const WAIT_READ = 'await fetch("/.netlify/functions/kpi-store?waiting=1");';
+    assert.ok(PJS.includes(WAIT_READ), "the one read is exactly this");
+    const pb = bare(PJS.replace(WAIT_READ, ""));
     assert.ok(!/kpi-store|weeklyPlan|weeklyAgenda|readWeek|syncWeekDone|reconcileWeek/.test(pb),
       "the projects page has no way into a weekly plan or the daily cache");
   }

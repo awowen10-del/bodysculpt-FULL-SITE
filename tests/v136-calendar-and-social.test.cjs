@@ -122,8 +122,8 @@ async function runIg(env, url, responder, seed) {
   // every store URL named on the page is a read
   const storeUrls = [...djs.matchAll(/API \+ "(\?[^"]+)"/g)].map((m) => m[1]);
   assert.deepStrictEqual(storeUrls.sort(),
-    ["?checkins=1", "?dailybriefs=1", "?webconfig=1", "?weeklyagenda="],
-    "the page names exactly four store URLs, and every one of them is a read");
+    ["?checkins=1", "?dailybriefs=1", "?waiting=1", "?webconfig=1", "?weeklyagenda="],
+    "the page names exactly five store URLs, and every one of them is a read");
 
   /* (b) everything that carries a method goes to Google, through a named funnel.
      v147 widened this from "the calendar" to "the calendar or Gmail" — clearing an email
@@ -159,7 +159,8 @@ async function runIg(env, url, responder, seed) {
   const storeWrites = [...djs.matchAll(/fetch\(API, \{[\s\S]{0,400}?\}\);/g)].map((m) => m[0]);
   // v251 added the third: { weeklyCancel } — one occurrence off today, as a skip or move entry
   // v253 added the fourth: { weeklyDelete } — delete a job everywhere, and its Undo
-  assert.strictEqual(storeWrites.length, 4, "there are exactly FOUR places that write to the store");
+  // v276 added the fifth: { waiting } — one record on the waiting list, which is not a plan
+  assert.strictEqual(storeWrites.length, 5, "there are exactly FIVE places that write to the store");
   for (const w of storeWrites) assert.ok(/method: "POST"/.test(w), "…all POSTs");
   /* v152 added the second, when the daily check-in moved here from the weekly page's Today
      modal. Two named payloads, each built by one function that can express nothing else:
@@ -168,8 +169,8 @@ async function runIg(env, url, responder, seed) {
      Every store READ still goes through jget(url) with no options, checked above. */
   const bodies = storeWrites.map((w) => /JSON\.stringify\(\{ ([a-zA-Z]+)[:,]/.exec(w))
     .map((m) => (m ? m[1] : "")).sort();
-  assert.deepStrictEqual(bodies, ["checkin", "weeklyCancel", "weeklyDelete", "weeklyTick"],
-    "…and their bodies can only ever be { weeklyTick }, { weeklyCancel } and { checkin }");
+  assert.deepStrictEqual(bodies, ["checkin", "waiting", "weeklyCancel", "weeklyDelete", "weeklyTick"],
+    "…and their bodies can only ever be these five named payloads");
   // Scoped to the write bodies themselves. Scanning the whole script for these names finds
   // innocent ones — `week: 8` is a Gmail tier cap, not a KPI week — and a test that cries
   // wolf about its own page is worse than no test.

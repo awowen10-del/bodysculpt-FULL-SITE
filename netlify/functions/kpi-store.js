@@ -225,6 +225,24 @@ function cleanHabits(raw) {
 // v219: the four bands of the weekly grid, by the keys index.html uses. A band that is not
 // one of these names a row of the grid that does not exist.
 const CHECKIN_BANDS = ["6-9", "10-12", "1-3", "5-8"];
+const waitingYmd = (v) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : "");
+const validWaitingKey = (k) => typeof k === "string" && /^(step|plan|one):[A-Za-z0-9_:-]{1,140}$/.test(k);
+function cleanWaitingItem(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  if (!validWaitingKey(raw.key)) return null;
+  const title = typeof raw.title === "string" ? raw.title.slice(0, 200).trim() : "";
+  if (!title) return null;
+  return {
+    key: raw.key,
+    week: waitingYmd(raw.week),
+    title,
+    on: typeof raw.on === "string" ? raw.on.slice(0, 200).trim() : "",
+    since: waitingYmd(raw.since),
+    check: waitingYmd(raw.check),
+    ready: waitingYmd(raw.ready),
+    tgt: cleanTickTarget(raw.tgt) || cleanStepTarget(raw.tgt),
+  };
+}
 function cleanCheckin(raw) {
   const str = (v) => (typeof v === "string" ? v.slice(0, 20000) : "");
   return {
@@ -259,6 +277,19 @@ function cleanCheckin(raw) {
 // its own key, plus optional per-week overrides carried on the week's plan (field
 // "locations"). Purely informational: it never touches tasks, placements or done-state.
 const LOCATION_DEFAULTS_KEY = "weekly-location-defaults";
+/* v276: WAITING ON. Ash: "if I'm waiting on something … not cross it off as though it's done …
+   give myself permission to accept I'm waiting on that and move onto the next job."
+   One list, its own key, read by the daily, weekly and board pages. It says which job is held
+   up and on what; it never touches the job. No plan or project is written when a job goes on
+   or comes off it, so nothing here can damage a week or a board. A record is
+     { key, week, title, on, since, check, ready, tgt }
+   key   the same address the pages already use: step:<project>:<step>, plan:<list>:<id>,
+         or one:<date> for the day's One Thing
+   week  the week a plan job belongs to, because a recurring job has the same key every week.
+         Blank for a step, which is one thing wherever it sits
+   ready the day the answer came: it is back on his list, and leaves this list when finished */
+const WAITING_KEY = "waiting-list";
+const WAITING_CAP = 200;
 
 /* v236: THE FOOD HUB. Additive — no existing key, field or route changes.
      food-inventory     the meat, fridge and cupboard — NOT per week; leftovers simply stay
@@ -928,6 +959,12 @@ export default async (req) => {
     return Response.json({ agenda });
   }
 
+  // v276 Waiting on: GET ?waiting=1 returns every job being waited on, whatever day it was from.
+  if (req.method === "GET" && url.searchParams.get("waiting") === "1") {
+    const items = (await store.get(WAITING_KEY, { type: "json" })) || [];
+    return Response.json({ items: Array.isArray(items) ? items : [] });
+  }
+
   // v136 Competitors: GET ?igcompetitors=1 returns the watch list (empty when none set).
   if (req.method === "GET" && url.searchParams.get("igcompetitors") === "1") {
     const competitors = (await store.get(IG_COMPETITORS_KEY, { type: "json" })) || [];
@@ -1553,6 +1590,31 @@ export default async (req) => {
       if (!agenda) return new Response("Bad weeklyAgenda (need a YYYY-MM-DD weekEnding)", { status: 400 });
       await store.set(agendaKeyOf(agenda.weekEnding), JSON.stringify(agenda));
       return Response.json({ ok: true, weekEnding: agenda.weekEnding, cells: Object.keys(agenda.cells).length });
+    }
+
+    // v276 Waiting on. POST { waiting: { set: record } } or { waiting: { clear: { key, week } } }
+    // One record at a time, read and put back, so two open pages cannot overwrite each other's
+    // list with a stale copy. It writes this list and nothing else.
+    if (body.waiting && typeof body.waiting === "object") {
+      const w = body.waiting;
+      const stored = (await store.get(WAITING_KEY, { type: "json" })) || [];
+      const items = Array.isArray(stored) ? stored : [];
+      if (w.set) {
+        const item = cleanWaitingItem(w.set);
+        if (!item) return new Response("Bad waiting record", { status: 400 });
+        const i = items.findIndex((x) => x.key === item.key && (x.week || "") === item.week);
+        if (i >= 0) items[i] = item;
+        else if (items.length >= WAITING_CAP) return new Response("Waiting list is full", { status: 400 });
+        else items.push(item);
+      } else if (w.clear && validWaitingKey(w.clear.key)) {
+        const week = waitingYmd(w.clear.week);
+        const i = items.findIndex((x) => x.key === w.clear.key && (x.week || "") === week);
+        if (i >= 0) items.splice(i, 1);
+      } else {
+        return new Response("Bad waiting request", { status: 400 });
+      }
+      await store.set(WAITING_KEY, JSON.stringify(items));
+      return Response.json({ ok: true, items });
     }
 
     // v150 Ticking a task off from the Daily Dashboard.

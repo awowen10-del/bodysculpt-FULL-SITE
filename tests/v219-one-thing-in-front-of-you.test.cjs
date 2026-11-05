@@ -63,7 +63,7 @@ function bodyOf(js, name) {
     // v230: it reads THIS week's agenda (agendaToday), whatever the calendar card is showing
     const build = (agendaForDay, agendaDayKey, agendaWeekOf, ckEntry, ckToday, fmProjects) => new Function(
       "agendaForDay", "agendaDayKey", "agendaWeekOf", "ckEntry", "ckToday", "fmProjects",
-      "const agendaToday = () => null;\n" +
+      "const agendaToday = () => null;\nconst wtFor = () => null;\n" +   // v276's waiting list has its own test
       "function agendaStepOf(row)" + bodyOf(JS, "agendaStepOf") + "\n" +
       "function fmDaysLate(due, today)" + bodyOf(JS, "fmDaysLate") + "\n" +
       "return (function fmBuildQueue(includeParked)" + bodyOf(JS, "fmBuildQueue") + ")")(agendaForDay, agendaDayKey, agendaWeekOf, ckEntry, ckToday, fmProjects);
@@ -231,7 +231,8 @@ function bodyOf(js, name) {
     assert.ok(/THE PLAN'S GRID IS OURS, AND IT MUST NOT WAIT ON GOOGLE/.test(JS),
       "…and why is written down, because the old shape looked deliberate");
     // reading the projects store is a read, and it is not allowed to hold the page up
-    assert.ok(/fmLoadProjects\(\)\.then\(\(\) => \{ renderStartDay\(\)/.test(JS),
+    // v276: the waiting list is read alongside it, and it holds the page up no more than this does
+    assert.ok(/Promise\.all\(\[fmLoadProjects\(\), wtLoad\(\)\]\)\.then\(\(\) => \{ wtPrune\(\); renderStartDay\(\)/.test(JS),
       "the project list loads after the page, and updates it when it lands");
     assert.ok(/catch \(e\) \{ fmProjects = \[\]; \}/.test(bodyOf(JS, "fmLoadProjects")),
       "…and a projects store that will not answer costs the day nothing but those jobs");

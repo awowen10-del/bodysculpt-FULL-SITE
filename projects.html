@@ -846,6 +846,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 <symbol id="ic-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 3.5L16 11H5"/></symbol>
 <symbol id="ic-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 13.5a4 4 0 006 .4l2.5-2.5a4.2 4.2 0 00-6-6l-1.4 1.4"/><path d="M13.5 10.5a4 4 0 00-6-.4L5 12.6a4.2 4.2 0 006 6l1.4-1.4"/></symbol>
 <symbol id="ic-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.3l3.4 2"/></symbol>
+<symbol id="ic-hourglass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12M6 21h12M7.5 3v3.5c0 2 1.6 3.4 3.2 4.6.8.5.8 1.3 0 1.8-1.6 1.2-3.2 2.6-3.2 4.6V21M16.5 3v3.5c0 2-1.6 3.4-3.2 4.6-.8.5-.8 1.3 0 1.8 1.6 1.2 3.2 2.6 3.2 4.6V21"/></symbol>
 <symbol id="ic-dot" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="12" r="5"/></symbol>
 <!-- the training set: wpDetectTrainingEmoji picks one of these from the task's title -->
 <symbol id="ic-lift" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6M6 6.5v11M18 6.5v11M21 9v6M6 12h12"/></symbol>
@@ -1565,6 +1566,10 @@ function stepHtml(s) {
     meta.push('<span class="mini wk"><svg class="ic"><use href="#ic-calendar"/></svg>' +
       esc(planLabel(s)) + '</span>');
   }
+  // v276: marked as waiting on the daily or weekly page. Read only here, so the board says the
+  // same thing they do without being a third place to manage it
+  const held = !s.done && S.waiting && S.waiting[s.id];
+  if (held) meta.push('<span class="mini" title="' + esc(held.on ? "Waiting on " + held.on : "Waiting") + '"><svg class="ic"><use href="#ic-hourglass"/></svg>Waiting</span>');
   if (s.notes) meta.push('<span class="mini"><svg class="ic"><use href="#ic-note"/></svg></span>');
   (s.tags || []).forEach((t) => meta.push('<span class="mini tag">' + esc(t) + '</span>'));
   return '<button type="button" class="st u-' + esc(s.urgency || "normal") + (s.done ? " isdone" : "") +
@@ -2806,6 +2811,14 @@ async function init() {
   const live = S.projects.filter((p) => !p.archived);
   S.currentId = (live.find((p) => p.id === last) || live[0] || {}).id || "";
   showView(viewFromHash(), { hash: false });
+  // v276: which steps are being waited on. A read, last and on its own: the board works without it
+  try {
+    const r = await fetch("/.netlify/functions/kpi-store?waiting=1");
+    const j = r.ok ? await r.json() : null;
+    S.waiting = {};
+    ((j && j.items) || []).forEach((w) => { if (!w.ready && w.tgt && w.tgt.s) S.waiting[w.tgt.s] = w; });
+    if (S.view === "board" && Object.keys(S.waiting).length) renderBoard();
+  } catch (e) { /* no label, nothing else changes */ }
 }
 init();
 </script>

@@ -1346,6 +1346,19 @@
     border:1px solid var(--line);border-radius:8px;padding:8px 10px;resize:vertical;min-height:44px;margin:2px 0 4px;}
   .tl-cx-note-in:focus{outline:none;box-shadow:var(--focus);}
   .tl-inside{margin:10px 0 2px 31px;border-left:3px solid rgba(var(--orange-rgb),.35);padding-left:var(--sp-4);}
+  /* v276: waiting on. Calm, not an alarm: it only turns amber on the day to check back */
+  .wt-sec{margin-top:16px;padding-top:12px;border-top:1px solid var(--line);}
+  .wt-h{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:800;color:var(--ink);}
+  .wt-h .ic{width:15px;height:15px;color:var(--ink-dim);}
+  .wt-hint{font-size:12.5px;color:var(--ink-faint);margin:2px 0 6px 22px;line-height:1.45;}
+  .wt-row.due .tl-w{color:var(--amber-2);font-weight:700;}
+  .wt-none{font-size:13.5px;color:var(--ink-dim);padding:8px 2px;}
+  .wt-in{flex:1 1 100%;font:inherit;font-size:16px;color:var(--ink);background:var(--card);border:1px solid var(--line);
+    border-radius:8px;padding:8px 10px;margin:2px 0 4px;}
+  .wt-in:focus{outline:none;box-shadow:var(--focus);}
+  .wt-cap{flex:1 1 100%;font-size:12px;font-weight:700;color:var(--ink-dim);margin-top:4px;}
+  .tl-min.on{border-color:var(--ink);color:var(--ink);background:var(--card);box-shadow:inset 0 0 0 1px var(--ink);}
+  .cal-task.waiting .cal-tname{color:var(--ink-faint);}
   .tl-parked{margin-top:10px;padding:4px 2px;}
   .tl-parked:hover{color:var(--ink);}
   .tl-row.parked{opacity:.7;}
@@ -1353,7 +1366,9 @@
   .tsum-dialset{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;}
   @media(max-width:700px){
     .tl-line{flex-wrap:wrap;}
-    .tl-acts{margin-left:31px;}
+    /* v276: a basis, or the name is squeezed to one letter a line before the buttons wrap */
+    .tl-main{flex:1 1 calc(100% - 44px);}
+    .tl-acts{margin-left:31px;flex-wrap:wrap;}
     .tl-sub,.tl-inside{margin-left:0;}
   }
   /* v230: the focus bar, Dial in and the playlist picker are styled by /focus-timer.js,
@@ -1456,7 +1471,7 @@
      they always show; a keyboard brings them up with focus. */
   @media(hover:hover){
     .tl-acts .tl-a{opacity:0;transition:opacity .15s ease;}
-    .tl-row:hover .tl-a,.tl-row:focus-within .tl-a,.tl-row.running .tl-a{opacity:1;}
+    .tl-row:hover .tl-a,.tl-row:focus-within .tl-a,.tl-row.running .tl-a,.wt-row .tl-acts .tl-a{opacity:1;}
   }
   .tl-sub{margin-left:34px;}
   .tl-inside{margin-left:34px;}
@@ -1679,6 +1694,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 <symbol id="ic-external" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v4a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2h4"/></symbol>
 <symbol id="ic-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 13.5a4 4 0 006 .4l2.5-2.5a4.2 4.2 0 00-6-6l-1.4 1.4"/><path d="M13.5 10.5a4 4 0 00-6-.4L5 12.6a4.2 4.2 0 006 6l1.4-1.4"/></symbol>
 <symbol id="ic-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.3l3.4 2"/></symbol>
+<symbol id="ic-hourglass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12M6 21h12M7.5 3v3.5c0 2 1.6 3.4 3.2 4.6.8.5.8 1.3 0 1.8-1.6 1.2-3.2 2.6-3.2 4.6V21M16.5 3v3.5c0 2-1.6 3.4-3.2 4.6-.8.5-.8 1.3 0 1.8 1.6 1.2 3.2 2.6 3.2 4.6V21"/></symbol>
 <symbol id="ic-headphones" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15v-3a8 8 0 0116 0v3"/><path d="M4 15a2 2 0 012-2h1a1 1 0 011 1v5a1 1 0 01-1 1H6a2 2 0 01-2-2v-3zM20 15a2 2 0 00-2-2h-1a1 1 0 00-1 1v5a1 1 0 001 1h1a2 2 0 002-2v-3z"/></symbol>
 <symbol id="ic-dot" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="12" r="5"/></symbol>
 <!-- the training set: wpDetectTrainingEmoji picks one of these from the task's title -->
@@ -2879,6 +2895,7 @@ async function toggleTask(cellKey, idx, want) {
   renderCalendar();
   try {
     await tickTask(row.tgt, want);
+    if (want) wtDropTgt(row.tgt, agendaWeekOf(calWeekOffset));
   } catch (e) {
     agendaSetDone(row, was);
     calError = "";
@@ -4083,7 +4100,7 @@ function fmBuildQueue(includeParked) {
   // v230: the order the Today list reads in — what is already late, then the plan in band
   // order, then what is dated today and was never planned
   const all = late.concat(out, due);
-  return includeParked ? all : all.filter((j) => !parked.has(j.key));
+  return includeParked ? all : all.filter((j) => !parked.has(j.key) && !wtFor(j));
 }
 function fmDaysLate(due, today) {
   return Math.round((Date.parse(today + "T12:00:00Z") - Date.parse(due + "T12:00:00Z")) / 86400000);
@@ -4204,7 +4221,7 @@ let tlFocusPick = "";       // the job whose Focus lengths are showing
 // v251: the job being taken off today — { key, stage: "ask" | "move" | "sure", to?, error? }
 let tlCancel = null;
 
-// today's jobs, as the list shows them: { live, parked }
+// today's jobs, as the list shows them: { live, parked, waiting }
 function tlJobs() {
   const e = ckEntry(ckToday());
   const one = richToText(e.oneThing).trim();
@@ -4212,7 +4229,11 @@ function tlJobs() {
   const jobs = [];
   if (one) jobs.push({ key: "one", title: one, source: "one", kind: "one", when: "", from: "", done: e.oneThingDone === true });
   fmBuildQueue(true).forEach((j) => jobs.push(j));
-  return { live: jobs.filter((j) => !parked.has(j.key)), parked: jobs.filter((j) => parked.has(j.key)) };
+  // v276: an answered job from another day has no row of its own today, so it gets one here
+  const have = new Set(jobs.map((j) => wtKeyOf(j) + "|" + wtWeekOf(j)));
+  wtItems.filter((r) => r.ready && !have.has(r.key + "|" + (r.week || ""))).forEach((r) => jobs.push(wtBackJob(r)));
+  const free = jobs.filter((j) => !wtFor(j));
+  return { live: free.filter((j) => !parked.has(j.key)), parked: free.filter((j) => parked.has(j.key)), waiting: wtOpen() };
 }
 const tlFind = (key) => { const { live, parked } = tlJobs(); return live.concat(parked).find((j) => j.key === key) || null; };
 /* where a job came from, and when — "Christmas Shred · Anytime", "Recurring · 6–9".
@@ -4223,6 +4244,7 @@ const tlFind = (key) => { const { live, parked } = tlJobs(); return live.concat(
 const TL_KIND_WORD = { recurring: "Recurring", training: "Training", buffer: "Buffer" };
 function tlWhere(j) {
   if (j.source === "one") return "Your one thing";
+  if (j.source === "back") return "Back from waiting" + (j.rec.on ? " · " + j.rec.on : "");
   const proj = (j.step && j.step.project && j.step.project.name) || j.from || "";
   const pre = (s) => (proj ? proj + " · " : "") + s;
   if (j.late) return pre(j.late + (j.late === 1 ? " day late" : " days late"));
@@ -4275,6 +4297,8 @@ function tlRowHtml(j, isParked) {
         (isParked
           ? '<button type="button" class="tl-a" data-tl="unpark">bring back</button>'
           : (!j.done && !run ? '<button type="button" class="tl-a" data-tl="focus" aria-expanded="' + (tlFocusPick === j.key) + '">Focus</button>' : "") +
+            (!j.done ? '<button type="button" class="tl-a" data-tl="wait" aria-expanded="' + (!!wtDraft && wtDraft.row === j.key) +
+              '" title="You have done your part and it is with someone else">waiting</button>' : "") +
             /* v252: "later" says WHEN — a day and a time — and moves it there everywhere. It
                used to fold the job into a Parked line on this page and nowhere else. */
             (!j.done && tlCanCancel(j) ? '<button type="button" class="tl-a" data-tl="later" aria-expanded="' +
@@ -4284,6 +4308,7 @@ function tlRowHtml(j, isParked) {
       "</span>" +
     "</div>";
   if (!isParked && !j.done && tlCancel && tlCancel.key === j.key) h += tlCancelHtml(j);
+  if (!isParked && !j.done && wtDraft && wtDraft.row === j.key) h += wtPanelHtml();
   // the lengths, when Focus was pressed
   if (!isParked && tlFocusPick === j.key && !j.done && !run) {
     h += '<div class="tl-sub">' + FT_PRESETS.map((m) =>
@@ -4305,11 +4330,12 @@ function renderTodayList() {
   const body = $("tlBody"), sub = $("tlSub");
   if (!body) return;
   tlWireOnce();
-  const { live, parked } = tlJobs();
+  const { live, parked, waiting } = tlJobs();
   const done = live.filter((j) => j.done).length;
-  if (sub) sub.textContent = live.length ? done + " of " + live.length + " done" : "";
-  if (!live.length && !parked.length) {
-    body.innerHTML = tlUndoHtml() + '<div class="tl-empty"><b>Nothing is planned for today.</b> ' +
+  if (sub) sub.textContent = (live.length ? done + " of " + live.length + " done" : "") +
+    (waiting.length ? (live.length ? " · " : "") + waiting.length + " waiting" : "");
+  if (!live.length && !parked.length && !waiting.length) {
+    body.innerHTML = tlUndoHtml() + wtBarHtml() + '<div class="tl-empty"><b>Nothing is planned for today.</b> ' +
       'Jobs come from the time blocks on your <a href="/index.html">weekly planner</a>, and from any ' +
       '<a href="/projects.html">project step</a> with a date. Put something in either and it will be here.' +
       (agendaToday() ? "" : " Your weekly planner has not been opened since it last changed, so today may look emptier than it is — opening it once fixes that.") +
@@ -4319,9 +4345,11 @@ function renderTodayList() {
   // done sinks to the bottom, otherwise the order is the order they come in
   const order = live.filter((j) => !j.done).concat(live.filter((j) => j.done));
   // v233: how far through the day, at a glance
-  body.innerHTML = tlUndoHtml() + '<div class="tl-prog" role="progressbar" aria-label="Done today" aria-valuemin="0" aria-valuemax="' + live.length +
+  body.innerHTML = tlUndoHtml() + wtBarHtml() + '<div class="tl-prog" role="progressbar" aria-label="Done today" aria-valuemin="0" aria-valuemax="' + live.length +
       '" aria-valuenow="' + done + '"><i style="width:' + (live.length ? Math.round(done / live.length * 100) : 0) + '%"></i></div>' +
-    '<div class="tl-list">' + order.map((j) => tlRowHtml(j, false)).join("") + "</div>" +
+    (live.length ? '<div class="tl-list">' + order.map((j) => tlRowHtml(j, false)).join("") + "</div>"
+      : '<div class="wt-none">Nothing else on your list today.</div>') +
+    wtSectionHtml(waiting) +
     (parked.length
       ? '<button type="button" class="tl-parked" data-tl="parked" aria-expanded="' + tlShowParked + '">' +
           (tlShowParked ? "▾" : "▸") + " Parked (" + parked.length + ")</button>" +
@@ -4337,10 +4365,15 @@ function tlWireOnce() {
   // v251: the skip note survives a redraw (an error, say) while the prompt is open
   body.addEventListener("input", (e) => {
     if (tlCancel && e.target && e.target.dataset && "tlNote" in e.target.dataset) tlCancel.note = e.target.value;
+    if (wtDraft && e.target && e.target.dataset && "wtOn" in e.target.dataset) wtDraft.on = e.target.value;
   });
   // v252: "Another date" on a project step — a date picked is the same as a day button
   body.addEventListener("change", (e) => {
     const t = e.target;
+    if (wtDraft && t && t.dataset && "wtDate" in t.dataset) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(t.value || "") && t.value >= ymd(new Date())) { wtDraft.check = t.value; renderTodayList(); }
+      return;
+    }
     if (!tlCancel || !t || !t.dataset || !("tlDate" in t.dataset)) return;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(t.value || "") || t.value < ymd(new Date())) return;
     tlCancel = { key: tlCancel.key, stage: "move", via: tlCancel.via, day: t.value };
@@ -4353,10 +4386,19 @@ async function tlClick(e) {
   const act = el.dataset.tl;
   if (act === "parked") { tlShowParked = !tlShowParked; renderTodayList(); return; }
   if (act === "undo-del") return tlUndoGo();      // v253: the bar is not a row
+  if (act.startsWith("wt-")) return wtClick(act, el);   // v276: the waiting rows and their panel
   const rowEl = el.closest("[data-key]");
   const j = rowEl ? tlFind(rowEl.dataset.key) : null;
   if (!j) return;
   if (act === "tick") return tlTick(j);
+  if (act === "wait") {
+    wtDraft = wtDraft && wtDraft.row === j.key ? null : wtDraftFor(j.rec || wtNewRec(j), j.key);
+    tlCancel = null; tlFocusPick = "";
+    renderTodayList();
+    const n = wtDraft && $("tlBody").querySelector("[data-wt-on]");
+    if (n) n.focus();
+    return;
+  }
   if (act === "more") { tlOpen[j.key] = !tlOpen[j.key]; renderTodayList(); return; }
   if (act === "focus") { tlFocusPick = tlFocusPick === j.key ? "" : j.key; renderTodayList(); return; }
   if (act === "min") { tlFocusPick = ""; ftStart(Number(el.dataset.min), { key: j.key, title: j.title }); return; }
@@ -4398,12 +4440,14 @@ async function tlClick(e) {
 async function tlTick(j) {
   const want = !j.done;
   if (want && ftTimer && ftTimer.jobKey === j.key) ftReset();
+  if (j.source === "back") return wtFinish(j.rec);
   if (j.source === "one") {
     await ckSetDone(want);
     fmAfterChange();
     return;
   }
   await fmSetDone(j, want);
+  if (want) wtPrune();
 }
 // v230's "later": off today's list, onto the folded line, written to the DAY. Since v252 "later"
 // moves the job instead (tlCancelGo); this is only the way back for a job parked before then.
@@ -4413,6 +4457,221 @@ async function tlPark(j, on) {
   const save = ckSave({ parked });      // on screen first — ckSave updates the day before it posts
   renderTodayList(); renderStartDay();
   try { await save; } catch (e) { /* it comes back tomorrow either way */ }
+}
+/* ---------- v276: WAITING ON ----------
+   Ash: "if I'm waiting on something I've got the ability to highlight that, so not cross it
+   off as though it's done … the staff rota went out, I'm waiting on people to confirm … I need
+   to give myself permission to accept I'm waiting on that and move onto the next job, which is
+   something I can't do if it's just left untied."
+
+   THE FOURTH STATE OF A JOB. Done means finished, later means moved, cancel means dropped.
+   Waiting means his part is done and the next move belongs to someone else. So it does three
+   things the others do not:
+     IT LEAVES THE LIST WITHOUT LEAVING THE PAGE. The job goes under "Waiting on", out of the
+     jobs-left count and the ring, so the list really is shorter. It is not counted as done.
+     IT CANNOT FALL OFF WITH THE DAY. A one-off job lives in Tuesday's cell, and on Wednesday
+     the Today list would no longer show it. The whole reason to trust this is that it stays
+     in view until he clears it, so the list is one list across days, not a tag on a day.
+     IT COMES BACK BY ITSELF. Each one has a day to check back. On that day the row says so, so
+     he does not have to carry it in his head.
+   Two ways out: tick it (the answer came and that finished it), or "got it" (the answer came
+   and there is still work to do). An answered job from a past day has no slot today, so
+   "got it" leaves the record with `ready` set and tlJobs gives it a row until it is ticked.
+   Where it is stored: see WAITING_KEY in kpi-store. The job itself is never written to. */
+let wtItems = [];       // the list, as the store has it
+let wtDraft = null;     // the panel that is open: { row, rec fields, on, check }
+let wtBar = null;       // { msg, undo?, error? } the line with the way back on it
+const wtWeekOf = (j) => (j.tgt && !j.tgt.p ? agendaWeekOf(0) : "");
+const wtKeyOf = (j) => (j.key === "one" ? "one:" + ckToday() : j.key);
+const wtKeyOfTgt = (t) => (t.p ? "step:" + t.p + ":" + t.s : "plan:" + (t.l || t.m || "") + ":" + t.k);
+const wtSame = (a, key, week) => a.key === key && (a.week || "") === (week || "");
+const wtOpen = () => wtItems.filter((r) => !r.ready).sort((a, b) =>
+  String(a.check || "9").localeCompare(String(b.check || "9")) || String(a.since).localeCompare(String(b.since)));
+const wtFor = (j) => wtItems.find((r) => !r.ready && wtSame(r, wtKeyOf(j), wtWeekOf(j))) || null;
+// an agenda row, on the week the calendar strip is showing
+const wtForRow = (t) => {
+  if (!t || !t.tgt) return null;
+  return wtItems.find((r) => !r.ready && wtSame(r, wtKeyOfTgt(t.tgt), t.tgt.p ? "" : agendaWeekOf(calWeekOffset))) || null;
+};
+const wtStepOfRec = (r) => {
+  const t = r.tgt;
+  const p = t && t.p ? fmProjects.find((x) => x.id === t.p) : null;
+  const st = p && (p.steps || []).find((x) => x.id === t.s);
+  return st ? { project: p, step: st } : null;
+};
+const wtBackJob = (r) => ({ key: "wt:" + r.key + "|" + (r.week || ""), title: r.title, source: "back", kind: "project",
+  when: "", from: "", done: false, rec: r, step: wtStepOfRec(r) });
+const wtNewRec = (j) => ({ key: wtKeyOf(j), week: wtWeekOf(j), title: j.title, on: "", since: ckToday(), check: "", ready: "",
+  tgt: j.tgt || (j.projectId ? { p: j.projectId, s: j.stepId } : null) });
+const wtAddDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return ymd(d); };
+function wtDraftFor(rec, row) {
+  return Object.assign({}, rec, { row, check: rec.check && rec.check > ckToday() ? rec.check : wtAddDays(1), was: rec.check ? rec : null });
+}
+function wtPanelHtml() {
+  const c = wtDraft;
+  const days = [[wtAddDays(1), "Tomorrow"], [wtAddDays(3), tlDayName(wtAddDays(3))], [wtAddDays(7), "Next week"]];
+  const known = days.some((d) => d[0] === c.check);
+  return '<div class="tl-sub tl-cx"><label class="tl-cx-q" for="wtOn"><b>What are you waiting on?</b></label>' +
+    '<input id="wtOn" class="wt-in" data-wt-on value="' + esc(c.on) + '" maxlength="200" placeholder="Staff to confirm their shifts">' +
+    '<span class="wt-cap">Check back</span>' +
+    days.map((d) => '<button type="button" class="tl-min' + (d[0] === c.check ? " on" : "") + '" data-tl="wt-day" data-to="' + d[0] + '">' + esc(d[1]) + "</button>").join("") +
+    '<label class="tl-cx-date">' + (known ? "or" : esc(tlDayShort(c.check))) + ' <input type="date" data-wt-date min="' + wtAddDays(0) + '" value="' + esc(known ? "" : c.check) + '"></label>' +
+    '<span class="wt-cap"></span>' +
+    '<button type="button" class="tl-min go" data-tl="wt-save">' + (c.was ? "Save" : "Put it on waiting") + "</button>" +
+    '<button type="button" class="tl-min plain" data-tl="wt-close">Back</button></div>';
+}
+function wtSays(r) {
+  const today = ckToday();
+  const bits = [];
+  if (r.on) bits.push(r.on);
+  if (r.check && r.check <= today) bits.push(r.check === today ? "check back today" : "check back, it was " + tlDayShort(r.check));
+  else if (r.since && r.since < today) bits.push("since " + tlDayShort(r.since));
+  if (r.check && r.check > today) bits.push("check back " + (r.check === wtAddDays(1) ? "tomorrow" : tlDayShort(r.check)));
+  return bits.join(" · ");
+}
+function wtRowHtml(r) {
+  const id = r.key + "|" + (r.week || "");
+  const due = !!r.check && r.check <= ckToday();
+  return '<div class="tl-row wt-row' + (due ? " due" : "") + '" data-wk="' + esc(id) + '"><div class="tl-line">' +
+    '<button type="button" class="fm-tick" data-tl="wt-done" aria-label="' + esc("Finished: " + r.title) + '"><svg class="ic"><use href="#ic-check"/></svg></button>' +
+    '<span class="tl-main"><span class="tl-t">' + esc(r.title) + '</span><span class="tl-w">' + esc(wtSays(r)) + "</span></span>" +
+    '<span class="tl-acts"><button type="button" class="tl-a" data-tl="wt-got" title="The answer is in. Put it back on my list">got it</button>' +
+    '<button type="button" class="tl-a" data-tl="wt-edit">' + (due ? "still waiting" : "change") + "</button></span></div>" +
+    (wtDraft && wtDraft.row === id ? wtPanelHtml() : "") + "</div>";
+}
+function wtSectionHtml(list) {
+  if (!list.length) return "";
+  return '<div class="wt-sec"><div class="wt-h"><svg class="ic"><use href="#ic-hourglass"/></svg>Waiting on (' + list.length + ")</div>" +
+    '<div class="wt-hint">Your part is done. These stay here until the answer comes.</div>' +
+    '<div class="tl-list">' + list.map(wtRowHtml).join("") + "</div></div>";
+}
+function wtBarHtml() {
+  if (!wtBar) return "";
+  return '<div class="tl-undo" role="status"><span>' + esc(wtBar.msg) + "</span>" +
+    (wtBar.undo ? '<button type="button" class="tl-undo-b" data-tl="wt-undo">Undo</button>' : "") + "</div>";
+}
+function wtBarShow(b) {
+  wtBar = b;
+  setTimeout(() => { if (wtBar === b) { wtBar = null; renderTodayList(); } }, TL_UNDO_MS);
+}
+async function wtSend(what) {
+  const r = await fetch(API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ waiting: what }),
+  });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+}
+const wtSetLocal = (rec) => {
+  const i = wtItems.findIndex((x) => wtSame(x, rec.key, rec.week));
+  if (i >= 0) wtItems[i] = rec; else wtItems.push(rec);
+};
+const wtClearLocal = (key, week) => { wtItems = wtItems.filter((x) => !wtSame(x, key, week)); };
+// on screen first, then the store; a failed write puts the list back and says so
+async function wtWrite(change, what, bar) {
+  const before = wtItems.slice();
+  change();
+  if (bar) wtBarShow(bar);
+  fmAfterChange();
+  try { await wtSend(what); }
+  catch (e) {
+    wtItems = before;
+    wtBarShow({ msg: "That did not save. Check your connection and try again." });
+    fmAfterChange();
+  }
+}
+const wtSet = (rec, bar) => wtWrite(() => wtSetLocal(rec), { set: rec }, bar);
+const wtClear = (rec, bar) => wtWrite(() => wtClearLocal(rec.key, rec.week), { clear: { key: rec.key, week: rec.week || "" } }, bar);
+const wtPlain = (rec) => ({ key: rec.key, week: rec.week || "", title: rec.title, on: rec.on || "", since: rec.since || "",
+  check: rec.check || "", ready: rec.ready || "", tgt: rec.tgt || null });
+function wtDropTgt(tgt, week) {
+  const r = wtItems.find((x) => wtSame(x, wtKeyOfTgt(tgt), tgt.p ? "" : week));
+  if (r) wtClear(r);
+}
+function wtSaveDraft() {
+  const c = wtDraft;
+  const rec = wtPlain(Object.assign({}, c, { on: String(c.on || "").trim(), ready: "", since: c.since || ckToday() }));
+  const was = c.was;
+  wtDraft = null;
+  return wtSet(rec, was ? null : { msg: "On waiting. You can leave it now.", undo: () => wtClear(rec) });
+}
+function wtGotIt(r) {
+  const rec = wtPlain(Object.assign({}, r, { ready: ckToday() }));
+  const was = wtPlain(r);
+  return wtSet(rec, { msg: "Back on your list.", undo: () => wtSet(was) }).then(wtPrune);
+}
+// the tick on a waiting row: the job itself is finished, wherever it lives, and the record goes
+async function wtFinish(r) {
+  const was = wtPlain(r);
+  const t = r.tgt;
+  const f = wtStepOfRec(r);
+  const row = t && !t.p && r.week === agendaWeekOf(0) ? wtAgendaRow(t) : null;
+  const setLocal = (v) => { if (f) f.step.done = v; if (row) agendaSetDone(row, v); };
+  const tick = (v) => {
+    if (t && t.p) return fmTickStep({ projectId: t.p, stepId: t.s }, v);
+    if (t) return tickTask(t, v, r.week);
+    return r.key === "one:" + ckToday() ? ckSetDone(v) : null;
+  };
+  setLocal(true);
+  try { await tick(true); }
+  catch (e) {
+    // a 404 means the job itself has since been deleted, so there is nothing left to wait for
+    if (!/404/.test(String(e && e.message))) {
+      setLocal(false);
+      wtBarShow({ msg: "That did not save. Check your connection and try again." });
+      fmAfterChange();
+      return;
+    }
+  }
+  await wtClear(r, { msg: "Done. Off the waiting list.", undo: async () => {
+    setLocal(false);
+    try { await tick(false); } catch (e) { /* the record goes back either way */ }
+    await wtSet(was);
+  } });
+}
+function wtAgendaRow(t) {
+  const ag = agendaToday();
+  for (const cell of Object.values((ag && ag.cells) || {})) {
+    const row = cell.find((x) => x.tgt && wtKeyOfTgt(x.tgt) === wtKeyOfTgt(t));
+    if (row) return row;
+  }
+  return null;
+}
+function wtClick(act, el) {
+  if (act === "wt-undo") { const b = wtBar; wtBar = null; if (b && b.undo) b.undo(); renderTodayList(); return; }
+  if (act === "wt-close") { wtDraft = null; renderTodayList(); return; }
+  if (act === "wt-day") { if (wtDraft) wtDraft.check = el.dataset.to; renderTodayList(); return; }
+  if (act === "wt-save") return wtDraft ? wtSaveDraft() : undefined;
+  const rowEl = el.closest("[data-wk]");
+  const r = rowEl ? wtItems.find((x) => x.key + "|" + (x.week || "") === rowEl.dataset.wk) : null;
+  if (!r) return;
+  if (act === "wt-done") return wtFinish(r);
+  if (act === "wt-got") return wtGotIt(r);
+  if (act === "wt-edit") {
+    wtDraft = wtDraft && wtDraft.row === rowEl.dataset.wk ? null : wtDraftFor(r, rowEl.dataset.wk);
+    tlCancel = null;
+    renderTodayList();
+  }
+}
+/* A job finished somewhere else (ticked on the board, say) has nothing left to wait for, and
+   an answered job that has its own row today no longer needs a record. Only a job the page can
+   actually see as finished is cleared. One it cannot find stays put. */
+function wtPrune() {
+  const today = fmBuildQueue(true);
+  wtItems.slice().forEach((r) => {
+    const f = wtStepOfRec(r);
+    const row = r.tgt && !r.tgt.p && r.week === agendaWeekOf(0) ? wtAgendaRow(r.tgt) : null;
+    const finished = (f && (f.step.done || f.step.del)) || (row && row.done);
+    const hasRow = r.ready && today.some((j) => wtSame(r, wtKeyOf(j), wtWeekOf(j)));
+    if (finished || hasRow) wtClear(r);
+  });
+}
+async function wtLoad() {
+  try {
+    const r = await jget(API + "?waiting=1");
+    wtItems = r && Array.isArray(r.items) ? r.items : [];
+  } catch (e) { /* the jobs show as ordinary jobs; nothing is lost */ }
 }
 /* ---------- v251: "cancel" — not getting to it today ----------
    Ash: "I need the option of being able to cancel the jobs here — but it should come with a
@@ -4766,6 +5025,7 @@ function fmEveningHtml() {
       '<div class="fm-tile' + (done.length ? " good" : "") + '"><b>' + done.length + "</b><span>job" + (done.length === 1 ? "" : "s") + " done</span></div>" +
       '<div class="fm-tile"><b>' + left.length + "</b><span>left</span></div>" +
       (parked ? '<div class="fm-tile"><b>' + parked + "</b><span>put aside</span></div>" : "") +
+      (wtOpen().length ? '<div class="fm-tile"><b>' + wtOpen().length + "</b><span>waiting on</span></div>" : "") +
       '<div class="fm-tile"><b>' + hTicked + "/" + CK_HABITS.length + "</b><span>non-negotiables</span></div>" +
     "</div>" +
     (done.length ? '<div class="fm-rest"><div class="fm-cap">Done</div><div class="fm-list">' +
@@ -5350,7 +5610,8 @@ function calDayHtml(day, events, todayKey) {
   if (dayTasks.length) {
     for (const t of dayTasks.slice(0, CAL_MAX_CHIPS)) {
       // v159: name over band, wrapping — not a one-line cut-off with the rest in a tooltip
-      chips += '<span class="cal-task' + (t.done ? " done" : "") + '">' +
+      const held = !t.done && wtForRow(t);
+      chips += '<span class="cal-task' + (t.done ? " done" : "") + (held ? " waiting" : "") + '">' +
         (t.tgt
           ? '<span class="cal-tbox" role="checkbox" tabindex="0" aria-checked="' + (t.done ? "true" : "false") +
             '" data-cell="' + esc(t.cellKey) + '" data-idx="' + t.idx +
@@ -5358,7 +5619,7 @@ function calDayHtml(day, events, todayKey) {
             (t.done ? '<svg class="ic"><use href="#ic-check"/></svg>' : "") + "</span>"
           : "") +
         '<span class="cal-tb"><span class="cal-tname">' + esc(t.title) + "</span>" +
-        '<span class="cal-tband">' + esc(t.bandLabel) + "</span></span></span>";
+        '<span class="cal-tband">' + esc((held ? "Waiting · " : "") + t.bandLabel) + "</span></span></span>";
     }
     if (dayTasks.length > CAL_MAX_CHIPS) {
       chips += '<div class="cal-more">+' + (dayTasks.length - CAL_MAX_CHIPS) + " planned</div>";
@@ -5381,7 +5642,7 @@ function calNextLine(events) {
   if (!ahead.length) {
     // v149: the panel beneath counts tasks as well, and two adjacent lines disagreeing
     // about whether the day is finished is how a page stops being believed.
-    const leftTasks = agendaForDay(agendaDayKey(new Date())).filter((t) => !t.done).length;
+    const leftTasks = agendaForDay(agendaDayKey(new Date())).filter((t) => !t.done && !wtForRow(t)).length;
     return "Nothing else booked today." +
       (leftTasks ? " <b>" + leftTasks + "</b> planned " + (leftTasks === 1 ? "job" : "jobs") + " still to do."
                  : " " + today.length + (today.length === 1 ? " event" : " events") + ", all done.");
@@ -5404,7 +5665,7 @@ function calTodayHtml(events) {
     .sort((a, b) => (a.allDay === b.allDay ? a.startAt - b.startAt : a.allDay ? -1 : 1));
   const todayTasks = agendaForDay(agendaDayKey(new Date()));
   const left = mine.filter((e) => e.endAt.getTime() > now).length +
-    todayTasks.filter((t) => !t.done).length;
+    todayTasks.filter((t) => !t.done && !wtForRow(t)).length;
 
   // v159: the "+" every day column has, here too — the full-width New event button under
   // the list duplicated the one in the card's header.
@@ -6201,7 +6462,8 @@ async function loadAll() {
   // READ, through jget like every other read on this page. It goes last and alone: focus
   // mode works without it, it just knows about fewer jobs.
   // v227: and the calendar, whose project-step rows read their title and tick from it
-  fmLoadProjects().then(() => { renderStartDay(); renderTodayList(); renderCalendar(); if (fmOpen) fmRender(); });
+  // v276: the waiting list comes with it, so a held job is never shown as an ordinary one
+  Promise.all([fmLoadProjects(), wtLoad()]).then(() => { wtPrune(); renderStartDay(); renderTodayList(); renderCalendar(); if (fmOpen) fmRender(); });
 
   // The calendar and the inbox go last and on their own: they are a different service with
   // a different sign-in, and a Google outage must not hold up the cards above them. They

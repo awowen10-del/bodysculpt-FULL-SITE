@@ -46,7 +46,7 @@ assert.ok(/\.cal-tname\{display:-webkit-box;-webkit-line-clamp:2;/.test(css), "a
 assert.ok(/\.cal-evn\{display:-webkit-box;-webkit-line-clamp:2;/.test(css), "…and so does an event's");
 const day = fn("calDayHtml");
 assert.ok(!/class="cal-task' \+ \(t\.done \? " done" : ""\) \+ '" title=/.test(day), "no tooltip on the chip");
-assert.ok(/<span class="cal-tb"><span class="cal-tname">' \+ esc\(t\.title\) \+ "<\/span>" \+\s*'<span class="cal-tband">' \+ esc\(t\.bandLabel\)/.test(day),
+assert.ok(/<span class="cal-tb"><span class="cal-tname">' \+ esc\(t\.title\) \+ "<\/span>" \+\s*'<span class="cal-tband">' \+ esc\(\(held \? "Waiting · " : ""\) \+ t\.bandLabel\)/.test(day),
   "the band is written under the name instead");
 
 /* ============ 3. one signifier each ============ */

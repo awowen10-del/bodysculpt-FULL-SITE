@@ -1075,6 +1075,40 @@
     cursor:pointer;padding:0 1px;flex:none;opacity:0;transition:opacity .12s,color .12s;}
   .wp-cellchip:hover .wp-chip-del{opacity:.65;}
   .wp-chip-del:hover{color:var(--red);opacity:1;}
+  /* v276: waiting on. The chip is not done and not late: its box stays open, its name goes
+     quiet, and the hourglass stays lit so the grid says why */
+  /* no width until wanted: a hidden button must not take letters off a name in a narrow cell */
+  .wp-chip-wait{background:transparent;border:none;color:var(--ink-faint);line-height:1;padding:0;cursor:pointer;
+    width:0;overflow:hidden;opacity:0;flex:0 0 auto;}
+  .wp-chip-wait .ic{width:12px;height:12px;}
+  .wp-cellchip:hover .wp-chip-wait,.wp-drag-row:hover .wp-chip-wait{width:16px;padding:0 2px;opacity:.65;}
+  .wp-chip-wait:hover{color:var(--ink);opacity:1;}
+  .wp-chip-wait.on,.wp-cellchip:hover .wp-chip-wait.on,.wp-drag-row:hover .wp-chip-wait.on{width:16px;padding:0 2px;opacity:1;color:var(--ink-dim);}
+  .wp-chip-wait:focus-visible{width:16px;opacity:1;outline:none;box-shadow:var(--focus);}
+  @media (hover:none){ .wp-chip-wait{width:16px;padding:0 2px;opacity:.55;} }
+  .wp-cellchip.wp-waiting .wp-chip-title,.wp-drag-row.wp-waiting .wp-drag-name{color:var(--ink-dim);font-style:italic;}
+  .wp-wt-row{display:flex;align-items:flex-start;gap:9px;padding:7px 0;border-top:1px solid var(--line);}
+  .wp-wt-row:first-child{border-top:0;}
+  .wp-wt-main{flex:1;min-width:0;font-size:13.5px;color:var(--ink);line-height:1.35;}
+  .wp-wt-main small{display:block;font-size:12px;color:var(--ink-faint);margin-top:1px;}
+  .wp-wt-row.due .wp-wt-main small{color:var(--amber-2);font-weight:700;}
+  .wp-wt-hint{font-size:12.5px;color:var(--ink-faint);margin:0 0 6px;}
+  .wp-wt-a{flex:0 0 auto;font:inherit;font-size:12px;font-weight:700;cursor:pointer;border-radius:var(--r-pill);
+    background:transparent;border:1px solid transparent;color:var(--ink-faint);padding:3px 8px;}
+  .wp-wt-a:hover{color:var(--ink);border-color:var(--line);}
+  .wp-wt-form{padding:4px 2px 8px;}
+  .wp-wt-form label{display:block;font-size:13px;font-weight:700;color:var(--ink);margin:0 0 6px;}
+  .wp-wt-in{width:100%;box-sizing:border-box;font:inherit;font-size:16px;color:var(--ink);background:var(--card);
+    border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:12px;}
+  .wp-wt-in:focus{outline:none;box-shadow:var(--focus);}
+  .wp-wt-days{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;align-items:center;}
+  .wp-wt-day{font:inherit;font-size:13px;font-weight:700;cursor:pointer;border-radius:var(--r-pill);background:var(--card);
+    border:1px solid var(--line);color:var(--ink-dim);padding:6px 12px;}
+  .wp-wt-day.on{border-color:var(--ink);color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);}
+  .wp-wt-go{font:inherit;font-size:13.5px;font-weight:800;cursor:pointer;border:0;border-radius:var(--r-pill);background:var(--green);
+    color:var(--on-accent);padding:8px 16px;margin-right:6px;}
+  .wp-wt-sec{font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;border:1px solid var(--line);border-radius:var(--r-pill);
+    background:transparent;color:var(--ink-dim);padding:7px 14px;margin-right:6px;}
   @media (hover:none){ .wp-chip-del{opacity:.55;} }   /* touch: no hover to reveal it */
   /* v82: the little "this week / whole schedule" question — same navy/orange language as
      the Today modal, just small and centred. Backdrop or Cancel or Esc = no change. */
@@ -1843,6 +1877,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 <symbol id="ic-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 3.5L16 11H5"/></symbol>
 <symbol id="ic-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 13.5a4 4 0 006 .4l2.5-2.5a4.2 4.2 0 00-6-6l-1.4 1.4"/><path d="M13.5 10.5a4 4 0 00-6-.4L5 12.6a4.2 4.2 0 006 6l1.4-1.4"/></symbol>
 <symbol id="ic-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.3l3.4 2"/></symbol>
+<symbol id="ic-hourglass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12M6 21h12M7.5 3v3.5c0 2 1.6 3.4 3.2 4.6.8.5.8 1.3 0 1.8-1.6 1.2-3.2 2.6-3.2 4.6V21M16.5 3v3.5c0 2-1.6 3.4-3.2 4.6-.8.5-.8 1.3 0 1.8 1.6 1.2 3.2 2.6 3.2 4.6V21"/></symbol>
 <symbol id="ic-dot" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="12" r="5"/></symbol>
 <!-- the training set: wpDetectTrainingEmoji picks one of these from the task's title -->
 <symbol id="ic-lift" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6M6 6.5v11M18 6.5v11M21 9v6M6 12h12"/></symbol>
@@ -2216,6 +2251,19 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 <!-- v218: what a pulled project step actually says — its notes, its checklist and its
      files — read from the week rather than by going back to the board. The checklist ticks
      from here; the notes are written on the board and the panel says so. -->
+<div id="wpWaitOverlay" class="wp-today-overlay" hidden onclick="if(event.target===this)wpWaitClose()">
+  <div class="wp-today-modal" role="dialog" aria-modal="true" aria-labelledby="wpWaitTitle">
+    <div class="wp-today-h">
+      <div>
+        <div class="wp-today-title">Waiting on</div>
+        <div class="wp-today-date" id="wpWaitTitle"></div>
+      </div>
+      <button class="wp-today-close" title="Close (Esc)" onclick="wpWaitClose()"><svg class="ic"><use href="#ic-close"/></svg></button>
+    </div>
+    <div class="wp-today-body" id="wpWaitBody"></div>
+  </div>
+</div>
+
 <div id="wpStepNotesOverlay" class="wp-today-overlay" hidden onclick="if(event.target===this)wpCloseStepNotes()">
   <div class="wp-today-modal wp-sn-modal" role="dialog" aria-modal="true" aria-labelledby="wpStepNotesTitle">
     <div class="wp-today-h">
@@ -3692,6 +3740,7 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
   await wpLoadTraining();   // v71: personal training list (separate collection)
   await wpLoadCheckins();   // v80: daily check-in history (date-keyed, independent of the week)
   await wpLoadLocDefaults();// v84: the default weekly location pattern (one key, all weeks)
+  await wpWaitLoad();       // v276: the jobs being waited on (one list, all weeks)
   let plan = null;
   if(preloadedPlan){
     // Caller supplied the just-written plan (e.g. after Finish Week) — use it directly
@@ -4002,11 +4051,13 @@ function wpDragRow(source, it){
     ? `<input class="wp-drag-name${done?" wp-done":""}" value="${wpEsc(it.title)}" readonly title="Written on the board — change it there">`
     : `<input class="wp-drag-name${done?" wp-done":""}" data-item-title="${source}:${it.id}" value="${wpEsc(it.title)}" placeholder="Task"
       onkeydown="wpItemKey(event)" onblur="wpItemBlur('${source}')">`;
-  return `<div class="wp-drag-row${done?" wp-item-done":""}" draggable="true"
+  const held = done ? null : wpWaitRecOf(ref);
+  return `<div class="wp-drag-row${done?" wp-item-done":""}${held?" wp-waiting":""}" draggable="true"
       ondragstart="wpDragStart(event,'${source}','${it.id}')" ondragend="wpDragEnd(event)">
     <span class="wp-drag-handle" title="Drag onto a time block">⠿</span>
     ${nameIn}
     ${placed?`<span class="wp-txt-tag">${placed}</span>`:""}
+    ${done?"":wpWaitBtnHtml(ref,"",held)}
     ${it.source==="monthly-project"?`<span class="wp-txt-tag wp-from-monthly" title="Pushed from the Monthly plan${it.sourceYm?(" ("+it.sourceYm+")"):""}">↳ Monthly</span>`:""}
     ${it.source==="project-step"?`<a class="wp-txt-tag wp-from-project" href="/projects.html#board" title="Pulled from the project &quot;${wpEsc(it.sourceProjectName||"")}&quot; — ticking this off marks it done on the board">↳ ${wpEsc(it.sourceProjectName||"Project")}</a>`:""}
     ${it.source==="project-step"?wpStepNoteBtnHtml(it,false):""}
@@ -4191,12 +4242,13 @@ function wpChipHtml(ref, dk, mode, cellKey){
   // v89: a chip is also a drop target for its own cell — dropping a chip from the SAME cell
   // onto it reorders (above/below depending on which half you drop on). A drop from another
   // cell isn't handled here: it bubbles to the <td> and takes the normal v82 move path.
-  return `<label class="wp-cellchip${done?" wp-done":""}${recCls}" draggable="true" title="${wpEsc(item.title)}"
+  const held = done ? null : wpWaitRecOf(ref, dk);
+  return `<label class="wp-cellchip${done?" wp-done":""}${recCls}${held?" wp-waiting":""}" draggable="true" title="${wpEsc(item.title)}"
       ondragstart="wpChipDragStart(event,'${ref}','${ck}')" ondragend="wpDragEnd(event)"
       ondragover="wpChipDragOver(event,'${ck}')" ondragleave="wpChipDragLeave(event)" ondrop="wpChipDrop(event,'${ck}','${ref}')">
     <span class="wp-chip-grip" aria-hidden="true">⠿</span>
     <input type="checkbox" ${done?"checked":""} onchange="wpToggleDoneRef('${ref}',this.checked,'${dk}')">
-    <span class="wp-chip-title">${emoji}${wpEsc(item.title)}</span>${noteOut}${linkOut}${delOut}</label>`;
+    <span class="wp-chip-title">${emoji}${wpEsc(item.title)}</span>${done?"":wpWaitBtnHtml(ref,dk,held)}${noteOut}${linkOut}${delOut}</label>`;
 }
 
 /* ===== v70: RICH NOTES ===== */
@@ -4899,7 +4951,7 @@ function renderWeeklyPlan(){
   const p = wpPlan;
 
   const projectBox = wpListBox(wpIco("kanban","slate")+"Project","project","project", p.projectItems, "wpAddItem('project')", "+ Add project task");
-  const overdueBox = wpOverdueHtml();   // v227: late project steps, above the Project box
+  const overdueBox = wpWaitBoxHtml() + wpOverdueHtml();   // v227: late project steps, above the Project box. v276: what is being waited on, above those
   const recurringBox = wpRecurringBox();   // v75: tabbed (Daily/Weekly/Monthly/Quarterly) filter over wpDefaults
   const bufferBox = wpListBox(wpIco("note","info")+"Buffer","buffer","buffer", p.bufferItems, "wpAddItem('buffer')", "+ Add buffer task");
   // v71: personal Training — its own collection and card, never mixed into Recurring
@@ -5127,7 +5179,8 @@ function wpHeroHtml(anchorBox){
   const ring = `<span class="wp-ring" role="img" aria-label="${all.d} of ${all.t} planned jobs done this week"><svg viewBox="0 0 84 84" aria-hidden="true">`+
     `<circle class="trk" cx="42" cy="42" r="${r}"/><circle class="val" cx="42" cy="42" r="${r}" stroke-dasharray="${(c*f).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 42 42)"/></svg>`+
     `<span><b>${all.d}<i>/${all.t}</i></b><small>done</small></span></span>`;
-  const left = all.t - all.d;
+  const waitN = wpWaitInGrid();
+  const left = Math.max(0, all.t - all.d - waitN);
   const tile = (key, icon, tone, label)=>{
     const x = st[key];
     return `<div class="wp-stat t-${tone}"><span class="wp-stat-ic"><svg class="ic"><use href="#ic-${icon}"/></svg></span>`+
@@ -5137,7 +5190,7 @@ function wpHeroHtml(anchorBox){
   return `<div class="wp-hero-row${anchorBox?"":" solo"}">
       <div class="wp-hero">
         <div class="wp-hero-main"><div class="wp-hero-eye">${wpEsc(eye)}</div><div class="wp-hero-title">${wpEsc(title)}</div>
-          <div class="wp-hero-sub">${all.t ? (left ? left+" planned job"+(left===1?"":"s")+" still to do" : "Everything planned is done") : "Nothing planned in the grid yet"}</div></div>
+          <div class="wp-hero-sub">${all.t ? (left ? left+" planned job"+(left===1?"":"s")+" still to do" : (waitN ? "Nothing left for you to do" : "Everything planned is done"))+(waitN ? ", "+waitN+" waiting" : "") : "Nothing planned in the grid yet"}</div></div>
         ${ring}
       </div>
       ${anchorBox}
@@ -6553,9 +6606,11 @@ async function wpMigrateStepCopies(){
 }
 // the Overdue strip: past their date, not done. Tick = done; drag onto a day = new date.
 function wpOverdueHtml(){
-  if(!wpOverdueItems.length) return "";
+  // v276: late, but with someone else. It is in the Waiting box, not here
+  const lateNow = wpOverdueItems.filter(it=>!wpWaitRecOf(wpItemRef("project", it.id)));
+  if(!lateNow.length) return "";
   const today = Date.parse(wpLocalToday() + "T12:00:00Z");
-  const rows = wpOverdueItems.map(it=>{
+  const rows = lateNow.map(it=>{
     const late = Math.round((today - Date.parse(it.due + "T12:00:00Z")) / 86400000);
     const ref = wpItemRef("project", it.id);
     return `<div class="wp-drag-row wp-od-row" draggable="true"
@@ -6565,6 +6620,7 @@ function wpOverdueHtml(){
       <span class="wp-od-t">${wpEsc(it.title)}</span>
       <a class="wp-txt-tag wp-from-project" href="/projects.html#board">↳ ${wpEsc(it.sourceProjectName||"Project")}</a>
       <span class="wp-od-late">${wpEsc(wpProjDueLabel(it.due).text)} · ${late} day${late===1?"":"s"} late</span>
+      ${wpWaitBtnHtml(ref,"",null)}
       ${wpStepNoteBtnHtml(it, false)}
     </div>`;
   }).join("");
@@ -7598,6 +7654,204 @@ function wpToastUndo(msg, fn){
   wpToastTimer = setTimeout(() => el.classList.remove("on"), 8000);
 }
 
+/* ===================== v276: WAITING ON =====================
+   The same list as the Daily Dashboard's (see the note there, and WAITING_KEY in kpi-store).
+   The hourglass on a chip or row asks what he is waiting on and when to check back. The Waiting
+   box at the top is the same list in any week he is looking at, so nothing being waited on
+   disappears by turning the page. A job is matched by the tick address the agenda already
+   uses (wpDoneTarget), so a mark made here is the same mark on the daily page. */
+let wpWaiting = [];
+let wpWaitDraft = null;
+const wpWaitToday = () => wpLocalToday();
+const wpWaitAdd = (n) => { const d = new Date(); d.setDate(d.getDate()+n);
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
+const wpWaitShort = (s) => { const [y,m,d] = s.split("-").map(Number);
+  return new Date(y,m-1,d).toLocaleDateString("en-GB",{weekday:"short",day:"numeric"}); };
+function wpWaitKeyOf(t){ return t.p ? "step:"+t.p+":"+t.s : "plan:"+(t.l||t.m||"")+":"+t.k; }
+const wpWaitSame = (a,key,week) => a.key===key && (a.week||"")===(week||"");
+// a step ticked off on its board has nothing left to wait for, whatever the list still says
+const wpWaitStepDone = (r) => { const t = r.tgt; const p = t && t.p ? (wpProjects.list||[]).find(x=>x.id===t.p) : null;
+  const st = p && (p.steps||[]).find(x=>x.id===t.s); return !!(st && (st.done || st.del)); };
+const wpWaitOpen = () => wpWaiting.filter(r=>!r.ready && !wpWaitStepDone(r)).sort((a,b)=>
+  String(a.check||"9").localeCompare(String(b.check||"9")) || String(a.since).localeCompare(String(b.since)));
+async function wpWaitLoad(){
+  try{
+    const r = await fetch(WP_STORE+"?waiting=1");
+    const j = r && r.ok ? await r.json() : null;
+    wpWaiting = j && Array.isArray(j.items) ? j.items : [];
+  }catch(e){ /* the jobs show as ordinary jobs; nothing is lost */ }
+}
+function wpWaitTargetOf(ref, day){
+  const [source] = ref.split(":");
+  const it = wpResolveRef(ref);
+  const tgt = it ? wpDoneTarget(source, it, day) : null;
+  return tgt && (tgt.k || (tgt.p && tgt.s)) ? { it, tgt, key:wpWaitKeyOf(tgt), week:tgt.p ? "" : wpWeekEnding } : null;
+}
+function wpWaitRecOf(ref, day){
+  const j = wpWaitTargetOf(ref, day);
+  return j ? wpWaiting.find(r=>!r.ready && wpWaitSame(r,j.key,j.week)) || null : null;
+}
+// how many of the jobs counted in this week's grid are held up, so the hero's sum stays honest
+function wpWaitInGrid(){
+  if(!wpWaitOpen().length) return 0;
+  const seen = new Set();
+  const note = (ref,day)=>{ const r = wpWaitRecOf(ref,day); if(r) seen.add(r.key+"|"+(r.week||"")); };
+  let P = {};
+  try{ P = wpEffectivePlacements() || {}; }catch(e){ P = {}; }
+  Object.keys(P).forEach(k=>{ const day = k.split(":")[1]; (P[k]||[]).forEach(ref=>note(ref,day)); });
+  [["project", wpPlan && wpPlan.projectItems], ["buffer", wpPlan && wpPlan.bufferItems]].forEach(([src,list])=>
+    (list||[]).forEach(it=>{ if(it && it.id) note(wpItemRef(src,it.id)); }));
+  return seen.size;
+}
+function wpWaitBtnHtml(ref, day, held){
+  const label = held ? "Waiting on "+(held.on||"something")+". Press to change it" : "Waiting on someone? Put it on hold here";
+  return `<button type="button" class="wp-chip-wait${held?" on":""}" title="${wpEsc(label)}" aria-label="${wpEsc(label)}"
+    onclick="wpWaitOpenFor(event,'${wpEsc(ref)}','${wpEsc(day||"")}')"><svg class="ic"><use href="#ic-hourglass"/></svg></button>`;
+}
+function wpWaitSays(r){
+  const today = wpWaitToday();
+  const bits = [];
+  if(r.on) bits.push(r.on);
+  if(r.check && r.check <= today) bits.push(r.check===today ? "check back today" : "check back, it was "+wpWaitShort(r.check));
+  else if(r.since && r.since < today) bits.push("since "+wpWaitShort(r.since));
+  if(r.check && r.check > today) bits.push("check back "+wpWaitShort(r.check));
+  return bits.join(" · ");
+}
+function wpWaitBoxHtml(){
+  const list = wpWaitOpen();
+  if(!list.length) return "";
+  const today = wpWaitToday();
+  const rows = list.map((r,i)=>`<div class="wp-wt-row${r.check && r.check<=today?" due":""}">
+      <input type="checkbox" onchange="wpWaitFinish(${i})" aria-label="Finished: ${wpEsc(r.title)}">
+      <span class="wp-wt-main">${wpEsc(r.title)}<small>${wpEsc(wpWaitSays(r))}</small></span>
+      <button type="button" class="wp-wt-a" title="The answer is in. Put it back on my list" onclick="wpWaitGotIt(${i})">got it</button>
+      <button type="button" class="wp-wt-a" onclick="wpWaitEdit(${i})">${r.check && r.check<=today?"still waiting":"change"}</button>
+    </div>`).join("");
+  return `<div class="wp-box"><div class="wp-box-h"><span>${wpIco("hourglass","slate")}Waiting on (${list.length})</span></div>
+    <div class="wp-box-body"><div class="wp-wt-hint">Your part is done. These stay here until the answer comes.</div>${rows}</div></div>`;
+}
+function wpWaitShow(rec, held){
+  wpWaitDraft = Object.assign({}, rec, { check: rec.check && rec.check > wpWaitToday() ? rec.check : wpWaitAdd(1), held });
+  const ov = document.getElementById("wpWaitOverlay");
+  ov.hidden = false;
+  requestAnimationFrame(()=>ov.classList.add("open"));
+  wpWaitRender();
+  const i = document.getElementById("wpWaitOn");
+  if(i) i.focus();
+}
+function wpWaitOpenFor(ev, ref, day){
+  if(ev){ ev.preventDefault(); ev.stopPropagation(); }
+  const j = wpWaitTargetOf(ref, day||undefined);
+  if(!j) return;
+  const held = wpWaitRecOf(ref, day||undefined);
+  wpWaitShow(held || { key:j.key, week:j.week, title:String(j.it.title), on:"", since:wpWaitToday(), check:"", ready:"", tgt:j.tgt }, !!held);
+}
+function wpWaitEdit(i){ const r = wpWaitOpen()[i]; if(r) wpWaitShow(r, true); }
+function wpWaitClose(){
+  wpWaitDraft = null;
+  const ov = document.getElementById("wpWaitOverlay");
+  if(ov){ ov.classList.remove("open"); ov.hidden = true; }
+}
+function wpWaitRender(){
+  const c = wpWaitDraft;
+  if(!c) return;
+  document.getElementById("wpWaitTitle").textContent = c.title;
+  const dayName = new Date(wpWaitAdd(3)+"T12:00:00").toLocaleDateString("en-GB",{weekday:"long"});
+  const days = [[wpWaitAdd(1),"Tomorrow"],[wpWaitAdd(3),dayName],[wpWaitAdd(7),"Next week"]];
+  const known = days.some(d=>d[0]===c.check);
+  document.getElementById("wpWaitBody").innerHTML = `<div class="wp-wt-form">
+    <label for="wpWaitOn">What are you waiting on?</label>
+    <input id="wpWaitOn" class="wp-wt-in" maxlength="200" value="${wpEsc(c.on||"")}" placeholder="Staff to confirm their shifts" oninput="if(wpWaitDraft)wpWaitDraft.on=this.value">
+    <label>Check back</label>
+    <div class="wp-wt-days">${days.map(d=>`<button type="button" class="wp-wt-day${d[0]===c.check?" on":""}" onclick="wpWaitDay('${d[0]}')">${wpEsc(d[1])}</button>`).join("")}
+      <input type="date" class="wp-wt-in" style="width:auto;margin:0" min="${wpWaitToday()}" value="${known?"":wpEsc(c.check)}" aria-label="Pick a day to check back" onchange="if(this.value)wpWaitDay(this.value)"></div>
+    <button type="button" class="wp-wt-go" onclick="wpWaitSave()">${c.held?"Save":"Put it on waiting"}</button>
+    ${c.held?`<button type="button" class="wp-wt-sec" onclick="wpWaitGotDraft()">Got it, back on my list</button>`:""}
+    <button type="button" class="wp-wt-sec" onclick="wpWaitClose()">Back</button></div>`;
+}
+function wpWaitDay(d){ if(wpWaitDraft){ wpWaitDraft.check = d; wpWaitRender(); } }
+const wpWaitPlain = (r) => ({ key:r.key, week:r.week||"", title:r.title, on:String(r.on||"").trim(), since:r.since||"",
+  check:r.check||"", ready:r.ready||"", tgt:r.tgt||null });
+async function wpWaitPost(what){
+  const r = await fetch(WP_STORE, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ waiting:what }) });
+  if(!r.ok) throw new Error("HTTP "+r.status);
+  return r.json();
+}
+// on screen first, then the store; a failed write puts the list back and says so
+async function wpWaitWrite(change, what){
+  const before = wpWaiting.slice();
+  if(wpPlan) wpSyncFromDom();
+  change();
+  renderWeeklyPlan();
+  try{ await wpWaitPost(what); return true; }
+  catch(e){
+    wpWaiting = before;
+    renderWeeklyPlan();
+    wpToastUndo("That did not save. Check your connection.", ()=>{});
+    return false;
+  }
+}
+function wpWaitSet(rec){
+  return wpWaitWrite(()=>{
+    const i = wpWaiting.findIndex(x=>wpWaitSame(x,rec.key,rec.week));
+    if(i>=0) wpWaiting[i] = rec; else wpWaiting.push(rec);
+  }, { set:rec });
+}
+function wpWaitClear(rec){
+  return wpWaitWrite(()=>{ wpWaiting = wpWaiting.filter(x=>!wpWaitSame(x,rec.key,rec.week)); },
+    { clear:{ key:rec.key, week:rec.week||"" } });
+}
+async function wpWaitSave(){
+  const c = wpWaitDraft;
+  if(!c) return;
+  const rec = wpWaitPlain(Object.assign({}, c, { ready:"" }));
+  const held = c.held;
+  wpWaitClose();
+  if(await wpWaitSet(rec) && !held) wpToastUndo("On waiting. You can leave it now.", ()=>wpWaitClear(rec));
+}
+// the answer is in: it comes back as a job, on the daily list if it has no row of its own there
+async function wpWaitGot(r){
+  const was = wpWaitPlain(r);
+  if(await wpWaitSet(wpWaitPlain(Object.assign({}, r, { ready:wpWaitToday() })))) wpToastUndo("Back on your list.", ()=>wpWaitSet(was));
+}
+function wpWaitGotIt(i){ const r = wpWaitOpen()[i]; if(r) wpWaitGot(r); }
+function wpWaitGotDraft(){
+  const c = wpWaitDraft;
+  if(!c) return;
+  wpWaitClose();
+  const r = wpWaiting.find(x=>wpWaitSame(x,c.key,c.week));
+  if(r) wpWaitGot(r);
+}
+/* The tick in the Waiting box finishes the job where it lives. A job in the week on screen goes
+   through the page's own tick, or a later save of that week would put the old state back. One
+   in another week is written by the same narrow route the daily page uses. */
+async function wpWaitTick(r, val){
+  const t = r.tgt;
+  if(!t) return true;
+  const f = t.p ? (wpProjects.list||[]).find(x=>x.id===t.p) : null;
+  const st = f && (f.steps||[]).find(x=>x.id===t.s);
+  if(st) return !!(await wpStepLinkWrite(f, st, { done:val }));
+  if(t.p) return true;                      // the step has gone from the board
+  if(r.week === wpWeekEnding){
+    if(t.l) await wpToggleDoneRef(wpItemRef(t.l.replace("Items",""), t.k), val);
+    else { const [id, day] = t.k.split(":"); await wpToggleDoneRef(wpItemRef(t.m==="trainingDone"?"training":"recurring", id), val, day); }
+    return true;
+  }
+  try{
+    const res = await fetch(WP_STORE, { method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({ weeklyTick:{ weekEnding:r.week, tgt:t, done:val } }) });
+    return res.ok || res.status === 404;    // a 404 is a job since deleted: nothing left to wait for
+  }catch(e){ return false; }
+}
+async function wpWaitFinish(i){
+  const r = wpWaitOpen()[i];
+  if(!r) return;
+  const was = wpWaitPlain(r);
+  if(!await wpWaitTick(r, true)){ renderWeeklyPlan(); wpToastUndo("That did not save. Check your connection.", ()=>{}); return; }
+  if(wpWaiting.some(x=>wpWaitSame(x,r.key,r.week))) await wpWaitClear(r);
+  wpToastUndo("Done. Off the waiting list.", async ()=>{ await wpWaitTick(was, false); await wpWaitSet(was); });
+}
+
 /* ---- v82: the "this one / all" question ---- */
 // A small navy/orange modal (never a browser confirm) that resolves to an option key, or
 // null if it was cancelled / dismissed. Only one can be on screen at a time.
@@ -7739,6 +7993,7 @@ async function wpToggleDoneRef(ref, checked, day){
   const [source] = ref.split(":");
   const item = wpResolveRef(ref);
   if(!item) return;
+  if(checked){ const held = wpWaitRecOf(ref, day); if(held) wpWaitClear(held); }   // v276: finished, so nothing left to wait for
   if(item.derived) return wpStepTick(item, checked);   // v227: the step's tick, nothing in the week
   wpSyncFromDom();
   wpSetDone(source, item, checked, day);
@@ -7791,6 +8046,7 @@ document.addEventListener("keydown", (e)=>{
   if(e.key!=="Escape") return;
   if(wpAskResolve){ wpCloseAsk(null); return; }
   if(document.getElementById("wpLocPopup")){ wpCloseLocPopup(); return; }
+  if(wpWaitDraft){ wpWaitClose(); return; }            // v276: the waiting question
   if(wpStepNotesId){ wpCloseStepNotes(); return; }     // v218: a pulled step's notes/checklist
   if(wpRecurNotesId){ wpCloseRecurNotes(); return; }   // v117: the recurring-notes editor
   if(wpAnchorNotesOpen){ wpCloseAnchorNotes(); return; }
