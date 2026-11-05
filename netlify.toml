@@ -133,3 +133,8 @@
   timeout = 26
 [functions."money-chase"]
   timeout = 26
+
+# ===================== v277: the Content Calendar =====================
+# Reads GoHighLevel, Instagram and Meta side by side. The paid-plan maximum.
+[functions."marketing-calendar"]
+  timeout = 26
