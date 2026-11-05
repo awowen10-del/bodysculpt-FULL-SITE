@@ -42,9 +42,9 @@ function cuCollect(plan, projects, today, cfg) {
       const start = (Number(it.start.slice(0, 4)) + y) + it.start.slice(4);
       const end = (Number(it.end.slice(0, 4)) + y) + it.end.slice(4);
       const prep = cuAdd(start, -7 * (it.prepWeeks || 0));
-      if (start <= today && end >= today) out.push({ n: 0, title: it.title, tone: "live", href: CAL, when: "Live now" });
-      else if (start > today && start <= last) out.push({ n: cuDays(today, start), title: it.title, tone: "big", href: CAL });
-      else if (prep > today && prep <= last) out.push({ n: cuDays(today, prep), title: "Start preparing " + it.title, tone: "", href: CAL });
+      if (start <= today && end >= today) out.push({ n: 0, title: it.title, tone: "live", href: CAL, when: "Live now", moment: true });
+      else if (start > today && start <= last) out.push({ n: cuDays(today, start), title: it.title, tone: "big", href: CAL, moment: true });
+      else if (prep > today && prep <= last) out.push({ n: cuDays(today, prep), title: "Start preparing " + it.title, tone: "", href: CAL, moment: true });
     });
   });
   (projects || []).filter((p) => p && !p.archived && p.status !== "done").forEach((p) => {
@@ -67,7 +67,8 @@ function cuCollect(plan, projects, today, cfg) {
     const hit = items.some((i) => cuDays(i.start, i.end) < 90 && (i.start.slice(0, 7) === ym || i.end.slice(0, 7) === ym || (i.yearly && (i.start.slice(5, 7) === ym.slice(5) || i.end.slice(5, 7) === ym.slice(5)))));
     if (!hit) out.push({ n: 9999, title: "Nothing planned for " + CU_MONTHS[mm] + " yet", tone: "gap", href: CAL, when: "Decide" });
   }
-  return out.sort((a, b) => a.n - b.n);
+  // Calendar moments lead, whatever else is going on: an old overdue job must never bury Black Friday.
+  return out.sort((a, b) => (b.moment ? 1 : 0) - (a.moment ? 1 : 0) || a.n - b.n);
 }
 
 function cuStyle() {

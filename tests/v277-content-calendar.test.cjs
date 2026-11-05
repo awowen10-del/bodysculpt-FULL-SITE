@@ -94,6 +94,7 @@ async function main() {
   assert.ok(mo.includes("Launch deadline"), "and project deadlines");
   assert.ok(mo.includes("Write it (Launch)"), "and overdue tasks");
   assert.ok(mo.includes("Launch: 2 tasks due, next 10 Nov"), "tasks group by project, done and deleted ones left out");
+  assert.strictEqual(mo[0], "Black Friday", "a big moment leads, even with overdue work behind it");
   assert.ok(mo.includes("Nothing planned for January yet"), "and it says when the focus month is empty");
   assert.ok(!mo.some((t) => /Deleted|Old/.test(t)), "deleted plans and archived projects stay out");
   assert.ok(!titles(cu.CU_PAGES["/social.html"]).some((t) => /tasks|Write it/.test(t)), "the social pages get moments, not task lists");
