@@ -16,9 +16,9 @@ const CU_PAGES = {
   "/monthly.html":   { days: 62,  label: "Coming up. Build these into your month", tasks: true, gaps: true },
   "/quarterly.html": { days: 100, label: "Coming up this quarter", tasks: true, gaps: true },
   "/projects.html":  { days: 14,  label: "Coming up in the next two weeks", tasks: false },
-  "/social.html":    { days: 45,  label: "Coming up. Plan your content around these", tasks: false },
-  "/ads.html":       { days: 45,  label: "Coming up. Plan your ads around these", tasks: false },
-  "/schedule.html":  { days: 45,  label: "Coming up. Plan your content around these", tasks: false },
+  "/social.html":    { days: 45,  label: "Coming up. Plan your content around these", tasks: false, noProjects: true },
+  "/ads.html":       { days: 45,  label: "Coming up. Plan your ads around these", tasks: false, noProjects: true },
+  "/schedule.html":  { days: 45,  label: "Coming up. Plan your content around these", tasks: false, noProjects: true },
 };
 const CU_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const CU_MAX = 6;
@@ -47,7 +47,8 @@ function cuCollect(plan, projects, today, cfg) {
       else if (prep > today && prep <= last) out.push({ n: cuDays(today, prep), title: "Start preparing " + it.title, tone: "", href: CAL, moment: true });
     });
   });
-  (projects || []).filter((p) => p && !p.archived && p.status !== "done").forEach((p) => {
+  // The social pages are for campaigns. Ash: projects showing there "shouldn't be happening".
+  (cfg.noProjects ? [] : projects || []).filter((p) => p && !p.archived && p.status !== "done").forEach((p) => {
     const steps = (p.steps || []).filter((s) => s && !s.del && !s.done && s.due && s.due <= last);
     if (p.targetDate && p.targetDate <= last) {
       const n = cuDays(today, p.targetDate);
@@ -111,7 +112,7 @@ async function cuStart() {
   const today = new Date().toISOString().slice(0, 10), hideKey = "cu.hide" + path;
   try { if (localStorage.getItem(hideKey) === today) return; } catch (e) { /* a private window just shows it */ }
   const read = (u) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-  const [p, j] = await Promise.all([read("/.netlify/functions/marketing-calendar?plan=1"), read("/.netlify/functions/projects?list=1")]);
+  const [p, j] = await Promise.all([read("/.netlify/functions/marketing-calendar?plan=1"), (cfg.noProjects ? null : read("/.netlify/functions/projects?list=1"))]);
   const list = cuCollect(p && p.plan, j && j.projects, today, cfg);
   if (!list.length) return;
   cuStyle();

@@ -16,13 +16,14 @@ const pure = PAGE.slice(PAGE.indexOf("/* PURE:START */"), PAGE.indexOf("/* PURE:
 vm.runInContext(pure, box);
 
 async function main() {
-  // the year is this month and the eleven after it, and it never reaches back
-  const yr = box.ccMonthsAhead("2026-11-05");
-  assert.strictEqual(yr.length, 12, "twelve months");
-  assert.strictEqual(yr[0].ym, "2026-11", "starts with this month");
-  assert.strictEqual(yr[11].ym, "2027-10", "ends eleven months on");
-  assert.strictEqual(yr[1].last, "2026-12-31", "a month knows its last day");
-  assert.strictEqual(box.ccMonthsAhead("2026-12-01")[0].ym, "2026-12", "a finished month drops off");
+  // the calendar starts this week, with no history behind it
+  let w = box.ccWeeks("2026-11-05");
+  assert.strictEqual(w[0], "2026-11-02", "starts the week it was switched on");
+  assert.strictEqual(w.length, 52, "fifty-two weeks forward");
+  w = box.ccWeeks("2026-11-20");
+  assert.strictEqual(w[0], "2026-11-02", "never reaches back past the start");
+  w = box.ccWeeks("2027-03-10");
+  assert.strictEqual(w[0], "2027-02-08", "later on, four weeks stay visible and older ones drop off");
 
   // October means focus on December
   assert.strictEqual(box.ccFocusMonth("2026-10-14").month, 11, "October: December");
@@ -44,10 +45,7 @@ async function main() {
   assert.strictEqual(box.ccStatus(0, 3, false), "due");
 
   // past weeks with nothing to show cannot be clicked
-  assert.ok(/class="cc-it lost" disabled/.test(PAGE), "a lost week is disabled, not a dead click");
-  assert.strictEqual(box.CC_IDEAS.length, 12, "an idea for every month, shown only when it is empty");
-  assert.ok(!/cc-rib|cc-num/.test(PAGE), "no timeline strip and no background numbers");
-  assert.ok(/Content Calendar<\/h1>/.test(PAGE), "the page says what it is");
+  assert.ok(/class="cc-wk lost" disabled/.test(PAGE), "a lost week is disabled, not a dead click");
 
   // the plan lives on its own and cannot reach anything else
   assert.ok(/name: "bodysculpt-mktcal"/.test(LIB), "its own blob store");
@@ -97,7 +95,9 @@ async function main() {
   assert.strictEqual(mo[0], "Black Friday", "a big moment leads, even with overdue work behind it");
   assert.ok(mo.includes("No campaign planned for January yet"), "and it says when the focus month is empty");
   assert.ok(!mo.some((t) => /Deleted|Old/.test(t)), "deleted plans and archived projects stay out");
-  assert.ok(!titles(cu.CU_PAGES["/social.html"]).some((t) => /tasks|Write it/.test(t)), "the social pages get moments, not task lists");
+  assert.ok(!titles(cu.CU_PAGES["/social.html"]).some((t) => /Launch|tasks|Write it/.test(t)), "projects never show on the social pages");
+  assert.ok(!/projects\?list/.test(PAGE), "the calendar never reads or shows the projects");
+  assert.deepStrictEqual(Array.from(box.CC_ROWS).map((r) => r.k), ["email", "organic", "engage", "paid", "cases", "tests", "lead", "moments", "referral", "upsell", "offline", "magnet", "other"], "the rows run in the spreadsheet's order");
   assert.strictEqual(Array.from(cu.cuCollect({ items: P }, PR, "2026-11-25", cu.CU_PAGES["/daily.html"]))[1] !== undefined, true, "something to say mid-campaign");
   assert.ok(Array.from(cu.cuCollect({ items: P }, [], "2026-11-25", cu.CU_PAGES["/daily.html"])).some((x) => x.when === "Live now"), "a running moment says so");
   const CUJS = read("coming-up.js").replace(/\/\*[\s\S]*?\*\//g, "");
