@@ -65,7 +65,7 @@ function cuCollect(plan, projects, today, cfg) {
     const m = Number(today.slice(5, 7)) - 1 + 2, y = Number(today.slice(0, 4)) + Math.floor(m / 12), mm = m % 12;
     const ym = y + "-" + String(mm + 1).padStart(2, "0");
     const hit = items.some((i) => cuDays(i.start, i.end) < 90 && (i.start.slice(0, 7) === ym || i.end.slice(0, 7) === ym || (i.yearly && (i.start.slice(5, 7) === ym.slice(5) || i.end.slice(5, 7) === ym.slice(5)))));
-    if (!hit) out.push({ n: 9999, title: "Nothing planned for " + CU_MONTHS[mm] + " yet", tone: "gap", href: CAL, when: "Decide" });
+    if (!hit) out.push({ n: 9999, title: "No campaign planned for " + CU_MONTHS[mm] + " yet", tone: "gap", href: CAL, when: "Decide" });
   }
   // Calendar moments lead, whatever else is going on: an old overdue job must never bury Black Friday.
   return out.sort((a, b) => (b.moment ? 1 : 0) - (a.moment ? 1 : 0) || a.n - b.n);

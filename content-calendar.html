@@ -760,7 +760,12 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
     var next = occs(function (i) { return i.fixed; }).filter(function (o) { return o.end >= today; }).sort(function (a, b) { return a.start < b.start ? -1 : 1; })[0];
     var soon = next ? (ccDiffDays(today, next.start) <= 0 ? " " + ccEsc(next.item.title) + " is live now." : " " + ccEsc(next.item.title) + " is " + ccDiffDays(today, next.start) + " days away.") : "";
     var lead = "<b>It's " + now + ", so focus on " + fname + ".</b> ";
-    if (inFocus.length) {
+    var fmo = months.filter(function (x) { return x.y === fm.year && x.m === fm.month; })[0];
+    var jobs = fmo ? projChips(fmo).length : 0;
+    if (!inFocus.length && jobs) {
+      $("ccSub").innerHTML = lead + jobs + " project" + (jobs === 1 ? " has" : "s have") + " work due, but no campaign is planned yet." + soon;
+      $("ccCtaT").textContent = "Add to " + fname;
+    } else if (inFocus.length) {
       var l = fixed[0] || inFocus[0];
       $("ccSub").innerHTML = lead + ccEsc(l.item.title) + " starts " + fmt(l.start) + "." + soon;
       $("ccCtaT").textContent = "Open " + fname;
