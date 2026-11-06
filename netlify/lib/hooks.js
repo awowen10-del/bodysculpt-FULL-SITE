@@ -230,14 +230,17 @@ export async function candidates(lib) {
 }
 
 /* ---------- reading one reel ----------
-   Gemini is asked for the opening only. The back half of a reel is where the content is,
-   but the hook is the first three seconds, and asking for the whole transcript would bury
-   the one line that matters in four hundred words that do not. */
+   Gemini is asked for the opening word for word, because the hook is the first three seconds.
+   v284: and for what actually happens in the rest, on one line. Ash, on ideas built from the
+   first line of a caption: "Why are we using this to influence what we post then?" He was
+   right. An idea can only copy what made a reel work if something has seen the reel. */
 const READ_PROMPT =
-  "This is an Instagram reel. Answer about the FIRST THREE SECONDS only, in exactly this format and nothing else:\n" +
+  "This is an Instagram reel. Answer in exactly this format and nothing else, each answer on one line:\n" +
   "SPOKEN: the words said in the first three seconds, verbatim. If nothing is said, write: none\n" +
   "ONSCREEN: the text written on the screen at the start, verbatim. If there is none, write: none\n" +
-  "ABOUT: what the whole reel is about, in one short sentence.";
+  "ABOUT: what the whole reel is about, in one short sentence.\n" +
+  "WATCHED: what actually happens from start to finish, in order: who is in it, what they do and say, what " +
+  "text appears, how it is filmed and how it ends. Describe only what you can see and hear. Up to 100 words.";
 
 const field = (text, name) => {
   const m = new RegExp("^" + name + ":\\s*(.*)$", "im").exec(text || "");
@@ -254,6 +257,7 @@ export async function readReel(cand, url) {
     spoken: clip(field(text, "SPOKEN"), 400),
     onScreen: clip(field(text, "ONSCREEN"), 200),
     about: clip(field(text, "ABOUT"), 300),
+    watched: clip(field(text, "WATCHED"), 900),
   };
 }
 
@@ -325,7 +329,9 @@ export async function templatise(cand, read) {
 /* ---------- one candidate, start to finish ---------- */
 export async function mineOne(cand, url) {
   const read = await readReel(cand, url);
-  if (!read.spoken && !read.onScreen) throw new Error("Nothing was said and there was no text on screen — there is no hook to learn.");
+  // v284: a wordless reel that took off still has something to teach, so it is only given up
+  // on when nothing at all came back
+  if (!read.spoken && !read.onScreen && !read.watched) throw new Error("Nothing was said and there was no text on screen — there is no hook to learn.");
   const t = await templatise(cand, read);
   return {
     id: cand.id,
@@ -338,6 +344,9 @@ export async function mineOne(cand, url) {
     basis: cand.basis,
     spoken: read.spoken,
     onScreen: read.onScreen,
+    about: read.about,
+    watched: read.watched,
+    caption: clip(cand.caption, 600),
     template: t.template,
     type: t.type,
     why: t.why,

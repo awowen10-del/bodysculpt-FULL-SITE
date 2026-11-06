@@ -161,7 +161,8 @@ export function ideasPrompt({ about, voice, hooks, ownPosts, recentTopics, onShe
   const winners = (hooks || []).slice(0, 12).map((h) =>
     "· " + (h.angle || h.template || "a reel") + " — @" + h.username +
     (h.vsMedian ? ", " + h.vsMedian.toFixed(1) + "× their normal" : "") +
-    (h.why ? ". " + clip(h.why, 160) : "")).join("\n");
+    (h.why ? ". " + clip(h.why, 160) : "") +
+    (h.watched ? "\n  What happens in it: " + clip(h.watched, 500) : "")).join("\n");
   const mine = (ownPosts || []).slice(0, 16).map((p) =>
     "· " + clip((p.caption || "").replace(/\s+/g, " "), 130) + (p.views != null ? "  (" + p.views + " views)" : "")).join("\n");
 
