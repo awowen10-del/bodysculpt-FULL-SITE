@@ -11,11 +11,12 @@ const src = fs.readFileSync(root("netlify/lib/hooks.js"), "utf8");
 (async () => {
   const h = await import("file://" + root("netlify/lib/hooks.js"));
   assert.strictEqual(h.reelLink({ id: "DfU1ftPMrlJ" }), "https://www.instagram.com/reel/DfU1ftPMrlJ/");
-  const r = h.readFromTranscript({ transcript: "What is your favourite meal?   Tacos.  Pizza.", caption: "food" });
+  const r = h.readFromTranscript({ transcript: "What is your favourite meal?   Tacos from my mom.  Pizza.", caption: "food" });
   assert.strictEqual(r.spoken, "What is your favourite meal?", "the opening is the first sentence");
   assert.ok(/^Said in the reel: What is your/.test(r.watched), "the words are kept");
   assert.strictEqual(r.about, "food");
   const silent = h.readFromTranscript({ transcript: "", caption: "x" });
+  assert.strictEqual(h.readFromTranscript({ transcript: "Love love love" }).watched, "", "song lyrics are not speech");
   assert.strictEqual(silent.watched, "", "a silent reel has nothing to read");
   assert.ok(/TRANSCRIPTS_PER_RUN = 6/.test(src), "capped, because it costs money per reel");
   assert.ok(/!cand\.isOwn && env\("APIFY_API_TOKEN"\)/.test(src), "only competitors use it");

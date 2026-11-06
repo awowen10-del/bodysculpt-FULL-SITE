@@ -246,10 +246,13 @@ const field = (text, name) => {
    Apify can hear the reel for us, at $0.048 per started minute of reel, so it is capped. */
 const READER = "https://api.apify.com/v2/acts/apify~instagram-reel-scraper/run-sync-get-dataset-items";
 const TRANSCRIPTS_PER_RUN = 6;
+const MIN_WORDS = 8;
 export const reelLink = (cand) => "https://www.instagram.com/reel/" + cand.id + "/";
 export function readFromTranscript(item) {
   const words = String((item && item.transcript) || "").replace(/\s+/g, " ").trim();
-  if (!words) return { spoken: "", onScreen: "", about: "", watched: "", transcript: "" };
+  // v287: a music reel "transcribes" as a few words of the song ("Love love love"), which is
+  // not anything anyone said, so a handful of words counts as nothing said
+  if (words.split(" ").length < MIN_WORDS) return { spoken: "", onScreen: "", about: "", watched: "", transcript: "" };
   return {
     spoken: clip((/^.{1,160}?[.?!](\s|$)/.exec(words) || [words])[0].trim(), 400),
     onScreen: "",
