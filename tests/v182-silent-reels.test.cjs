@@ -104,7 +104,7 @@ async function loadLib(file, tag, seed) {
       "the miner asks for on-screen text separately from speech");
     assert.ok(/If nothing was spoken, /.test(HOOKS_LIB) && /build the template from the on-screen text instead/.test(HOOKS_LIB),
       "…and templatises from it when nothing was said — this is why the library was never the problem");
-    assert.ok(/if \(!read\.spoken && !read\.onScreen\)/.test(HOOKS_LIB),
+    assert.ok(/if \(!read\.spoken && !read\.onScreen && !read\.watched\)/.test(HOOKS_LIB),
       "it gives up only when there is NEITHER — a reel with no hook at all");
   }
 
