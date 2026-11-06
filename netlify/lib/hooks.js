@@ -201,10 +201,6 @@ export function rivalWinners(recs, now = Date.now()) {
     .slice(0, RIVAL_MAX);
 }
 
-const LINK_HOURS = 12;   // the signed video links "go stale within the day"
-export const linksExpired = (rec, now = Date.now()) =>
-  !!(rec && rec.fetchedAt) && now - Date.parse(rec.fetchedAt) > LINK_HOURS * 36e5;
-
 export async function candidates(lib) {
   const seen = new Set([...(lib.hooks || []).map((h) => h.id), ...(lib.skipped || [])]);
   const out = [];
@@ -214,10 +210,6 @@ export async function candidates(lib) {
       const u = clip(String((c && c.username) || ""), 40).toLowerCase();
       if (!u) continue;
       const rec = await store().get("ig-scrape-" + u, { type: "json" });
-      // v282: the scrape runs twice a week and the miner every night. An old scrape's video
-      // links have expired, and an expired link goes on the skip list for good, so a reel
-      // left over from Monday waits for Thursday's scrape and its fresh link.
-      if (linksExpired(rec)) continue;
       for (const f of flamesFromScrape(rec)) if (f.id && !seen.has(f.id)) out.push(f);
     }
   } catch { /* an unreadable watch list means no competitors this run, not a failed run */ }
@@ -247,6 +239,36 @@ const field = (text, name) => {
   const v = m ? m[1].trim() : "";
   return /^none$/i.test(v) ? "" : v;
 };
+
+/* v286: competitors' reels are read from Apify's transcript, not the video. Instagram's video
+   links refuse anyone but whoever asked for them, so the download above fails on every
+   competitor reel however fresh the link is, with a 403 that only looks like an expired link.
+   Apify can hear the reel for us, at $0.048 per started minute of reel, so it is capped. */
+const READER = "https://api.apify.com/v2/acts/apify~instagram-reel-scraper/run-sync-get-dataset-items";
+const TRANSCRIPTS_PER_RUN = 6;
+export const reelLink = (cand) => "https://www.instagram.com/reel/" + cand.id + "/";
+export function readFromTranscript(item) {
+  const words = String((item && item.transcript) || "").replace(/\s+/g, " ").trim();
+  if (!words) return { spoken: "", onScreen: "", about: "", watched: "", transcript: "" };
+  return {
+    spoken: clip((/^.{1,160}?[.?!](\s|$)/.exec(words) || [words])[0].trim(), 400),
+    onScreen: "",
+    about: clip((item && item.caption) || "", 300),
+    watched: clip("Said in the reel: " + words, 900),
+    transcript: clip(words, 3000),
+  };
+}
+async function readByTranscript(cand) {
+  const res = await fetch(READER + "?token=" + encodeURIComponent(env("APIFY_API_TOKEN")), {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: [reelLink(cand)], resultsLimit: 1, includeTranscript: true }),
+  });
+  const out = await res.json().catch(() => null);
+  if (!res.ok || !Array.isArray(out)) {
+    throw new Error(clip((out && out.error && out.error.message) || ("Apify returned " + res.status), 200));
+  }
+  return readFromTranscript(out[0]);
+}
 
 export async function readReel(cand, url) {
   // v180: through ig-media's fetchVideo, which sends the headers Instagram's CDN expects and
@@ -328,7 +350,7 @@ export async function templatise(cand, read) {
 
 /* ---------- one candidate, start to finish ---------- */
 export async function mineOne(cand, url) {
-  const read = await readReel(cand, url);
+  const read = (!cand.isOwn && env("APIFY_API_TOKEN")) ? await readByTranscript(cand) : await readReel(cand, url);
   // v284: a wordless reel that took off still has something to teach, so it is only given up
   // on when nothing at all came back
   if (!read.spoken && !read.onScreen && !read.watched) throw new Error("Nothing was said and there was no text on screen — there is no hook to learn.");
@@ -346,6 +368,7 @@ export async function mineOne(cand, url) {
     onScreen: read.onScreen,
     about: read.about,
     watched: read.watched,
+    transcript: read.transcript || "",
     caption: clip(cand.caption, 600),
     template: t.template,
     type: t.type,
@@ -357,7 +380,8 @@ export async function mineOne(cand, url) {
 
 export async function mine(limit, log) {
   const lib = await readLib();
-  const cands = (await candidates(lib)).slice(0, limit || MINE_PER_RUN);
+  let paid = 0;
+  const cands = (await candidates(lib)).filter((c) => c.isOwn || paid++ < TRANSCRIPTS_PER_RUN).slice(0, limit || MINE_PER_RUN);
   // Only asked for when one of his own reels is in the batch — competitors' links come from
   // the Apify scrape half an hour earlier and are still warm.
   const fresh = cands.some((c) => c.isOwn) ? await freshOwnVideoUrls(25) : new Map();

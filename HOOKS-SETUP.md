@@ -32,8 +32,8 @@ Nothing new. It reads what the nightly competitor scrape already found:
 1. **05:00, Mondays and Thursdays** — the scrape reads each watched account's public page
    (Apify). Twice a week keeps it inside Apify's free $5 a month.
 2. **05:30** — this reads the reels from that scrape which beat their own account by 2× or
-   more, and adds them to the library. On the other nights it leaves competitors alone,
-   because their video links will have expired.
+   more, and adds them to the library. The top 6 are read from Apify's transcript, because
+   Instagram's video links can't be downloaded from here. It costs $0.048 per minute of reel.
 
 Your own reels go in too, using the flame the Content page already works out from your reach.
 Those are the useful ones for confirming what works for *you* rather than for a gym in Leeds.
