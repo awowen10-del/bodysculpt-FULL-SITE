@@ -102,7 +102,7 @@ const post = (code, views, likes) => ({ shortCode: code, url: "https://www.insta
       delete globalThis.__fakeStore;
     }
     const toml = read("netlify.toml");
-    assert.ok(/\[functions\."ig-scrape-scheduled"\]\n  schedule = "0 5 \* \* \*"/.test(toml), "nightly at 05:00 UTC");
+    assert.ok(/\[functions\."ig-scrape-scheduled"\]\n  schedule = "0 5 \* \* 1,4"/.test(toml), "Mondays and Thursdays at 05:00 UTC");
     assert.ok(/x-scrape-trigger": secret/.test(read("netlify/functions/ig-scrape-scheduled.js")) && /all: true/.test(read("netlify/functions/ig-scrape-scheduled.js")), "the trigger carries the secret and asks for all");
   }
 

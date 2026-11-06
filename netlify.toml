@@ -71,10 +71,11 @@
 [functions."ig-snapshot"]
   schedule = "30 4 * * *"
 
-# v172: competitors' views. A nightly scrape of each watched account's public page (Apify),
-# triggered the same way as the ads sync: the scheduled function asks the background one.
+# v172: competitors' views. A scrape of each watched account's public page (Apify), triggered
+# the same way as the ads sync: the scheduled function asks the background one.
+# v282: Mondays and Thursdays. Every night used up Apify's free $5 a month by 28 Oct.
 [functions."ig-scrape-scheduled"]
-  schedule = "0 5 * * *"
+  schedule = "0 5 * * 1,4"
 
 # ===================== v177: the hook library =====================
 # What the flame on the Content page never said: what was actually SAID in the reels that

@@ -82,7 +82,7 @@ const normalPosts = () => Array.from({ length: 10 }, (_, i) => ({
     ]);
     const { mod } = await loadHooks({
       "ig-competitors": [{ username: "puregym" }],
-      "ig-scrape-puregym": { username: "puregym", fetchedAt: "2026-09-16T05:00:00Z", posts },
+      "ig-scrape-puregym": { username: "puregym", fetchedAt: new Date().toISOString(), posts },
     });
     const c = await mod.candidates(await mod.readLib());
     const ids = c.map((x) => x.id);

@@ -1,6 +1,6 @@
 // Netlify Function: ig-scrape-scheduled  (v172)
 //
-// The nightly trigger for the competitor scrape — the same shape as the ads sync: a tiny
+// The twice-weekly trigger (v282) for the competitor scrape — the same shape as the ads sync: a tiny
 // scheduled function (30s wall) that asks the background one (15-min wall) to do the work,
 // carrying the shared secret that { all } demands. 05:00 UTC, after the ads sync and the
 // follower snapshot. See netlify.toml.

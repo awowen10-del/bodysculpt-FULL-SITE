@@ -187,6 +187,10 @@ const shortCodeOf = (permalink) => {
 
 // Everything flamed that has not already been mined or given up on. Competitors first —
 // they are the ones with something new to teach; his own reels confirm what already works.
+const LINK_HOURS = 12;   // the signed video links "go stale within the day"
+export const linksExpired = (rec, now = Date.now()) =>
+  !!(rec && rec.fetchedAt) && now - Date.parse(rec.fetchedAt) > LINK_HOURS * 36e5;
+
 export async function candidates(lib) {
   const seen = new Set([...(lib.hooks || []).map((h) => h.id), ...(lib.skipped || [])]);
   const out = [];
@@ -196,6 +200,10 @@ export async function candidates(lib) {
       const u = clip(String((c && c.username) || ""), 40).toLowerCase();
       if (!u) continue;
       const rec = await store().get("ig-scrape-" + u, { type: "json" });
+      // v282: the scrape runs twice a week and the miner every night. An old scrape's video
+      // links have expired, and an expired link goes on the skip list for good, so a reel
+      // left over from Monday waits for Thursday's scrape and its fresh link.
+      if (linksExpired(rec)) continue;
       for (const f of flamesFromScrape(rec)) if (f.id && !seen.has(f.id)) out.push(f);
     }
   } catch { /* an unreadable watch list means no competitors this run, not a failed run */ }

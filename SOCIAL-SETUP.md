@@ -175,6 +175,6 @@ plus one account whose content you admire that is nothing to do with gyms.
 |---|---|
 | The page | `social.html` |
 | The Instagram read | `netlify/functions/instagram-feed.js` |
-| The competitor views scrape | `netlify/functions/ig-scrape-background.js` (+ `ig-scrape-scheduled.js`, nightly) |
+| The competitor views scrape | `netlify/functions/ig-scrape-background.js` (+ `ig-scrape-scheduled.js`, Mondays and Thursdays) |
 | The competitor list | `netlify/functions/kpi-store.js` (`ig-competitors`) |
 | The tests | `tests/v136-calendar-and-social.test.cjs` |
