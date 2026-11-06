@@ -187,6 +187,20 @@ const shortCodeOf = (permalink) => {
 
 // Everything flamed that has not already been mined or given up on. Competitors first —
 // they are the ones with something new to teach; his own reels confirm what already works.
+/* v283: the reels that beat their own account, for the ideas engine to read directly.
+   Ideas only ever saw competitors through the hook library, and the library holds what the
+   video reader has managed to finish: one reel from 2024. So 37 of the 44 ideas on the shelf
+   came from Ash's own posts and notes. A caption needs no video reading, so a stalled reader
+   no longer starves the ideas. Capped per account, or one busy gym becomes the whole brief. */
+const RIVAL_DAYS = 120, RIVAL_PER_ACCOUNT = 3, RIVAL_MAX = 15;
+export function rivalWinners(recs, now = Date.now()) {
+  const recent = (p) => !p.postedAt || now - Date.parse(p.postedAt) < RIVAL_DAYS * 864e5;
+  return (recs || [])
+    .flatMap((r) => flamesFromScrape(r).filter(recent).sort((a, b) => b.vsMedian - a.vsMedian).slice(0, RIVAL_PER_ACCOUNT))
+    .sort((a, b) => b.vsMedian - a.vsMedian)
+    .slice(0, RIVAL_MAX);
+}
+
 const LINK_HOURS = 12;   // the signed video links "go stale within the day"
 export const linksExpired = (rec, now = Date.now()) =>
   !!(rec && rec.fetchedAt) && now - Date.parse(rec.fetchedAt) > LINK_HOURS * 36e5;

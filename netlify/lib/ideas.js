@@ -34,6 +34,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { readVoice } from "./schedule.js";
 import { readTrends, trendBrief } from "./trends.js";
 import { stagesBrief, mixLine, normStage } from "./stages.js";
+import { rivalWinners } from "./hooks.js";
 
 export const KEY = "ig-ideas";
 /* v202: eight, not five. Ash: "From the playbook, the accounts I follow and the scouting
@@ -153,7 +154,10 @@ const SEASON = (d) => {
   return "December — write-off month, and the run-up to January";
 };
 
-export function ideasPrompt({ about, voice, hooks, ownPosts, recentTopics, onShelf, trends, now }) {
+export function ideasPrompt({ about, voice, hooks, ownPosts, recentTopics, onShelf, trends, now, rivals }) {
+  const rivalLines = (rivals || []).map((r) =>
+    "· @" + r.username + ", " + r.vsMedian.toFixed(1) + "× their normal" + (r.views != null ? ", " + r.views + " views" : "") +
+    ": " + clip((r.caption || "").replace(/\s+/g, " "), 220)).join("\n");
   const winners = (hooks || []).slice(0, 12).map((h) =>
     "· " + (h.angle || h.template || "a reel") + " — @" + h.username +
     (h.vsMedian ? ", " + h.vsMedian.toFixed(1) + "× their normal" : "") +
@@ -167,6 +171,9 @@ export function ideasPrompt({ about, voice, hooks, ownPosts, recentTopics, onShe
     (about ? "WHAT ASH SAYS ABOUT THE BUSINESS:\n" + clip(about, MAX_ABOUT) + "\n\n" : "") +
     (voice ? "HOW HE COMMUNICATES (for the subjects he returns to, not for style here):\n" + clip(voice, 4500) + "\n\n" : "") +
     (winners ? "WHAT IS WORKING FOR GYMS HE WATCHES — these beat their own account by double or more:\n" + winners + "\n\n" : "") +
+    // v283: what actually took off at the gyms he watches, read straight from the scrape
+    (rivalLines ? "REELS THAT JUST TOOK OFF AT THE GYMS HE WATCHES, each measured against that gym's own normal:\n" +
+      rivalLines + "\n\n" : "") +
     (mine ? "HIS OWN RECENT POSTS:\n" + mine + "\n\n" : "") +
     // v198: the sixth source — Friday's scroll of the wider feed, clearly labelled as coming
     // from outside so a nationally peaking meme cannot outrank a subject of his own
@@ -183,6 +190,12 @@ export function ideasPrompt({ about, voice, hooks, ownPosts, recentTopics, onShe
     stagesBrief() + "\n" +
     "Give him " + WANT + " reels he could film THIS WEEK. Use the material above properly — there is a lot of it, " +
     "and eight genuinely different angles are in there.\n\n" +
+    // v283: Ash: "we're just repurposing my old content and not coming up with anything new."
+    (rivalLines ? "Where they come from matters as much as anything here. At least HALF of these must start from a " +
+      "reel in the list of what took off at the gyms he watches: take what made it work and point it at a subject that " +
+      "is true of Bodysculpt, and name the @account and the number in SOURCE. No more than TWO may come from his own " +
+      "old posts, and those must be a new angle, never the same reel again. He has plenty of his own material. What he " +
+      "wants from this is something new.\n\n" : "") +
     "Cover the model in roughly the proportions of his posting week: " + mixLine(WANT) + ". He plans a week off " +
     "these, so a set that is all one job is a set he cannot plan a week off.\n\n" +
     "What makes one of these good:\n" +
@@ -275,7 +288,14 @@ export async function gather(lib) {
   } catch { /* no cache is a thinner prompt, not a failure */ }
   const v = await readVoice();
   const t = await readTrends();
+  let rivals = [];
+  try {
+    const watched = (await s.get("ig-competitors", { type: "json" })) || [];
+    const recs = await Promise.all(watched.map((c) => s.get("ig-scrape-" + String((c && c.username) || "").toLowerCase(), { type: "json" })));
+    rivals = rivalWinners(recs.filter(Boolean));
+  } catch { /* no scrape is a thinner prompt, not a failure */ }
   return {
+    rivals,
     trends: trendBrief(t),
     voice: (v && v.profile) || "",
     hooks: (lib && lib.hooks) || [],
