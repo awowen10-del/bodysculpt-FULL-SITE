@@ -83,6 +83,25 @@ export default async (req) => {
   let body; try { body = await req.json(); } catch { body = {}; }
   const watched = ((await store().get("ig-competitors", { type: "json" })) || []).map((c) => cleanUser(c.username)).filter(Boolean);
 
+  /* v285, a one-off test: does Apify's Reel Scraper return a transcript for a watched gym's
+     reel? The Instagram video links can't be downloaded from here, so this may be the way to
+     hear what's said. Costs about $0.05. Stores the answer under ig-reel-test. */
+  if (body && body.reelTest) {
+    const url = clip(String(body.reelTest), 200);
+    const owner = cleanUser(body.owner);
+    if (!/^https:\/\/www\.instagram\.com\/reel\/[A-Za-z0-9_-]+\/?$/.test(url) || !watched.includes(owner)) { log({ stage: "reel_test_refused" }); return; }
+    const res = await fetch("https://api.apify.com/v2/acts/apify~instagram-reel-scraper/run-sync-get-dataset-items?token=" + encodeURIComponent(token), {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: [url], resultsLimit: 1, includeTranscript: true }),
+    });
+    const out = await res.json().catch(() => null);
+    const first = Array.isArray(out) ? out[0] : out;
+    await store().set("ig-reel-test", JSON.stringify({ at: new Date().toISOString(), status: res.status, keys: first ? Object.keys(first) : [],
+      transcript: clip(String((first && first.transcript) || ""), 1500), caption: clip((first && first.caption) || "", 300), seconds: first && first.videoDuration }));
+    log({ stage: "reel_test", status: res.status, hasTranscript: !!(first && first.transcript), transcript: clip(String((first && first.transcript) || ""), 400), seconds: first && first.videoDuration });
+    return;
+  }
+
   let targets = [], nightly = false;
   if (body && body.all) {
     const expected = (process.env.SYNC_TRIGGER_SECRET || "").trim();
