@@ -1,4 +1,4 @@
-// Netlify Function: grok-connector  (v272, edits from v273)
+// Netlify Function: grok-connector  (v272, edits from v273, the Weekly page from v288)
 //
 // Ash talks to Grok in its own app, and Grok reaches the dashboard through this one address,
 // added as a custom connector at grok.com/connectors. See netlify/lib/grok-connector.js for
@@ -59,6 +59,13 @@ function makeApi(base) {
     calendar: (weeklyCancel) => post("kpi-store", { weeklyCancel }).catch(() => {}),
     askStart: async (text, month) => (await post("ask-claude", { ask: { text, month } })).job,
     askJob: (job) => get("ask-claude?job=" + encodeURIComponent(job)),
+    // v288: the Weekly page. saveWeek sends only the fields given; the store keeps the rest.
+    week: async (wk) => (await get("kpi-store?weeklyplan=" + encodeURIComponent(wk))).plan || {},
+    saveWeek: (wk, part) => post("kpi-store", { weeklyPlan: { ...part, weekEnding: wk } }),
+    agenda: async (wk) => (await get("kpi-store?weeklyagenda=" + encodeURIComponent(wk))).agenda || null,
+    saveAgenda: (agenda) => post("kpi-store", { weeklyAgenda: { weekEnding: agenda.weekEnding, cells: agenda.cells } }),
+    checkins: async () => (await get("kpi-store?checkins=1")).checkins || {},
+    waiting: async () => (await get("kpi-store?waiting=1")).items || [],
     undoLoad: () => undo().get(UNDO_KEY, { type: "json" }),
     undoSave: (stack) => undo().setJSON(UNDO_KEY, stack),
   };
