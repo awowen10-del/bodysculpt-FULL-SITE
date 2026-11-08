@@ -31,6 +31,7 @@ function fakeApi(over) {
     month: { ym: "2026-11", focus: [{ id: "f1", title: "Website move", projectId: "p1", goal: "Live by the 20th" }] },
     checkins: { "2026-11-03": { oneThing: "Ring the accountant", oneThingDone: true, habits: { read: true, house: true } },
       "2026-11-05": { oneThing: "Film two reels", oneThingDone: false, habits: { read: true } } },
+    training: [{ id: "tr1", title: "Lower body", days: ["mon", "thu"], time: "6-9" }, { id: "tr2", title: "Swim" }],
     undo: [],
     ...over,
   };
@@ -44,12 +45,14 @@ function fakeApi(over) {
     saveAgenda: async (ag) => { log.push(["saveAgenda", ag.weekEnding]); state.agendas[ag.weekEnding] = copy(ag); },
     checkins: async () => state.checkins,
     waiting: async () => [{ title: "Logo files", on: "Gaz" }, { title: "Came back", ready: "2026-11-06" }],
+    training: async () => copy(state.training),
+    saveTraining: async (l) => { log.push(["saveTraining", copy(l)]); state.training = copy(l); },
     undoLoad: async () => state.undo,
     undoSave: async (s) => { state.undo = s; },
   };
   return { api, log, state };
 }
-const writes = (log) => log.filter((l) => l[0] === "saveWeek" || l[0] === "saveAgenda");
+const writes = (log) => log.filter((l) => ["saveWeek", "saveAgenda", "saveTraining"].includes(l[0]));
 
 (async () => {
   const lib = await import(path.join(root, "netlify/lib/grok-connector.js"));
@@ -81,6 +84,7 @@ const writes = (log) => log.filter((l) => l[0] === "saveWeek" || l[0] === "saveA
     assert.ok(t.includes("Waiting on: Logo files, waiting on Gaz.") && !t.includes("Came back"), t);
     assert.ok(t.includes("Notes / Brain Dump: \nOld note") && t.includes("Intentions Around Food: \nplain food line"), t);
     assert.ok(t.includes("Sunday review steps: 1 of 7 done.") && t.includes("(reflect)"), t);
+    assert.ok(t.includes("Training sessions: Lower body (every mon, thu 6 to 9); Swim (no set days)."), t);
   }
 
   /* ---------- reading next week, never opened on Weekly ---------- */
@@ -111,6 +115,7 @@ const writes = (log) => log.filter((l) => l[0] === "saveWeek" || l[0] === "saveA
     const calls = [
       ["save_week_review", { wins: "Shred launched" }], ["add_week_notes", { notes: "x" }], ["add_food_intentions", { notes: "x" }],
       ["tick_week_review_step", { step: "reflect" }], ["add_week_task", { title: "New job", day: "2026-11-10", slot: "6-9" }],
+      ["add_training", { title: "Run", days: ["tue"], slot: "6-9" }], ["add_training", { title: "Run", days: ["tue"], slot: "6-9", every_week: true }],
     ];
     for (const [name, args] of calls) {
       const { api, log } = fakeApi();
@@ -201,6 +206,62 @@ const writes = (log) => log.filter((l) => l[0] === "saveWeek" || l[0] === "saveA
     await assert.rejects(callTool("add_week_task", { title: "X", confirmed: true }, api, TODAY), /old format/, "an old-format week is never overwritten");
   }
 
+  /* ---------- training ---------- */
+  {
+    // this week only: an existing session with no set days is placed, not copied
+    const { api, log, state } = fakeApi();
+    let t = await callTool("add_training", { title: "swim", days: ["sat"], slot: "6-9", confirmed: true }, api, TODAY);
+    assert.ok(t.includes("Swim is on Sat 6 to 9 for the week of Mon 2 Nov"), t);
+    assert.ok(!log.some((l) => l[0] === "saveTraining"), "an existing session isn't re-saved");
+    assert.deepStrictEqual(state.training.length, 2);
+    assert.deepStrictEqual(state.weeks[WK].placements["6-9:sat"], ["training:tr2"]);
+    assert.deepStrictEqual(state.weeks[WK].placements["6-9:mon"], ["project:t1"], "other placements kept");
+    assert.deepStrictEqual(state.agendas[WK].cells["6-9:sat"], [{ title: "Swim", kind: "training", done: false, tgt: { m: "trainingDone", k: "tr2" } }]);
+    await callTool("undo_last_change", {}, api, TODAY);
+    assert.deepStrictEqual(state.weeks[WK].placements["6-9:sat"], []);
+    assert.deepStrictEqual(state.agendas[WK].cells["6-9:sat"], []);
+    // a new one-off session is made, and undo takes it away again
+    t = await callTool("add_training", { title: "5k run", days: ["tue", "thu"], slot: "5-8", week: NEXT, confirmed: true }, api, TODAY);
+    const run = state.training.find((x) => x.title === "5k run");
+    assert.ok(run && !run.days, "a one-off session has no standing days");
+    assert.deepStrictEqual(state.weeks[NEXT].placements, { "5-8:tue": ["training:" + run.id], "5-8:thu": ["training:" + run.id] });
+    await callTool("undo_last_change", {}, api, TODAY);
+    assert.ok(!state.training.some((x) => x.title === "5k run") && state.training.length === 2);
+    assert.deepStrictEqual(state.weeks[NEXT].placements, { "5-8:tue": [], "5-8:thu": [] });
+    // a session that already runs every week can't be doubled up by a stored placement the page ignores
+    await assert.rejects(callTool("add_training", { title: "Lower body", days: ["sat"], slot: "6-9", confirmed: true }, api, TODAY), /already runs every week/);
+  }
+  {
+    // every week: a new session, and changing an existing one's days, both undoable
+    const { api, state } = fakeApi();
+    let t = await callTool("add_training", { title: "Yoga", days: ["sun", "wed"], slot: "5-8", every_week: true, confirmed: true }, api, TODAY);
+    assert.ok(t.includes("every week on Wed, Sun 5 to 8"), t);
+    const yoga = state.training.find((x) => x.title === "Yoga");
+    assert.deepStrictEqual([yoga.days, yoga.time], [["wed", "sun"], "5-8"]);
+    assert.deepStrictEqual(state.agendas[WK].cells["5-8:sun"], [{ title: "Yoga", kind: "training", done: false, tgt: { m: "trainingDone", k: yoga.id + ":sun" } }], "Today sees it this week");
+    assert.ok(!state.weeks[WK].placements["5-8:sun"], "an every-week session isn't stored as a placement");
+    await callTool("undo_last_change", {}, api, TODAY);
+    assert.ok(!state.training.some((x) => x.title === "Yoga"));
+    assert.deepStrictEqual(state.agendas[WK].cells["5-8:sun"], []);
+    t = await callTool("add_training", { title: "lower body", days: ["tue"], slot: "1-3", every_week: true }, api, TODAY);
+    assert.ok(t.includes("change Lower body to every week on Tue 12 to 3"), t);
+    await callTool("add_training", { title: "lower body", days: ["tue"], slot: "1-3", every_week: true, confirmed: true }, api, TODAY);
+    assert.deepStrictEqual(state.training[0], { id: "tr1", title: "Lower body", days: ["tue"], time: "1-3" });
+    await callTool("undo_last_change", {}, api, TODAY);
+    assert.deepStrictEqual(state.training[0], { id: "tr1", title: "Lower body", days: ["mon", "thu"], time: "6-9" });
+    assert.ok(state.agendas[WK].cells["6-9:mon"].some((r) => r.title === "Lower body"), "undo puts its old days back on Today");
+    assert.ok(!state.agendas[WK].cells["1-3:tue"].some((r) => r.title === "Lower body"));
+    await assert.rejects(callTool("add_training", { title: "X", days: [], slot: "6-9" }, api, TODAY), /Which days/);
+    await assert.rejects(callTool("add_training", { title: "X", days: ["mon"], slot: "any" }, api, TODAY), /What time/);
+  }
+  {
+    // a failed read of the training list stops the write, so the list is never replaced by one session
+    const { api, log } = fakeApi();
+    api.training = async () => { throw new Error("read failed"); };
+    await assert.rejects(callTool("add_training", { title: "Run", days: ["tue"], slot: "6-9", every_week: true, confirmed: true }, api, TODAY));
+    assert.strictEqual(writes(log).length, 0);
+  }
+
   /* ---------- where a step sits, the page's rule ---------- */
   assert.deepStrictEqual(stepCell({ due: "2026-11-04", week: WK, day: "wed", slot: "1-3" }, WK), { day: "wed", slot: "1-3" });
   assert.deepStrictEqual(stepCell({ due: "2026-11-05", week: WK, day: "wed", slot: "1-3" }, WK), { day: "thu", slot: "any" }, "a moved date drops its stale time");
@@ -212,7 +273,7 @@ const writes = (log) => log.filter((l) => l[0] === "saveWeek" || l[0] === "saveA
     const init = await handleRpc({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }, api, TODAY);
     assert.ok(init.result.instructions.includes("weekly review") && INSTRUCTIONS.includes("get_week_review"));
     const list = await handleRpc({ jsonrpc: "2.0", id: 2, method: "tools/list" }, api, TODAY);
-    for (const n of ["get_week_plan", "get_week_review", "save_week_review", "add_week_notes", "add_food_intentions", "tick_week_review_step", "add_week_task"])
+    for (const n of ["get_week_plan", "get_week_review", "save_week_review", "add_week_notes", "add_food_intentions", "tick_week_review_step", "add_week_task", "add_training"])
       assert.ok(list.result.tools.some((x) => x.name === n), n);
     const bad = await handleRpc({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "get_week_plan", arguments: { week: "next" } } }, api, TODAY);
     assert.ok(bad.result.isError && bad.result.content[0].text.includes("YYYY-MM-DD"));

@@ -52,6 +52,7 @@ export const TOOLS = [
   tool("add_food_intentions", "Adds to Intentions Around Food on Weekly. What is there already stays.", obj({ week: P.week, notes: { type: "string" }, confirmed: P.confirmed }, ["notes"])),
   tool("tick_week_review_step", "Ticks a step of the Sunday review on Weekly, or unticks it with done:false.", obj({ week: P.week, step: { type: "string", enum: ["training", "food", "priorities", "reflect", "todo", "motivation", "copyai"], description: "training: sessions diarised and coach checked in. food: food intentions set. priorities: business and personal priorities planned. reflect: reflected on last week. todo: to-do list written. motivation: consumed something motivational. copyai: week run past AI." }, done: { type: "boolean" }, confirmed: P.confirmed }, ["step"])),
   tool("add_week_task", "Adds a one-off job to a week's Project list (business) or Buffer list (small things), and puts it on a day and time if given. A job that belongs to a project is a step instead: use add_step or set_step_day.", obj({ title: { type: "string" }, list: { type: "string", enum: ["project", "buffer"] }, day: P.day, slot: P.slot, week: P.week, confirmed: P.confirmed }, ["title"])),
+  tool("add_training", "Puts a training session on Weekly's grid. every_week true: the session runs on those days and time every week, as the Training card's Add a session does (an existing session with that name has its days changed). Otherwise it is on the days given in that one week only.", obj({ title: { type: "string", description: "The session, e.g. Lower body, Swim, 5k run" }, days: { type: "array", items: { type: "string", enum: WEEK_DAYS }, description: "mon to sun" }, slot: P.slot, every_week: { type: "boolean" }, week: P.week, confirmed: P.confirmed }, ["title", "days", "slot"])),
   tool("undo_last_change", "Puts back the last change made through Grok. Say what was undone.", obj({})),
 ];
 
@@ -62,7 +63,7 @@ export const INSTRUCTIONS = "Ash's Bodysculpt dashboard. He talks to you, often 
   + "Ask one question at a time, only about sections that are still empty, and then fill them in from his answers. He should not have to think about tools or sections. "
   + "When he asks you to review a month: use get_month_review, tell him briefly what you found, ask what moved, what didn't, what carries forward and what got in the way, then save it with save_month_review. "
   + "When he asks to go through his week or do his weekly review: this is his Sunday review on the Weekly page. Use get_week_review for the week he is closing, tell him briefly what you found, then ask what the wins were, what didn't get done and what got in the way, and save it with save_week_review. "
-  + "Then plan the next week with get_week_plan for that week: what the month's focus needs from it, which project steps go on which days (set_step_day, add_step), any one-off jobs (add_week_task), what he is fixing with food (add_food_intentions) and anything else on his mind (add_week_notes). "
+  + "Then plan the next week with get_week_plan for that week: what the month's focus needs from it, which project steps go on which days (set_step_day, add_step), any one-off jobs (add_week_task), what he is fixing with food (add_food_intentions), his training sessions (add_training: ask whether a session is every week or just that week) and anything else on his mind (add_week_notes). "
   + "Food intentions, the brain dump and the review ticks go on the week being closed, the same as the review on the page. As each part of the Sunday review is covered, offer to tick it with tick_week_review_step. "
   + "Month and week tools state today's date, so use that to work out which month or week he means. If he has not planned the current month yet, check whether that is the one he means by next month. "
   + "When a change tool says it is not done yet, read it to him and wait for a clear yes before calling it again with confirmed true. To save him saying yes over and over, you may read out a section's changes together, and one yes covers everything you read out. "
@@ -322,6 +323,30 @@ async function undoWeekTask(api, op) {
     await api.saveAgenda(ag).catch(() => {});
   }
 }
+// Today reads a week from the cache Weekly writes. A week with a cache gets the new rows so Today
+// shows them straight away; a week without one is left for Weekly to write whole.
+async function addAgendaRows(api, wk, rows, ref) {
+  const ag = await api.agenda(wk).catch(() => null);
+  if (!ag || !ag.cells) return;
+  const id = ref.split(":")[1];
+  for (const { key, row } of rows) {
+    const cell = (ag.cells[key] || []).filter((r) => !(r.kind === "training" && r.tgt && r.tgt.k && String(r.tgt.k).split(":")[0] === id));
+    ag.cells[key] = cell.concat([row]);
+  }
+  await api.saveAgenda(ag).catch(() => {});
+}
+async function removeAgendaRef(api, wk, id) {
+  const ag = await api.agenda(wk).catch(() => null);
+  if (!ag || !ag.cells) return;
+  for (const k of Object.keys(ag.cells)) ag.cells[k] = ag.cells[k].filter((r) => !(r.kind === "training" && r.tgt && String(r.tgt.k || "").split(":")[0] === id));
+  await api.saveAgenda(ag).catch(() => {});
+}
+async function undoWeekRef(api, op) {
+  const plan = await api.week(op.week), placements = { ...((plan && plan.placements) || {}) };
+  for (const k of op.keys) if (placements[k]) placements[k] = placements[k].filter((r) => r !== op.ref);
+  await api.saveWeek(op.week, { placements });
+  await removeAgendaRef(api, op.week, op.ref.split(":")[1]);
+}
 const todayName = (today) => new Date(today + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "long", timeZone: "UTC" });
 
 export async function callTool(name, a, api, today) {
@@ -538,6 +563,9 @@ export async function callTool(name, a, api, today) {
       const proj = items("project").concat(pulled);
       lines.push("Project list: " + (proj.length ? proj.join("; ") : "empty") + ".");
       lines.push("Buffer list: " + (items("buffer").length ? items("buffer").join("; ") : "empty") + ".");
+      const sessions = ((await api.training().catch(() => [])) || []).filter((t) => t && String(t.title || "").trim())
+        .map((t) => t.title + (Array.isArray(t.days) && t.days.length ? " (every " + t.days.join(", ") + (SLOT_WORDS[t.time] ? " " + SLOT_WORDS[t.time] : "") + ")" : " (no set days)"));
+      lines.push("Training sessions: " + (sessions.length ? sessions.join("; ") : "none set up") + ".");
       if (addDays(wk, 6) >= today) {
         const late = [];
         for (const p of projects || []) if (p && !p.archived) for (const s of liveSteps(p)) if (!s.done && s.due && s.due < today) late.push(s.title + " (" + p.name + ", was " + s.due + ")");
@@ -650,6 +678,47 @@ export async function callTool(name, a, api, today) {
       await remember(api, title + " added to " + weekName(wk), [{ k: "weekTask", week: wk, list, id }]);
       return "Saved. " + title + " is on " + where + ".";
     }
+    case "add_training": {
+      const title = clip(a.title, 120), every = a.every_week === true;
+      if (!title) throw new Say("What's the session?");
+      if (!SLOT_WORDS[a.slot] || a.slot === "any" || a.slot === "notes") throw new Say("What time: 6 to 9, 9 to 11.30, 12 to 3, or 5 to 8?");
+      const days = WEEK_DAYS.filter((d) => Array.isArray(a.days) && a.days.includes(d));
+      if (!days.length) throw new Say("Which days?");
+      const wk = weekArg(a, today), list = (await api.training()) || [];
+      const hit = list.find((t) => t && same(t.title, title));
+      const dayWords = days.map((d) => d[0].toUpperCase() + d.slice(1)).join(", ") + " " + SLOT_WORDS[a.slot];
+      if (every) {
+        if (!a.confirmed) return notYet((hit ? "change " + hit.title + " to" : "add the training session " + title + ",") + " every week on " + dayWords);
+        const before = hit ? { ...hit } : null, id = (hit && hit.id) || newId("t");
+        const item = { ...(hit || {}), id, title: hit ? hit.title : title, days, time: a.slot };
+        await api.saveTraining(hit ? list.map((t) => (t === hit ? item : t)) : list.concat([item]));
+        for (const w of [weekOf(today), addDays(weekOf(today), 7)]) {
+          await addAgendaRows(api, w, days.map((d) => ({ key: a.slot + ":" + d, row: { title: item.title, kind: "training", done: false, tgt: { m: "trainingDone", k: days.length > 1 ? id + ":" + d : id } } })), "training:" + id);
+        }
+        await remember(api, item.title + " set for every week", [{ k: "training", id, item: before }]);
+        return "Saved. " + item.title + " is every week on " + dayWords + ".";
+      }
+      if (hit && Array.isArray(hit.days) && hit.days.length) {
+        throw new Say(hit.title + " already runs every week on " + hit.days.join(", ") + ". Give this one a different name, like " + hit.title + " extra, or change its days with every_week.");
+      }
+      if (!a.confirmed) return notYet("put " + (hit ? hit.title : title) + " on " + dayWords + " for " + weekName(wk) + " only");
+      const ops = [];
+      let id = hit && hit.id;
+      if (!id) {
+        id = newId("t");
+        const item = hit ? { ...hit, id } : { id, title };
+        await api.saveTraining(hit ? list.map((t) => (t === hit ? item : t)) : list.concat([item]));
+        ops.push({ k: "training", id, item: hit ? { ...hit } : null });
+      }
+      const ref = "training:" + id, name = hit ? hit.title : title;
+      const plan = await api.week(wk), placements = { ...((plan && plan.placements) || {}) };
+      for (const d of days) { const key = a.slot + ":" + d; placements[key] = (placements[key] || []).filter((r) => r !== ref).concat([ref]); }
+      await api.saveWeek(wk, { placements });
+      await addAgendaRows(api, wk, days.map((d) => ({ key: a.slot + ":" + d, row: { title: name, kind: "training", done: false, tgt: { m: "trainingDone", k: id } } })), ref);
+      ops.unshift({ k: "weekRef", week: wk, ref, keys: days.map((d) => a.slot + ":" + d) });
+      await remember(api, name + " put on " + weekName(wk), ops);
+      return "Saved. " + name + " is on " + dayWords + " for " + weekName(wk) + ".";
+    }
     case "undo_last_change": {
       const stack = (await api.undoLoad()) || [];
       const last = stack.pop();
@@ -660,6 +729,17 @@ export async function callTool(name, a, api, today) {
         else if (op.k === "part") await api.savePart(op.ym, op.part);
         else if (op.k === "week") await api.saveWeek(op.week, op.part);
         else if (op.k === "weekTask") await undoWeekTask(api, op);
+        else if (op.k === "weekRef") await undoWeekRef(api, op);
+        else if (op.k === "training") {
+          const list = (await api.training()) || [];
+          await api.saveTraining(op.item ? list.map((t) => (t && (t.id === op.id || (!t.id && same(t.title, op.item.title))) ? op.item : t)) : list.filter((t) => !t || t.id !== op.id));
+          for (const w of [weekOf(today), addDays(weekOf(today), 7)]) {
+            await removeAgendaRef(api, w, op.id);
+            const ds = op.item && Array.isArray(op.item.days) ? op.item.days : [];
+            if (ds.length && op.item.time) await addAgendaRows(api, w, ds.map((d) => ({ key: op.item.time + ":" + d,
+              row: { title: op.item.title, kind: "training", done: false, tgt: { m: "trainingDone", k: ds.length > 1 ? op.id + ":" + d : op.id } } })), "training:" + op.id);
+          }
+        }
         else await api.stepLink({ projectId: op.projectId, stepId: op.stepId, ...op.fields });
       }
       await api.undoSave(stack);
@@ -679,7 +759,7 @@ export async function handleRpc(msg, api, today) {
   switch (msg.method) {
     case "initialize":
       return reply({ protocolVersion: (msg.params && msg.params.protocolVersion) || "2025-06-18",
-        capabilities: { tools: {} }, serverInfo: { name: "bodysculpt-dashboard", version: "1.4.0" }, instructions: INSTRUCTIONS });
+        capabilities: { tools: {} }, serverInfo: { name: "bodysculpt-dashboard", version: "1.5.0" }, instructions: INSTRUCTIONS });
     case "ping": return reply({});
     case "tools/list": return reply({ tools: TOOLS });
     case "tools/call": {

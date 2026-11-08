@@ -64,6 +64,8 @@ function makeApi(base) {
     saveWeek: (wk, part) => post("kpi-store", { weeklyPlan: { ...part, weekEnding: wk } }),
     agenda: async (wk) => (await get("kpi-store?weeklyagenda=" + encodeURIComponent(wk))).agenda || null,
     saveAgenda: (agenda) => post("kpi-store", { weeklyAgenda: { weekEnding: agenda.weekEnding, cells: agenda.cells } }),
+    training: async () => (await get("kpi-store?trainingdefaults=1")).defaults || [],
+    saveTraining: (list) => post("kpi-store", { trainingDefaults: list }),
     checkins: async () => (await get("kpi-store?checkins=1")).checkins || {},
     waiting: async () => (await get("kpi-store?waiting=1")).items || [],
     undoLoad: () => undo().get(UNDO_KEY, { type: "json" }),
