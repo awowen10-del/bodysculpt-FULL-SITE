@@ -291,6 +291,51 @@ const LOCATION_DEFAULTS_KEY = "weekly-location-defaults";
 const WAITING_KEY = "waiting-list";
 const WAITING_CAP = 200;
 
+/* v290: DONE FOR TODAY. Ash: "I NEED to be able to tick it off … so how about a 'duplicate'
+   button, that just allows me to move it to another day; which means I can still tick it off
+   as done on the day I worked on it, but it means I can still continue to work on it."
+   A big project step does not fit in one sitting. "Done for today" records the sitting here and
+   moves the step (through stepLink, as "later" and Move already do). The step is still ONE
+   step: it is finished only when its own box is ticked. This list is a record of the days it
+   was worked on, shown ticked on those days. Like the waiting list it never touches the job,
+   and nothing is lost if it is emptied: the step is exactly where it was moved to.
+     { id, key, tgt:{p,s}, title, project, date, week, day, slot, check, to, from, at }
+   date/week/day/slot  where the ticked copy sits: the day it was worked on
+   check               the checklist at the time, "15 of 31" (blank when it has none)
+   to                  the day it was carried on to
+   from                where the step was before the move, so Undo can put it back */
+const WORKED_KEY = "worked-list";
+const WORKED_CAP = 400;
+const WORKED_SLOTS = ["6-9", "10-12", "1-3", "5-8"];
+const WORKED_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+const validWorkedId = (v) => typeof v === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(v);
+function cleanWorkedItem(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const tgt = cleanStepTarget(raw.tgt);
+  const title = typeof raw.title === "string" ? raw.title.slice(0, 200).trim() : "";
+  const date = waitingYmd(raw.date), week = waitingYmd(raw.week);
+  if (!validWorkedId(raw.id) || !tgt || !title || !date || !week || !WORKED_DAYS.includes(raw.day)) return null;
+  const f = raw.from && typeof raw.from === "object" && !Array.isArray(raw.from) ? raw.from : {};
+  return {
+    id: raw.id,
+    key: "step:" + tgt.p + ":" + tgt.s,
+    tgt,
+    title,
+    project: typeof raw.project === "string" ? raw.project.slice(0, 120).trim() : "",
+    date, week, day: raw.day,
+    slot: WORKED_SLOTS.includes(raw.slot) ? raw.slot : "",
+    check: typeof raw.check === "string" && /^\d{1,3} of \d{1,3}$/.test(raw.check) ? raw.check : "",
+    to: waitingYmd(raw.to),
+    from: {
+      week: waitingYmd(f.week),
+      day: WORKED_DAYS.includes(f.day) ? f.day : "",
+      slot: WORKED_SLOTS.includes(f.slot) ? f.slot : "",
+      due: waitingYmd(f.due),
+    },
+    at: new Date().toISOString(),
+  };
+}
+
 /* v236: THE FOOD HUB. Additive — no existing key, field or route changes.
      food-inventory     the meat, fridge and cupboard — NOT per week; leftovers simply stay
      food-plan-<week>   the week: schedule, situation, meals (against their dates), prep
@@ -965,6 +1010,12 @@ export default async (req) => {
     return Response.json({ items: Array.isArray(items) ? items : [] });
   }
 
+  // v290 Done for today: GET ?worked=1 returns every sitting recorded, all weeks.
+  if (req.method === "GET" && url.searchParams.get("worked") === "1") {
+    const items = (await store.get(WORKED_KEY, { type: "json" })) || [];
+    return Response.json({ items: Array.isArray(items) ? items : [] });
+  }
+
   // v136 Competitors: GET ?igcompetitors=1 returns the watch list (empty when none set).
   if (req.method === "GET" && url.searchParams.get("igcompetitors") === "1") {
     const competitors = (await store.get(IG_COMPETITORS_KEY, { type: "json" })) || [];
@@ -1614,6 +1665,32 @@ export default async (req) => {
         return new Response("Bad waiting request", { status: 400 });
       }
       await store.set(WAITING_KEY, JSON.stringify(items));
+      return Response.json({ ok: true, items });
+    }
+
+    // v290 Done for today. POST { worked: { add: record } } or { worked: { remove: { id } } }
+    // One record at a time, read and put back, like the waiting list. It writes this list and
+    // nothing else; the step's move goes through the projects function's stepLink.
+    if (body.worked && typeof body.worked === "object") {
+      const w = body.worked;
+      const stored = (await store.get(WORKED_KEY, { type: "json" })) || [];
+      let items = Array.isArray(stored) ? stored : [];
+      if (w.add) {
+        const item = cleanWorkedItem(w.add);
+        if (!item) return new Response("Bad worked record", { status: 400 });
+        const i = items.findIndex((x) => x.id === item.id);
+        if (i >= 0) items[i] = item;
+        else {
+          // full: the oldest sittings go first. They are a record of past days, not a job
+          if (items.length >= WORKED_CAP) items = items.slice().sort((a, b) => String(a.date).localeCompare(String(b.date))).slice(items.length - WORKED_CAP + 1);
+          items.push(item);
+        }
+      } else if (w.remove && validWorkedId(w.remove.id)) {
+        items = items.filter((x) => x.id !== w.remove.id);
+      } else {
+        return new Response("Bad worked request", { status: 400 });
+      }
+      await store.set(WORKED_KEY, JSON.stringify(items));
       return Response.json({ ok: true, items });
     }
 

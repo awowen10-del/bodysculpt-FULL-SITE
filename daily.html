@@ -4237,6 +4237,8 @@ function tlJobs() {
   // v276: an answered job from another day has no row of its own today, so it gets one here
   const have = new Set(jobs.map((j) => wtKeyOf(j) + "|" + wtWeekOf(j)));
   wtItems.filter((r) => r.ready && !have.has(r.key + "|" + (r.week || ""))).forEach((r) => jobs.push(wtBackJob(r)));
+  // v290: a big step worked on today and carried on to another day: ticked, on today's list
+  wkToday().forEach((r) => jobs.push(wkJob(r)));
   const free = jobs.filter((j) => !wtFor(j));
   return { live: free.filter((j) => !parked.has(j.key)), parked: free.filter((j) => parked.has(j.key)), waiting: wtOpen() };
 }
@@ -4250,6 +4252,7 @@ const TL_KIND_WORD = { recurring: "Recurring", training: "Training", buffer: "Bu
 function tlWhere(j) {
   if (j.source === "one") return "Your one thing";
   if (j.source === "back") return "Back from waiting" + (j.rec.on ? " · " + j.rec.on : "");
+  if (j.source === "worked") return wkSays(j.rec);
   const proj = (j.step && j.step.project && j.step.project.name) || j.from || "";
   const pre = (s) => (proj ? proj + " · " : "") + s;
   if (j.late) return pre(j.late + (j.late === 1 ? " day late" : " days late"));
@@ -4302,6 +4305,9 @@ function tlRowHtml(j, isParked) {
         (isParked
           ? '<button type="button" class="tl-a" data-tl="unpark">bring back</button>'
           : (!j.done && !run ? '<button type="button" class="tl-a" data-tl="focus" aria-expanded="' + (tlFocusPick === j.key) + '">Focus</button>' : "") +
+            /* v290: a big step that will not fit in one sitting: tick it for today, carry it on */
+            (!j.done && tlStepOf(j) ? '<button type="button" class="tl-a" data-tl="worked" aria-expanded="' +
+              (!!tlCancel && tlCancel.key === j.key && tlCancel.via === "worked") + '" title="Worked on it today — tick it off for today and carry it on another day">done for today</button>' : "") +
             (!j.done ? '<button type="button" class="tl-a" data-tl="wait" aria-expanded="' + (!!wtDraft && wtDraft.row === j.key) +
               '" title="You have done your part and it is with someone else">waiting</button>' : "") +
             /* v252: "later" says WHEN — a day and a time — and moves it there everywhere. It
@@ -4340,7 +4346,7 @@ function renderTodayList() {
   if (sub) sub.textContent = (live.length ? done + " of " + live.length + " done" : "") +
     (waiting.length ? (live.length ? " · " : "") + waiting.length + " waiting" : "");
   if (!live.length && !parked.length && !waiting.length) {
-    body.innerHTML = tlUndoHtml() + wtBarHtml() + '<div class="tl-empty"><b>Nothing is planned for today.</b> ' +
+    body.innerHTML = tlUndoHtml() + wkUndoHtml() + wtBarHtml() + '<div class="tl-empty"><b>Nothing is planned for today.</b> ' +
       'Jobs come from the time blocks on your <a href="/index.html">weekly planner</a>, and from any ' +
       '<a href="/projects.html">project step</a> with a date. Put something in either and it will be here.' +
       (agendaToday() ? "" : " Your weekly planner has not been opened since it last changed, so today may look emptier than it is — opening it once fixes that.") +
@@ -4350,7 +4356,7 @@ function renderTodayList() {
   // done sinks to the bottom, otherwise the order is the order they come in
   const order = live.filter((j) => !j.done).concat(live.filter((j) => j.done));
   // v233: how far through the day, at a glance
-  body.innerHTML = tlUndoHtml() + wtBarHtml() + '<div class="tl-prog" role="progressbar" aria-label="Done today" aria-valuemin="0" aria-valuemax="' + live.length +
+  body.innerHTML = tlUndoHtml() + wkUndoHtml() + wtBarHtml() + '<div class="tl-prog" role="progressbar" aria-label="Done today" aria-valuemin="0" aria-valuemax="' + live.length +
       '" aria-valuenow="' + done + '"><i style="width:' + (live.length ? Math.round(done / live.length * 100) : 0) + '%"></i></div>' +
     (live.length ? '<div class="tl-list">' + order.map((j) => tlRowHtml(j, false)).join("") + "</div>"
       : '<div class="wt-none">Nothing else on your list today.</div>') +
@@ -4391,11 +4397,13 @@ async function tlClick(e) {
   const act = el.dataset.tl;
   if (act === "parked") { tlShowParked = !tlShowParked; renderTodayList(); return; }
   if (act === "undo-del") return tlUndoGo();      // v253: the bar is not a row
+  if (act === "undo-wk") return wkUndoGo();       // v290
   if (act.startsWith("wt-")) return wtClick(act, el);   // v276: the waiting rows and their panel
   const rowEl = el.closest("[data-key]");
   const j = rowEl ? tlFind(rowEl.dataset.key) : null;
   if (!j) return;
-  if (act === "tick") return tlTick(j);
+  if (act === "tick") return j.source === "worked" ? wkUntick(j.rec) : tlTick(j);
+  if (act === "worked") { tlCancel = tlCancel && tlCancel.key === j.key && tlCancel.via === "worked" ? null : { key: j.key, stage: "move", via: "worked" }; tlFocusPick = ""; wtDraft = null; renderTodayList(); return; }
   if (act === "wait") {
     wtDraft = wtDraft && wtDraft.row === j.key ? null : wtDraftFor(j.rec || wtNewRec(j), j.key);
     tlCancel = null; tlFocusPick = "";
@@ -4426,7 +4434,7 @@ async function tlClick(e) {
     if (c.stage === "sure" && c.to) tlCancel = { key: j.key, stage: "move", via: c.via, day: c.to };
     else if (c.stage === "delsure") tlCancel = { key: j.key, stage: "del", via: "" };
     else if (c.stage === "move" && c.day) tlCancel = { key: j.key, stage: "move", via: c.via };
-    else tlCancel = c.via === "later" ? null : { key: j.key, stage: "ask" };
+    else tlCancel = c.via === "later" || c.via === "worked" ? null : { key: j.key, stage: "ask" };
     renderTodayList();
     return;
   }
@@ -4678,6 +4686,120 @@ async function wtLoad() {
     wtItems = r && Array.isArray(r.items) ? r.items : [];
   } catch (e) { /* the jobs show as ordinary jobs; nothing is lost */ }
 }
+/* ---------- v290: DONE FOR TODAY ----------
+   Ash: "some jobs … have so much in there, it's going to be impossible to do it all in one
+   sitting; so I can't actually tick it off, BUT, for peace of mind, and to make it feel like
+   I've had a successful day … I NEED to be able to tick it off."
+   On a project step: "done for today" → which day to carry on → which time → Yes. Two writes:
+     • a record in the store's worked-list (see WORKED_KEY): today's ticked row, with how far
+       the checklist got. The weekly planner draws the same record as a ticked chip.
+     • the step moves to that day, exactly as "later" moves it (tlCancelStep).
+   The step stays ONE step, finished only when its own box is ticked. The record goes first;
+   if the move then fails the record is taken back, so the two never disagree. Undo is on the
+   confirmation. Unticking a worked row takes the record away and leaves the step where it is. */
+let wkItems = [];
+let wkUndo = null;      // { rec, step, back, error? } — the last "done for today", while it can be undone
+async function wkLoad() {
+  try {
+    const r = await jget(API + "?worked=1");
+    wkItems = r && Array.isArray(r.items) ? r.items : [];
+  } catch (e) { /* the steps still show; only today's ticked copies are missing */ }
+}
+const wkToday = () => wkItems.filter((r) => r && r.date === ckToday());
+function wkJob(r) {
+  return { key: "worked:" + r.id, title: r.title, source: "worked", kind: "project", when: "", from: r.project || "", done: true, rec: r };
+}
+function wkSays(r) {
+  return (r.project ? r.project + " · " : "") + "done for today" + (r.check ? " (" + r.check + ")" : "") +
+    (r.to ? " · carries on " + tlDayShort(r.to) : "");
+}
+function wkSaysBefore(j, to, slot) {
+  const f = tlStepOf(j);
+  return "“" + j.title + "” is ticked off for today and carries on " + tlWhenSays(to, slot) + ". It moves on the " +
+    (f ? f.project.name + " board" : "board") + ", the weekly planner and the calendar, checklist and all. It is finished when you tick the job itself.";
+}
+async function wkPost(what) {
+  const r = await fetch(API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ worked: what }),
+  });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+}
+async function wkGo(j, f, to, slot) {
+  const st = f.step;
+  const list = Array.isArray(st.checklist) ? st.checklist : [];
+  const now = tlNowSlot(j);
+  const rec = {
+    id: "w" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+    tgt: { p: f.project.id, s: st.id }, title: String(st.title || j.title || "Step"), project: String(f.project.name || ""),
+    date: ckToday(), week: agendaWeekOf(0), day: agendaDayKey(new Date()),
+    slot: SLOT_OK(now) ? now : "",
+    check: list.length ? list.filter((c) => c.done).length + " of " + list.length : "",
+    to, from: { week: st.week || "", day: st.day || "", slot: st.slot || "", due: st.due || "" },
+  };
+  const back = { week: st.week || "", day: st.day || "", slot: st.slot || "" };
+  if (st.due) back.due = st.due;
+  const fail = (msg) => {
+    tlCancel = { key: j.key, stage: "sure", via: "worked", day: to, to, slot, error: msg };
+    renderTodayList();
+  };
+  try { await wkPost({ add: rec }); }
+  catch (e) { return fail("That did not save, so nothing has changed. Try again."); }
+  try { await tlCancelStep(j, f, to, slot); }
+  catch (e) {
+    wkPost({ remove: { id: rec.id } }).catch(() => {});
+    return fail("The job would not move, so today's tick was taken back. Try again.");
+  }
+  wkItems.push(Object.assign({ key: "step:" + rec.tgt.p + ":" + rec.tgt.s }, rec));
+  if (ftTimer && ftTimer.jobKey === j.key) ftReset();
+  tlCancel = null;
+  delete tlOpen[j.key];
+  const u = { rec, step: f, back, cell: j.cellKey || "", dest: tlCellOn(slot, to), sameWeek: tlInThisWeek(to) };
+  wkUndo = u;
+  setTimeout(() => { if (wkUndo === u) { wkUndo = null; renderTodayList(); } }, TL_UNDO_MS);
+  fmAfterChange();
+}
+function wkUndoHtml() {
+  if (!wkUndo) return "";
+  return '<div class="tl-undo" role="status"><span>' + esc("Ticked for today. “" + wkUndo.rec.title + "” carries on " + tlDayShort(wkUndo.rec.to) + ".") +
+    (wkUndo.error ? ' <b class="tl-cx-err">' + esc(wkUndo.error) + "</b>" : "") + "</span>" +
+    '<button type="button" class="tl-undo-b" data-tl="undo-wk">Undo</button></div>';
+}
+// the way back: the step goes back where it was, and today's tick comes off
+async function wkUndoGo() {
+  const u = wkUndo;
+  if (!u || u.busy) return;
+  u.busy = true;
+  const st = u.step.step;
+  try {
+    await tlStepLinkMove(u.step, u.back);
+    await wkPost({ remove: { id: u.rec.id } });
+  } catch (e) {
+    u.busy = false;
+    u.error = "Could not put it back — try again.";
+    renderTodayList();
+    return;
+  }
+  wkItems = wkItems.filter((x) => x.id !== u.rec.id);
+  // the calendar's copy, when both ends are this week; any other week's copy is rewritten
+  // from the step the next time the weekly planner is opened
+  if (u.sameWeek && u.cell) {
+    try { await tlCancelPost({ p: u.step.project.id, s: st.id }, u.dest, u.cell, { title: String(st.title || "") }); }
+    catch (e) { /* the list reads the step itself, so today's row is back either way */ }
+  }
+  wkUndo = null;
+  fmAfterChange();
+}
+// unticking a worked row: he did not work on it today after all. The step stays where it is
+async function wkUntick(rec) {
+  const before = wkItems.slice();
+  wkItems = wkItems.filter((x) => x.id !== rec.id);
+  renderTodayList(); renderStartDay();
+  try { await wkPost({ remove: { id: rec.id } }); }
+  catch (e) { wkItems = before; renderTodayList(); renderStartDay(); }
+}
 /* ---------- v251: "cancel" — not getting to it today ----------
    Ash: "I need the option of being able to cancel the jobs here — but it should come with a
    final prompt, like are you sure? and that should remove it from the weekly calendar too but
@@ -4738,7 +4860,7 @@ function tlMoveSlots(j, date) {
 // on the weekly plan, the next seven days for a project step (and any date, from the picker)
 function tlCancelDays(j) {
   const out = [];
-  if (tlMoveSlots(j, tlToday()).length) out.push(tlToday());
+  if (tlVia() !== "worked" && tlMoveSlots(j, tlToday()).length) out.push(tlToday());
   const n = tlStepOf(j) ? 7 : 6 - (new Date().getDay() + 6) % 7;
   for (let i = 1; i <= n; i++) { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + i); out.push(ymd(d)); }
   return out;
@@ -4793,22 +4915,24 @@ function tlCancelHtml(j) {
   }
   if (c.stage === "move") {
     const days = tlCancelDays(j);
-    return '<div class="tl-sub tl-cx"><span class="tl-cx-q">When are you doing it instead?</span>' +
+    return '<div class="tl-sub tl-cx"><span class="tl-cx-q">' + (c.via === "worked" ? "Ticked off for today. When will you pick it up again?" : "When are you doing it instead?") + "</span>" +
       days.map((d) => b("cx-day", esc(d === tlToday() ? "Later today" : tlDayShort(d)), "", ' data-to="' + d + '"')).join("") +
       (tlStepOf(j) ? '<label class="tl-cx-date">Another date <input type="date" data-tl-date min="' + tlToday() + '"></label>' : "") +
       (days.length || tlStepOf(j) ? "" : '<span class="tl-cx-note">No time left this week to move it to — a weekly plan move stays inside its week.</span>') +
       b("cx-back", "Back", "plain") + "</div>";
   }
   if (c.stage === "sure") {
-    return '<div class="tl-sub tl-cx sure' + (c.to ? " move" : "") + '"><span class="tl-cx-q"><b>' + (c.to ? "Move it?" : "Are you sure?") + "</b> " +
-      esc(tlCancelSays(j, c.to || "", c.slot || "")) + "</span>" +
+    return '<div class="tl-sub tl-cx sure' + (c.to ? " move" : "") + '"><span class="tl-cx-q"><b>' +
+      (c.via === "worked" && c.to ? "Done for today?" : c.to ? "Move it?" : "Are you sure?") + "</b> " +
+      esc(c.via === "worked" && c.to ? wkSaysBefore(j, c.to, c.slot || "") : tlCancelSays(j, c.to || "", c.slot || "")) + "</span>" +
       /* v251: a skip gets a line to yourself — "already sent the Shred announcement, so the
          newsletter can wait". It is for clarity in the moment, and it is deliberately NOT
          saved anywhere: it lives in this box and goes when the box does. */
       (c.to ? "" : '<textarea class="tl-cx-note-in" data-tl-note rows="2" aria-label="A note to yourself" ' +
         'placeholder="Why it’s fine to let this one go today — just for you, not saved anywhere.">' + esc(c.note || "") + "</textarea>") +
       (c.error ? '<span class="tl-cx-err">' + esc(c.error) + "</span>" : "") +
-      (c.to ? b("cx-yes", "Yes, move it", "go") + b("cx-back", "Back", "plain")
+      (c.to && c.via === "worked" ? b("cx-yes", "Yes, tick today", "go") + b("cx-back", "Back", "plain")
+        : c.to ? b("cx-yes", "Yes, move it", "go") + b("cx-back", "Back", "plain")
         : b("cx-yes", "Yes, not today", "warn") + b("cx-keep", "No, keep it", "plain")) + "</div>";
   }
   const canMove = tlCancelDays(j).length > 0 || !!tlStepOf(j);
@@ -4822,6 +4946,7 @@ async function tlCancelGo(j) {
   const slot = (tlCancel && tlCancel.slot) || "";
   const via = tlVia();
   const f = tlStepOf(j);
+  if (via === "worked" && f && to) return wkGo(j, f, to, slot);
   try {
     if (f) await tlCancelStep(j, f, to, slot);
     else await tlCancelPost(j.tgt, j.cellKey, to ? tlCellOn(slot, to) : "");
@@ -4854,6 +4979,19 @@ async function tlCancelPost(tgt, cell, to, more) {
   }
   return out;
 }
+// the one write that moves a step: its week, day, time and (if it has one) its date. v290's
+// Undo of "done for today" puts a step back through here too
+async function tlStepLinkMove(f, link) {
+  const st = f.step;
+  const r = await fetch(PROJECTS, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ stepLink: Object.assign({ projectId: f.project.id, stepId: st.id }, link) }),
+  });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const out = await r.json();
+  Object.assign(st, (out && out.step) || link);
+}
 // a project step: its day, week and time on the board (and its date, if it has one), then the
 // calendar's copy — out of today, into the day it went to
 async function tlCancelStep(j, f, to, slot) {
@@ -4865,14 +5003,7 @@ async function tlCancelStep(j, f, to, slot) {
   } else {
     link = { due: "", week: agendaWeekOf(0), day: "", slot: "" };
   }
-  const r = await fetch(PROJECTS, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ stepLink: Object.assign({ projectId: f.project.id, stepId: st.id }, link) }),
-  });
-  if (!r.ok) throw new Error("HTTP " + r.status);
-  const out = await r.json();
-  Object.assign(st, (out && out.step) || link);
+  await tlStepLinkMove(f, link);
   // the step has moved; the calendar's copy follows. If the cache will not take it, take the
   // row off this page anyway — the weekly page rebuilds the cache from the step.
   if (j.cellKey || to) {
@@ -6468,7 +6599,8 @@ async function loadAll() {
   // mode works without it, it just knows about fewer jobs.
   // v227: and the calendar, whose project-step rows read their title and tick from it
   // v276: the waiting list comes with it, so a held job is never shown as an ordinary one
-  Promise.all([fmLoadProjects(), wtLoad()]).then(() => { wtPrune(); renderStartDay(); renderTodayList(); renderCalendar(); if (fmOpen) fmRender(); });
+  // v290: and the days a big step was worked on, so today's "done for today" ticks show
+  Promise.all([fmLoadProjects(), wtLoad(), wkLoad()]).then(() => { wtPrune(); renderStartDay(); renderTodayList(); renderCalendar(); if (fmOpen) fmRender(); });
 
   // The calendar and the inbox go last and on their own: they are a different service with
   // a different sign-in, and a Google outage must not hold up the cards above them. They

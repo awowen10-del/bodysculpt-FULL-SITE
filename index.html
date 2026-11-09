@@ -1329,6 +1329,12 @@
   .wp-sn-ckadd button:hover{border-color:var(--orange);color:var(--orange-soft);}
   /* v268: Move — Tomorrow, or a date and Move */
   .wp-sn-move{display:flex;flex-wrap:wrap;gap:7px;align-items:stretch;}
+  /* v290: done for today */
+  .wp-wk-hint{font-size:12.5px;color:var(--ink-faint);margin:-2px 0 9px;line-height:1.45;}
+  .wp-sn-mv.wp-wk-go{border-color:var(--green);color:var(--green);}
+  .wp-cellchip.wp-worked{cursor:default;}
+  .wp-cellchip.wp-worked .wp-worked-tag{display:block;font-size:10px;font-weight:700;text-decoration:none;opacity:.9;white-space:nowrap;}
+  .wp-worked-row .wp-drag-handle{cursor:default;color:var(--green);}
   .wp-sn-mv{flex:none;display:inline-flex;align-items:center;gap:7px;font-family:inherit;font-size:13px;font-weight:700;
     color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 13px;cursor:pointer;}
   .wp-sn-mv span{font-weight:600;color:var(--ink-faint);}
@@ -3746,6 +3752,7 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
   await wpLoadCheckins();   // v80: daily check-in history (date-keyed, independent of the week)
   await wpLoadLocDefaults();// v84: the default weekly location pattern (one key, all weeks)
   await wpWaitLoad();       // v276: the jobs being waited on (one list, all weeks)
+  await wpWorkedLoad();     // v290: the days a big step was worked on (one list, all weeks)
   let plan = null;
   if(preloadedPlan){
     // Caller supplied the just-written plan (e.g. after Finish Week) — use it directly
@@ -4048,6 +4055,7 @@ function wpRecurRow(it){
 }
 // Project/Buffer: a draggable, editable line. Drag it onto a grid cell to place it.
 function wpDragRow(source, it){
+  if(it.source === "project-worked") return wpWorkedRowHtml(it);   // v290
   const ref = wpItemRef(source, it.id);
   const placed = wpPlacedLabel(ref);
   const done = wpIsDone(source, it);
@@ -4216,6 +4224,7 @@ function wpChipHtml(ref, dk, mode, cellKey){
   const [source] = ref.split(":");
   const item = wpResolveRef(ref);
   if(!item) return "";
+  if(item.source === "project-worked") return wpWorkedChipHtml(item);   // v290
   // v63: recurring chips tick per-day for weekday tasks, and carry the teal accent.
   // v71: training chips carry the green accent + 🏋️ instead — same everywhere they render.
   const done = wpIsDone(source, item, dk);
@@ -4907,6 +4916,9 @@ let wpAgendaLast = "";     // the last payload written, so an unchanged grid wri
 function wpDoneTarget(source, item, day) {
   if (!item || !item.id) return null;
   // v227: a project step's tick lives on the step, so the daily page is told WHICH step
+  // v290: a "worked on" copy has no tick of its own to send anywhere — the daily page draws
+  // its own from the worked list, so the calendar shows it ticked and leaves it alone
+  if (item.source === "project-worked") return null;
   if (item.derived) return { p: wpProjectIdOf(item), s: wpProjectStepIdOf(item) };
   if (!wpIsDefaultsSource(source)) return { l: source + "Items", k: String(item.id) };
   const m = source === "training" ? "trainingDone" : "recurringDone";
@@ -6195,6 +6207,7 @@ function wpRenderStepNotes(){
   if(!body) return;
   body.innerHTML =
     (meta.length ? `<div class="wp-sn-meta">${meta.map(m=>`<span>${m}</span>`).join("")}</div>` : "") +
+    wpWorkedHtml(item, d) +
     wpStepMoveHtml(item, d.step) +
     (d.notes
       ? `<div class="wp-sn-sec"><div class="wp-sn-cap">Notes</div><div class="wp-anchor-notes-view">${wpNotesToEditorHtml(d.step.notes)}</div></div>`
@@ -6425,6 +6438,14 @@ function wpStepsSync(){
     wpPlan.projectItems.push(it);
     if(!at.day) return;                       // in the list, not on the grid
     const key = at.slot + ":" + at.day;
+    (wpPlan.placements[key] = wpPlan.placements[key] || []).push(wpItemRef("project", it.id));
+  });
+  // v290: the days a step was worked on, ticked, where it sat that day. Derived like the steps
+  // themselves, so a save never sends one (wpPersistable drops every derived item and ref).
+  wpWorked.filter(r=>r && r.week === week && WP_DAYS.some(d=>d[0]===r.day)).forEach(r=>{
+    const it = wpWorkedItemOf(r);
+    wpPlan.projectItems.push(it);
+    const key = (WP_STEP_SLOTS.includes(r.slot) ? r.slot : WP_ANY) + ":" + r.day;
     (wpPlan.placements[key] = wpPlan.placements[key] || []).push(wpItemRef("project", it.id));
   });
   wpOverdueItems.sort((a,b)=>a.due.localeCompare(b.due));
@@ -7659,6 +7680,138 @@ function wpToastUndo(msg, fn){
   wpToastTimer = setTimeout(() => el.classList.remove("on"), 8000);
 }
 
+/* ===================== v290: DONE FOR TODAY =====================
+   Ash: "some jobs … have so much in there, it's going to be impossible to do it all in one
+   sitting; so I can't actually tick it off, BUT, for peace of mind, and to make it feel like
+   I've had a successful day … I NEED to be able to tick it off."
+   In the step's panel: "Done for today" and the day to carry on. Two things happen:
+     • a ticked copy stays on TODAY, where the step sat (Anytime if it was not on today), with
+       how far the checklist had got. It counts as done in today's numbers.
+     • the step itself moves to the day picked, exactly as Move does (stepLink, the calendar's
+       copy, an undated step stays undated). Its checklist goes with it — it is the same step.
+   The step is finished only when its own box is ticked. The copy is a record of a sitting,
+   kept in the store's worked-list (see WORKED_KEY), never in the week's plan or on the board.
+   The way back is on the confirmation: Undo puts the step back and takes the tick away. */
+let wpWorked = [];
+async function wpWorkedLoad(){
+  try{
+    const r = await fetch(WP_STORE+"?worked=1");
+    const j = r && r.ok ? await r.json() : null;
+    wpWorked = j && Array.isArray(j.items) ? j.items : [];
+  }catch(e){ /* the steps still show; only the ticked copies are missing */ }
+}
+function wpWorkedItemOf(r){
+  return { id:"ps-wk-"+r.id, derived:true, done:true, title:String(r.title||""), source:"project-worked",
+    // no sourceStepId on purpose: the project picker reads that to say "already in this week"
+    workedId:r.id, sourceProjectName:String(r.project||""),
+    check:String(r.check||""), date:r.date };
+}
+function wpWorkedSays(it){ return "Worked on" + (it.check ? " · " + it.check : ""); }
+function wpWorkedChipHtml(it){
+  const ref = wpItemRef("project", it.id);
+  const tip = it.title + " — done for today" + (it.check ? ", checklist " + it.check : "") + ". Untick if you didn't work on it after all";
+  return `<label class="wp-cellchip wp-done wp-worked" title="${wpEsc(tip)}">
+    <input type="checkbox" checked onchange="wpToggleDoneRef('${wpEsc(ref)}',this.checked)" aria-label="${wpEsc(tip)}">
+    <span class="wp-chip-title">${wpEsc(it.title)}</span><small class="wp-worked-tag">${wpEsc(wpWorkedSays(it))}</small></label>`;
+}
+function wpWorkedRowHtml(it){
+  return `<div class="wp-drag-row wp-item-done wp-worked-row">
+    <span class="wp-drag-handle" aria-hidden="true">✓</span>
+    <input class="wp-drag-name wp-done" value="${wpEsc(it.title)}" readonly title="Done for today — the step itself carries on">
+    <span class="wp-txt-tag">${wpEsc(wpWorkedSays(it) + " " + wpYmdShort(it.date))}</span>
+  </div>`;
+}
+function wpWorkedPost(what){
+  return fetch(WP_STORE, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ worked:what }) })
+    .then(r=>{ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); });
+}
+function wpWorkedNewId(){ return "w" + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+// the panel's section. Nothing to carry on with once every checklist item is ticked
+function wpWorkedHtml(item, d){
+  if(d.step.done) return "";
+  const id = wpEsc(item.id), today = wpLocalToday();
+  const allTicked = d.list.length && d.done === d.list.length;
+  if(allTicked){
+    return `<div class="wp-sn-sec wp-wk"><div class="wp-sn-cap">All ${d.list.length} ticked</div>
+      <div class="wp-sn-move"><button type="button" class="wp-sn-mv wp-wk-go" onclick="wpWorkedFinish('${id}')">All done? Tick it off</button></div></div>`;
+  }
+  const tom = wpYmdAdd(today, 1);
+  return `<div class="wp-sn-sec wp-wk"><div class="wp-sn-cap">Done for today — carry on</div>
+    <div class="wp-wk-hint">Ticks it off for today and moves it to the day you'll pick it up again. It's only finished when you tick the job itself.</div>
+    <div class="wp-sn-move">
+      <button type="button" class="wp-sn-mv wp-wk-go" onclick="wpWorkedGo('${id}','${tom}')">Tomorrow<span>${wpEsc(wpYmdShort(tom))}</span></button>
+      <span class="wp-sn-pick"><svg class="ic"><use href="#ic-calendar"/></svg>
+        <input type="date" id="wpWkDate" min="${tom}" value="" aria-label="Pick the day to carry on"
+          oninput="document.getElementById('wpWkDateGo').disabled=!this.value||this.value<='${today}'"></span>
+      <button type="button" class="wp-sn-mv" id="wpWkDateGo" disabled
+        onclick="wpWorkedGo('${id}',document.getElementById('wpWkDate').value)">Carry on then</button>
+    </div></div>`;
+}
+async function wpWorkedFinish(itemId){
+  const item = wpProjItemById(itemId);
+  if(!wpStepFor(item)) return;
+  wpCloseStepNotes();
+  await wpToggleDoneRef(wpItemRef("project", item.id), true);
+}
+async function wpWorkedGo(itemId, ymd){
+  const item = wpProjItemById(itemId);
+  const f = wpStepFor(item);
+  const today = wpLocalToday();
+  if(!f || f.step.done || !/^\d{4}-\d{2}-\d{2}$/.test(String(ymd)) || ymd <= today) return;
+  const st = f.step;
+  const list = Array.isArray(st.checklist) ? st.checklist : [];
+  // where the tick sits: today, in the block the step was in if it was on today
+  const todayWeek = wpWeekOfYmd(today), todayDay = wpDayOfYmd(today);
+  const at = wpStepCell(st, todayWeek);
+  const slot = at && at.day === todayDay && WP_STEP_SLOTS.includes(at.slot) ? at.slot : "";
+  const from = wpStepDateOf(st);
+  const fromWeek = from ? wpWeekOfYmd(from) : "";
+  const fromAt = fromWeek ? wpStepCell(st, fromWeek) : null;
+  const keepSlot = fromAt && WP_STEP_SLOTS.includes(fromAt.slot) ? fromAt.slot : "";
+  const was = { week: st.week||"", day: st.day||"", slot: st.slot||"" };
+  if(st.due) was.due = st.due;
+  const rec = { id: wpWorkedNewId(), tgt:{ p:f.project.id, s:st.id }, title:String(st.title||"Step"), project:String(f.project.name||""),
+    date: today, week: todayWeek, day: todayDay, slot, check: list.length ? list.filter(c=>c.done).length + " of " + list.length : "",
+    to: ymd, from: was };
+  wpCloseStepNotes();
+  // the tick first: if the store will not take it, nothing has moved and he is told so
+  try{ await wpWorkedPost({ add: rec }); }
+  catch(e){ wpToast("That didn't save, so nothing has changed. Check your connection."); return; }
+  wpWorked.push(Object.assign({ key:"step:"+rec.tgt.p+":"+rec.tgt.s }, rec));
+  const week = wpWeekOfYmd(ymd), day = wpDayOfYmd(ymd);
+  const fields = { week, day, slot: keepSlot };
+  if(st.due) fields.due = ymd;
+  const wasCell = fromAt && fromAt.day ? (fromAt.slot || WP_ANY) + ":" + fromAt.day : "";
+  if(!(await wpStepLinkWrite(f.project, st, fields))){
+    // the step would not move: the tick comes back off, so the two never disagree
+    wpWorked = wpWorked.filter(r=>r.id !== rec.id);
+    wpWorkedPost({ remove:{ id: rec.id } }).catch(()=>{});
+    wpStepsSync(); renderWeeklyPlan();
+    return;
+  }
+  wpMoveCalendarCopy(f.project.id, st, fromWeek || wpWeekEnding, week, (keepSlot || WP_ANY) + ":" + day);
+  wpToastUndo('Ticked for today. "' + String(st.title||"Step").slice(0, 32) + '" carries on ' + wpYmdShort(ymd), async ()=>{
+    wpWorked = wpWorked.filter(r=>r.id !== rec.id);
+    wpStepsSync(); renderWeeklyPlan();
+    wpWorkedPost({ remove:{ id: rec.id } }).catch(()=>{});
+    if(await wpStepLinkWrite(f.project, st, was) && wasCell) wpMoveCalendarCopy(f.project.id, st, week, fromWeek, wasCell);
+  });
+}
+// unticking a "worked on" copy: he did not work on it that day after all. The step stays put
+async function wpWorkedUntick(it){
+  const before = wpWorked.slice();
+  const rec = wpWorked.find(r=>r.id === it.workedId);
+  if(!rec) return;
+  wpWorked = wpWorked.filter(r=>r.id !== rec.id);
+  wpStepsSync(); renderWeeklyPlan();
+  try{ await wpWorkedPost({ remove:{ id: rec.id } }); }
+  catch(e){ wpWorked = before; wpStepsSync(); renderWeeklyPlan(); wpToast("That didn't save. Check your connection."); return; }
+  wpToastUndo('Tick taken off "' + String(rec.title).slice(0, 36) + '" for ' + wpYmdShort(rec.date), async ()=>{
+    try{ await wpWorkedPost({ add: rec }); wpWorked.push(rec); wpStepsSync(); renderWeeklyPlan(); }
+    catch(e){ wpToast("That didn't save. Check your connection."); }
+  });
+}
+
 /* ===================== v276: WAITING ON =====================
    The same list as the Daily Dashboard's (see the note there, and WAITING_KEY in kpi-store).
    The hourglass on a chip or row asks what he is waiting on and when to check back. The Waiting
@@ -7998,6 +8151,7 @@ async function wpToggleDoneRef(ref, checked, day){
   const [source] = ref.split(":");
   const item = wpResolveRef(ref);
   if(!item) return;
+  if(item.source === "project-worked"){ if(!checked) wpWorkedUntick(item); return; }   // v290
   if(checked){ const held = wpWaitRecOf(ref, day); if(held) wpWaitClear(held); }   // v276: finished, so nothing left to wait for
   if(item.derived) return wpStepTick(item, checked);   // v227: the step's tick, nothing in the week
   wpSyncFromDom();

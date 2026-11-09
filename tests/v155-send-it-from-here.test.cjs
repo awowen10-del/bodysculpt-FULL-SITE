@@ -63,11 +63,11 @@ const between = (a, b) => js.slice(js.indexOf(a), js.indexOf(b));
   for (const m of js.matchAll(/gmailSend\("([a-zA-Z]+)"/g)) {
     assert.ok(names.some((n) => n[0] === m[1]), "every call names an operation in the table: " + m[1]);
   }
-  // the store is written in exactly five places (v251 added weeklyCancel, v253 weeklyDelete, v276 waiting)
+  // the store is written in exactly six places (v251 added weeklyCancel, v253 weeklyDelete, v276 waiting, v290 worked)
   const storeWrites = [...js.matchAll(/fetch\(API, \{[\s\S]{0,400}?\}\);/g)].map((m) => m[0]);
-  assert.strictEqual(storeWrites.length, 5, "the store is written in exactly five places");
-  assert.deepStrictEqual(storeWrites.map((w) => /JSON\.stringify\(\{ ([a-zA-Z]+)[:,]/.exec(w)[1]).sort(), ["checkin", "waiting", "weeklyCancel", "weeklyDelete", "weeklyTick"],
-    "…with the same five payloads");
+  assert.strictEqual(storeWrites.length, 6, "the store is written in exactly six places");
+  assert.deepStrictEqual(storeWrites.map((w) => /JSON\.stringify\(\{ ([a-zA-Z]+)[:,]/.exec(w)[1]).sort(), ["checkin", "waiting", "weeklyCancel", "weeklyDelete", "weeklyTick", "worked"],
+    "…with the same six payloads");
   /* v244: the reply is written by mail-ai (from Ash's skill) now, not the generic MENTOR
      prompt. Same claim, new address: one fixed function, called from one funnel. */
   assert.ok(!/fetch\(MENTOR/.test(js), "the generic AI proxy is no longer how a reply is written");

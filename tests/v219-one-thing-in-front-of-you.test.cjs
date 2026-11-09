@@ -232,7 +232,8 @@ function bodyOf(js, name) {
       "…and why is written down, because the old shape looked deliberate");
     // reading the projects store is a read, and it is not allowed to hold the page up
     // v276: the waiting list is read alongside it, and it holds the page up no more than this does
-    assert.ok(/Promise\.all\(\[fmLoadProjects\(\), wtLoad\(\)\]\)\.then\(\(\) => \{ wtPrune\(\); renderStartDay\(\)/.test(JS),
+    // v290: and the worked list (done for today), the same way
+    assert.ok(/Promise\.all\(\[fmLoadProjects\(\), wtLoad\(\), wkLoad\(\)\]\)\.then\(\(\) => \{ wtPrune\(\); renderStartDay\(\)/.test(JS),
       "the project list loads after the page, and updates it when it lands");
     assert.ok(/catch \(e\) \{ fmProjects = \[\]; \}/.test(bodyOf(JS, "fmLoadProjects")),
       "…and a projects store that will not answer costs the day nothing but those jobs");

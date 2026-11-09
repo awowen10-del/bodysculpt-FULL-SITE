@@ -222,6 +222,8 @@ function bootPage(storage, opts) {
       // v276's waiting list has its own test
       "const wtItems = [], wtDraft = null, wtFor = () => null, wtOpen = () => [], wtKeyOf = (j) => j.key, wtWeekOf = () => '';\n" +
       "const wtBackJob = (r) => r, wtBarHtml = () => '', wtSectionHtml = () => '', wtPanelHtml = () => '';\n" +
+      // v290's done-for-today has its own test
+      "const wkToday = () => [], wkUndoHtml = () => '', wkSays = () => '', tlStepOf = () => null;\n" +
       ["tlJobs", "tlWhere", "tlDetailHtml", "tlRowHtml", "renderTodayList"].map((n) => {
         const args = { tlJobs: "", tlWhere: "j", tlDetailHtml: "j", tlRowHtml: "j, isParked", renderTodayList: "" }[n];
         return "function " + n + "(" + args + ")" + bodyOf(DJS, n);
