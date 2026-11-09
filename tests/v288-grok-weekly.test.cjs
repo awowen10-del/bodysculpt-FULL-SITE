@@ -45,6 +45,7 @@ function fakeApi(over) {
     saveAgenda: async (ag) => { log.push(["saveAgenda", ag.weekEnding]); state.agendas[ag.weekEnding] = copy(ag); },
     checkins: async () => state.checkins,
     waiting: async () => [{ title: "Logo files", on: "Gaz" }, { title: "Came back", ready: "2026-11-06" }],
+    worked: async () => [],   // v291's done-for-today has its own test
     training: async () => copy(state.training),
     saveTraining: async (l) => { log.push(["saveTraining", copy(l)]); state.training = copy(l); },
     undoLoad: async () => state.undo,

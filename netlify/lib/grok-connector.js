@@ -36,6 +36,7 @@ export const TOOLS = [
   tool("set_month_goal", "Sets the line saying what is true for this project by the end of the month.", obj({ project: P.project, goal: { type: "string" }, month: P.month, confirmed: P.confirmed }, ["project", "goal"])),
   tool("add_step", "Adds a step to a project, with an optional day.", obj({ project: P.project, title: { type: "string" }, day: P.day, confirmed: P.confirmed }, ["project", "title"])),
   tool("set_step_day", "Gives a step a day, or moves it to another. It then shows on Weekly and Today.", obj({ project: P.project, stepId: P.stepId, day: P.day, confirmed: P.confirmed }, ["project", "stepId", "day"])),
+  tool("done_for_today", "For a big step he has worked on today but not finished: ticks it off for today and carries the step on to the day given. The step is NOT finished; only tick_step finishes it.", obj({ project: P.project, stepId: P.stepId, day: { type: "string", description: "YYYY-MM-DD, the day he will carry on. After today." }, confirmed: P.confirmed }, ["project", "stepId", "day"])),
   tool("tick_step", "Marks a step done, or not done with done:false.", obj({ project: P.project, stepId: P.stepId, done: { type: "boolean" }, confirmed: P.confirmed }, ["project", "stepId"])),
   tool("add_personal_priority", "Adds an item to Personal Priorities & Projects on Monthly: life outside the business.", obj({ title: { type: "string" }, month: P.month, confirmed: P.confirmed }, ["title"])),
   tool("save_month_notes", "Adds to Notes & Issues on Monthly. What is there already stays.", obj({ notes: { type: "string" }, month: P.month, confirmed: P.confirmed }, ["notes"])),
@@ -67,6 +68,8 @@ export const INSTRUCTIONS = "Ash's Bodysculpt dashboard. He talks to you, often 
   + "Food intentions, the brain dump and the review ticks go on the week being closed, the same as the review on the page. As each part of the Sunday review is covered, offer to tick it with tick_week_review_step. "
   + "Month and week tools state today's date, so use that to work out which month or week he means. If he has not planned the current month yet, check whether that is the one he means by next month. "
   + "When a change tool says it is not done yet, read it to him and wait for a clear yes before calling it again with confirmed true. To save him saying yes over and over, you may read out a section's changes together, and one yes covers everything you read out. "
+  + "When he has done what he can on a step today but it isn't finished, use done_for_today with the day he will carry on: it counts as done today and the step moves. Only tick_step finishes a step. "
+  + "When you say what he got done, count the jobs marked done for today as done on that day, and say which are still carrying on. "
   + "Never set confirmed true on your own say-so. Never say something is saved until the tool says so. If he says undo, use undo_last_change.";
 
 class Say extends Error {}
@@ -261,12 +264,13 @@ function weekList(plan, list) {
 }
 const listItems = (plan, list) => (Array.isArray(plan && plan[LISTS[list]]) ? plan[LISTS[list]] : []).filter((x) => x && !x.derived && String(x.title || "").trim());
 // Everything on each day of a week, as rows { day, slot, title, done, plain }.
-function weekRows(wk, plan, agenda, projects) {
+function weekRows(wk, plan, agenda, projects, worked) {
   const rows = [];
   if (agenda && agenda.cells) {
     for (const [key, list] of Object.entries(agenda.cells)) {
       const [slot, day] = key.split(":");
-      for (const r of list || []) if (!(r.tgt && r.tgt.p)) rows.push({ day, slot, title: r.title, done: !!r.done });
+      // a project row with no tick is Weekly's copy of a "done for today" — read from the list below
+      for (const r of list || []) if (!(r.tgt && r.tgt.p) && !(r.kind === "project" && !r.tgt)) rows.push({ day, slot, title: r.title, done: !!r.done });
     }
   } else {
     const titles = {};
@@ -288,8 +292,17 @@ function weekRows(wk, plan, agenda, projects) {
       if (at && at.day) rows.push({ day: at.day, slot: at.slot, title: s.title + " (" + p.name + ")", done: !!s.done, step: true });
     }
   }
+  // v291: the days a big step was worked on and carried on — done on that day
+  for (const r of workedIn(worked, wk)) {
+    rows.push({ day: r.day, slot: r.slot || "any", title: r.title + (r.project ? " (" + r.project + ")" : "") + ", done for today"
+      + (r.check ? " at " + r.check : "") + (r.to ? ", carries on " + shortDate(r.to) : ""), done: true, worked: true });
+  }
   return rows;
 }
+// a list that will not load costs the answer its done-for-today lines, never the whole answer
+const readWorked = (api) => (typeof api.worked === "function" ? Promise.resolve().then(() => api.worked()).catch(() => []) : Promise.resolve([]));
+const workedIn = (worked, wk) => (Array.isArray(worked) ? worked : []).filter((r) => r && r.week === wk && WEEK_DAYS.includes(r.day));
+const workedDays = (worked, s) => (Array.isArray(worked) ? worked : []).filter((r) => r && r.tgt && r.tgt.s === s.id).map((r) => r.date).sort();
 function daysText(wk, rows) {
   return WEEK_DAYS.map((day, i) => {
     const here = rows.filter((r) => r.day === day).sort((a, b) => SLOT_ORDER.indexOf(a.slot) - SLOT_ORDER.indexOf(b.slot));
@@ -376,7 +389,11 @@ export async function callTool(name, a, api, today) {
     case "get_project": {
       const p = findProject(await api.projects(), a.project);
       const open = openSteps(p);
-      return p.name + ". " + (open.length ? open.slice(0, 30).map((s) => s.id + ": " + s.title + (dayOf(s) ? " on " + dayOf(s) : ", no day yet")).join("\n") : "No open steps.");
+      const worked = await readWorked(api);
+      return p.name + ". " + (open.length ? open.slice(0, 30).map((s) => {
+        const w = workedDays(worked, s);
+        return s.id + ": " + s.title + (dayOf(s) ? " on " + dayOf(s) : ", no day yet") + (w.length ? " (worked on " + w.map(shortDate).join(", ") + ")" : "");
+      }).join("\n") : "No open steps.");
     }
     case "add_project_to_month": {
       const ym = monthOf(a, today), p = findProject(await api.projects(), a.project), goal = clip(a.goal, 400);
@@ -438,6 +455,25 @@ export async function callTool(name, a, api, today) {
       await moveStep(api, p, s, day, ops);
       await remember(api, s.title + " moved to " + day, ops);
       return "Saved. " + s.title + " is on " + day + ".";
+    }
+    case "done_for_today": {
+      const p = findProject(await api.projects(), a.project), s = findStep(p, a.stepId), day = checkDay(a.day, today);
+      if (s.done) return "That step is already finished.";
+      if (day === today) return "Done for today carries it on to another day. Which day will he pick it up again?";
+      const list = Array.isArray(s.checklist) ? s.checklist : [];
+      const check = list.length ? list.filter((c) => c && c.done).length + " of " + list.length : "";
+      if (!a.confirmed) return notYet("tick off " + s.title + " for today" + (check ? " (checklist at " + check + ")" : "") + " and carry it on to " + day + ". It is not finished until it is ticked off itself");
+      const wk = weekOf(today), td = dayKey(today);
+      const at = stepCell(s, wk);
+      const rec = { id: newId("w"), tgt: { p: p.id, s: s.id }, title: String(s.title || "Step"), project: String(p.name || ""),
+        date: today, week: wk, day: td, slot: at && at.day === td && at.slot !== "any" ? at.slot : "", check, to: day,
+        from: { week: s.week || "", day: s.day || "", slot: s.slot || "", due: s.due || "" } };
+      await api.addWorked(rec);
+      const ops = [{ k: "worked", id: rec.id }];
+      try { await moveStep(api, p, s, day, ops); }
+      catch (e) { await api.removeWorked(rec.id).catch(() => {}); throw e; }
+      await remember(api, s.title + " done for today, carried on to " + day, ops);
+      return "Saved. " + s.title + " is ticked off for today and carries on " + day + ". It stays open until it's ticked off itself.";
     }
     case "tick_step": {
       const p = findProject(await api.projects(), a.project), s = findStep(p, a.stepId), done = a.done !== false;
@@ -546,13 +582,13 @@ export async function callTool(name, a, api, today) {
     }
     case "get_week_plan": {
       const wk = weekArg(a, today), ym = addDays(wk, 3).slice(0, 7);
-      const [projects, plan, agenda, month, waiting] = await Promise.all([api.projects(), api.week(wk),
-        api.agenda(wk).catch(() => null), api.plan(ym).catch(() => null), api.waiting().catch(() => [])]);
+      const [projects, plan, agenda, month, waiting, worked] = await Promise.all([api.projects(), api.week(wk),
+        api.agenda(wk).catch(() => null), api.plan(ym).catch(() => null), api.waiting().catch(() => []), readWorked(api)]);
       const lines = ["Today is " + todayName(today) + " " + today + ". This is " + weekName(wk) + " (week " + wk + ")."];
       const focus = planFocus(month);
       lines.push(focus.length ? "The month's focus (" + ym + "): " + focus.map((f) => f.title + (f.goal ? ": " + f.goal : "") + (f.done ? " (done)" : "")).join("; ") + "."
         : "Monthly has no focus set for " + ym + ".");
-      lines.push("Day by day:\n" + daysText(wk, weekRows(wk, plan, agenda, projects)));
+      lines.push("Day by day:\n" + daysText(wk, weekRows(wk, plan, agenda, projects, worked)));
       if (!agenda) lines.push("Regular jobs and training aren't shown because Weekly hasn't been opened on this week yet. They land from their own schedules.");
       const pulled = [];
       for (const p of projects || []) if (p && !p.archived) for (const s of liveSteps(p)) {
@@ -582,10 +618,10 @@ export async function callTool(name, a, api, today) {
     }
     case "get_week_review": {
       const wk = weekArg(a, today), end = addDays(wk, 6);
-      const [projects, plan, agenda, checkins] = await Promise.all([api.projects(), api.week(wk),
-        api.agenda(wk).catch(() => null), api.checkins().catch(() => ({}))]);
+      const [projects, plan, agenda, checkins, worked] = await Promise.all([api.projects(), api.week(wk),
+        api.agenda(wk).catch(() => null), api.checkins().catch(() => ({})), readWorked(api)]);
       const lines = ["Today is " + todayName(today) + " " + today + ". Reviewing " + weekName(wk) + " (week " + wk + ")."];
-      const rows = weekRows(wk, plan, agenda, projects).filter((r) => !r.plain);
+      const rows = weekRows(wk, plan, agenda, projects, worked).filter((r) => !r.plain);
       const done = rows.filter((r) => r.done), open = rows.filter((r) => !r.done);
       lines.push(rows.length ? done.length + " of " + rows.length + " things on the days were ticked off." : "Nothing was put on the days of this week.");
       if (open.length) lines.push("Not ticked off: " + open.slice(0, 25).map((r) => r.title + " (" + shortDate(addDays(wk, WEEK_DAYS.indexOf(r.day))) + ")").join("; ") + ".");
@@ -599,6 +635,18 @@ export async function callTool(name, a, api, today) {
         if (s.done && at >= wk && at <= end) ticked.push(s.title + " (" + p.name + ")");
       }
       lines.push(ticked.length ? "Project steps finished, " + ticked.length + " in all: " + ticked.slice(0, 20).join("; ") + "." : "No project steps were finished this week.");
+      // v291: big steps worked on this week and not finished yet, with the days
+      const going = {};
+      for (const r of workedIn(worked, wk)) {
+        const key = r.tgt && r.tgt.p + ":" + r.tgt.s;
+        const p = (projects || []).find((x) => x && r.tgt && x.id === r.tgt.p), s = p && liveSteps(p).find((x) => x.id === r.tgt.s);
+        if (!key || (s && s.done)) continue;
+        (going[key] = going[key] || { title: r.title + (r.project ? " (" + r.project + ")" : ""), days: [], check: "", next: s ? dayOf(s) : "" }).days.push(r.date);
+        going[key].check = r.check || going[key].check;
+      }
+      const goingText = Object.values(going).map((g) => g.title + ": worked on " + g.days.sort().map(shortDate).join(", ")
+        + (g.check ? ", checklist at " + g.check : "") + (g.next ? ", carries on " + shortDate(g.next) : ""));
+      if (goingText.length) lines.push("Worked on but not finished yet: " + goingText.join("; ") + ".");
       const ones = [], habits = {};
       for (let i = 0; i < 7; i++) {
         const e = checkins && checkins[addDays(wk, i)];
@@ -730,6 +778,7 @@ export async function callTool(name, a, api, today) {
         else if (op.k === "week") await api.saveWeek(op.week, op.part);
         else if (op.k === "weekTask") await undoWeekTask(api, op);
         else if (op.k === "weekRef") await undoWeekRef(api, op);
+        else if (op.k === "worked") await api.removeWorked(op.id);
         else if (op.k === "training") {
           const list = (await api.training()) || [];
           await api.saveTraining(op.item ? list.map((t) => (t && (t.id === op.id || (!t.id && same(t.title, op.item.title))) ? op.item : t)) : list.filter((t) => !t || t.id !== op.id));
@@ -759,7 +808,7 @@ export async function handleRpc(msg, api, today) {
   switch (msg.method) {
     case "initialize":
       return reply({ protocolVersion: (msg.params && msg.params.protocolVersion) || "2025-06-18",
-        capabilities: { tools: {} }, serverInfo: { name: "bodysculpt-dashboard", version: "1.5.0" }, instructions: INSTRUCTIONS });
+        capabilities: { tools: {} }, serverInfo: { name: "bodysculpt-dashboard", version: "1.6.0" }, instructions: INSTRUCTIONS });
     case "ping": return reply({});
     case "tools/list": return reply({ tools: TOOLS });
     case "tools/call": {

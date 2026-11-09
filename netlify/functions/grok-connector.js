@@ -68,6 +68,10 @@ function makeApi(base) {
     saveTraining: (list) => post("kpi-store", { trainingDefaults: list }),
     checkins: async () => (await get("kpi-store?checkins=1")).checkins || {},
     waiting: async () => (await get("kpi-store?waiting=1")).items || [],
+    // v291: "done for today" — the days a big step was worked on (kpi-store's worked-list)
+    worked: async () => (await get("kpi-store?worked=1")).items || [],
+    addWorked: (rec) => post("kpi-store", { worked: { add: rec } }),
+    removeWorked: (id) => post("kpi-store", { worked: { remove: { id } } }),
     undoLoad: () => undo().get(UNDO_KEY, { type: "json" }),
     undoSave: (stack) => undo().setJSON(UNDO_KEY, stack),
   };
