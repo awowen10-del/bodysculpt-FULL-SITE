@@ -1088,7 +1088,9 @@
   .wp-chip-wait.on,.wp-cellchip:hover .wp-chip-wait.on,.wp-drag-row:hover .wp-chip-wait.on{width:16px;padding:0 2px;opacity:1;color:var(--ink-dim);}
   .wp-chip-wait:focus-visible{width:16px;opacity:1;outline:none;box-shadow:var(--focus);}
   @media (hover:none){ .wp-chip-wait{width:16px;padding:0 2px;opacity:.55;} }
-  .wp-cellchip.wp-waiting .wp-chip-title,.wp-drag-row.wp-waiting .wp-drag-name{color:var(--ink-dim);font-style:italic;}
+  /* v292: struck through as well as grey. Ash: "we've done what we can for that day" — it reads
+     as handled, and the grey italic still says it is with someone else, not finished */
+  .wp-cellchip.wp-waiting .wp-chip-title,.wp-drag-row.wp-waiting .wp-drag-name{color:var(--ink-dim);font-style:italic;text-decoration:line-through;}
   .wp-wt-row{display:flex;align-items:flex-start;gap:9px;padding:7px 0;border-top:1px solid var(--line);}
   .wp-wt-row:first-child{border-top:0;}
   .wp-wt-main{flex:1;min-width:0;font-size:13.5px;color:var(--ink);line-height:1.35;}
