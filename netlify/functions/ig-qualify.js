@@ -11,8 +11,8 @@
 // ManyChat's Condition step sends the hello unless send is "no". See netlify/lib/ig-leads.js.
 //
 // The site's password gate lets this one address through (netlify/edge-functions/gate.js),
-// because ManyChat can't sign in. It checks its own key instead: an HMAC of DASHBOARD_PASSWORD,
-// so there's no extra setting, and changing the password changes the key. Ash's signed-in
+// because ManyChat can't sign in. It checks its own key instead: an HMAC of SYNC_TRIGGER_SECRET,
+// so there's no extra setting. Ash's signed-in
 // browser reads the key from ig-qualify-key. A wrong key gets a 404, like a page that isn't there.
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { readState, markChecking, answerFor, cleanUser } from "../lib/ig-leads.js";
@@ -21,8 +21,11 @@ import { internalHeaders } from "../lib/internal.js";
 export function qualifyKey(secret) {
   return secret ? createHmac("sha256", secret).update("ig-qualify").digest("hex") : "";
 }
+// v294.1: DASHBOARD_PASSWORD isn't visible to functions on this site (only the edge gate reads
+// it), so the key is made from SYNC_TRIGGER_SECRET, which every scheduled job already uses.
+export const qualifySecret = () => (process.env.SYNC_TRIGGER_SECRET || "").trim();
 function keyOk(given) {
-  const want = Buffer.from(qualifyKey(process.env.DASHBOARD_PASSWORD || ""));
+  const want = Buffer.from(qualifyKey(qualifySecret()));
   const got = Buffer.from(String(given || ""));
   return want.length >= 32 && want.length === got.length && timingSafeEqual(want, got);
 }
