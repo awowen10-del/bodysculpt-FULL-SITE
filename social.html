@@ -905,6 +905,24 @@
   /* the number tiles: white cards, the display face on the number */
   .tile{background:var(--card);border-radius:14px;box-shadow:var(--shadow);padding:14px 16px;}
   .tile .val{font-family:var(--font-display);font-size:24px;letter-spacing:-.02em;}
+  /* v293: New followers — who to DM */
+  .fl-wrap{}
+  .fl-row{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-top:1px solid var(--line);}
+  .fl-row:first-child{border-top:0;padding-top:4px;}
+  .fl-main{flex:1;min-width:0;}
+  .fl-name{font-weight:700;font-size:14.5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .fl-name a{color:var(--ink-strong);text-decoration:none;}
+  .fl-name a:hover{text-decoration:underline;}
+  .fl-tag{font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;}
+  .fl-tag.hot{background:rgba(var(--orange-rgb),.12);color:var(--orange);}
+  .fl-tag.warm{background:rgba(var(--green-rgb),.12);color:var(--green);}
+  .fl-why{font-size:12.5px;color:var(--ink-dim);margin-top:3px;}
+  .fl-msg{max-width:640px;margin-top:8px;font-size:13.5px;line-height:1.45;background:var(--panel-0);border:1px solid var(--line);
+    border-radius:10px;padding:9px 11px;}
+  .fl-acts{display:flex;gap:6px;flex:0 0 auto;padding-top:2px;}
+  .fl-done{opacity:.55;}
+  .fl-foot{font-size:12.5px;color:var(--ink-faint);margin-top:10px;}
+  .fl-foot button{font:inherit;color:var(--ink-dim);background:none;border:0;padding:0;text-decoration:underline;cursor:pointer;}
 </style>
 <!-- v230: the focus timer, shared by every page so a block follows you between them -->
 <script src="/focus-timer.js"></script>
@@ -1021,6 +1039,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
     <button class="vt active" data-view="mine">My posts</button>
     <button class="vt" data-view="rivals">Competitors</button>
     <button class="vt" data-view="hooks">Make a reel</button>
+    <button class="vt" data-view="follows">New followers</button>
     <div class="vt-right" id="vtRight">
       <label class="outonly" id="outWrap" hidden><input type="checkbox" id="outOnly"> Only the ones that took off</label>
       <div class="sortpick"><span>Sort</span>
@@ -1090,6 +1109,21 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
      suite's own info tooltips, and the voice profile stopped being a card of its own: it is
      not a workflow, it is a setting that governs how everything here is written, so it is a
      line at the foot of the writer that opens when you want to read it. -->
+<!-- ============================= NEW FOLLOWERS (v293) ============================= -->
+<div class="view" id="v-follows" hidden>
+  <div class="fl-wrap">
+    <section class="card">
+      <div class="cardhead">
+        <div><div class="chead"><svg class="ic"><use href="#ic-heart"/></svg> People to message</div>
+        <div class="csub" id="flSub">New followers worth a DM. Copy the message, send it from your phone, then tick it off.</div></div>
+        <button type="button" class="abtn" id="flCheck"><svg class="ic"><use href="#ic-refresh"/></svg> Check now</button>
+      </div>
+      <div id="flList"><div class="empty">Loading…</div></div>
+      <div class="fl-foot" id="flFoot"></div>
+    </section>
+  </div>
+</div>
+
 <div class="view" id="v-hooks" hidden>
   <div class="hk-wrap">
     <!-- v192: what to film, first. Ash: "I don't load this up and immediately feel inspired
@@ -2375,6 +2409,83 @@ async function startVoiceBuild() {
   setTimeout(async () => { hkBusy = ""; await loadHooks(); }, 300000);
 }
 
+/* ---------- v293: new followers to DM ---------- */
+const IG_LEADS = "/.netlify/functions/ig-leads";
+let flData = null, flShowDone = false;
+async function loadFollows() {
+  try { flData = await jget(IG_LEADS); }
+  catch { flData = { ok: false, error: "Could not load. The site may still be deploying." }; }
+  renderFollows();
+}
+function flDay(iso) {
+  if (!iso) return "";
+  const d = new Date(iso + "T12:00:00Z"), t = new Date();
+  const days = Math.round((Date.UTC(t.getFullYear(), t.getMonth(), t.getDate()) - Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())) / 86400000);
+  return days <= 0 ? "today" : days === 1 ? "yesterday" : days < 7 ? days + " days ago" : d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+function renderFollows() {
+  const list = $("flList"), foot = $("flFoot");
+  if (!flData) { list.innerHTML = '<div class="empty">Loading…</div>'; foot.innerHTML = ""; return; }
+  if (flData.ok === false) { list.innerHTML = '<div class="empty">' + esc(flData.error || "Something went wrong.") + "</div>"; foot.innerHTML = ""; return; }
+  const all = (flData.leads || []).filter((l) => l.verdict !== "skip");
+  const todo = all.filter((l) => l.status === "todo").sort((a, b) => (a.verdict === "hot" ? 0 : 1) - (b.verdict === "hot" ? 0 : 1) || (b.firstSeen || "").localeCompare(a.firstSeen || ""));
+  const done = all.filter((l) => l.status !== "todo");
+  const shown = flShowDone ? todo.concat(done) : todo;
+  if (!flData.lastRun) list.innerHTML = '<div class="empty">The first check runs tomorrow morning, or press Check now.</div>';
+  else if (!shown.length) list.innerHTML = '<div class="empty">Nobody to message right now.</div>';
+  else list.innerHTML = shown.map((l) => {
+    const isDone = l.status !== "todo";
+    return '<div class="fl-row' + (isDone ? " fl-done" : "") + '">' +
+      '<div class="fl-main">' +
+        '<div class="fl-name"><a href="https://www.instagram.com/' + encodeURIComponent(l.username) + '/" target="_blank" rel="noopener">' + esc(l.fullName || "@" + l.username) + "</a>" +
+        '<span class="fl-tag ' + esc(l.verdict) + '">' + (l.verdict === "hot" ? "Hot" : "Warm") + "</span>" +
+        (isDone ? '<span class="fl-why">' + (l.status === "checking" ? "Checking…" : l.status === "sent" ? (l.via === "manychat" ? "Messaged by ManyChat" : "Sent") : "Skipped") + "</span>" : "") + "</div>" +
+        '<div class="fl-why">' + esc(l.reason || "") + " · followed " + esc(l.backlog ? "before the first check" : flDay(l.firstSeen)) + "</div>" +
+        (l.opener && !isDone ? '<div class="fl-msg">' + esc(l.opener) + "</div>" : "") +
+      "</div>" +
+      '<div class="fl-acts">' + (isDone
+        ? (l.via === "manychat" ? "" : '<button type="button" class="abtn ghost" data-fl="todo" data-u="' + esc(l.username) + '">Undo</button>')
+        : (l.opener ? '<button type="button" class="abtn" data-fl="copy" data-u="' + esc(l.username) + '">Copy</button>' : "") +
+          '<button type="button" class="abtn primary" data-fl="sent" data-u="' + esc(l.username) + '"><svg class="ic"><use href="#ic-check"/></svg> Sent</button>' +
+          '<button type="button" class="abtn ghost" data-fl="skipped" data-u="' + esc(l.username) + '">Skip</button>') +
+      "</div></div>";
+  }).join("");
+  const skipped = (flData.leads || []).filter((l) => l.verdict === "skip").length;
+  const auto = (flData.leads || []).filter((l) => l.via === "manychat" && l.verdict !== "skip" && l.status === "sent").length;
+  foot.innerHTML = (flData.lastError ? "Last check failed: " + esc(flData.lastError) + ". " : "") +
+    (flData.lastRun ? "Checked " + esc(new Date(flData.lastRun).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" })) + ". " : "") +
+    (auto ? auto + " messaged automatically by ManyChat. " : "") +
+    (skipped ? skipped + " left out (PTs, sellers, businesses). " : "") +
+    (done.length ? '<button type="button" id="flToggle">' + (flShowDone ? "Hide" : "Show") + " done (" + done.length + ")</button>" : "");
+}
+$("flList").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-fl]");
+  if (!b) return;
+  const u = b.dataset.u, act = b.dataset.fl;
+  const lead = (flData.leads || []).find((l) => l.username === u);
+  if (!lead) return;
+  if (act === "copy") {
+    navigator.clipboard.writeText(lead.opener || "").then(() => { b.textContent = "Copied"; setTimeout(() => { b.textContent = "Copy"; }, 1500); });
+    return;
+  }
+  lead.status = act; renderFollows();
+  try {
+    const r = await fetch(IG_LEADS, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: u, status: act }) });
+    const out = await r.json();
+    if (out && out.ok) { flData = out; renderFollows(); }
+  } catch { /* the tick stays on screen; the next load shows the truth */ }
+});
+$("flFoot").addEventListener("click", (e) => { if (e.target.id === "flToggle") { flShowDone = !flShowDone; renderFollows(); } });
+$("flCheck").addEventListener("click", async () => {
+  const b = $("flCheck"); b.disabled = true;
+  try {
+    const out = await (await fetch(IG_LEADS, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ check: true }) })).json();
+    $("flSub").textContent = out.ok ? "Checking now. This takes a couple of minutes." : (out.error || "Could not start the check.");
+    if (out.ok) setTimeout(() => { loadFollows(); $("flSub").textContent = "New followers worth a DM. Copy the message, send it from your phone, then tick it off."; b.disabled = false; }, 150000);
+    else b.disabled = false;
+  } catch { b.disabled = false; }
+});
+
 /* ---------- the toggle ---------- */
 function setView(v) {
   view = v;
@@ -2382,9 +2493,11 @@ function setView(v) {
   $("v-mine").hidden = v !== "mine";
   $("v-rivals").hidden = v !== "rivals";
   $("v-hooks").hidden = v !== "hooks";
+  $("v-follows").hidden = v !== "follows";
   // Sorting and "only the ones that took off" belong to a grid of posts. The Hooks tab has
   // no grid of posts, so its toolbar goes with it.
-  $("vtRight").hidden = v === "hooks";
+  $("vtRight").hidden = v === "hooks" || v === "follows";
+  if (v === "follows" && !flData) loadFollows();
   $("outWrap").hidden = false;
   if (v === "rivals" && rivalSel && !rivalData[rivalSel]) loadRival(rivalSel);
   // v198: the suggestions live in the hooks payload, so the Competitors tab needs it too

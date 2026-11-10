@@ -195,7 +195,7 @@ const CAPTIONS = { "ig-cache-mine": { account: { username: "bodysculptwarrington
     assert.ok(/tipBtn\("voice"\)/.test(js) && /voice: \["How Bodysculpt sounds"/.test(js),
       "the paragraph that used to sit on the page is in the suite's own tooltip instead");
     const writes = [...js.matchAll(/fetch\(([^,]+),\s*\{[\s\S]{0,200}?method:/g)].map((m) => m[1].trim());
-    const allowed = new Set(["API", "IG_SCRAPE", "IG_SNAP", "HOOKS", "HOOKS_MINE", "VOICE_BUILD"]);
+    const allowed = new Set(["API", "IG_SCRAPE", "IG_SNAP", "HOOKS", "HOOKS_MINE", "VOICE_BUILD", "IG_LEADS"]); // v293: New followers ticks and Check now
     for (const w of writes) assert.ok(allowed.has(w), "v136's write surface still holds; found " + w);
   }
 

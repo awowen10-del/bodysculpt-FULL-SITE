@@ -77,6 +77,10 @@
 [functions."ig-scrape-scheduled"]
   schedule = "0 5 * * 1,4"
 
+# v293: new Instagram followers, sorted into who is worth a DM (netlify/lib/ig-leads.js).
+# v294: no daily scrape — ManyChat now asks about each new follower as they follow
+# (netlify/functions/ig-qualify.js). The page's "Check now" still pulls the follower list.
+
 # ===================== v177: the hook library =====================
 # What the flame on the Content page never said: what was actually SAID in the reels that
 # took off. This reads the opening of each flamed reel (Gemini) and writes down the shape

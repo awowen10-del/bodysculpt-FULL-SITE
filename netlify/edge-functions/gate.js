@@ -76,6 +76,9 @@ export default async (req, context) => {
   const secret = readEnv("DASHBOARD_PASSWORD");
   if (!secret) return context.next();
   if (path === AGENT_PATH || path.startsWith("/mcp/")) return context.next();
+  // v294: ManyChat asks about new Instagram followers here. It can't sign in, so the function
+  // checks its own key (see netlify/functions/ig-qualify.js) and 404s without it.
+  if (path === "/.netlify/functions/ig-qualify") return context.next();
 
   if (path === "/login" && req.method === "POST") {
     const form = await req.formData().catch(() => null);
