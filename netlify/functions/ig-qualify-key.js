@@ -6,5 +6,5 @@ import { qualifyKey, qualifySecret } from "./ig-qualify.js";
 export default async () => Response.json({
   key: qualifyKey(qualifySecret()) || null,
   // which settings this function can see (names only, never values)
-  has: { sync: !!(process.env.SYNC_TRIGGER_SECRET || "").trim(), dash: !!process.env.DASHBOARD_PASSWORD, apify: !!process.env.APIFY_API_TOKEN, claude: !!process.env.ANTHROPIC_API_KEY },
+  has: { sync: !!(process.env.SYNC_TRIGGER_SECRET || "").trim(), dash: !!process.env.DASHBOARD_PASSWORD, apify: !!process.env.APIFY_API_TOKEN, claude: !!process.env.ANTHROPIC_API_KEY, ghl: !!(process.env.GHL_API_KEY && process.env.GHL_LOCATION_ID) },
 }, { headers: { "Cache-Control": "no-store" } });

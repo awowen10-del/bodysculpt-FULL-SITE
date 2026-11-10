@@ -247,11 +247,48 @@ export async function markChecking(username, fullName) {
   return state.leads[u];
 }
 
-export async function qualifyOne(env, username, today, log) {
+/* ---------- v295: already a lead in GHL? ----------
+   Ash: "if they opt in via GHL, either via landing page or facebook ad, they don't get the
+   message". Instagram only gives a username and a display name, so the match is by full name:
+   a GHL contact whose first + last name equals the Instagram name, and who has an email or a
+   phone (so they came in through a form, an ad or the website, not an Instagram DM). A
+   one-word Instagram name is never matched: "Sarah" alone would skip half of Warrington. */
+export const normName = (s) => String(s || "").toLowerCase().normalize("NFKD").replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+
+export async function ghlLeadByName(env, fullName, fetchImpl) {
+  const want = normName(fullName);
+  if (want.split(" ").length < 2) return null;
+  const key = env.GHL_API_KEY, loc = env.GHL_LOCATION_ID;
+  if (!key || !loc) return null;
+  const res = await (fetchImpl || fetch)("https://services.leadconnectorhq.com/contacts/search", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + key, Version: env.GHL_API_VERSION || "2021-07-28", Accept: "application/json",
+      "Content-Type": "application/json", "User-Agent": "Mozilla/5.0 (bodysculpt-dashboard)" },
+    body: JSON.stringify({ locationId: loc, page: 1, pageLimit: 20, query: fullName }),
+  });
+  if (!res.ok) throw new Error("GHL " + res.status + " on contact search");
+  const body = await res.json();
+  const hit = (body.contacts || []).find((c) =>
+    normName([c.firstName, c.lastName].filter(Boolean).join(" ") || c.contactName || c.name) === want && (c.email || c.phone));
+  return hit ? { id: hit.id, name: [hit.firstName, hit.lastName].filter(Boolean).join(" "), tags: hit.tags || [] } : null;
+}
+
+export async function qualifyOne(env, username, today, log, fetchImpl) {
   const u = cleanUser(username);
   if (!u) throw new Error("No username.");
   const token = (env.APIFY_API_TOKEN || "").trim();
   if (!token) throw new Error("APIFY_API_TOKEN is not set.");
+
+  // already a lead or member in GHL? Then skip before spending anything on the profile read.
+  const known = (await readState()).leads[u];
+  if (known && known.fullName) {
+    let hit = null;
+    try { hit = await ghlLeadByName(env, known.fullName, fetchImpl); }
+    catch (e) { log({ stage: "ghl_check_failed", username: u, message: clip((e && e.message) || "", 160) }); }
+    if (hit) return saveVerdict(u, today, { username: u, fullName: known.fullName, bio: "", private: false }, null,
+      cleanVerdict({ verdict: "skip", reason: "Already in GHL as " + clip(hit.name, 60) }), log);
+  }
+
   let p = { username: u, fullName: "", bio: "", private: true };
   try {
     const rows = await runActor(token, PROFILE_ACTOR, { usernames: [u] });
@@ -264,10 +301,21 @@ export async function qualifyOne(env, username, today, log) {
   catch (e) { log({ stage: "ad_days_failed", message: clip((e && e.message) || "", 160) }); }
   const adRunning = adRunningOn(days, today);
 
+  // the profile's own name may differ from the one ManyChat sent: check GHL with that one too
+  if (p.fullName && normName(p.fullName) !== normName(known && known.fullName)) {
+    let hit = null;
+    try { hit = await ghlLeadByName(env, p.fullName, fetchImpl); }
+    catch (e) { log({ stage: "ghl_check_failed", username: u, message: clip((e && e.message) || "", 160) }); }
+    if (hit) return saveVerdict(u, today, p, adRunning, cleanVerdict({ verdict: "skip", reason: "Already in GHL as " + clip(hit.name, 60) }), log);
+  }
+
   let v;
   try { v = await score(p, adRunning); }
   catch (e) { log({ stage: "score_failed", username: u, message: clip((e && e.message) || "", 160) }); v = cleanVerdict({ verdict: "warm", reason: "Couldn't check, messaged anyway" }); }
+  return saveVerdict(u, today, p, adRunning, v, log);
+}
 
+async function saveVerdict(u, today, p, adRunning, v, log) {
   const state = await readState();
   const prev = state.leads[u] || {};
   state.leads[u] = {
