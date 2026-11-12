@@ -1267,8 +1267,20 @@ async function api(qs) {
 }
 async function post(body) {
   const r = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (r.status === 409) { const e = new Error("This project was changed somewhere else"); e.conflict = true; throw e; }
   if (!r.ok) throw new Error((await r.text()).slice(0, 300));
   return r.json();
+}
+/* v299: the version of each project as the STORE last gave it (pCommit stamps p.lastUpdated
+   itself, so that field cannot be used). It travels with every whole-project save as `base`;
+   the store refuses a save based on an older copy, which is what stops a tab left open from
+   undoing steps ticked, added or re-dated from Weekly, Daily, the calendar or Grok. */
+const BASE = {};
+const noteBase = (p) => { if (p && p.id) BASE[p.id] = p.lastUpdated || ""; };
+function staleReload() {
+  toast("This project was changed somewhere else (Weekly, Daily, the calendar or Grok). Loading the latest; your last change was not saved, so make it again.");
+  pending.clear();
+  setTimeout(() => { try { location.reload(); } catch (e) {} }, 2200);
 }
 async function uploadFile(file) {
   const mime = mimeOf(file);
@@ -1324,10 +1336,11 @@ async function flush() {
   try {
     for (const id of ids) {
       const p = S.projects.find((x) => x.id === id);
-      if (p) await post({ project: p });
+      if (p) { const r = await post({ project: p, base: BASE[p.id] || "" }); if (r && r.project) BASE[p.id] = r.project.lastUpdated || ""; }
     }
     setSaveState("saved");
   } catch (e) {
+    if (e && e.conflict) { setSaveState("bad", "changed somewhere else"); staleReload(); return; }
     // put them back, so the next change (or leaving the page) tries again
     ids.forEach((id) => pending.add(id));
     setSaveState("bad", e.message);
@@ -1359,13 +1372,26 @@ function beaconFlush() {
     const p = S.projects.find((x) => x.id === id);
     if (!p) continue;
     try {
-      const blob = new Blob([JSON.stringify({ project: p })], { type: "application/json" });
+      const blob = new Blob([JSON.stringify({ project: p, base: BASE[p.id] || "" })], { type: "application/json" });
       if (!navigator.sendBeacon || !navigator.sendBeacon(API, blob)) { pending.add(id); }
     } catch (e) { pending.add(id); }
   }
   if (pending.size) flush();
 }
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") beaconFlush(); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") beaconFlush(); else refreshIfStale(); });
+let staleCheck = false;
+async function refreshIfStale() {
+  if (staleCheck || pending.size || committing) return;
+  const a = document.activeElement;
+  if (a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.isContentEditable)) return;
+  const ex = document.getElementById("exWrap"); if (ex && !ex.hidden) return;   // a drawing is open: never reload under it
+  staleCheck = true;
+  try {
+    const r = await api("list=1");
+    const moved = (r.projects || []).some((p) => p && p.id && (BASE[p.id] === undefined || BASE[p.id] !== (p.lastUpdated || "")));
+    if (moved && !pending.size && !committing) location.reload();
+  } catch (e) {} finally { staleCheck = false; }
+}
 window.addEventListener("pagehide", beaconFlush);
 
 /* ---------- the records ---------- */
@@ -2827,6 +2853,7 @@ async function init() {
   try {
     const r = await api("list=1");
     S.projects = (r.projects || []).map((p) => Object.assign({ steps: [], columns: [], canvas: [] }, p));
+    S.projects.forEach(noteBase);
   } catch (e) {
     // say it where it will be seen, whichever tab the address asked for
     showView("projects", { hash: false });

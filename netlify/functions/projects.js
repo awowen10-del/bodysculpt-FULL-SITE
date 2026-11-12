@@ -142,8 +142,16 @@ export default async (req) => {
       // v299: the day a project was archived is the server's to say, never the caller's. The
       // nightly clear-out deletes on that date, so a back-dated one in a save (a wrong clock, a
       // stale copy, a bug) would have had the project removed the next morning.
+      const stored = await readProject(project.id);
+      // v299: the Projects page sends `base`, the lastUpdated it loaded. The page keeps a whole
+      // project in memory and saves it whole, so a tab left open used to put its old copy back
+      // over steps ticked, added or re-dated from Weekly, Daily, the calendar or Grok. A save
+      // based on an older copy is refused; a caller that sends no base behaves as before.
+      if (typeof body.base === "string" && ((stored && stored.lastUpdated) || "") !== body.base) {
+        return json({ ok: false, conflict: true, lastUpdated: (stored && stored.lastUpdated) || "",
+          error: "This project was changed somewhere else after this page loaded it." }, 409);
+      }
       if (project.archived) {
-        const stored = await readProject(project.id);
         project.archivedAt = (stored && stored.archived && /^\d{4}-\d{2}-\d{2}T/.test(stored.archivedAt || "")) ? stored.archivedAt : new Date().toISOString();
       }
       await writeProject(project);
