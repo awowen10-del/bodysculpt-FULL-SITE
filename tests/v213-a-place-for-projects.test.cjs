@@ -110,7 +110,7 @@ function fullProject() {
     canvas: [{ id: "v_1", name: "The funnel", kind: "board", fileId: "f_scene", thumbId: "f_png",
       mime: "application/json", size: 900, note: "how leads arrive", stepId: "s_1",
       addedAt: "2026-09-20T09:00:00.000Z", updatedAt: "2026-09-20T09:00:00.000Z" }],
-    archived: false, createdAt: "2026-09-20T09:00:00.000Z", lastUpdated: "2026-09-20T09:00:00.000Z",
+    archived: false, archivedAt: "", createdAt: "2026-09-20T09:00:00.000Z", lastUpdated: "2026-09-20T09:00:00.000Z",
   };
 }
 function fullStep() {
@@ -174,10 +174,15 @@ function fullStep() {
       assert.ok(/^(proj-|projfile-)/.test(k), "the only keys written are the page's own — saw " + k);
     }
     assert.ok(store._wrote.length >= 2, "…and it did write (" + store._wrote.length + " keys)");
-    // the function has no route that removes anything
+    // the function has no route that removes anything. v298: Ash asked for archived projects to
+    // go after 30 days, so the lib has ONE delete, inside purgeArchived (run by the scheduled
+    // function, never by a page). tests/v298 drives it against this same seeded store.
     const fn = read("netlify/functions/projects.js");
-    assert.ok(!/\bstore\(\)\.delete\b|\.delete\(/.test(fn + read("netlify/lib/projects.js")),
-      "there is no delete anywhere in the store — archiving and flagging are ordinary saves");
+    assert.ok(!/\.delete\(/.test(fn), "the page's function has no route that removes anything");
+    const libSrc = read("netlify/lib/projects.js");
+    const purge = libSrc.slice(libSrc.indexOf("export async function purgeArchived"), libSrc.indexOf("export async function readFile"));
+    assert.strictEqual((libSrc.match(/\.delete\(/g) || []).length, (purge.match(/\.delete\(/g) || []).length,
+      "every delete in the store is inside purgeArchived");
   }
 
   /* =====================================================================

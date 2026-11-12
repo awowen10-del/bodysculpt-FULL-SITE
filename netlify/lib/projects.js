@@ -15,10 +15,15 @@
 //   proj-<id>       one project, as JSON
 //   projfile-<id>   one file's BYTES — an upload, a drawn board's scene, or a board's preview
 //
-// DELETE IS NEVER A DELETE. A step gets del:true and is hidden; a project gets
-// archived:true and stays in the store. The way back is offered on the confirmation itself,
-// not as a chip somewhere else on the page, because the page is used on a phone and nobody
-// goes hunting for an undo they have to find.
+// DELETE IS NEVER A DELETE — with ONE exception (v298). A step gets del:true and is hidden; a
+// project gets archived:true and stays in the store. The way back is offered on the
+// confirmation itself, not as a chip somewhere else on the page, because the page is used on a
+// phone and nobody goes hunting for an undo they have to find.
+// v298, Ash: "archive it and then if I do nothing with it for 30 days it deletes entirely ...
+// I might need 30 days to change my mind." So an archived project carries archivedAt, and
+// purgeArchived() — run once a day by projects-purge-scheduled — removes a project archived
+// for 30 full days, and the files only it used. That is the only delete in this store, and
+// every key it removes still has to pass keyOk, so it cannot reach any other record.
 //
 // THE WHITELIST TRAP, WRITTEN DOWN BECAUSE IT HAS BITTEN THIS SUITE BEFORE:
 // cleanProject / cleanStep / cleanCanvasItem are WHITELISTS. A field the page starts sending
@@ -78,6 +83,7 @@ export function keyOk(key) {
 }
 
 export const nowIso = () => new Date().toISOString();
+const isIso = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(v) && !isNaN(Date.parse(v));
 export const clip = (s, n) => (typeof s === "string" ? s.slice(0, n) : "");
 const str = (v, n) => clip(typeof v === "string" ? v : "", n);
 const ymd = (v) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : "");
@@ -219,6 +225,9 @@ export function cleanProject(raw) {
       .map(cleanCanvasItem).filter(Boolean).slice(0, CAP.canvas),
     // v213: archiving is what this page does instead of deleting. The record stays.
     archived: raw.archived === true,
+    // v298: when it was archived, which starts the 30 days. A save that doesn't say keeps the
+    // clock running from now; bringing it back clears it.
+    archivedAt: raw.archived === true ? (isIso(raw.archivedAt) ? raw.archivedAt : nowIso()) : "",
     createdAt: str(raw.createdAt, 30) || nowIso(),
     lastUpdated: nowIso(),
   };
@@ -408,6 +417,56 @@ export async function listProjects() {
     return String(b.lastUpdated || "").localeCompare(String(a.lastUpdated || ""));
   });
   return out;
+}
+
+/* ---------- v298: the 30 days ---------- */
+export const PURGE_DAYS = 30;
+const DAY_MS = 86400000;
+// the day an archived project goes for good (the clear-out runs daily, so on or just after it)
+export function purgeOn(project) {
+  if (!project || !project.archived || !isIso(project.archivedAt)) return "";
+  return new Date(Date.parse(project.archivedAt) + PURGE_DAYS * DAY_MS).toISOString();
+}
+// every file a project's bytes live in: step attachments, drawn boards and their pictures
+export function fileIdsOf(project) {
+  const ids = new Set();
+  (project.steps || []).forEach((s) => (s.files || []).forEach((f) => f && f.id && ids.add(f.id)));
+  (project.canvas || []).forEach((c) => { if (c && c.fileId) ids.add(c.fileId); if (c && c.thumbId) ids.add(c.thumbId); });
+  return ids;
+}
+/* Once a day. An archived project with no date (archived before v298) starts its 30 days now
+   rather than going at once. A project archived 30 full days ago is removed, with any file no
+   other project uses. Returns what it did, for the log. */
+export async function purgeArchived(now = Date.now()) {
+  const s = store();
+  const { blobs } = await s.list({ prefix: PROJ_PREFIX });
+  const keys = (blobs || []).map((b) => b.key).filter(keyOk).filter((k) => k.startsWith(PROJ_PREFIX));
+  const all = [];
+  for (const k of keys) { const p = await s.get(k, { type: "json" }); if (p && p.id) all.push({ k, p }); }
+  const done = { stamped: [], removed: [], files: 0 };
+  const going = [];
+  for (const x of all) {
+    if (!x.p.archived) continue;
+    if (!isIso(x.p.archivedAt)) {
+      x.p.archivedAt = new Date(now).toISOString();
+      await s.set(x.k, JSON.stringify(x.p));
+      done.stamped.push(x.p.id);
+    } else if (now - Date.parse(x.p.archivedAt) >= PURGE_DAYS * DAY_MS) {
+      going.push(x);
+    }
+  }
+  if (!going.length) return done;
+  const kept = new Set();
+  all.filter((x) => !going.includes(x)).forEach((x) => fileIdsOf(x.p).forEach((f) => kept.add(f)));
+  for (const x of going) {
+    for (const fid of fileIdsOf(x.p)) {
+      const fk = fileKeyOf(fid);
+      if (kept.has(fid) || !keyOk(fk) || !fk.startsWith(FILE_PREFIX)) continue;
+      await s.delete(fk); done.files++;
+    }
+    if (keyOk(x.k) && x.k.startsWith(PROJ_PREFIX)) { await s.delete(x.k); done.removed.push(x.p.id); }
+  }
+  return done;
 }
 
 export async function readFile(fid) {

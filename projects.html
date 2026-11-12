@@ -445,6 +445,11 @@
   .pb-name{font-size:24px;font-weight:800;letter-spacing:-.6px;color:var(--ink-strong);line-height:1.12;}
   .pb-why{font-size:13.5px;color:var(--ink-dim);margin-top:7px;line-height:1.6;max-width:70ch;white-space:pre-wrap;}
   .pb-hmeta{display:flex;gap:var(--sp-2);flex-wrap:wrap;margin-top:var(--sp-4);align-items:center;}
+  /* v298: an archived project says when it goes, with the way back beside it */
+  .pb-gone{display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap;margin-top:var(--sp-4);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-md);background:rgba(var(--red-rgb),.07);color:var(--ink);font-size:14px;line-height:1.4;}
+  .pb-gone > .ic{width:18px;height:18px;color:var(--red);flex:0 0 auto;}
+  .pb-gone span{flex:1 1 220px;}
+  .pb-gone strong{color:var(--red);}
   .pb-hside{display:flex;flex-direction:column;align-items:flex-end;gap:var(--sp-3);align-self:center;}
   /* the bar: one line that says how much of this project is behind you */
   .pb-prog{width:200px;}
@@ -1447,7 +1452,7 @@ function renderProjects() {
         (p.summary ? '<div class="p-csum">' + esc(p.summary) + '</div>' : "") +
         '<div class="p-cmeta">' +
           '<span class="pill st-' + esc(p.status) + '">' + esc(STATUS_WORDS[p.status] || p.status) + '</span>' +
-          (p.archived ? '<span class="pill calm">Archived</span>' : "") +
+          (p.archived ? '<span class="pill late">Archived · deletes ' + esc(dLabel(goneOn(p))) + '</span>' : "") +
           (od ? '<span class="pill late">' + od + ' overdue</span>' : "") +
           (p.targetDate ? '<span class="pill calm">By ' + esc(dLabel(p.targetDate)) + '</span>' : "") +
         '</div>' +
@@ -1525,7 +1530,10 @@ function renderBoard() {
         (p.targetDate ? '<span class="pill ' + (target.cls === "late" ? "late" : target.cls === "soon" ? "soon" : "calm") + '">By ' + esc(dLabelFull(p.targetDate)) + ' — ' + esc(target.long) + '</span>' : "") +
         (od ? '<span class="pill late">' + od + ' step' + (od === 1 ? "" : "s") + ' overdue</span>' : "") +
         '<button type="button" class="abtn quiet" id="editProjBtn"><svg class="ic"><use href="#ic-pencil"/></svg> Edit project</button>' +
+        (p.archived ? "" : '<button type="button" class="abtn quiet" id="archProjBtn"><svg class="ic"><use href="#ic-archive"/></svg> Archive</button>') +
       '</div>' +
+      (p.archived ? '<div class="pb-gone"><svg class="ic"><use href="#ic-archive"/></svg><span>Archived. It deletes for good on <strong>' + esc(dLabelFull(goneOn(p))) +
+        '</strong> unless you bring it back.</span><button type="button" class="abtn" id="unarchProjBtn">Bring back</button></div>' : "") +
     '</div>' +
     '<div class="pb-hside"><div class="pb-prog">' +
       '<div class="pb-pnum"><span>Steps done</span><b>' + pr.done + ' / ' + pr.total + '</b></div>' +
@@ -1534,6 +1542,9 @@ function renderBoard() {
   '</div></div>';
   const eb = $("editProjBtn");
   if (eb) eb.onclick = () => openProjectSheet(p);
+  const ab = $("archProjBtn"), ub = $("unarchProjBtn");
+  if (ab) ab.onclick = () => archiveProject(p);
+  if (ub) ub.onclick = () => archiveProject(p);
 
   board.className = "pb-board " + accentClass(p);
   board.innerHTML = p.columns.map((c) => colHtml(p, c)).join("") +
@@ -2743,18 +2754,30 @@ function saveProjectSheet() {
   showView("board");
   toast(t ? "Project created, with " + t.steps.length + " steps to change as you like" : "Project created");
 }
-/* archiving, never deleting: the record stays in the store for good */
+/* v298: archiving starts 30 days. Ash: "archive it and then if I do nothing with it for 30 days
+   it deletes entirely ... I might need 30 days to change my mind." Until then it's all still
+   here and Bring back undoes it; after, projects-purge-scheduled removes it for good. */
+const PURGE_DAYS = 30;
+// the day it goes: the first nightly clear-out (03:30 UTC) once 30 full days have passed
+function goneOn(p) {
+  const from = p && p.archivedAt && !isNaN(Date.parse(p.archivedAt)) ? Date.parse(p.archivedAt) : Date.now();
+  const d = new Date(from + PURGE_DAYS * 86400000);
+  const run = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 3, 30));
+  if (run < d) run.setUTCDate(run.getUTCDate() + 1);
+  return run.toISOString().slice(0, 10);
+}
 function archiveProject(p) {
   p.archived = !p.archived;
+  p.archivedAt = p.archived ? new Date().toISOString() : "";
   pCommit(p);
   closeProjectSheet();
   if (p.archived && S.currentId === p.id) S.currentId = "";
   showView(p.archived ? "projects" : "board");
   if (p.archived) {
-    toastUndo('"' + p.name + '" archived — it is still here, nothing was deleted', "Undo", () => {
-      p.archived = false; S.currentId = p.id; pCommit(p); showView("board"); toast("Back");
+    toastUndo('"' + p.name + '" archived. It deletes for good on ' + dLabel(goneOn(p)) + ' unless you bring it back', "Undo", () => {
+      p.archived = false; p.archivedAt = ""; S.currentId = p.id; pCommit(p); showView("board"); toast("Back");
     });
-  } else { toast("Back on the list"); }
+  } else { toast("Back on the list. It won't be deleted"); }
 }
 function wireEmptyState() {
   const host = $("emptyTmpl");
