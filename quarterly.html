@@ -1337,6 +1337,21 @@ async function loadPlanning(tag){
   try{ const res = await fetch(STORE + "?planning=" + tag).then(r=>r.json()); return res.planning; }
   catch(e){ return null; }
 }
+/* v299: the same read, but it says whether it WORKED. A failed read used to come back as
+   "nothing stored", the review opened blank with no error, and pressing any Save button
+   stored that blank over the real section. { ok:false } now means "could not read", which is
+   never the same thing as an empty quarter. */
+async function loadPlanningStrict(tag){
+  try{
+    const res = await fetch(STORE + "?planning=" + encodeURIComponent(tag));
+    if(!res.ok) return { ok:false };
+    const j = await res.json();
+    if(!j || typeof j !== "object" || j.error) return { ok:false };
+    return { ok:true, planning: j.planning || null };
+  }catch(e){ return { ok:false }; }
+}
+let planLoadSeq = 0;      // each quarter load takes a number; a stale answer is dropped
+let planLoadedTag = "";   // the quarter planData really came from the store for ("" = none)
 async function savePlanningSection(patch, btn, msgEl){
   // Phase F: block edits to a finalised review quarter's review-owned sections. The server
   // also enforces this (423); this keeps the UI honest and avoids a pointless round-trip.
@@ -1350,11 +1365,22 @@ async function savePlanningSection(patch, btn, msgEl){
   // v299: the year comes from the quarter being saved (planTag), not from today's date. It used
   // to be YEAR, so a save made while viewing 2027 landed in 2026's quarter of the same number,
   // and from 1 January every save on a 2026 quarter would have been filed under 2027.
-  const body = { planning: Object.assign({ year: tagYearOf(planTag), quarter: planTag.split("-")[1] }, patch) };
+  // v299: only a quarter that really loaded may be saved, and under the quarter it loaded for
+  if(planLoadedTag !== planTag){
+    if(msgEl){ msgEl.textContent = "This quarter hasn't loaded, so nothing was saved. Reload the page."; msgEl.className = "save-msg"; }
+    return;
+  }
+  const body = { planning: Object.assign({ year: tagYearOf(planTag), quarter: planTag.split("-")[1] }, patch),
+    base: planData.lastUpdated || "" };   // the store refuses a save based on an older copy
   if(btn){ btn.disabled = true; btn.textContent = "Saving…"; }
   try{
-    const res = await fetch(STORE, { method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify(body) }).then(r=>r.json());
+    const raw = await fetch(STORE, { method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(body) });
+    if(raw.status === 409){
+      if(msgEl){ msgEl.textContent = "Not saved: this quarter was changed somewhere else after this page loaded it. Copy anything you have just typed, then reload the page."; msgEl.className = "save-msg"; }
+      return;
+    }
+    const res = await raw.json();
     if(res && res.ok){
       // merge the authoritative saved fields back onto planData WITHOUT dropping
       // in-memory fields the server echo doesn't include (it only returns what's
@@ -2008,6 +2034,7 @@ function planHeaderBand(qi){
   </div>`;
 }
 function renderPanels(){
+  if(planLoadedTag !== planTag) return;   // v299: never draw one quarter's data under another quarter's name
   const qi = QUARTERS.findIndex((q,i)=>qTagOf(i)===planTag);
   // Ensure Next Quarter Rocks have stable ids up-front, so the Issue/Opportunity "Became a
   // Rock" linkers (which render before nextPanel) can reference them reliably.
@@ -2461,7 +2488,19 @@ async function selectQuarter(qi){
   // re-highlight the active chip
   if(document.getElementById("qstrip") && !document.getElementById("qstrip").hidden) renderQuarterStrip();
   // load this quarter + previous quarter's next-goals (for carry-forward)
-  planData = await loadPlanning(planTag) || {};
+  const seq = ++planLoadSeq;
+  planLoadedTag = "";
+  const got = await loadPlanningStrict(destTag);
+  if(seq !== planLoadSeq) return;            // a newer quarter was chosen while this one loaded
+  if(!got.ok){
+    const host = document.getElementById("planPanels");
+    const html = `<div class="plan-loading" role="alert" style="padding:18px">This quarter's review didn't load, so nothing is shown and nothing can be saved. Your saved review has not been touched.
+      <div style="margin-top:12px"><button type="button" class="ws-btn" onclick="selectQuarter(${qi})">Try again</button></div></div>`;
+    if(host) host.innerHTML = html;
+    return;
+  }
+  planData = got.planning || {};
+  planLoadedTag = destTag;
   planData.goals = planData.goals || [];
   planData.issues = planData.issues || [];
   planData.opportunities = planData.opportunities || [];
@@ -2479,6 +2518,7 @@ async function selectQuarter(qi){
   prevQuarterNextGoals = null;
   if(qi > 0){
     const prev = await loadPlanning(qTagOf(qi-1));
+    if(seq !== planLoadSeq) return;
     if(prev && Array.isArray(prev.nextQuarterGoals) && prev.nextQuarterGoals.length){
       prevQuarterNextGoals = prev.nextQuarterGoals;
     }
@@ -2789,8 +2829,11 @@ async function loadThinkingTime(tag){
   qttDraftNotice = "";
   let rec = null, fetchFailed = false;
   try{
-    const r = await fetch(STORE + "?qtt=" + encodeURIComponent(tag)).then(x=>x.json());
-    rec = r && r.record ? r.record : null;
+    const res = await fetch(STORE + "?qtt=" + encodeURIComponent(tag));
+    if(!res.ok) throw new Error("read " + res.status);       // v299: an error reply is not "no answers yet"
+    const r = await res.json();
+    if(!r || typeof r !== "object" || r.error) throw new Error("bad reply");
+    rec = r.record ? r.record : null;
   }catch(e){ rec = null; fetchFailed = true; }
   if(token !== qttLoadToken) return; // a newer quarter was selected meanwhile — abandon
   // Normalise the server record (or an in-memory blank) into schema-2. Blank is NOT persisted.
@@ -3990,14 +4033,25 @@ function qapAcceptAllRemaining(section, version){
 
 // ---- duplicate detection against the existing target section ----
 function qapNorm(s){ return String(s||"").toLowerCase().replace(/\s+/g," ").trim(); }
+/* v299: this read used to answer "empty" when it FAILED. The caller then added its one item to
+   that empty list and wrote it back, so the quarter's whole Issues / Opportunities / Rocks
+   list (or three fields of the Decision Summary) became just that item. It now throws, which
+   every caller already handles as "write failed, try again". It also remembers the version it
+   read (qapBase), which the write sends, so two routes fired together cannot overwrite each
+   other: the second is refused and retried by hand. */
+const qapBase = {};
 async function qapExistingTargetItems(targetQuarter, targetSection){
-  // read the current official planning record for the target quarter
-  try{
-    const r = await fetch(STORE + "?planning=" + encodeURIComponent(targetQuarter)).then(x=>x.json());
-    const pd = r && r.planning ? r.planning : {};
-    if(targetSection==="decisionSummary") return pd.decisionSummary || {};
-    return Array.isArray(pd[targetSection]) ? pd[targetSection] : [];
-  }catch(e){ return targetSection==="decisionSummary" ? {} : []; }
+  const got = await loadPlanningStrict(targetQuarter);
+  if(!got.ok) throw new Error("Couldn't read " + targetQuarter + ", so nothing was written. Try again.");
+  const pd = got.planning || {};
+  qapBase[targetQuarter] = pd.lastUpdated || "";
+  if(targetSection==="decisionSummary") return pd.decisionSummary || {};
+  return Array.isArray(pd[targetSection]) ? pd[targetSection] : [];
+}
+function qapWrote(targetQuarter, r){
+  if(r && r.ok && r.planning) qapBase[targetQuarter] = r.planning.lastUpdated || "";
+  // the worksheet on screen is now behind the store for that quarter: its next Save is refused
+  // (rather than wiping the routed item) until the page is reloaded
 }
 function qapFindDuplicate(existingArr, title){
   const n = qapNorm(title);
@@ -4084,7 +4138,9 @@ async function qapRouteItem(section, itemId, version, mode){
     const patch = { year:Number(targetQuarter.split("-")[0]), quarter:targetQuarter.split("-")[1] };
     patch[targetSection] = arr;
     const r = await fetch(STORE, { method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ planning: patch }) }).then(x=>x.json());
+      body: JSON.stringify({ planning: patch, base: qapBase[targetQuarter] || "" }) }).then(x=>x.json());
+    qapWrote(targetQuarter, r);
+    if(r && r.conflict) throw new Error("That quarter changed while this was being written. Press Route again.");
     if(r && r.ok){
       it.routingReceiptId = approvalId; it.routedAt=new Date().toISOString(); it.status="written"; it._dupIndex=undefined; it.error="";
     } else {
@@ -4132,7 +4188,9 @@ async function qapRouteDecisionSummary(itemId, version){
     merged.decisionSummary_source = { reviewQuarter:version.reviewTag, analysisVersion:version.version, approvedAt:new Date().toISOString() };
     const patch = { year:Number(targetQuarter.split("-")[0]), quarter:targetQuarter.split("-")[1], decisionSummary: merged };
     const r = await fetch(STORE, { method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ planning: patch }) }).then(x=>x.json());
+      body: JSON.stringify({ planning: patch, base: qapBase[targetQuarter] || "" }) }).then(x=>x.json());
+    qapWrote(targetQuarter, r);
+    if(r && r.conflict) throw new Error("That quarter changed while this was being written. Press Route again.");
     if(r && r.ok){ it.routingReceiptId = targetQuarter+"|v"+version.version+"|decisionSummary"; it.routedAt=new Date().toISOString(); it.status="written"; it.error=""; }
     else { it.status="write_failed"; it.error="The official record rejected the write."; }
   }catch(e){ it.status="write_failed"; it.error=e.message||"Write failed."; }
@@ -4602,7 +4660,9 @@ async function qfRouteCandidate(candId){
     else arr.push(mapped);
     const patch = { year:Number(targetQuarter.split("-")[0]), quarter:targetQuarter.split("-")[1] };
     patch[targetSection] = arr;
-    const r = await fetch(STORE, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ planning:patch }) }).then(x=>x.json());
+    const r = await fetch(STORE, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ planning:patch, base: qapBase[targetQuarter] || "" }) }).then(x=>x.json());
+    qapWrote(targetQuarter, r);
+    if(r && r.conflict) throw new Error("That quarter changed while this was being written. Try again.");
     if(r && r.ok){ c.routingReceiptId=approvalId; c.routedTarget=targetQuarter+":"+targetSection; c.status="routed"; c._dupIndex=undefined; }
     else { c.status="write_failed"; c.error=(r&&r.error)||"write rejected"; }
   }catch(e){ c.status="write_failed"; c.error=e.message; }
@@ -5126,9 +5186,11 @@ async function qttSaveAll(){
   const btn = document.getElementById("qttSaveAllBtn");
   if(btn){ btn.disabled=true; btn.textContent="Saving…"; }
   // Save Progress flushes ALL currently-dirty answers immediately (a full reassurance save).
+  /* v299: only the answers that changed are sent. With nothing unsaved this used to re-send
+     all 15 from memory; after a failed load those were 15 blanks, written over the stored
+     answers, and from a tab left open they were old text written over newer answers. */
   const dirtyIds = Object.keys(qttDirty).filter(id=>qttDirty[id]);
-  const ids = dirtyIds.length ? dirtyIds : QTT_QUESTIONS.map(q=>q.id);
-  await qttSaveAnswers(ids, "all");
+  if(dirtyIds.length) await qttSaveAnswers(dirtyIds, "all");
   if(btn){ btn.disabled=false; btn.textContent="Save Progress"; }
   const stillDirty = Object.keys(qttDirty).some(k=>qttDirty[k]);
   qttSetStatus(stillDirty ? (qttOffline ? "offline" : "unsaved") : "saved");
