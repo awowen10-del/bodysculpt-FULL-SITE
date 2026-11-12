@@ -233,6 +233,7 @@ const notesPostsFor = (posts, field) =>
     const before = posts.length;
     ctx.wpNotesSwitchTab("foodNotes");
     assert.strictEqual(st.plan.notes, MARK + "unsaved brain dump", "outgoing tab's edit committed to its field on switch");
+    await new Promise((r) => setTimeout(r, 10));   // v299: saves queue, so the request leaves a tick later
     const committed = lastPost(posts, (p) => p.body.weeklyPlan && "notes" in p.body.weeklyPlan);
     assert.ok(committed && committed.body.weeklyPlan.notes === MARK + "unsaved brain dump", "…and saved through wpSaveSection('notes')");
     assert.ok(posts.length > before, "a save fired on tab switch");

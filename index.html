@@ -2899,6 +2899,18 @@ let wpDefaults = null;      // recurring master list (array of {title}) = the sa
 let wpTraining = null;      // v71: personal training list — SEPARATE collection ("weekly-training-defaults"),
                             // same days+slot engine as recurring, never mixed into wpDefaults
 let wpWeekEnding = null;
+/* v299: three guards on the week's plan.
+   wpLoadSeq    — each load takes a number; an answer that is no longer the latest is dropped,
+                  so flicking through weeks cannot leave one week's plan under another's name.
+   wpPlanLoaded — true only when wpPlan is a plan that really came back from the store for the
+                  week on screen. A failed load leaves it false and nothing can be saved, where
+                  it used to be treated as an empty week and saved over the real one.
+   wpSaveChain  — saves for a week go one at a time, in order, each carrying the lastUpdated
+                  the page holds, so two quick saves cannot cancel each other and a stale tab
+                  is refused by the store (409) instead of overwriting newer work. */
+let wpLoadSeq = 0;
+let wpPlanLoaded = false;
+let wpSaveChain = Promise.resolve();
 let wpMonthFocus = null;   // this month's focus items (read-only anchor from Monthly)
 // v214: the live projects, read once when the week loads, so the Projects box can offer
 // their open steps. Read-only here apart from the stepLink route; if the fetch fails the
@@ -3770,6 +3782,8 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
   const wk = explicitWeek || (NAV_WEEKS[navIdx]) || (DERIVED[idx] ? DERIVED[idx].weekEnding : null);
   if(!wk){ document.getElementById("wpBody").innerHTML = `<div class="wp-loading">No week selected.</div>`; return; }
   wpWeekEnding = wk;
+  const seq = ++wpLoadSeq;
+  wpPlanLoaded = false;
   document.getElementById("wpBody").innerHTML = `<div class="wp-loading">Loading this week's plan…</div>`;
   await wpLoadDefaults();
   await wpLoadTraining();   // v71: personal training list (separate collection)
@@ -3783,11 +3797,20 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
     // instead of re-fetching, which can hit a stale read-after-write on the blob store.
     plan = preloadedPlan;
   } else {
+    // v299: a read that FAILS is not an empty week. Only a good answer with no plan in it is.
+    let readOk = false;
     try{
-      const r = await fetch(WP_STORE + "?weeklyplan=" + encodeURIComponent(wk)).then(x=>x.json());
-      plan = r.plan;
-    }catch(e){ plan = null; }
+      const res = await fetch(WP_STORE + "?weeklyplan=" + encodeURIComponent(wk));
+      if(res.ok){ const r = await res.json(); if(r && typeof r === "object" && !r.error){ plan = r.plan || null; readOk = true; } }
+    }catch(e){ readOk = false; }
+    if(seq !== wpLoadSeq) return;            // a newer week was asked for while this one loaded
+    if(!readOk){
+      document.getElementById("wpBody").innerHTML = `<div class="wp-loading" role="alert">This week's plan didn't load, so nothing is shown and nothing can be changed. Your saved plan has not been touched.
+        <div style="margin-top:12px"><button type="button" class="wp-finish-btn" onclick="loadWeeklyPlan('${wpEsc(wk)}')">Try again</button></div></div>`;
+      return;
+    }
   }
+  if(seq !== wpLoadSeq) return;
   if(!plan) plan = { weekEnding:wk, lastUpdated:"" };
 
   // Cascade anchor: pull this month's focus (the week key's month) from Monthly.
@@ -3867,7 +3890,9 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
     lastUpdated: plan.lastUpdated || ""
   };
 
+  if(seq !== wpLoadSeq) return;              // v299: never put a stale answer under a newer week's name
   wpPlan = norm;
+  wpPlanLoaded = true;
   await wpSeedRecurringPlacements(wk);
   // v227: project steps are read live from their boards. Old weeks that hold copies of them
   // are turned into nothing-but-a-pointer first (once), then the week's steps are laid out.
@@ -5401,21 +5426,62 @@ const WP_SECTION_FIELDS = {
   review: ["review","reviewChecklist"],   // v78: the ritual checklist saves on the review path
   carry: ["carryItems","projectItems","bufferItems","placements"]
 };
-async function wpSaveSection(sectionKey){
-  if(!wpPlan || !wpWeekEnding) return;
+function wpSaveSection(sectionKey){
+  if(!wpPlan || !wpWeekEnding) return Promise.resolve();
   wpSyncFromDom();
+  const run = ()=>wpSaveSectionNow(sectionKey);
+  wpSaveChain = wpSaveChain.then(run, run);
+  return wpSaveChain;
+}
+async function wpSaveSectionNow(sectionKey){
+  if(!wpPlan || !wpWeekEnding) return;
+  // only a plan that really loaded, for the week on screen, may be saved (see wpPlanLoaded)
+  if(!wpPlanLoaded || wpPlan.weekEnding !== wpWeekEnding) return;
   const msg = document.getElementById("wpmsg-"+sectionKey);
   if(msg){ msg.textContent = "Saving…"; msg.className = "wp-ssaved"; }
-  const patch = { weekEnding: wpWeekEnding };
+  const patch = { weekEnding: wpPlan.weekEnding };
   (WP_SECTION_FIELDS[sectionKey]||[]).forEach(f=>{ patch[f] = wpPersistable(f, wpPlan[f]); });
+  const failed = (label)=>{
+    if(msg){ msg.textContent = label; msg.className = "wp-ssaved"; }
+    wpToast("That change was not saved. It is still on screen: check your connection and make any change to try again.");
+  };
   try{
-    const r = await fetch(WP_STORE, {method:"POST",headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ weeklyPlan: patch })}).then(x=>x.json());
+    const res = await fetch(WP_STORE, {method:"POST",headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ weeklyPlan: patch, base: wpPlan.lastUpdated || "" })});
+    if(res.status === 409){
+      // the stored week moved on after this page loaded it: take the newer one rather than overwrite it
+      wpToast("This week was changed somewhere else (another tab, the Daily page or Grok), so the latest has been loaded. Your last change was not saved: make it again.");
+      await loadWeeklyPlan(wpWeekEnding);
+      return;
+    }
+    const r = await res.json();
     if(r && r.ok){
       if(r.plan && r.plan.lastUpdated) wpPlan.lastUpdated = r.plan.lastUpdated;
       if(msg){ msg.textContent = "Saved " + wpFmtTime(wpPlan.lastUpdated); msg.className = "wp-ssaved ok"; }
-    } else if(msg){ msg.textContent = "Save failed"; msg.className = "wp-ssaved"; }
-  }catch(e){ if(msg){ msg.textContent = "Couldn't reach store"; msg.className = "wp-ssaved"; } }
+    } else failed("Save failed");
+  }catch(e){ failed("Couldn't reach store"); }
+}
+/* v299: when the tab comes back into view, check whether the week changed while it was away
+   (ticks on the Daily page, Grok) and load the newer copy. Skipped while something is being
+   typed or a save is on its way, so it never takes text out from under the cursor. */
+let wpRefreshBusy = false;
+async function wpRefreshIfStale(){
+  if(wpRefreshBusy || !wpPlanLoaded || !wpPlan || !wpWeekEnding || wpPlan.weekEnding !== wpWeekEnding) return;
+  const a = document.activeElement;
+  if(a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.isContentEditable)) return;
+  wpRefreshBusy = true;
+  try{
+    await wpSaveChain;
+    const wk = wpWeekEnding;
+    const res = await fetch(WP_STORE + "?weeklyplan=" + encodeURIComponent(wk));
+    if(!res.ok) return;
+    const r = await res.json();
+    const stored = (r && r.plan && r.plan.lastUpdated) || "";
+    if(wk === wpWeekEnding && wpPlanLoaded && stored !== (wpPlan.lastUpdated || "")) await loadWeeklyPlan(wk);
+  }catch(e){} finally{ wpRefreshBusy = false; }
+}
+if(typeof document !== "undefined" && document.addEventListener){
+  document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState === "visible") wpRefreshIfStale(); });
 }
 
 // v78: toggle one review-ritual item. Flips the per-week tick (keyed by the item id), saves
