@@ -106,7 +106,7 @@ const dstyle = DAILY.slice(DAILY.indexOf("<style>") + 7, DAILY.indexOf("</style>
     /* v221: CK_FIELDS and renderCheckin() named the card the questions arrived in. The
        questions are still here and still this page's — they are asked in focus mode's
        morning now, which is what the fm_ ids below check. */
-    "JSON.stringify({ checkin: next })", "id=\"fm_mind\"", "id=\"fm_one\"",
+    "JSON.stringify({ checkin: next, only: Object.keys(patch || {}) })", "id=\"fm_mind\"", "id=\"fm_one\"",
     "const CK_HABITS", "ckToggleHabit", "data-habit",
   ]) {
     assert.ok(djs.includes(here), "the daily page has " + here);
@@ -127,7 +127,7 @@ const dstyle = DAILY.slice(DAILY.indexOf("<style>") + 7, DAILY.indexOf("</style>
      The whole point of removing it. Two pages writing the same date was survivable while it
      was deliberate and temporary; leaving it that way was not. */
   assert.ok(!/checkin:/.test(wjs), "the weekly page cannot write a check-in at all any more");
-  assert.ok(/JSON\.stringify\(\{ checkin: next \}\)/.test(djs), "the daily page is the only one that can");
+  assert.ok(/JSON\.stringify\(\{ checkin: next, only: Object\.keys\(patch \|\| \{\}\) \}\)/.test(djs), "the daily page is the only one that can");
   assert.ok(/\?checkins=1/.test(wjs), "…while the weekly page still READS them for its tracker");
 
   console.log("v154-the-day-moved.test: all assertions passed");

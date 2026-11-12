@@ -25,7 +25,7 @@ const DAILY = fs.readFileSync(path.join(__dirname, "..", "daily.html"), "utf8");
      morning now, and asking them twice on one page was the noise Ash described. What v80 is
      actually about is unchanged and still checked — the check-in belongs to the DAILY page,
      it is one record per date, and it is written through one payload. */
-  for (const here of ["function ckEntry(", "function ckSave(", "JSON.stringify({ checkin: next })",
+  for (const here of ["function ckEntry(", "function ckSave(", "JSON.stringify({ checkin: next, only: Object.keys(patch || {}) })",
                       "const CK_HABITS", "CK_EVENING_HOUR"]) {
     assert.ok(DAILY.includes(here), "…and the daily page has " + here);
   }

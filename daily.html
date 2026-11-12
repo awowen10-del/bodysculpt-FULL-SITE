@@ -3882,13 +3882,26 @@ async function ckSave(patch) {
   const date = ckToday();
   const next = { ...ckEntry(date), ...patch, date };
   checkinAll = checkinAll || {};
+  const before = checkinAll[date];
   checkinAll[date] = next;                       // on screen first
-  const r = await fetch(API, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ checkin: next }),
-  });
-  if (!r.ok) throw new Error("HTTP " + r.status);
+  /* v299: `only` tells the store which fields this save is about, and it lays just those over
+     the day it has stored. The whole day used to be sent from this page's copy, so one habit
+     tick from a page open since the morning blanked answers written since. And a save that
+     fails now puts the screen back and says so, where it used to look saved. */
+  let r;
+  try {
+    r = await fetch(API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ checkin: next, only: Object.keys(patch || {}) }),
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+  } catch (e) {
+    if (before === undefined) delete checkinAll[date]; else checkinAll[date] = before;
+    checkinState = checkinAll[ckToday()] || null;
+    if (typeof wtBarShow === "function") wtBarShow({ msg: "That did not save. Check your connection and try again." });
+    throw e;
+  }
   const back = await r.json();
   if (back && back.checkin) checkinAll[date] = back.checkin;   // the server re-cleans and stamps
   checkinState = checkinAll[ckToday()] || null;

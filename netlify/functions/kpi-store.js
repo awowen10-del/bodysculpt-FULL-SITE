@@ -1648,7 +1648,21 @@ export default async (req) => {
       const date = body.checkin.date;
       if (!validWeekDate(date)) return new Response("Bad checkin.date (expected YYYY-MM-DD)", { status: 400 });
       const map = (await store.get(DAILY_CHECKINS_KEY, { type: "json" })) || {};
-      const entry = cleanCheckin(body.checkin);
+      /* v299: `only` names the fields this save is about. The page used to send the whole day
+         from the copy it loaded and the day was replaced whole, so one habit tick from a page
+         that had been open a while (or whose check-ins failed to load) blanked the morning's
+         answers written since. With `only`, the named fields are laid over the STORED day and
+         habits are merged tick by tick. A caller that sends no `only` behaves as before. */
+      let incoming = body.checkin;
+      if (Array.isArray(body.only)) {
+        const had = (map[date] && typeof map[date] === "object") ? map[date] : {};
+        incoming = { ...had, date };
+        for (const f of body.only) {
+          if (typeof f !== "string" || f === "date" || !(f in body.checkin)) continue;
+          incoming[f] = f === "habits" ? { ...(had.habits || {}), ...((body.checkin.habits && typeof body.checkin.habits === "object") ? body.checkin.habits : {}) } : body.checkin[f];
+        }
+      }
+      const entry = cleanCheckin(incoming);
       map[date] = entry;
       await store.set(DAILY_CHECKINS_KEY, JSON.stringify(map));
       return Response.json({ ok:true, checkin: entry });

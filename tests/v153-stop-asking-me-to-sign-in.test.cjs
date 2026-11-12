@@ -66,7 +66,7 @@ const FT = read("focus-timer.js");
   assert.ok(/richToText\(e\.oneThing\)\.trim\(\)/.test(js), "…and for display");
 
   /* ============ 3. the store is untouched ============ */
-  assert.ok(/JSON\.stringify\(\{ checkin: next \}\)/.test(js),
+  assert.ok(/JSON\.stringify\(\{ checkin: next, only: Object\.keys\(patch \|\| \{\}\) \}\)/.test(js),
     "it posts the same { checkin } payload the modal did");
   assert.ok(/\.\.\.ckEntry\(date\), \.\.\.patch, date/.test(js),
     "…merging into the day's existing entry rather than replacing it");

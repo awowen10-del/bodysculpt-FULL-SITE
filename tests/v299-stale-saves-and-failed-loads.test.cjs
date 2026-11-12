@@ -92,6 +92,23 @@ const WEEK = "2026-11-09";
   assert.strictEqual(r.status, 409);
   assert.strictEqual(JSON.parse(kpi._m.get("finance-txns-2026-10")).rows.length, 1, "the month is untouched");
 
+  // the daily check-in: a save names its fields, and only those are laid over the stored day
+  r = await POST(handler, { checkin: { date: "2026-11-12", mind: "the morning's answer", gratitude: "family", oneThing: "the offer" } });
+  assert.strictEqual(r.status, 200);
+  r = await POST(handler, { checkin: { date: "2026-11-12", mind: "", gratitude: "", oneThing: "", habits: { read: true } }, only: ["habits"] });
+  let day = JSON.parse(kpi._m.get("daily-checkins"))["2026-11-12"];
+  assert.strictEqual(day.mind, "the morning's answer", "a habit tick from a stale page does not blank the morning's answers");
+  assert.strictEqual(day.oneThing, "the offer");
+  const habitId = Object.keys(day.habits)[0];
+  if (habitId) {
+    r = await POST(handler, { checkin: { date: "2026-11-12", habits: { [habitId]: false } }, only: ["habits"] });
+    day = JSON.parse(kpi._m.get("daily-checkins"))["2026-11-12"];
+    assert.strictEqual(day.habits[habitId], false, "and a habit can still be unticked");
+  }
+  r = await POST(handler, { checkin: { date: "2026-11-12", mind: "replaced whole" } });
+  day = JSON.parse(kpi._m.get("daily-checkins"))["2026-11-12"];
+  assert.strictEqual(day.oneThing, "", "a caller that sends no `only` replaces the day, as before");
+
   // ---------- the Weekly page ----------
   const mkFetch = (ctx, served, mode, posts) => async (url, o) => {
     const u = String(url);
