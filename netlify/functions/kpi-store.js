@@ -884,11 +884,8 @@ export default async (req) => {
   const store = getStore({ name: "bodysculpt-kpi", consistency: "strong" });
   const url = new URL(req.url);
 
-  // One-time reset: GET /.netlify/functions/kpi-store?reset=YES wipes all stored weeks.
-  if (req.method === "GET" && url.searchParams.get("reset") === "YES") {
-    await store.set(KEY, JSON.stringify([]));
-    return Response.json({ ok:true, reset:true, message:"Store cleared. Reload the dashboard to re-seed real history." });
-  }
+  // v299: the one-time "?reset=YES" address is gone. It emptied every stored week on a plain
+  // GET, with no sign-in and no confirmation, and the Weekly page used to call it by itself.
 
   // Settings (targets): GET ?settings=1 returns saved targets; POST {settings:{...}} saves them.
   if (req.method === "GET" && url.searchParams.get("settings") === "1") {
@@ -2236,39 +2233,17 @@ export default async (req) => {
       return Response.json({ ok:true, month: body.month, months: await withBankIn(store, months) });
     }
 
-    // Bulk monthly seed: merge many month records in ONE atomic write.
-    // Existing months are kept unless overwrite=true; seeded months are upserted by ym.
-    if (Array.isArray(body.monthsBulk)) {
-      const months = (await store.get(MONTHS_KEY, { type: "json" })) || [];
-      let written = 0;
-      for (const rec of body.monthsBulk) {
-        if (!rec || !rec.ym) continue;
-        const i = months.findIndex((m) => m.ym === rec.ym);
-        if (i >= 0) {
-          if (body.overwrite) { months[i] = { ...months[i], ...rec }; written++; }
-        } else {
-          months.push(rec); written++;
-        }
-      }
-      months.sort((a, b) => (a.ym < b.ym ? -1 : 1));
-      await store.set(MONTHS_KEY, JSON.stringify(months));
-      return Response.json({ ok:true, written, months });
-    }
-
-    // Bulk seed: write many weeks at once, ONLY if the store is currently empty.
-    if (body.seedAll && Array.isArray(body.weeks)) {
-      const existing = (await store.get(KEY, { type: "json" })) || [];
-      if (existing.length === 0) {
-        const seeded = body.weeks.slice().sort((a,b)=>(a.weekEnding<b.weekEnding?-1:1));
-        await store.set(KEY, JSON.stringify(seeded));
-        return Response.json({ ok:true, seeded:seeded.length, weeks:seeded });
-      }
-      return Response.json({ ok:true, seeded:0, note:"store not empty, seed skipped", weeks:existing });
-    }
+    // v299: the bulk "monthsBulk" route is gone. Its only caller was monthly.html?seed=YES,
+    // which overwrote January to June with the original spreadsheet figures on a page load.
+    // v299: the bulk "seedAll" route is gone with the page's auto-seed that was its only caller.
 
     const w = body.week;
     if (!w || !w.weekEnding) {
       return new Response("Missing week.weekEnding", { status: 400 });
+    }
+    // v299: a week is filed under its date, so the date has to be a real one
+    if (typeof w.weekEnding !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(w.weekEnding) || isNaN(Date.parse(w.weekEnding + "T00:00:00Z"))) {
+      return new Response("week.weekEnding must be a real date, YYYY-MM-DD", { status: 400 });
     }
 
     const weeks = (await store.get(KEY, { type: "json" })) || [];

@@ -1347,7 +1347,10 @@ async function savePlanningSection(patch, btn, msgEl){
       return;
     }
   }
-  const body = { planning: Object.assign({ year: YEAR, quarter: planTag.split("-")[1] }, patch) };
+  // v299: the year comes from the quarter being saved (planTag), not from today's date. It used
+  // to be YEAR, so a save made while viewing 2027 landed in 2026's quarter of the same number,
+  // and from 1 January every save on a 2026 quarter would have been filed under 2027.
+  const body = { planning: Object.assign({ year: tagYearOf(planTag), quarter: planTag.split("-")[1] }, patch) };
   if(btn){ btn.disabled = true; btn.textContent = "Saving…"; }
   try{
     const res = await fetch(STORE, { method:"POST", headers:{"Content-Type":"application/json"},

@@ -2429,36 +2429,35 @@ const SEED=[
   {weekEnding:"2026-05-24",adSpend:28.93,leads:5,trialSales:0,signups:0,cancellations:0,recurring:156,recurringSource:"recorded",paused:2,trialists:18,totalActive:174,attendance:67},
   {weekEnding:"2026-05-31",adSpend:60.99,leads:10,trialSales:3,signups:3,cancellations:0,recurring:159,recurringSource:"recorded",paused:3,trialists:16,totalActive:175,attendance:68}
 ];
-let DATA_SOURCE='sample';
+let DATA_SOURCE='sample';   // 'live' | 'sample' (the store really is empty) | 'error' (the load failed)
+let KPI_BAD_ROWS=0;         // stored weeks whose date could not be read; skipped, never wiped
+const kpiDateOk = d => /^\d{4}-\d{2}-\d{2}$/.test(d||'') && !isNaN(Date.parse(d+'T00:00:00Z'));
 const Store={
+  /* v299: this used to RESET THE STORE and re-seed the sample whenever the history "looked
+     wrong" (fewer than 5 weeks, or one week with a malformed date). That check ran on every
+     load and after every save, so one typo could wipe every week ever entered. The page now
+     never resets and never seeds: a bad row is skipped and counted, a failed load is reported
+     as a failed load, and the sample is shown only when the store truly holds nothing. */
   async all(){
+    KPI_BAD_ROWS=0;
     try{const r=await fetch('/.netlify/functions/kpi-store');
       if(r.ok){const d=await r.json();
-        const weeks=Array.isArray(d.weeks)?d.weeks:[];
-        // Valid history = at least a few weeks each with a real weekEnding date.
-        const looksValid = weeks.length>=5 && weeks.every(w=>w&&/^\d{4}-\d{2}-\d{2}$/.test(w.weekEnding||''));
-        if(looksValid){DATA_SOURCE='live';return weeks;}
-        // empty OR junk -> reset and seed clean
-        DATA_SOURCE='live';
-        await this.reset();
-        await this.seed();
+        const all=Array.isArray(d.weeks)?d.weeks:[];
+        const weeks=all.filter(w=>w&&kpiDateOk(w.weekEnding));
+        KPI_BAD_ROWS=all.length-weeks.length;
+        if(weeks.length){DATA_SOURCE='live';return weeks;}
+        DATA_SOURCE = all.length ? 'error' : 'sample';
         return SEED.slice();
       }}catch(e){}
+    DATA_SOURCE='error';
     return SEED.slice();
   },
-  async reset(){
-    try{ await fetch('/.netlify/functions/kpi-store?reset=YES'); }catch(e){}
-  },
-  async seed(){
-    // one bulk write of all seed weeks (store only accepts this when empty)
-    try{ await fetch('/.netlify/functions/kpi-store',{method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({seedAll:true, weeks:SEED})}); }catch(e){}
-  },
   async save(week){
-    const r=await fetch('/.netlify/functions/kpi-store',{method:'POST',
-      headers:{'Content-Type':'application/json'},body:JSON.stringify({week})});
-    return r.ok;
+    try{
+      const r=await fetch('/.netlify/functions/kpi-store',{method:'POST',
+        headers:{'Content-Type':'application/json'},body:JSON.stringify({week})});
+      return r.ok;
+    }catch(e){ return false; }
   },
   async loadSettings(){
     try{const r=await fetch('/.netlify/functions/kpi-store?settings=1');
@@ -2466,11 +2465,31 @@ const Store={
     return null;
   },
   async saveSettings(settings){
-    const r=await fetch('/.netlify/functions/kpi-store',{method:'POST',
-      headers:{'Content-Type':'application/json'},body:JSON.stringify({settings})});
-    return r.ok;
+    try{
+      const r=await fetch('/.netlify/functions/kpi-store',{method:'POST',
+        headers:{'Content-Type':'application/json'},body:JSON.stringify({settings})});
+      return r.ok;
+    }catch(e){ return false; }
   }
 };
+/* v299: say plainly where the numbers on screen came from. Sample figures and a failed load
+   used to look exactly like real data under a pill that always read "Your data". */
+function kpiSourceNote(){
+  const pill=document.getElementById('srcPill');
+  const label = DATA_SOURCE==='live' ? 'Your data' : DATA_SOURCE==='error' ? 'Could not load your numbers' : 'Sample data';
+  if(pill){ const ic=pill.querySelector('svg'); pill.textContent=' '+label; if(ic) pill.insertBefore(ic,pill.firstChild); }
+  let bar=document.getElementById('kpiSrcBar');
+  const msg = DATA_SOURCE==='error'
+    ? 'Your KPI numbers did not load, so the figures below are built-in sample data, not yours. Nothing has been changed. Reload the page to try again; saving a week is switched off until they load.'
+    : DATA_SOURCE==='sample' ? 'No KPI weeks are stored yet, so the figures below are built-in sample data.'
+    : KPI_BAD_ROWS ? (KPI_BAD_ROWS+' stored week'+(KPI_BAD_ROWS===1?' has':'s have')+' a date that cannot be read and '+(KPI_BAD_ROWS===1?'is':'are')+' not shown. Nothing has been deleted.') : '';
+  if(!msg){ if(bar) bar.remove(); return; }
+  if(!bar){ bar=document.createElement('div'); bar.id='kpiSrcBar'; bar.setAttribute('role','alert');
+    bar.style.cssText='margin:0 0 12px;padding:10px 14px;border-radius:var(--r-md);border:1px solid rgba(var(--red-rgb),.35);background:rgba(var(--red-rgb),.06);color:var(--tint-red);font-size:13.5px;font-weight:600;line-height:1.45;';
+    const host=document.querySelector('footer'); if(host&&host.parentNode) host.parentNode.insertBefore(bar,host.parentNode.firstChild); }
+  bar.textContent=msg;
+}
+
 
 /* ===== DERIVE ===== */
 function fmtDate(iso){const d=new Date(iso+'T00:00:00');
@@ -8381,6 +8400,7 @@ function wpHabitCardHtml(){
     if(saved.ACQ && typeof saved.ACQ==='object') ACQ = Object.assign({}, ACQ, saved.ACQ);
   }
   WEEKS=await Store.all();
+  kpiSourceNote();
   WEEKS.sort((a,b)=>a.weekEnding<b.weekEnding?-1:1);
   recomputeRecurringChain();
   DERIVED=WEEKS.map((w,i)=>derive(w,i>0?WEEKS[i-1]:null));
@@ -9617,6 +9637,8 @@ function wireEntry(){
   saveBtn.addEventListener('click',async()=>{
     const weekEnding=document.getElementById('e_weekEnding').value;
     if(!weekEnding){ msg.textContent='Pick a week ending date.'; msg.className='entry-msg err'; return; }
+    if(!kpiDateOk(weekEnding)){ msg.textContent='That date is not a real date. Pick it again.'; msg.className='entry-msg err'; return; }
+    if(DATA_SOURCE==='error'){ msg.textContent='Your numbers did not load, so nothing can be saved yet. Reload the page first.'; msg.className='entry-msg err'; return; }
     const existing=WEEKS.find(w=>w.weekEnding===weekEnding);
     const s=num('e_signups')||0, c=num('e_cancellations')||0;
     const ov=num('e_recurringOverride');
@@ -9704,6 +9726,7 @@ function recomputeRecurringChain(){
 async function reloadAndRender(keepWeekEnding){
   const wantWeek = keepWeekEnding || (DERIVED[idx] && DERIVED[idx].weekEnding);
   WEEKS=await Store.all();
+  kpiSourceNote();
   WEEKS.sort((a,b)=>a.weekEnding<b.weekEnding?-1:1);
   recomputeRecurringChain();
   DERIVED=WEEKS.map((w,i)=>derive(w,i>0?WEEKS[i-1]:null));

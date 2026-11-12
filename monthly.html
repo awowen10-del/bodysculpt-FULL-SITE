@@ -2369,62 +2369,8 @@ function wire(){
   });
 }
 
-// ===================== ONE-TIME SEED (Jan–Jun 2026 from the sheet) =====================
-// Figures taken directly from the 2026 Numbers spreadsheet. Flow/snapshot/manual fields only;
-// ratios + Net Gain + Total Members + Expense Total calculate from these on render.
-// Only writes a month with no saved record yet (won't clobber anything you've typed).
-const SEED_2026 = [
-  {ym:"2026-01", charged:15532, recurringRev:14777, trialRev:755, otherRev:0, banked:15238, atp:107.12, processingFees:294,
-   signups:1, cancellations:3, recurring:136, paused:1, adSpend:0, leads:2, trialSales:9,
-   taxPaid:6645.45, staffNet:5083.61, pensions:323.46, rent:4020, accounting:520.2, software:787.23,
-   marketing:28, cleaning:59.62, lease:1016.68, bills:851.49, website:21, retail:185.43, otherExp:264.08,
-   travel:512.24, mentorship:443.6, charges:26.56, ownersPay:2353.6, neil:1330.89, taxSaved:4247},
-  {ym:"2026-02", charged:17048, recurringRev:15925, trialRev:1123, otherRev:0, banked:16758, atp:115.19, processingFees:290,
-   signups:14, cancellations:10, recurring:140, paused:1, adSpend:394, leads:41, trialSales:8,
-   taxPaid:1128.34, staffNet:5083.61, pensions:323.46, rent:2010, accounting:1040.4, software:742.06,
-   marketing:28, cleaning:0, lease:1139.09, bills:505.67, website:21, retail:19.59, otherExp:288.75,
-   travel:473.1, mentorship:464.11, charges:26.4, ownersPay:2427.6, neil:601.11, taxSaved:-153.25},
-  {ym:"2026-03", charged:18838, recurringRev:16243, trialRev:2595, otherRev:0, banked:18528, atp:122.32, processingFees:310,
-   signups:3, cancellations:2, recurring:141, paused:1, adSpend:181.52, leads:30, trialSales:13,
-   taxPaid:2560, staffNet:5084, pensions:323.46, rent:2010, accounting:526.1, software:777.91,
-   marketing:655.97, cleaning:123.17, lease:1091.65, bills:476.69, website:25.5, retail:425.74, otherExp:676.15,
-   travel:450.71, mentorship:437.72, charges:25.66, ownersPay:2425, neil:997.32, taxSaved:2714},
-  {ym:"2026-04", charged:0, recurringRev:0, trialRev:0, otherRev:575.5, banked:0, atp:0,
-   signups:13, cancellations:1, recurring:153, paused:2, adSpend:942.57, leads:113, trialSales:14,
-   taxPaid:5711, staffNet:6295, pensions:323.46, rent:2218.38, accounting:610.2, software:925.95,
-   marketing:561.31, cleaning:65.23, lease:1630.85, bills:316.52, website:0, retail:617.63, otherExp:273.61,
-   travel:191.32, mentorship:187.1, charges:26.67, ownersPay:3312, neil:1000, taxSaved:4159},
-  {ym:"2026-05", charged:0, recurringRev:0, trialRev:0, otherRev:911.5, banked:0, atp:0,
-   signups:5, cancellations:0, recurring:158, paused:3, adSpend:605.07, leads:54, trialSales:6,
-   taxPaid:260, staffNet:6075, pensions:379.34, rent:2237.52, accounting:521.79, software:880.51,
-   marketing:591.63, cleaning:75.32, lease:1031.61, bills:322.2, website:21, retail:935.14, otherExp:95.95,
-   travel:310.78, mentorship:150, charges:26.92, ownersPay:2689, neil:999.67, taxSaved:3396.3},
-  {ym:"2026-06", charged:0, recurringRev:0, trialRev:0, otherRev:0, banked:0, atp:0,
-   signups:0, cancellations:0, recurring:0, paused:0, adSpend:107.95, leads:1, trialSales:6,
-   taxPaid:0, staffNet:6548.21, pensions:357.06, rent:2010, accounting:534.65, software:988.52,
-   marketing:1040.49, cleaning:0, lease:1975.49, bills:533.73, website:21, retail:993.37, otherExp:76.94,
-   travel:71.53, mentorship:187.93, charges:29.77, ownersPay:0, neil:0, taxSaved:0}
-];
-async function runSeed(){
-  const el = document.getElementById("loadState");
-  el.hidden = false;
-  el.textContent = "Seeding Jan–Jun…";
-  try{
-    const res = await fetch(STORE, {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ monthsBulk: SEED_2026, overwrite: true })
-    });
-    const data = await res.json();
-    if(data.ok){
-      (data.months||[]).forEach(m => { if(m && m.ym) MONTHREC[m.ym] = m; });
-      el.textContent = `Seed complete — ${data.written} month(s) written. Remove ?seed=YES from the URL and reload.`;
-    } else {
-      el.textContent = "Seed failed: " + (data.error || "unknown error") + ". Check the function deployed.";
-    }
-  }catch(e){
-    el.textContent = "Seed failed to reach the store. Confirm netlify/functions/kpi-store.js deployed.";
-  }
-}
+// v299: the one-time seed (SEED_2026, runSeed, ?seed=YES) is gone. It had done its job, and
+// opening the page with ?seed=YES again overwrote January to June with the old sheet figures.
 
 async function boot(){
   wire();
@@ -2432,12 +2378,6 @@ async function boot(){
   rebuildMonthSel();
   updatePeriodBar();
   document.getElementById("loadState").hidden = true;
-  const params = new URLSearchParams(location.search);
-  if(params.get("seed") === "YES"){
-    await runSeed();
-    await loadAll();
-    rebuildMonthSel();
-  }
   // the landing view — unless the rail's "Monthly KPIs" link brought you here (v165)
   showView(mpViewFromHash());
   window.addEventListener("hashchange", ()=>showView(mpViewFromHash()));
