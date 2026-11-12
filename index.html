@@ -2908,6 +2908,12 @@ let wpWeekEnding = null;
    wpSaveChain  — saves for a week go one at a time, in order, each carrying the lastUpdated
                   the page holds, so two quick saves cannot cancel each other and a stale tab
                   is refused by the store (409) instead of overwriting newer work. */
+/* v299: did each all-weeks list really load? A failed read used to become an empty list for the
+   rest of the session, and the next "+ Add" saved that near-empty list over the real one
+   (every recurring task gone). A list that did not load is shown empty, is asked for again on
+   the next week load, and cannot be saved. */
+const wpListsOk = { defaults:false, training:false, loc:false };
+function wpListNotLoaded(what){ wpToast("Your " + what + " didn't load, so that change was not saved and nothing stored has been touched. Reload the page and try again."); }
 let wpLoadSeq = 0;
 let wpPlanLoaded = false;
 let wpSaveChain = Promise.resolve();
@@ -2960,11 +2966,14 @@ function wpToItems(v){
 }
 
 async function wpLoadDefaults(){
-  if(wpDefaults != null) return wpDefaults;
+  if(wpDefaults != null && wpListsOk.defaults) return wpDefaults;
   let minted = false; // did we have to invent an id for a stored task?
   try{
-    const r = await fetch(WP_STORE + "?recurringdefaults=1").then(x=>x.json());
-    const arr = Array.isArray(r.defaults) ? r.defaults : [];
+    const res = await fetch(WP_STORE + "?recurringdefaults=1");
+    const r = res.ok ? await res.json() : null;
+    if(!r || !Array.isArray(r.defaults)) throw new Error("recurring list did not load");
+    const arr = r.defaults;
+    wpListsOk.defaults = true;
     wpDefaults = arr.map(d=>{
       if(d && d.title){
         const it = { id: d.id || wpUid(), title: String(d.title) };
@@ -3003,10 +3012,11 @@ async function wpLoadDefaults(){
     // v63: the store now persists ids — if any were missing (pre-v63 data), save once so
     // "recurring:<id>" placement refs stay stable across reloads from here on.
     if(minted && wpDefaults.length) await wpSaveDefaults();
-  }catch(e){ wpDefaults = []; }
+  }catch(e){ wpDefaults = []; wpListsOk.defaults = false; }
   return wpDefaults;
 }
 async function wpSaveDefaults(){
+  if(!wpListsOk.defaults){ wpListNotLoaded("recurring tasks"); return; }
   // v64: round-trip id + days/time/link (and never wipe owner) — the store whitelists these.
   const list = (wpDefaults||[]).filter(d=>d.title && d.title.trim()).map(d=>{
     const out = { id: d.id, title: d.title.trim(), owner: d.owner || "" };
@@ -3035,10 +3045,13 @@ async function wpSaveDefaults(){
 // legacy shapes to migrate (new in v71), so the loader is a lean version of
 // wpLoadDefaults with the same per-item normalisation (validated days, time, link).
 async function wpLoadTraining(){
-  if(wpTraining != null) return wpTraining;
+  if(wpTraining != null && wpListsOk.training) return wpTraining;
   try{
-    const r = await fetch(WP_STORE + "?trainingdefaults=1").then(x=>x.json());
-    const arr = Array.isArray(r.defaults) ? r.defaults : [];
+    const res = await fetch(WP_STORE + "?trainingdefaults=1");
+    const r = res.ok ? await res.json() : null;
+    if(!r || !Array.isArray(r.defaults)) throw new Error("training list did not load");
+    const arr = r.defaults;
+    wpListsOk.training = true;
     wpTraining = arr.map(d=>{
       if(!(d && d.title)) return null;
       const it = { id: d.id || wpUid(), title: String(d.title) };
@@ -3052,10 +3065,11 @@ async function wpLoadTraining(){
       // emoji is always auto-detected from the title. Old values just fall away on next save.
       return it;
     }).filter(Boolean);
-  }catch(e){ wpTraining = []; }
+  }catch(e){ wpTraining = []; wpListsOk.training = false; }
   return wpTraining;
 }
 async function wpSaveTraining(){
+  if(!wpListsOk.training){ wpListNotLoaded("training sessions"); return; }
   const list = (wpTraining||[]).filter(d=>d.title && d.title.trim()).map(d=>{
     const out = { id: d.id, title: d.title.trim() };
     if(Array.isArray(d.days) && d.days.length) out.days = d.days;
@@ -3384,14 +3398,18 @@ function wpLocIsOverride(day){
   return Object.prototype.hasOwnProperty.call(wpWeekLocations(), day);
 }
 async function wpLoadLocDefaults(){
-  if(wpLocDefaults != null) return wpLocDefaults;
+  if(wpLocDefaults != null && wpListsOk.loc) return wpLocDefaults;
   try{
-    const r = await fetch(WP_STORE + "?locationdefaults=1").then(x=>x.json());
-    wpLocDefaults = wpCleanLocations(r && r.locations, false);
-  }catch(e){ wpLocDefaults = {}; }
+    const res = await fetch(WP_STORE + "?locationdefaults=1");
+    const r = res.ok ? await res.json() : null;
+    if(!r || typeof r !== "object" || r.error) throw new Error("locations did not load");
+    wpLocDefaults = wpCleanLocations(r.locations, false);
+    wpListsOk.loc = true;
+  }catch(e){ wpLocDefaults = {}; wpListsOk.loc = false; }
   return wpLocDefaults;
 }
 async function wpSaveLocDefaults(){
+  if(!wpListsOk.loc){ wpListNotLoaded("location pattern"); return; }
   const map = wpCleanLocations(wpLocDefaultsMap(), false);
   wpLocDefaults = map;
   try{

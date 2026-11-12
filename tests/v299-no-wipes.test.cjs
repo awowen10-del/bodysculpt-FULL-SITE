@@ -72,5 +72,12 @@ assert.ok(/week\.weekEnding must be a real date/.test(STORE));
   const PROJ = read("netlify/functions/projects.js");
   const blk = PROJ.slice(PROJ.indexOf("if (body.project) {"), PROJ.indexOf("await writeProject(project);", PROJ.indexOf("if (body.project) {")));
   assert.ok(/const stored = await readProject\(project\.id\)/.test(blk) && /stored\.archivedAt : new Date\(\)\.toISOString\(\)/.test(blk), "a whole-project save takes archivedAt from the store or from now");
+  // 7. the all-weeks lists: a failed load is never cached as "empty", and cannot be saved
+  for (const [load, save, key] of [["wpLoadDefaults", "wpSaveDefaults", "defaults"], ["wpLoadTraining", "wpSaveTraining", "training"], ["wpLoadLocDefaults", "wpSaveLocDefaults", "loc"]]) {
+    const body = (fn) => INDEX.slice(INDEX.indexOf("async function " + fn + "("), INDEX.indexOf("\n}\n", INDEX.indexOf("async function " + fn + "(")));
+    assert.ok(new RegExp("wpListsOk\\." + key + " = false").test(body(load)), load + " marks a failed load");
+    assert.ok(new RegExp("&& wpListsOk\\." + key + "\\) return").test(body(load)), load + " asks again after a failed load");
+    assert.ok(new RegExp("^async function " + save + "\\(\\)\\{\\s*if\\(!wpListsOk\\." + key + "\\)").test(body(save)), save + " refuses a list that did not load");
+  }
   console.log("v299-no-wipes.test: all assertions passed");
 })().catch((e) => { console.error(e); process.exit(1); });
