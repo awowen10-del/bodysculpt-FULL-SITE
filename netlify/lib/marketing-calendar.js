@@ -51,6 +51,11 @@ export const SEED = () => ({
   links: {},     // project id -> calendar row, for projects made from the calendar and nothing else
 });
 
+// v296: a plan can be run by a project on the Projects page. Only the id is kept here; the
+// project itself, its tasks and its dates stay in the Projects store and are worked through
+// that function's own narrow doors.
+const PROJ_ID = /^[A-Za-z0-9_-]{1,40}$/;
+
 export function cleanItem(raw) {
   const r = raw || {};
   const cat = CATS.includes(r.cat) ? r.cat : null;
@@ -60,6 +65,7 @@ export function cleanItem(raw) {
   const prep = Math.max(0, Math.min(26, Math.round(Number(r.prepWeeks) || 0)));
   return { id: clip(String(r.id || ""), 40) || newId(), cat, title, start: r.start, end,
     fixed: !!r.fixed, yearly: !!r.yearly, prepWeeks: prep, notes: clip(String(r.notes || ""), 2000),
+    projectId: PROJ_ID.test(String(r.projectId || "")) ? String(r.projectId) : "",
     del: !!r.del };
 }
 
@@ -79,6 +85,8 @@ export async function applyOp(body) {
     const item = cleanItem(body.item);
     if (!item) return { error: "A plan needs a name and a start date" };
     const i = plan.items.findIndex((x) => x.id === item.id);
+    // a save that doesn't mention the project (an older page, a form without it) keeps the link
+    if (i >= 0 && !("projectId" in (body.item || {}))) item.projectId = plan.items[i].projectId || "";
     if (i >= 0) plan.items[i] = item; else plan.items.push(item);
   } else if (body.op === "delItem") {
     const it = plan.items.find((x) => x.id === body.id);
@@ -93,6 +101,13 @@ export async function applyOp(body) {
   } else if (body.op === "target") {
     if (!(body.cat in DEFAULT_TARGETS)) return { error: "That row has no weekly target" };
     plan.targets[body.cat] = Math.max(0, Math.min(14, Math.round(Number(body.value) || 0)));
+  } else if (body.op === "linkItem") {
+    // v296: join a plan to a project, or ("" ) let it go. The project itself is never touched.
+    const it = plan.items.find((x) => x.id === body.id && !x.del);
+    if (!it) return { error: "That plan is no longer here" };
+    const pid = String(body.projectId || "");
+    if (pid && !PROJ_ID.test(pid)) return { error: "That project could not be linked" };
+    it.projectId = pid;
   } else if (body.op === "linkProject") {
     if (!/^[A-Za-z0-9_-]{1,40}$/.test(String(body.id || "")) || !CATS.includes(body.cat)) return { error: "That project could not be added to the calendar" };
     plan.links = { ...plan.links, [body.id]: body.cat };

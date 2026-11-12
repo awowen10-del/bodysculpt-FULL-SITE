@@ -48,7 +48,9 @@ function cuCollect(plan, projects, today, cfg) {
     });
   });
   // The social pages are for campaigns, so they only see projects made on the Content Calendar.
-  const links = (plan && plan.links) || {};
+  // v296: a project joined to a plan on the calendar counts as made there too.
+  const links = Object.assign({}, (plan && plan.links) || {});
+  items.forEach((i) => { if (i.projectId) links[i.projectId] = i.cat; });
   (projects || []).filter((p) => p && !p.archived && p.status !== "done" && (!cfg.onlyLinked || links[p.id])).forEach((p) => {
     const steps = (p.steps || []).filter((s) => s && !s.del && !s.done && s.due && s.due <= last);
     if (p.targetDate && p.targetDate <= last) {
