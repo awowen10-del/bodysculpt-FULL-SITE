@@ -1967,16 +1967,57 @@ function toastUndo(msg, label, fn) {
   toastT = setTimeout(() => el.classList.remove("on", "act"), 8000);
 }
 
+/* ===================== v299: the guards on every read and save =====================
+   The audit of 12 Nov 2026 found four ways this page could replace a stored month, the rules
+   or the debts with something older or emptier. They are closed here, in the two functions
+   every read and write already goes through, so no save path can forget them.
+   (1) Every read of a month notes the version it read (FIN_BASE). Every save of a month sends
+       it, and the store refuses a save based on an older copy: a page left open can no longer
+       wipe rows imported since. On a refusal the month is reloaded.
+   (2) The rows on screen (S.all) belong to one month (S.allYm). They can only be saved under
+       that month, never under whichever month the heading has moved on to.
+   (3) Rules, debts and settings that FAILED to load are marked (FIN_NOT_LOADED) and cannot be
+       saved; the stand-ins used to draw the page used to be saved over the real ones. */
+const FIN_BASE = {};
+const FIN_NOT_LOADED = { finRules: false, finDebts: false, finSettings: false, finNotes: false };
+const FIN_WHAT = { finRules: "rules", finDebts: "debts", finSettings: "settings", finNotes: "notes" };
 async function api(qs) {
   const r = await fetch(API + "?" + qs);
   if (!r.ok) throw new Error(await r.text());
-  return r.json();
+  const j = await r.json();
+  if (qs.indexOf("fintxns=") === 0 && j && typeof j === "object") FIN_BASE[qs.slice(8)] = j.lastUpdated || "";
+  return j;
 }
 async function post(body) {
+  for (const k of Object.keys(FIN_NOT_LOADED)) if (body && body[k] && FIN_NOT_LOADED[k]) {
+    toast("Your " + FIN_WHAT[k] + " didn't load when the page opened, so that was not saved and nothing stored has been touched. Reload the page.");
+    throw new Error("The " + FIN_WHAT[k] + " did not load, so they were not saved. Reload the page.");
+  }
   const r = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body) });
+  if (r.status === 409 && body && body.finTxns) {
+    toast("That month was changed somewhere else after this page loaded it, so the latest has been loaded. Your last change was not saved: make it again.");
+    try { S.stored = {}; S.debtRows = null; S.trend = {}; if (body.finTxns.ym === S.ym) await loadMonth(); else await api("fintxns=" + body.finTxns.ym); } catch (e) {}
+    throw new Error("That month was changed somewhere else. The latest has been loaded: make your change again.");
+  }
   if (!r.ok) throw new Error(await r.text());
   return r.json();
+}
+// the one way a month's rows are saved
+async function postTxns(ym, rows) {
+  if (rows === S.all && S.allYm !== ym) {
+    toast("That month hasn't finished loading, so nothing was saved. Try again in a moment.");
+    throw new Error("The rows on screen are not this month's, so nothing was saved.");
+  }
+  const body = { finTxns: { ym, rows } };
+  if (typeof FIN_BASE[ym] === "string") body.base = FIN_BASE[ym];
+  const j = await post(body);
+  if (j && typeof j.lastUpdated === "string") FIN_BASE[ym] = j.lastUpdated;
+  // every other copy this page keeps of that month is now behind: the Debts tab used to save
+  // its older copy back and undo a delete made on Transactions
+  if (S.stored) S.stored[ym] = rows;
+  S.debtRows = null;
+  return j;
 }
 
 /* ---------- state ---------- */
@@ -2734,6 +2775,19 @@ async function refreshPreview() {
 async function commitImport() {
   const p = S.pending; if (!p || !p.rows.length) return;
   $("doImport").disabled = true; $("importMsg").textContent = "Saving…";
+  /* v299: read every month this import touches AGAIN, now, and stop if any read fails. The
+     preview treats a month it could not read as empty (so the preview still draws), and the
+     import used to trust that: it then replaced the whole stored month with only the
+     statement's rows. A month is only ever written from a copy read a moment before. */
+  try {
+    const yms = [...new Set(Object.keys(p.existing).concat(p.rows.map((r) => ymOf(r.date))))];
+    const now = {};
+    for (const ym of yms) now[ym] = (await api("fintxns=" + ym)).rows || [];
+    p.existing = now;
+  } catch (e) {
+    $("importMsg").textContent = "Couldn't read your saved months, so nothing was imported and nothing was changed. Try again.";
+    $("doImport").disabled = false; return;
+  }
   const byMonth = {};
   for (const ym of Object.keys(p.existing)) byMonth[ym] = p.existing[ym].slice();
   let added = 0;
@@ -2755,9 +2809,9 @@ async function commitImport() {
 
   try {
     for (const ym of Object.keys(byMonth)) {
-      await post({ finTxns: { ym, rows: byMonth[ym] } });
+      await postTxns(ym, byMonth[ym]);
     }
-    if (S.rules.length) await post({ finRules: S.rules });
+    if (S.rules.length && !FIN_NOT_LOADED.finRules) await post({ finRules: S.rules });
   } catch (e) { $("importMsg").textContent = "Could not save: " + e.message; $("doImport").disabled = false; return; }
   // v265: the statement's closing balance feeds "How much can I pay today?"
   const close = statementClosing(p.tables, p.fmt);
@@ -3223,11 +3277,11 @@ async function resetCreditsToIncome() {
   for (const r of back) r.cat = "";
   renderTxns(); renderStats(); renderMeal();
   try {
-    await post({ finTxns: { ym: S.ym, rows: S.all } });
+    await postTxns(S.ym, S.all);
     toastUndo(back.length + " credit" + (back.length === 1 ? "" : "s") + " back to income", "Undo", async () => {
       for (const w of was) w.row.cat = w.cat;
       renderTxns(); renderStats(); renderMeal();
-      try { await post({ finTxns: { ym: S.ym, rows: S.all } }); toast("Left as they were"); }
+      try { await postTxns(S.ym, S.all); toast("Left as they were"); }
       catch (e) { toast("Could not save: " + e.message); }
       await loadWeek();
     });
@@ -3252,7 +3306,7 @@ async function restoreAllDeleted() {
   renderTxns(); renderStats(); renderMeal();
   if (S.view === "breakdown") renderBreakdown();
   try {
-    await post({ finTxns: { ym: S.ym, rows: S.all } });
+    await postTxns(S.ym, S.all);
     toast(back.length + " row" + (back.length === 1 ? "" : "s") + " put back");
   } catch (e) {
     for (const r of back) r.del = true;
@@ -3277,7 +3331,7 @@ async function setDeleted(id, del) {
   renderTxns(); renderStats(); renderMeal();
   if (S.view === "breakdown") renderBreakdown();
   try {
-    await post({ finTxns: { ym: S.ym, rows: S.all } });
+    await postTxns(S.ym, S.all);
     if (del) toastUndo(dmy(r.date) + " " + money(r.amount) + " deleted", "Undo", () => setDeleted(id, false));
     else toast("Put back");
   } catch (e) {
@@ -3359,7 +3413,7 @@ async function onCellChange(el) {
 function saveMonth(ym, rows) {
   clearTimeout(saveT);
   saveT = setTimeout(async () => {
-    try { await post({ finTxns: { ym, rows } }); if (S.ym === ym) renderStats(); S.stored[ym] = rows; S.debtRows = null; }
+    try { await postTxns(ym, rows); if (S.ym === ym) renderStats(); S.stored[ym] = rows; S.debtRows = null; }
     catch (e) { toast("Could not save: " + e.message); }
   }, 600);
 }
@@ -4703,7 +4757,7 @@ async function debtRetagAll() {
     const rows = S.stored[ym] || ((await api("fintxns=" + ym)).rows || []);
     S.stored[ym] = rows;
     if (debtRetagRows(rows, S.debtDoc.debts)) {
-      await post({ finTxns: { ym, rows } });
+      await postTxns(ym, rows);
       S.trend[ym] = liveOf(rows); months++;
       if (ym === S.ym) { S.all = rows; S.rows = liveOf(rows); }
     }
@@ -5469,7 +5523,21 @@ async function renderYear() {
 }
 
 async function loadMonth() {
-  S.all = (await api("fintxns=" + S.ym)).rows || [];
+  const ym = S.ym, seq = (S.loadSeq = (S.loadSeq || 0) + 1);
+  let rows;
+  try { rows = (await api("fintxns=" + ym)).rows || []; }
+  catch (e) {
+    if (seq !== S.loadSeq) return;
+    // v299: the rows in memory are another month's now. Nothing may be saved until a load works.
+    S.allYm = ""; S.all = []; S.rows = [];
+    renderMonthSel(); renderStats(); renderMeal();
+    if (S.view === "txns") renderTxns();
+    if (S.view === "breakdown") renderBreakdown();
+    toast("That month didn't load. Nothing has been changed. Pick the month again to retry.");
+    return;
+  }
+  if (seq !== S.loadSeq || ym !== S.ym) return;   // a newer month was asked for while this one loaded
+  S.all = rows; S.allYm = ym;
   S.rows = liveOf(S.all);
   S.trend[S.ym] = S.rows;
   renderMonthSel();
@@ -5546,7 +5614,7 @@ function wire() {
       renderTxns(); renderStats();
       if (!n) return;
       try {
-        await post({ finTxns: { ym: S.ym, rows: S.all } });
+        await postTxns(S.ym, S.all);
         await post({ finRules: S.rules });
         toast(n + " sorted — and remembered");
       } catch (e) { toast("Could not save: " + e.message); }
@@ -5595,7 +5663,7 @@ async function init() {
   wireDebts();
   try {
     const [st, ru, nt, db] = await Promise.all([api("finsettings=1"), api("finrules=1"), api("finnotes=1"),
-      api("findebts=1").catch(() => ({ doc: null }))]);
+      api("findebts=1").catch(() => { FIN_NOT_LOADED.finDebts = true; return { doc: null }; })]);
     S.debtDoc = db.doc || debtClone(DEBT_SEED);
     S.settings = st.settings; S.rules = ru.rules || [];
     S.notes = (nt.notes && nt.notes.facts) || [];
@@ -5607,7 +5675,9 @@ async function init() {
       allocatable: ["stripe", "gocardless"], categories: DEFAULT_CATS };
     S.rules = []; S.notes = []; S.notesPrev = [];
     S.debtDoc = debtClone(DEBT_SEED);
-    toast("Working offline — changes will not save");
+    // v299: these are stand-ins so the page can draw. They must never be saved over the real ones.
+    FIN_NOT_LOADED.finRules = FIN_NOT_LOADED.finDebts = FIN_NOT_LOADED.finSettings = FIN_NOT_LOADED.finNotes = true;
+    toast("Your settings, rules and debts didn't load. Nothing will be saved until you reload the page.");
   }
   bustRules();
   await loadMonths();
