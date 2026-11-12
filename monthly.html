@@ -1968,7 +1968,12 @@ function updateLiveExpenseTotal(){
   document.getElementById("expTotalLive").textContent = "Expense Total: " + gbp(sum);
 }
 
+/* v299: the figures panel belongs to the month it was opened for. Changing month used to leave
+   it open with the first month's numbers and label, and Save then wrote them into the NEW
+   month. A month change now closes it, and Save refuses if the two ever disagree. */
+let moneyYm = "";
 function openMoney(){
+  moneyYm = curYm;
   document.getElementById("moneyPanelLabel").textContent = ymLabel(curYm);
   const rec = MONTHREC[curYm] || {};
   MONEY_FIELDS.forEach(f=>{
@@ -1982,10 +1987,11 @@ function openMoney(){
   document.getElementById("moneyMsg").textContent = "";
   document.getElementById("moneyPanel").scrollIntoView({behavior:"smooth",block:"nearest"});
 }
-function closeMoney(){ document.getElementById("moneyPanel").hidden = true; }
+function closeMoney(){ document.getElementById("moneyPanel").hidden = true; moneyYm = ""; }
 
 async function saveMoney(){
   const msg = document.getElementById("moneyMsg");
+  if(moneyYm !== curYm){ msg.textContent = "These figures were opened for a different month. Close this panel and open Edit figures again."; return; }
   msg.textContent = "Saving…";
   const rec = Object.assign({}, MONTHREC[curYm] || {}, { ym: curYm });
   MONEY_FIELDS.forEach(f=>{
@@ -2303,6 +2309,7 @@ async function runMentor(){
 // Central month setter — keeps dropdown, period bar and render in sync.
 function setMonth(ym){
   if(!YMS.includes(ym)) return;
+  if(ym !== curYm){ const mp = document.getElementById("moneyPanel"); if(mp && !mp.hidden) closeMoney(); }
   curYm = ym;
   try {
     localStorage.setItem("bodysculpt:selectedMonth", curYm);
@@ -2393,23 +2400,44 @@ let mpProjects = null;  // v269: every project, or null if the list did not load
 function mpQid(){ return "f"+Math.random().toString(36).slice(2,9); }
 function mpFmtTime(iso){ if(!iso) return ""; try{ const d=new Date(iso); return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}); }catch(e){ return ""; } }
 
+let mpLoadSeq = 0, mpLoaded = false, mpSaveChain = Promise.resolve();
 async function renderMonthlyPlan(){
   const ym = curYm;
   if(!ym){ document.getElementById("mpBody").innerHTML = `<div class="mp-loading">No month selected.</div>`; return; }
   mpYm = ym;
+  /* v299: three guards, the same as the Weekly page. Each load takes a number and an answer
+     that is no longer the latest is dropped (two quick month taps used to leave one month's
+     plan under another month's name). A read that FAILS is an error on screen, not an empty
+     month to be saved over the real one. And mpLoaded says the plan in memory really came
+     from the store for the month on screen; nothing saves without it. */
+  const seq = ++mpLoadSeq;
+  mpLoaded = false;
+  const dead = document.getElementById("mpxToast"); if(dead) dead.remove();   // an Undo belongs to the month it was offered on
   document.getElementById("mpMonthLabel").textContent = ymLabel(ym);
   document.getElementById("mpSavedMsg").textContent = "";
   document.getElementById("mpBody").innerHTML = `<div class="mp-loading">Loading this month's plan…</div>`;
-  let data = null;
-  try{ data = await fetch(STORE + "?monthlyplan=" + encodeURIComponent(ym)).then(x=>x.json()); }catch(e){ data = null; }
+  let data = null, readOk = false;
+  try{
+    const res = await fetch(STORE + "?monthlyplan=" + encodeURIComponent(ym));
+    if(res.ok){ data = await res.json(); readOk = !!(data && typeof data === "object" && !data.error); }
+  }catch(e){ data = null; readOk = false; }
+  if(seq !== mpLoadSeq) return;
+  if(!readOk){
+    document.getElementById("mpBody").innerHTML = `<div class="mp-loading" role="alert">This month's plan didn't load, so nothing is shown and nothing can be changed. Your saved plan has not been touched.
+      <div style="margin-top:12px"><button type="button" class="mpx-btn" onclick="renderMonthlyPlan()">Try again</button></div></div>`;
+    return;
+  }
   await mpLoadProjects();   // v269: never blocks the plan — a failure just leaves mpProjects null
   await mpAskLoad(ym);      // v270: the same; with no Claude connection the box stays hidden
+  if(seq !== mpLoadSeq) return;
   const plan = (data && data.plan) || { ym, focus:[], priorities:[], notes:"", review:{wins:"",notDone:"",carryForward:"",blockers:""}, lastUpdated:"" };
+  plan.ym = ym;
   plan.focus = plan.focus || [];
   plan.priorities = mpClearPriorityRockLinks(plan.priorities || []);
   plan.notes = plan.notes || "";
   plan.review = plan.review || {wins:"",notDone:"",carryForward:"",blockers:""};
   mpPlan = plan;
+  mpLoaded = true;
   mpRocks = (data && data.rocks) || [];
   mpQuarterTag = (data && data.quarterTag) || "";
   mpMarkAllSectionsSaved();   // v100: what we just loaded IS the saved state
@@ -3029,7 +3057,9 @@ async function mpPushForward(kind, id){
   const target = mpPushTargetYm(id);
   if(!validYm(target) || target === mpYm){ window.alert("Pick a month to push this into."); return; }
   try{
-    const r = await fetch(STORE + "?monthlyplan=" + encodeURIComponent(target)).then(x=>x.json());
+    const tRes = await fetch(STORE + "?monthlyplan=" + encodeURIComponent(target));
+    const r = tRes.ok ? await tRes.json() : null;
+    if(!r || typeof r !== "object" || r.error) throw new Error("target month did not load");   // v299: never treat a failed read as an empty month
     const tPlan = (r && r.plan) ? r.plan : null;
     const list = (tPlan && Array.isArray(tPlan[k.section])) ? tPlan[k.section].slice() : [];
     // De-dupe guard: this exact item already pushed into that month.
@@ -3045,7 +3075,7 @@ async function mpPushForward(kind, id){
     const patch = { ym: target };
     patch[k.section] = list;
     const w = await fetch(STORE, { method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ monthlyPlan: patch }) }).then(x=>x.json());
+      body: JSON.stringify({ monthlyPlan: patch, base: (tPlan && tPlan.lastUpdated) || "" }) }).then(x=>x.json());
     if(!(w && w.ok)){
       mpPushNote = { kind, id, text:"Push failed — please retry.", warn:true };
       drawMonthlyPlan(); return;
@@ -3134,23 +3164,47 @@ function mpCommit(sectionKey){
   if(mpSectionSnapshot(sectionKey) === mpSaved[sectionKey]) return;   // nothing actually changed
   return mpSaveSection(sectionKey);
 }
-async function mpSaveSection(sectionKey){
-  if(!mpPlan || !mpYm) return;
+/* v299: saves go one at a time and carry the lastUpdated this page loaded, so a tab left open
+   is refused by the store instead of putting its old list back over newer work. Answers true
+   when it saved and false when it did not, so a caller no longer says "added" over a failure. */
+function mpSaveSection(sectionKey){
+  if(!mpPlan || !mpYm) return Promise.resolve(false);
   mpSyncFromDom();
+  const run = ()=>mpSaveSectionNow(sectionKey);
+  mpSaveChain = mpSaveChain.then(run, run);
+  return mpSaveChain;
+}
+async function mpSaveSectionNow(sectionKey){
+  if(!mpPlan || !mpYm) return false;
+  if(!mpLoaded || mpPlan.ym !== mpYm) return false;   // only a plan that loaded, for the month on screen
   const btn = document.getElementById("mpbtn-"+sectionKey);
   const msg = document.getElementById("mpmsg-"+sectionKey);
   if(btn){ btn.disabled = true; btn.textContent = "Saving…"; }
-  const patch = { ym: mpYm };
+  const patch = { ym: mpPlan.ym };
   (MP_SECTION_FIELDS[sectionKey]||[]).forEach(f=>{ patch[f] = mpPlan[f]; });
+  const failed = (label)=>{
+    if(msg){ msg.textContent = label; msg.className = "mp-ssaved"; }
+    mpToast("That change was not saved. It is still on screen: check your connection and press Save to try again.");
+    return false;
+  };
   try{
-    const r = await fetch(STORE, {method:"POST",headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ monthlyPlan: patch })}).then(x=>x.json());
+    const res = await fetch(STORE, {method:"POST",headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ monthlyPlan: patch, base: mpPlan.lastUpdated || "" })});
+    if(res.status === 409){
+      mpToast("This month was changed somewhere else (another tab, the Weekly page or Grok), so the latest has been loaded. Your last change was not saved: make it again.");
+      if(btn){ btn.disabled = false; btn.textContent = "Save"; }
+      await renderMonthlyPlan();
+      return false;
+    }
+    const r = await res.json();
     if(r && r.ok){
       if(r.plan && r.plan.lastUpdated) mpPlan.lastUpdated = r.plan.lastUpdated;
       mpMarkSectionSaved(sectionKey);   // v100: this section is now clean
       if(msg){ msg.textContent = "Saved " + mpFmtTime(mpPlan.lastUpdated); msg.className = "mp-ssaved ok"; }
-    } else if(msg){ msg.textContent = "Save failed"; msg.className = "mp-ssaved"; }
-  }catch(e){ if(msg){ msg.textContent = "Couldn't reach store"; msg.className = "mp-ssaved"; } }
+      return true;
+    }
+    return failed("Save failed");
+  }catch(e){ return failed("Couldn't reach store"); }
   finally{ if(btn){ btn.disabled = false; btn.textContent = "Save"; } }
 }
 
@@ -3355,7 +3409,7 @@ async function mpBring(projectId, keepOpen){
   const it = { id: mpQid(), title: p.name, rockRef:"", notes:"", done:false, projectId };
   mpPlan.focus.push(it);
   drawMonthlyPlan();
-  await mpSaveSection("focus");
+  if(!(await mpSaveSection("focus"))) return;   // v299: no "added" over a save that failed
   mpToast(p.name + " added to " + mpMonthName(), async ()=>{
     mpCloseSheet();
     mpSyncFromDom();
@@ -3416,7 +3470,7 @@ async function mpTakeOff(focusId){
   mpCloseSheet();
   mpPlan.focus.splice(i, 1);
   drawMonthlyPlan();
-  await mpSaveSection("focus");
+  if(!(await mpSaveSection("focus"))) return;   // v299: no "taken off" over a save that failed
   mpToast((p ? p.name : "Project") + " taken off " + mpMonthName(), async ()=>{
     mpSyncFromDom();
     mpPlan.focus.splice(Math.min(i, mpPlan.focus.length), 0, it);
