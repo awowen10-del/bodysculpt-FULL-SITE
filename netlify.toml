@@ -108,6 +108,12 @@
 [functions."slack-brief-scheduled"]
   schedule = "0 6,14 * * *"
 
+# v299: the nightly copy of every working store into bodysculpt-backup (30 days kept).
+# 02:45 UTC, before the 03:30 project clear-out, so a project is always copied the night
+# before it could be deleted.
+[functions."store-backup-scheduled"]
+  schedule = "45 2 * * *"
+
 # v298: a project archived for 30 days is deleted, with the files only it used. 03:30 UTC daily.
 [functions."projects-purge-scheduled"]
   schedule = "30 3 * * *"
