@@ -1216,11 +1216,45 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
       '<button type="button" class="cc-btn" data-act="projfrom" data-id="' + ccEsc(it.id) + '">Start a new project</button></div>';
     return h;
   }
+  /* v297: when a task happens. A task has a due date, or a day on the weekly plan (week + day),
+     and the weekly page reads the due date first (wpStepCell), so that is the order here too.
+     Ash plans most tasks onto a day without a due date: "Fri this week" on the board. */
+  var CC_DAYS = [["mon", "Mon"], ["tue", "Tue"], ["wed", "Wed"], ["thu", "Thu"], ["fri", "Fri"], ["sat", "Sat"], ["sun", "Sun"]];
+  function dayIx(k) { for (var i = 0; i < CC_DAYS.length; i++) if (CC_DAYS[i][0] === k) return i; return -1; }
+  function whenOf(s) {
+    if (s.due) return { date: s.due, plan: false };
+    var i = dayIx(s.day);
+    if (s.week && i >= 0) return { date: ccAddDays(s.week, i), plan: true };
+    return null;
+  }
+  // worded as the Projects board words it, so the two never disagree
+  function whenLabel(w) {
+    if (!w) return "Add date";
+    if (w.plan) {
+      var wk = ccMonday(w.date), dn = CC_DAYS[(new Date(w.date + "T00:00:00Z").getUTCDay() + 6) % 7][1];
+      if (wk === nowWk) return dn + " this week";
+      if (wk === ccAddDays(nowWk, 7)) return dn + " next week";
+      return dn + " " + fmt(w.date);
+    }
+    if (w.date === today) return "Due today";
+    if (w.date === ccAddDays(today, 1)) return "Due tomorrow";
+    return "Due " + fmt(w.date);
+  }
+  // A new date moves whichever the task uses. A task with neither goes on the plan for that day,
+  // the way Ash dates his tasks. The time it had only stays if the day hasn't changed.
+  function datePatch(s, v) {
+    if (!v) return { due: "", week: "", day: "", slot: "" };
+    var wk = ccMonday(v), dk = CC_DAYS[(new Date(v + "T00:00:00Z").getUTCDay() + 6) % 7][0];
+    var plan = { week: wk, day: dk, slot: s.week === wk && s.day === dk ? (s.slot || "") : "" };
+    if (s.due) return s.week ? Object.assign({ due: v }, plan) : { due: v };
+    return plan;
+  }
   function stepRank(p, s) { var i = (p.columns || []).map(function (c) { return c.id; }).indexOf(s.col); return i < 0 ? 99 : i; }
   function projBody(p, it) {
     var pg = progress(p), steps = liveSteps(p);
     var open = steps.filter(function (s) { return !s.done; }).sort(function (a, b) {
-      if ((a.due || "9") !== (b.due || "9")) return (a.due || "9") < (b.due || "9") ? -1 : 1;
+      var wa = (whenOf(a) || { date: "9" }).date, wb = (whenOf(b) || { date: "9" }).date;
+      if (wa !== wb) return wa < wb ? -1 : 1;
       return (stepRank(p, a) - stepRank(p, b)) || ((Number(a.order) || 0) - (Number(b.order) || 0));
     });
     var done = steps.filter(function (s) { return s.done; });
@@ -1240,12 +1274,12 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
     if (!s.done && col && /wait/i.test(col.name)) meta.push("Waiting on");
     if (ck.length) meta.push(ckd + "/" + ck.length + " ticked");
     if (s.notes) meta.push("Has notes");
-    var due = s.due || "", dc = !due ? " none" : s.done ? "" : due < today ? " late" : due <= ccAddDays(today, 6) ? " soon" : "";
+    var w = whenOf(s), due = w ? w.date : "", dc = !due ? " none" : s.done ? "" : due < today ? " late" : due <= ccAddDays(today, 6) ? " soon" : "";
     var ids = ' data-pid="' + ccEsc(p.id) + '" data-sid="' + ccEsc(s.id) + '"', isOpen = !!(panel && panel.open[s.id]);
     var h = '<div class="cc-st' + (s.done ? " done" : "") + '">' +
       '<button type="button" class="cc-tick' + (s.done ? " on" : "") + '" data-act="stdone"' + ids + ' aria-pressed="' + !!s.done + '" aria-label="' + (s.done ? "Done: " : "Mark done: ") + ccEsc(s.title) + '"><i>' + icon("ic-check") + "</i></button>" +
       '<button type="button" class="cc-stt" data-act="stopen"' + ids + ' aria-expanded="' + isOpen + '">' + ccEsc(s.title) + (meta.length ? "<small>" + meta.join(" · ") + "</small>" : "") + "</button>" +
-      '<span class="cc-duew"><button type="button" class="cc-due' + dc + '" data-act="stdue"' + ids + ' aria-label="' + (due ? "Due " + fmt(due) + ", change the date for " : "Give a date to ") + ccEsc(s.title) + '">' + (due ? (due === today ? "Today" : fmt(due)) : "Add date") + "</button>" +
+      '<span class="cc-duew"><button type="button" class="cc-due' + dc + '" data-act="stdue"' + ids + ' aria-label="' + (due ? whenLabel(w) + ", change the date for " : "Give a date to ") + ccEsc(s.title) + '">' + whenLabel(w) + "</button>" +
       '<input type="date" class="cc-duein" tabindex="-1" aria-hidden="true" value="' + ccEsc(due) + '"' + ids + "></span>" +
       '<button type="button" class="cc-rm" data-act="stdel"' + ids + ' aria-label="Delete ' + ccEsc(s.title) + '">' + icon("ic-close") + "</button>";
     if (isOpen) {
@@ -1493,7 +1527,11 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
     if (t.classList && t.classList.contains("cc-duein")) {
       var v = t.value || "", pid = t.getAttribute("data-pid"), sid = t.getAttribute("data-sid");
       t.style.pointerEvents = "";
-      stepCall(pid, sid, { due: v }, function (st) { st.due = v; }, v ? "Due " + fmt(v) + ". It's on that day in Weekly and Daily" : "Date taken off");
+      var pp = projects.filter(function (x) { return x.id === pid; })[0], ss = pp && (pp.steps || []).filter(function (x) { return x.id === sid; })[0];
+      if (!ss) return;
+      var patch = datePatch(ss, v), after = Object.assign({}, ss, patch);
+      stepCall(pid, sid, patch, function (st) { Object.assign(st, patch); },
+        v ? whenLabel(whenOf(after)) + ". It's on that day in Weekly and Daily" : "Date taken off, and off your plan");
     } else if (t.hasAttribute && t.hasAttribute("data-ck")) {
       var ckid = t.getAttribute("data-ck"), on = t.checked;
       stepCall(t.getAttribute("data-pid"), t.getAttribute("data-sid"), { check: { id: ckid, done: on } }, function (st) {

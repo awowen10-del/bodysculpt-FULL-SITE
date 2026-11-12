@@ -64,6 +64,26 @@ async function main() {
   // no literal colours in the new CSS (v121)
   const css = PAGE.slice(PAGE.indexOf("/* v296: the big offers"), PAGE.indexOf("</style>"));
   assert.ok(!/#[0-9a-fA-F]{3,6}\b|rgba\(\d/.test(css.replace(/#ccProj|#ccNewStep/g, "")), "tokens only");
+  // ---- v297: a task's date is its due date OR its day on the weekly plan, read like the board
+  const pure = PAGE.slice(PAGE.indexOf("/* PURE:START */"), PAGE.indexOf("/* PURE:END */"));
+  const w = { today: "2026-11-12", nowWk: "2026-11-09" }; vm.createContext(w);
+  vm.runInContext(pure, w);
+  vm.runInContext("function fmt(d){var m=CC_MONTHS[Number(d.slice(5,7))-1];return Number(d.slice(8,10))+' '+m.slice(0,3);}" +
+    PAGE.slice(PAGE.indexOf("  var CC_DAYS = "), PAGE.indexOf("  function stepRank(")) + "\nthis.whenOf=whenOf;this.whenLabel=whenLabel;this.datePatch=datePatch;", w);
+  const L = (st) => w.whenLabel(w.whenOf(st));
+  assert.strictEqual(L({ due: "", week: "2026-11-09", day: "fri" }), "Fri this week", "a plan day reads as the board reads it");
+  assert.strictEqual(L({ due: "", week: "2026-11-16", day: "mon" }), "Mon next week");
+  assert.strictEqual(L({ due: "", week: "2026-11-30", day: "wed" }), "Wed 2 Dec");
+  assert.strictEqual(L({ due: "2026-11-20", week: "2026-11-09", day: "fri" }), "Due 20 Nov", "a due date wins, as it does on Weekly");
+  assert.strictEqual(L({ due: "", week: "", day: "" }), "Add date");
+  assert.strictEqual(w.whenOf({ due: "", week: "2026-11-09", day: "fri" }).date, "2026-11-13");
+  const P = (st, v) => JSON.parse(JSON.stringify(w.datePatch(st, v)));
+  assert.deepStrictEqual(P({ due: "", week: "2026-11-09", day: "fri", slot: "6-9" }, "2026-11-18"), { week: "2026-11-16", day: "wed", slot: "" }, "a planned task moves its plan day, and loses a time that was for another day");
+  assert.deepStrictEqual(P({ due: "", week: "2026-11-09", day: "fri", slot: "6-9" }, "2026-11-13"), { week: "2026-11-09", day: "fri", slot: "6-9" }, "same day keeps its time");
+  assert.deepStrictEqual(P({ due: "", week: "", day: "" }, "2026-11-18"), { week: "2026-11-16", day: "wed", slot: "" }, "an undated task goes on the plan for that day");
+  assert.deepStrictEqual(P({ due: "2026-11-20", week: "", day: "" }, "2026-11-25"), { due: "2026-11-25" }, "a due-dated task moves its due date");
+  assert.deepStrictEqual(P({ due: "2026-11-20", week: "2026-11-16", day: "fri" }, "2026-11-25"), { due: "2026-11-25", week: "2026-11-23", day: "wed", slot: "" }, "and its plan day with it, so the board shows one date");
+  assert.deepStrictEqual(P({ due: "2026-11-20", week: "2026-11-16", day: "fri" }, ""), { due: "", week: "", day: "", slot: "" }, "clearing takes both off");
   console.log("v296 offer runs its project: OK");
 }
 main().catch((e) => { console.error(e); process.exit(1); });
