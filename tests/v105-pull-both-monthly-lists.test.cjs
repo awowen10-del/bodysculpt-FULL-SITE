@@ -201,12 +201,12 @@ async function week(opts) {
 
     // one empty list still shows the other, with only its own group
     const env4 = await week({ monthPriorities: { "2026-08": [] } });
-    assert.ok(group(picker(env4), "This Month's Focus"), "an empty personal list still offers the business one");
+    assert.ok(group(picker(env4), "This Month&#39;s Focus"), "an empty personal list still offers the business one");
     assert.strictEqual(group(picker(env4), "Personal Priorities &amp; Projects"), null,
       "…and renders no empty group for it");
     const env5 = await week({ monthFocus: { "2026-08": [] } });
     assert.ok(group(picker(env5), "Personal Priorities &amp; Projects"), "and the other way round");
-    assert.strictEqual(group(picker(env5), "This Month's Focus"), null, "…same, no empty group");
+    assert.strictEqual(group(picker(env5), "This Month&#39;s Focus"), null, "…same, no empty group");
   }
 
   /* ================= 4. the right month for the week being viewed ================= */
