@@ -139,6 +139,13 @@ export default async (req) => {
     if (body.project) {
       const project = cleanProject(body.project);
       if (!project) return json({ error: "A project needs an id and a name" }, 400);
+      // v299: the day a project was archived is the server's to say, never the caller's. The
+      // nightly clear-out deletes on that date, so a back-dated one in a save (a wrong clock, a
+      // stale copy, a bug) would have had the project removed the next morning.
+      if (project.archived) {
+        const stored = await readProject(project.id);
+        project.archivedAt = (stored && stored.archived && /^\d{4}-\d{2}-\d{2}T/.test(stored.archivedAt || "")) ? stored.archivedAt : new Date().toISOString();
+      }
       await writeProject(project);
       return json({ ok: true, project });
     }

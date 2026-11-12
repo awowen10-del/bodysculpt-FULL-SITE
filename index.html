@@ -2915,7 +2915,10 @@ let wpRecurNotesDirty = false;      //       did this editing session actually w
 let wpCheckins = null;     // v80: daily check-in history — a map { "YYYY-MM-DD": entry }, loaded once
 let wpLocDefaults = null;  // v84: the DEFAULT weekly location pattern { day: locationKey }, loaded once
 
-function wpEsc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+// v299: quotes are escaped too. wpEsc output goes inside attributes (title="…", value="…") in
+// some thirty places; without this a double quote in a calendar event's title could add its
+// own attribute to the chip, and a task name was cut off at its first quote and saved that way.
+function wpEsc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
 function wpFmtTime(iso){ if(!iso) return ""; try{ const d=new Date(iso); return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}); }catch(e){ return ""; } }
 function wpQuarterOf(iso){ try{ const d=new Date(iso+"T00:00:00"); return "Q"+(Math.floor(d.getMonth()/3)+1)+" — "+d.getFullYear(); }catch(e){ return ""; } }
 function wpUid(){ return "t"+Math.random().toString(36).slice(2,9); }
@@ -6930,35 +6933,52 @@ async function wpCommitFinish(){
   const carry = (wpPlan.carryItems||[]).slice();
   let builtNextPlan = null;   // the next-week plan we write, reused for render (no stale re-fetch)
 
-  try{
-    if(carry.length){
-      // 1) fetch next week's existing plan so we merge, not overwrite
-      let nextPlan = null;
-      try{ const rr = await fetch(WP_STORE + "?weeklyplan=" + encodeURIComponent(nextWeek)).then(x=>x.json()); nextPlan = rr && rr.plan; }catch(e){ nextPlan = null; }
-      const nextProject = wpToItems(nextPlan && (nextPlan.projectItems!=null?nextPlan.projectItems:nextPlan.project));
-      const nextBuffer  = wpToItems(nextPlan && (nextPlan.bufferItems !=null?nextPlan.bufferItems :nextPlan.buffer));
+  /* v299: every step has to succeed before the next one runs. Before, a failed READ of next
+     week was treated as "next week is empty", so its Project and Buffer lists were replaced by
+     only the carried tasks; and a failed WRITE still emptied the tray, so the carried tasks
+     were stored nowhere. Now a failure stops here with the tray untouched, and pressing again
+     is safe: a carried task keeps an id made from its tray id, so it cannot be added twice. */
+  const stop = (why)=>{ if(btn){ btn.disabled=false; btn.textContent="Finish week →"; } wpToast(why); };
+  if(carry.length){
+    // 1) read next week's plan, so the carried tasks are ADDED to what is already there
+    let nextPlan = null;
+    try{
+      const res = await fetch(WP_STORE + "?weeklyplan=" + encodeURIComponent(nextWeek));
+      if(!res.ok) throw new Error("read " + res.status);
+      const rr = await res.json();
+      nextPlan = (rr && rr.plan) || null;
+    }catch(e){ return stop("Couldn't read next week, so nothing was moved. Your tray is as it was. Try again."); }
+    const nextProject = wpToItems(nextPlan && (nextPlan.projectItems!=null?nextPlan.projectItems:nextPlan.project));
+    const nextBuffer  = wpToItems(nextPlan && (nextPlan.bufferItems !=null?nextPlan.bufferItems :nextPlan.buffer));
 
-      // 2) append carried tasks as fresh items (new ids, undone, no placement)
-      carry.forEach(ci=>{
-        const fresh = { id: wpUid(), title: String(ci.title), done:false, carriedFrom: thisWeek };
-        if(ci.source==="project") nextProject.push(fresh); else nextBuffer.push(fresh);
-      });
+    // 2) add the carried tasks (undone, no placement). The id comes from the tray item, so a
+    //    second press after a half-finished first one finds them already there.
+    carry.forEach(ci=>{
+      const id = ci.id ? "c_" + String(ci.id) : wpUid();
+      if(nextProject.some(x=>x.id===id) || nextBuffer.some(x=>x.id===id)) return;
+      const fresh = { id, title: String(ci.title), done:false, carriedFrom: thisWeek };
+      if(ci.source==="project") nextProject.push(fresh); else nextBuffer.push(fresh);
+    });
 
-      // 3) save next week's plan (merge patch — only the two item lists)
-      const saveRes = await fetch(WP_STORE, {method:"POST",headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ weeklyPlan: { weekEnding: nextWeek, projectItems: nextProject, bufferItems: nextBuffer } })}).then(x=>x.json()).catch(()=>null);
-      // keep the authoritative saved plan (server returns the merged doc) to render directly
-      builtNextPlan = (saveRes && saveRes.plan) ? saveRes.plan
-        : Object.assign({}, nextPlan||{}, { weekEnding: nextWeek, projectItems: nextProject, bufferItems: nextBuffer });
+    // 3) save next week's plan (merge patch: only the two item lists)
+    let saveRes = null;
+    try{
+      const res = await fetch(WP_STORE, {method:"POST",headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ weeklyPlan: { weekEnding: nextWeek, projectItems: nextProject, bufferItems: nextBuffer } })});
+      saveRes = res.ok ? await res.json() : null;
+    }catch(e){ saveRes = null; }
+    if(!saveRes || !saveRes.ok) return stop("Couldn't save next week, so nothing was moved. Your tray is as it was. Try again.");
+    builtNextPlan = saveRes.plan || Object.assign({}, nextPlan||{}, { weekEnding: nextWeek, projectItems: nextProject, bufferItems: nextBuffer });
 
-      // 4) clear this week's tray (items already moved out of their lists when dragged in)
-      wpPlan.carryItems = [];
-      await fetch(WP_STORE, {method:"POST",headers:{"Content-Type":"application/json"},
+    // 4) only now clear this week's tray
+    let cleared = false;
+    try{
+      const res = await fetch(WP_STORE, {method:"POST",headers:{"Content-Type":"application/json"},
         body: JSON.stringify({ weeklyPlan: { weekEnding: thisWeek, carryItems: [] } })});
-    }
-  }catch(e){
-    if(btn){ btn.disabled=false; btn.textContent="Try again"; }
-    return;
+      cleared = res.ok;
+    }catch(e){ cleared = false; }
+    if(!cleared) return stop("The tasks are in next week, but this week's tray didn't clear. Press Finish week again; they won't be added twice.");
+    wpPlan.carryItems = [];
   }
 
   // 5) navigate to next week and render it. Use the plan we just built/saved so we never
@@ -8737,7 +8757,7 @@ IMPORTANT: Output ONLY the raw JSON object. Start your response with { and end w
 }
 function renderMentorAi(r){
   const body=document.getElementById('maiBody');
-  const esc=s=>String(s==null?'':s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const esc=s=>String(s==null?'':s).replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
   const tone=(r.verdictTone==='green'||r.verdictTone==='amber'||r.verdictTone==='red')?r.verdictTone:'amber';
   const focus=(r.focus||[]).slice(0,3).map(f=>`
     <div class="mai-focus">
@@ -9214,7 +9234,7 @@ function acqRenderQuestion(r){
 function acqRenderVerdict(r){
   acqLastResult = r;            // remembered for potential reuse
   const body=document.getElementById('acqBody');
-  const esc=s=>String(s==null?'':s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const esc=s=>String(s==null?'':s).replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
   const conf=(r.confidence||'').toLowerCase();
   const confCls=conf==='high'?'green':(conf==='low'?'red':'amber');
   const dont=(r.doNotDo||[]).map(d=>`<li>${esc(d)}</li>`).join('');
@@ -9447,7 +9467,7 @@ async function loadGhlForEntry(weekEnding){
   const box=document.getElementById('ghlBox');
   if(!box) return;
   const my=++ghlReq;
-  const esc=s=>String(s==null?'':s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const esc=s=>String(s==null?'':s).replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
   box.className='entry-ghl';
   if(!weekEnding || new Date(weekEnding+'T00:00:00Z').getUTCDay()!==6){
     box.textContent='Pick a Saturday to read 6WC leads and sales from GHL.'; return; }

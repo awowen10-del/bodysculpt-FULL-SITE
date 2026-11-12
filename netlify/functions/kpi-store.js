@@ -876,6 +876,37 @@ function cleanRule(raw) {
 }
 function validYmd(d) { return typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d); }
 
+/* ===================== v299: two guards on every whole-record save =====================
+   (1) STALE WRITES. A page keeps the copy of a record it loaded and saves it back whole. If
+   the record changed in the meantime (another tab, the Daily page, Grok), that save used to
+   put the old copy back over the newer one. A page now sends `base`: the lastUpdated it loaded
+   ("" when nothing was stored). If the stored record has moved on, the save is refused with
+   409 and the stored lastUpdated, and the page reloads. A caller that sends no `base` behaves
+   exactly as before, so the narrow one-field routes and older pages are unaffected.
+   (2) THE COPY BEFORE. Just before a quarterly review or a finance month is replaced, the
+   copy about to be overwritten is kept in the separate bodysculpt-backup store (last 20 per
+   record). Never written into the working store; never allowed to stop the save itself. */
+function staleWrite(body, existing) {
+  if (!body || typeof body.base !== "string") return null;
+  const stored = (existing && existing.lastUpdated) || "";
+  if (stored === body.base) return null;
+  return Response.json({ ok: false, conflict: true, lastUpdated: stored,
+    error: "This was changed somewhere else after this page loaded it. Reload to see the latest, then make your change again." }, { status: 409 });
+}
+const KEEP_PREVIOUS = 20;
+async function keepPrevious(store, key) {
+  try {
+    const bak = getStore({ name: "bodysculpt-backup", consistency: "strong" });
+    if (!bak || bak === store) return;
+    const current = await store.get(key, { type: "text" });
+    if (current == null || current === "") return;
+    const prefix = "prev/bodysculpt-kpi/" + key + "/";
+    await bak.set(prefix + new Date().toISOString(), current);
+    const keys = ((await bak.list({ prefix })).blobs || []).map((b) => b.key).filter((k) => k.startsWith(prefix)).sort();
+    for (const k of keys.slice(0, Math.max(0, keys.length - KEEP_PREVIOUS))) await bak.delete(k);
+  } catch (e) { console.log("[kpi-store] keepPrevious failed for " + key + ": " + String((e && e.message) || e)); }
+}
+
 export default async (req) => {
   // Strong consistency: a read is guaranteed to return the most recent write.
   // Without this, Netlify Blobs is eventually consistent, so a refresh right after
@@ -1158,10 +1189,18 @@ export default async (req) => {
     if (body.finTxns && body.finTxns.ym) {
       const ym = body.finTxns.ym;
       if (!validYm(ym)) return new Response("Bad month (expected YYYY-MM)", { status: 400 });
-      const rows = (Array.isArray(body.finTxns.rows) ? body.finTxns.rows : [])
+      // v299: a month is replaced wholesale, so the request must actually carry its rows. A body
+      // with no rows array used to be saved as an empty month.
+      if (!Array.isArray(body.finTxns.rows)) return Response.json({ ok: false, error: "finTxns needs a rows list" }, { status: 400 });
+      {
+        const existingFin = await store.get(finTxnKeyOf(ym), { type: "json" });
+        const stale = staleWrite(body, existingFin); if (stale) return stale;
+      }
+      const rows = body.finTxns.rows
         .map(cleanTxn).filter(Boolean).slice(0, FIN_CAP)
         .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
       const rec = { ym, rows, lastUpdated: new Date().toISOString() };
+      await keepPrevious(store, finTxnKeyOf(ym));
       await store.set(finTxnKeyOf(ym), JSON.stringify(rec));
       return Response.json({ ok: true, ym, count: rows.length, lastUpdated: rec.lastUpdated });
     }
@@ -1259,6 +1298,8 @@ export default async (req) => {
       const key = planningKeyOf(tag);
       const existing = (await store.get(key, { type: "json" }))
         || defaultPlanning(body.planning.year, body.planning.quarter);
+      { const stale = staleWrite(body, existing); if (stale) return stale; }
+      await keepPrevious(store, key);
       const merged = { ...existing, ...body.planning,
         lastUpdated: new Date().toISOString() };
       await store.set(key, JSON.stringify(merged));
@@ -1275,6 +1316,7 @@ export default async (req) => {
       }
       const key = weeklyPlanKeyOf(date);
       const existing = (await store.get(key, { type: "json" })) || defaultWeeklyPlan(date);
+      { const stale = staleWrite(body, existing); if (stale) return stale; }
       const incoming = { ...body.weeklyPlan };
       // v78: whitelist the review checklist — a small { id: true } map of ticked ritual
       // steps. Keep only string keys with a truthy value, cap the size, and store as plain
@@ -2204,6 +2246,7 @@ export default async (req) => {
       if (!validYm(ym)) return new Response("Bad monthlyPlan.ym", { status: 400 });
       const key = monthlyPlanKeyOf(ym);
       const existing = (await store.get(key, { type: "json" })) || defaultMonthlyPlan(ym);
+      { const stale = staleWrite(body, existing); if (stale) return stale; }
       const incoming = { ...body.monthlyPlan };
       // v90: focus items get the same field-whitelist discipline as the weekly defaults —
       // {id,title,rockRef,notes,done} plus the push-forward provenance {pushedFrom,pushedFromId}.

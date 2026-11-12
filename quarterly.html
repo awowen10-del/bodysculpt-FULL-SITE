@@ -2676,7 +2676,8 @@ let qttDraftNotice = "";       // transient "restored draft" message for the cur
 let qttSnapshotOpen = false;   // Phase C: Quarter Snapshot collapsed by default (calm)
 let currentStage = "thinking";
 
-function qttEsc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+// v299: quotes too, the same as esc() above; AI and stored text goes into value="…" attributes
+function qttEsc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
 function qttTrim(s){ return String(s==null?"":s).trim(); }
 
 // Build a fresh in-memory blank record (NOT persisted until content is saved).

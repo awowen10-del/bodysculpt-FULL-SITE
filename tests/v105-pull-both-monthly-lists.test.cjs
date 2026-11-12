@@ -79,7 +79,7 @@ async function week(opts) {
       "…and the personal items are still offered");
 
     // grouped so business and personal are tellable apart
-    const biz = group(sel, "This Month's Focus");
+    const biz = group(sel, "This Month&#39;s Focus");   // v299: wpEsc escapes quotes too
     const pers = group(sel, "Personal Priorities &amp; Projects");
     assert.ok(biz, "the business items sit in a labelled group");
     assert.ok(pers, "…and the personal ones in their own");

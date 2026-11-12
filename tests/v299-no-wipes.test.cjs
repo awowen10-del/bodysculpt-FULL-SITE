@@ -68,5 +68,9 @@ assert.ok(/week\.weekEnding must be a real date/.test(STORE));
   const tagYearOf = new Function("selYear", "return " + /function tagYearOf\(tag\)\{[^\n]+\}/.exec(QUARTERLY)[0].replace("function tagYearOf", "function"))(2026);
   assert.strictEqual(tagYearOf("2027-Q2"), 2027);
   assert.strictEqual(tagYearOf("2025-Q4"), 2025);
+  // 6. the archive date that starts the 30-day delete clock is set by the server, never the caller
+  const PROJ = read("netlify/functions/projects.js");
+  const blk = PROJ.slice(PROJ.indexOf("if (body.project) {"), PROJ.indexOf("await writeProject(project);", PROJ.indexOf("if (body.project) {")));
+  assert.ok(/const stored = await readProject\(project\.id\)/.test(blk) && /stored\.archivedAt : new Date\(\)\.toISOString\(\)/.test(blk), "a whole-project save takes archivedAt from the store or from now");
   console.log("v299-no-wipes.test: all assertions passed");
 })().catch((e) => { console.error(e); process.exit(1); });
