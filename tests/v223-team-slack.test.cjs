@@ -122,6 +122,8 @@ async function loadModules() {
     .replace('import { getStore } from "@netlify/blobs";', "const getStore = (o) => { globalThis.__storeName = o.name; return globalThis.__fakeStore; };")
     .replace('import Anthropic from "@anthropic-ai/sdk";', "const Anthropic = globalThis.__FakeAnthropic;"));
   fs.writeFileSync(path.join(dir, "functions", "slack-feed.mjs"), FEED.replace('from "../lib/slack.js"', 'from "../lib/slack.mjs"'));
+  // slack-feed.js has imported lib/internal.js since v271; without it here nothing below ran
+  fs.writeFileSync(path.join(dir, "lib", "internal.js"), fs.readFileSync(path.join(__dirname, "..", "netlify", "lib", "internal.js"), "utf8"));
   const lib = await import("file://" + path.join(dir, "lib", "slack.mjs"));
   const feed = (await import("file://" + path.join(dir, "functions", "slack-feed.mjs"))).default;
   return { lib, feed };

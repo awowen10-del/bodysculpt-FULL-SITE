@@ -9,6 +9,7 @@
     "resolveJsonModule": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
+    "allowJs": true,
     "noEmit": true,
     "strict": true,
     "noUnusedLocals": true,
