@@ -2094,6 +2094,70 @@ export default async (req) => {
       return Response.json({ ok: true, token: stash.token, weekEnding, agenda });
     }
 
+    // v301 Fixing a job's wording from the Daily Dashboard.
+    // POST { weeklyRename: { weekEnding, tgt, title } }  → { ok, title, agenda }
+    //
+    // Ash: "I need to be able to edit these … If I make a typo or need to change something I
+    // have to delete it and start again." As narrow as the tick: it changes ONE title at an
+    // address the weekly page worked out —
+    //   • a recurring/training job: its name on that list (so every week reads the same);
+    //   • a one-off planner task: its name in this week's list.
+    // A project step is not handled here: its name lives on the step (projects stepLink).
+    // A blank name is refused, and nothing is created — a job that has gone is a 404.
+    if (body.weeklyRename && typeof body.weeklyRename === "object") {
+      const c = body.weeklyRename;
+      const weekEnding = typeof c.weekEnding === "string" ? c.weekEnding : "";
+      if (!validWeekDate(weekEnding)) return new Response("Bad weekEnding", { status: 400 });
+      const tgt = cleanTickTarget(c.tgt);
+      if (!tgt) return new Response("Bad target", { status: 400 });
+      const title = typeof c.title === "string" ? c.title.replace(/\s+/g, " ").trim().slice(0, 200) : "";
+      if (!title) return Response.json({ ok: false, error: "A job needs a name." }, { status: 400 });
+      const id = tgt.k.split(":")[0];
+
+      if (tgt.m) {
+        const key = tgt.m === "trainingDone" ? TRAINING_DEFAULTS_KEY : RECURRING_DEFAULTS_KEY;
+        const list = await store.get(key, { type: "json" });
+        const item = Array.isArray(list) ? list.find((t) => t && t.id === id) : null;
+        if (!item) return Response.json({ ok: false, error: "That job is not on your list any more." }, { status: 404 });
+        item.title = title;
+        await store.set(key, JSON.stringify(list));
+      } else {
+        const pkey = weeklyPlanKeyOf(weekEnding);
+        const plan = await store.get(pkey, { type: "json" });
+        if (!plan) return Response.json({ ok: false, error: "No plan for that week yet." }, { status: 404 });
+        const arr = Array.isArray(plan[tgt.l]) ? plan[tgt.l] : [];
+        const item = arr.find((x) => x && x.id === tgt.k);
+        if (!item) return Response.json({ ok: false, error: "That job is not in this week any more." }, { status: 404 });
+        item.title = title;
+        plan.lastUpdated = new Date().toISOString();
+        await store.set(pkey, JSON.stringify(plan));
+      }
+
+      // the calendar copies say the same: this week's, and (for a list job) every later week's
+      const same = (t) => t && (tgt.m ? t.m === tgt.m && String(t.k || "").split(":")[0] === id
+        : t.l === tgt.l && t.k === tgt.k);
+      let agenda = null;
+      try {
+        let keys = [agendaKeyOf(weekEnding)];
+        if (tgt.m) {
+          const { blobs } = await store.list({ prefix: "weekly-agenda-" });
+          keys = blobs.map((b) => b.key).filter((k) => validWeekDate(k.slice(14)) && k.slice(14) >= weekEnding);
+        }
+        for (const akey of keys) {
+          const ag = await store.get(akey, { type: "json" });
+          if (!ag || !ag.cells) continue;
+          let touched = false;
+          Object.values(ag.cells).forEach((rows) => {
+            (Array.isArray(rows) ? rows : []).forEach((r) => { if (r && same(r.tgt) && r.title !== title) { r.title = title; touched = true; } });
+          });
+          if (touched) await store.set(akey, JSON.stringify(ag));
+          if (akey === agendaKeyOf(weekEnding)) agenda = ag;
+        }
+      } catch { /* the caches are disposable; the weekly page rewrites them */ }
+
+      return Response.json({ ok: true, weekEnding, title, agenda });
+    }
+
     // v136 Competitors: POST { igCompetitors: [...] }. A whole-list write — the page holds
     // the order and hands back the full list — de-duplicated and capped at ten. Touches
     // nothing but its own key.

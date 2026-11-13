@@ -322,13 +322,28 @@ export function applyStepDelCheck(project, stepId, checkId) {
    they read it live and hold only where it sits. A step's due date is what puts it on a day
    of a week, so moving it on the weekly grid — or dragging an overdue one onto a day — has
    to be able to move that date. This widens stepLink by exactly one field: the due date.
-   It still cannot reach the title, notes, files, tags, urgency, stage or any other step. */
+   It still cannot reach the notes, files, tags, urgency, stage or any other step.
+   (v301 let it fix the title: see applyStepTitle.) */
 export function applyStepDue(project, stepId, due) {
   const s = (project.steps || []).find((x) => x.id === stepId && !x.del);
   if (!s) return null;
   const d = ymd(due);
   if (s.due === d) return null;
   s.due = d;
+  s.updatedAt = nowIso();
+  return s;
+}
+/* v301: FIXING A STEP'S WORDING FROM THE WEEK OR THE DAY. Ash: "I need to be able to edit
+   these … If I make a typo or need to change something I have to delete it and start again."
+   This widens stepLink by one more field: the title of the one step. A blank title is refused
+   (a step is never left without a name), and the notes, files, tags, urgency, stage and every
+   other step stay out of reach. */
+export function applyStepTitle(project, stepId, title) {
+  const s = (project.steps || []).find((x) => x.id === stepId && !x.del);
+  if (!s) return null;
+  const t = str(title, 240).replace(/\s+/g, " ").trim();
+  if (!t || s.title === t) return null;
+  s.title = t;
   s.updatedAt = nowIso();
   return s;
 }

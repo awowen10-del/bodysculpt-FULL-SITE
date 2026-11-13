@@ -341,9 +341,9 @@ const stepOf = (projects, id) => projects[0].steps.find((s) => s.id === id);
     assert.deepStrictEqual([stored.done, stored.due, stored.week, stored.day, stored.slot], [true, "2026-10-28", "2026-10-26", "thu", ""],
       "cleanStep keeps every one of them through the save");
 
-    // the boundary: still not the title, notes, urgency or stage
+    // the boundary: still not the notes, urgency or stage (v301: the title is reachable now; tests/v301)
     const before = m.get("proj-p1");
-    const r = await (await POST({ stepLink: { projectId: "p1", stepId: "s_ads", title: "HACKED", notes: "x", urgency: "low", col: "todo" } })).json();
+    const r = await (await POST({ stepLink: { projectId: "p1", stepId: "s_ads", notes: "x", urgency: "low", col: "todo" } })).json();
     assert.strictEqual(r.unchanged, true, "nothing else on the step is reachable");
     assert.strictEqual(m.get("proj-p1"), before, "…and nothing is written");
 

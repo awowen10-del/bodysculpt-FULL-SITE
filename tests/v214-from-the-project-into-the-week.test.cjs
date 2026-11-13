@@ -152,8 +152,10 @@ function boardProject(extra) {
     // nothing else on the step, or on the project, may be reachable through it
     // (v253: `del` IS reachable now — the daily page's "delete everywhere" is the board's own
     // soft delete, with an Undo — so it is not in this list; tests/v253 covers it)
+    // (v301: the step's own `title` IS reachable now — a typo is fixed where it is read — so
+    // it is not in this list either; tests/v301 covers it)
     r = await POST(h, { stepLink: { projectId: "p_ghl", stepId: "s_map",
-      title: "HACKED", name: "HACKED", steps: [], columns: [] } });
+      notes: "HACKED", name: "HACKED", steps: [], columns: [] } });
     const j = await r.json();
     assert.strictEqual(j.unchanged, true, "a stepLink carrying nothing it is allowed to change changes nothing");
     assert.strictEqual(store._m.get("proj-p_ghl"), before, "…and does not write at all — a no-op must not bump lastUpdated");

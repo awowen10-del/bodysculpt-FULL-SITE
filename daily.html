@@ -1313,6 +1313,13 @@
   .tl-a,.tl-more,.tl-min,.tl-parked{font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;
     border-radius:var(--r-pill);background:transparent;border:1px solid transparent;color:var(--ink-faint);padding:4px 9px;}
   .tl-a:hover,.tl-more:hover{color:var(--ink);border-color:var(--line);}
+  /* v301: a job's words, being fixed where they are read */
+  .tl-edit-in{width:100%;font:inherit;font-size:14.5px;line-height:1.4;color:var(--ink);background:var(--card);
+    border:1px solid var(--orange);border-radius:var(--r-sm);padding:5px 9px;}
+  .tl-edit-in:focus{outline:none;box-shadow:var(--focus);}
+  .tl-t-ed{cursor:text;border-radius:var(--r-sm);}
+  .tl-t-ed:hover{text-decoration:underline dotted;text-underline-offset:3px;}
+  .tl-t-ed:focus-visible{outline:none;box-shadow:var(--focus);}
   .tl-more{padding:4px 7px;transition:transform var(--tap);}
   .tl-more.on{transform:rotate(90deg);color:var(--orange);}
   .tl-a:focus-visible,.tl-more:focus-visible,.tl-min:focus-visible,.tl-parked:focus-visible{outline:none;box-shadow:var(--focus);}
@@ -1474,6 +1481,12 @@
   @media(hover:hover){
     .tl-acts .tl-a{opacity:0;transition:opacity .15s ease;}
     .tl-row:hover .tl-a,.tl-row:focus-within .tl-a,.tl-row.running .tl-a,.wt-row .tl-acts .tl-a{opacity:1;}
+  }
+  /* v301: a project step has more buttons than any other job, and in one line they left its
+     name a column one word wide. Past the width of an ordinary job's buttons they go onto a
+     second line, so every job's name gets the same room. */
+  @media(min-width:701px){
+    .tl-acts{flex-wrap:wrap;justify-content:flex-end;max-width:240px;row-gap:2px;}
   }
   .tl-sub{margin-left:34px;}
   .tl-inside{margin-left:34px;}
@@ -2870,7 +2883,8 @@ function agendaWeekOf(offset) {
 }
 
 /* THE ONE THING THIS PAGE CAN WRITE TO A PLAN — and, since v251, its exceptions:
-   tlDeletePost's { weeklyDelete } (v253: delete everywhere, and its Undo), and
+   tlDeletePost's { weeklyDelete } (v253: delete everywhere, and its Undo),
+   tlRenamePost's { weeklyRename } (v301: one job's wording), and
    tlCancelPost's { weeklyCancel }, which takes ONE occurrence off today (or moves it) through
    the weekly page's own skip/move entries. It builds the only payload it is able to build — a
    single boolean at an address the weekly page worked out. The test asserts that every
@@ -4238,6 +4252,8 @@ let tlShowParked = false;   // the "Parked (N)" line is unfolded
 let tlFocusPick = "";       // the job whose Focus lengths are showing
 // v251: the job being taken off today — { key, stage: "ask" | "move" | "sure", to?, error? }
 let tlCancel = null;
+// v301: the job whose wording is being fixed — { key, value, error?, busy? }
+let tlEdit = null;
 
 // today's jobs, as the list shows them: { live, parked, waiting }
 function tlJobs() {
@@ -4304,15 +4320,24 @@ function tlRowHtml(j, isParked) {
   const live = run && !run.finished;
   const hasMore = j.source !== "one" && !!fmDetail(j);
   const open = hasMore && !!tlOpen[j.key];
+  const editing = !isParked && !!tlEdit && tlEdit.key === j.key;
   let h = '<div class="tl-row' + (j.done ? " done" : "") + (j.late && !j.done ? " late" : "") +
     (live ? " running" : "") + (isParked ? " parked" : "") + '" data-key="' + esc(j.key) + '">' +
     '<div class="tl-line">' +
       '<button type="button" class="fm-tick' + (j.done ? " on" : "") + '" data-tl="tick" aria-label="' +
         esc((j.done ? "Not done after all: " : "Mark done: ") + j.title) + '"><svg class="ic"><use href="#ic-check"/></svg></button>' +
-      '<span class="tl-main"><span class="tl-t">' + esc(j.title) + "</span>" +
+      '<span class="tl-main">' + (editing
+          ? '<input class="tl-edit-in" type="text" maxlength="200" data-tl-edit aria-label="Job wording" value="' + esc(tlEdit.value) + '">'
+          /* the words are the button: an "edit" button beside the others squeezed the title */
+          : (!isParked && tlCanEdit(j)
+            ? '<span class="tl-t tl-t-ed" data-tl="edit" role="button" tabindex="0" title="Click to change the wording">' + esc(j.title) + "</span>"
+            : '<span class="tl-t">' + esc(j.title) + "</span>")) +
         '<span class="tl-w">' + esc(tlWhere(j)) + "</span></span>" +
       (live ? '<span class="tl-run">' + (run.pausedRemaining != null ? "Paused" : "Running") + "</span>" : "") +
-      '<span class="tl-acts">' +
+      '<span class="tl-acts">' + (editing
+        ? '<button type="button" class="tl-min go" data-tl="ed-save">Save</button>' +
+          '<button type="button" class="tl-min plain" data-tl="ed-x">Cancel</button>'
+        : "") + (editing ? "" :
         (hasMore ? '<button type="button" class="tl-more' + (open ? " on" : "") + '" data-tl="more" aria-expanded="' + open +
           '" title="Notes and checklist">▸</button>' : "") +
         (isParked
@@ -4328,9 +4353,10 @@ function tlRowHtml(j, isParked) {
             (!j.done && tlCanCancel(j) ? '<button type="button" class="tl-a" data-tl="later" aria-expanded="' +
               (!!tlCancel && tlCancel.key === j.key && tlCancel.via === "later") + '" title="Move it to another day or time">later</button>' : "") +
             (!j.done && tlCanCancel(j) ? '<button type="button" class="tl-a tl-a-x" data-tl="cx" aria-expanded="' + (!!tlCancel && tlCancel.key === j.key && tlCancel.via !== "later") +
-              '" title="Not getting to it today — move it or drop it">cancel</button>' : "")) +
+              '" title="Not getting to it today — move it or drop it">cancel</button>' : ""))) +
       "</span>" +
     "</div>";
+  if (editing && tlEdit.error) h += '<div class="tl-sub"><b class="tl-cx-err">' + esc(tlEdit.error) + "</b></div>";
   if (!isParked && !j.done && tlCancel && tlCancel.key === j.key) h += tlCancelHtml(j);
   if (!isParked && !j.done && wtDraft && wtDraft.row === j.key) h += wtPanelHtml();
   // the lengths, when Focus was pressed
@@ -4379,6 +4405,12 @@ function renderTodayList() {
           (tlShowParked ? "▾" : "▸") + " Parked (" + parked.length + ")</button>" +
         (tlShowParked ? '<div class="tl-list">' + parked.map((j) => tlRowHtml(j, true)).join("") + "</div>" : "")
       : "");
+  // v301: a redraw mid-edit must not take the cursor out of the box
+  if (tlEdit) {
+    const n = body.querySelector("[data-tl-edit]");
+    if (!n) tlEdit = null;                 // its row has gone (ticked or moved somewhere else)
+    else if (document.activeElement !== n) { n.focus(); try { n.setSelectionRange(n.value.length, n.value.length); } catch (e) {} }
+  }
 }
 // one listener for the whole list, so a redraw never has to rewire it
 function tlWireOnce() {
@@ -4387,7 +4419,16 @@ function tlWireOnce() {
   body.dataset.wired = "1";
   body.addEventListener("click", tlClick);
   // v251: the skip note survives a redraw (an error, say) while the prompt is open
+  // v301: Enter saves the new wording, Escape leaves it as it was
+  body.addEventListener("keydown", (e) => {
+    // the words are a button: Enter on them opens the box, as a click does
+    if (e.key === "Enter" && e.target && e.target.classList && e.target.classList.contains("tl-t-ed")) { e.preventDefault(); e.target.click(); return; }
+    if (!tlEdit || !e.target || !e.target.dataset || !("tlEdit" in e.target.dataset)) return;
+    if (e.key === "Enter") { e.preventDefault(); const j = tlFind(tlEdit.key); if (j) tlEditGo(j); }
+    else if (e.key === "Escape") { e.preventDefault(); tlEdit = null; renderTodayList(); }
+  });
   body.addEventListener("input", (e) => {
+    if (tlEdit && e.target && e.target.dataset && "tlEdit" in e.target.dataset) tlEdit.value = e.target.value;
     if (tlCancel && e.target && e.target.dataset && "tlNote" in e.target.dataset) tlCancel.note = e.target.value;
     if (wtDraft && e.target && e.target.dataset && "wtOn" in e.target.dataset) wtDraft.on = e.target.value;
   });
@@ -4425,6 +4466,16 @@ async function tlClick(e) {
     if (n) n.focus();
     return;
   }
+  if (act === "edit") {
+    tlEdit = { key: j.key, value: j.title };
+    tlCancel = null; tlFocusPick = ""; wtDraft = null;
+    renderTodayList();
+    const n = $("tlBody").querySelector("[data-tl-edit]");
+    if (n) n.select();
+    return;
+  }
+  if (act === "ed-save") return tlEditGo(j);
+  if (act === "ed-x") { tlEdit = null; renderTodayList(); return; }
   if (act === "more") { tlOpen[j.key] = !tlOpen[j.key]; renderTodayList(); return; }
   if (act === "focus") { tlFocusPick = tlFocusPick === j.key ? "" : j.key; renderTodayList(); return; }
   if (act === "min") { tlFocusPick = ""; ftStart(Number(el.dataset.min), { key: j.key, title: j.title }); return; }
@@ -5042,6 +5093,65 @@ async function tlCancelStep(j, f, to, slot) {
      • a one-off planner task: out of this week's list and every slot it sat in.
    The way back is on the confirmation itself (the v209/v220 rule): an Undo that puts back
    exactly what went — the store kept it whole before taking it. */
+/* v301: FIX THE WORDS WHERE THEY ARE. Ash: "I need to be able to edit these … If I make a
+   typo or need to change something I have to delete it and start again."
+   Clicking a job's words turns them into a box; Save (or Enter) writes the new name where that job
+   lives, so the weekly planner, the board and the calendar all read the same:
+     • a project step: the step's own title (projects stepLink);
+     • a recurring/training job or a one-off planner task: kpi-store's { weeklyRename }.
+   Your one thing is typed in its own box above; a waiting or worked-on row is a record. */
+function tlCanEdit(j) {
+  if (j.source === "one" || j.source === "back" || j.source === "worked") return false;
+  if (tlStepOf(j)) return true;
+  return j.source === "plan" && !!(j.tgt && (j.tgt.l || j.tgt.m));
+}
+async function tlRenamePost(tgt, title) {
+  const r = await fetch(API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ weeklyRename: { weekEnding: agendaWeekOf(0), tgt, title } }),
+  });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const out = await r.json();
+  if (out && out.agenda) {
+    wpAgendaToday = out.agenda;
+    if (calWeekOffset === 0) wpAgenda = out.agenda;
+  }
+  return out || {};
+}
+async function tlStepTitle(f, title) {
+  const r = await fetch(PROJECTS, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ stepLink: { projectId: f.project.id, stepId: f.step.id, title: title } }),
+  });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  f.step.title = title;
+}
+async function tlEditGo(j) {
+  const e = tlEdit;
+  if (!e || e.busy) return;
+  const next = String(e.value || "").replace(/\s+/g, " ").trim().slice(0, 200);
+  if (!next) { e.error = "Give it a name first."; renderTodayList(); return; }
+  if (next === j.title) { tlEdit = null; renderTodayList(); return; }
+  e.busy = true;
+  try {
+    const f = tlStepOf(j);
+    if (f) await tlStepTitle(f, next);
+    else {
+      const out = await tlRenamePost(j.tgt, next);
+      if (!out.agenda && j.row) j.row.title = next;     // no calendar copy came back: fix the one on screen
+    }
+  } catch (err) {
+    e.busy = false;
+    e.error = "That did not save, so the wording has not changed. Try again.";
+    renderTodayList();
+    return;
+  }
+  tlEdit = null;
+  fmAfterChange();
+}
+
 let tlUndo = null;      // { title, token, step?, error? } — the last delete, while it can be undone
 const TL_UNDO_MS = 12000;
 function tlDeleteSays(j) {

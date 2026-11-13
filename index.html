@@ -1077,6 +1077,22 @@
     cursor:pointer;padding:0 1px;flex:none;opacity:0;transition:opacity .12s,color .12s;}
   .wp-cellchip:hover .wp-chip-del{opacity:.65;}
   .wp-chip-del:hover{color:var(--red);opacity:1;}
+  /* v301: the pencil on a placed chip. Quiet until the chip is hovered, like the ✕ beside it.
+     Pressing it turns the words into a box you can type in. */
+  .wp-chip-edit{background:transparent;border:none;color:var(--ink-faint);line-height:0;
+    cursor:pointer;padding:0 1px;flex:none;opacity:0;transition:opacity .12s,color .12s;}
+  .wp-chip-edit .ic{width:12px;height:12px;}
+  .wp-cellchip:hover .wp-chip-edit{opacity:.65;}
+  .wp-chip-edit:hover,.wp-chip-edit:focus-visible{color:var(--orange);opacity:1;}
+  .wp-cellchip.wp-chip-editing{cursor:default;}
+  .wp-cellchip.wp-chip-editing .wp-chip-edit{display:none;}
+  /* (input.wp-chip-in, not .wp-chip-in: it has to beat the chip's tick-box rule, which
+     styles every input in a chip as a 14px square) */
+  .wp-cellchip input.wp-chip-in{flex:1;min-width:0;width:auto;height:auto;font:inherit;color:var(--ink);
+    background:var(--card);border:1px solid var(--orange);border-radius:var(--r-sm);padding:2px 6px;
+    margin:-3px 0;cursor:text;position:static;box-shadow:0 0 0 2px rgba(var(--orange-rgb),.14);}
+  .wp-cellchip input.wp-chip-in:hover{border-color:var(--orange);}
+  .wp-cellchip input.wp-chip-in:focus{outline:none;}
   /* v276: waiting on. The chip is not done and not late: its box stays open, its name goes
      quiet, and the hourglass stays lit so the grid says why */
   /* no width until wanted: a hidden button must not take letters off a name in a narrow cell */
@@ -1113,7 +1129,7 @@
     color:var(--on-accent);padding:8px 16px;margin-right:6px;}
   .wp-wt-sec{font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;border:1px solid var(--line);border-radius:var(--r-pill);
     background:transparent;color:var(--ink-dim);padding:7px 14px;margin-right:6px;}
-  @media (hover:none){ .wp-chip-del{opacity:.55;} }   /* touch: no hover to reveal it */
+  @media (hover:none){ .wp-chip-del,.wp-chip-edit{opacity:.55;} }   /* touch: no hover to reveal it */
   /* v82: the little "this week / whole schedule" question — same navy/orange language as
      the Today modal, just small and centred. Backdrop or Cancel or Esc = no change. */
   .wp-ask-overlay{position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;
@@ -1871,6 +1887,7 @@ try { if (localStorage.getItem("bodysculpt:nav") === "collapsed") document.docum
 <svg width="0" height="0" style="position:absolute;width:0;height:0;overflow:hidden;pointer-events:none" aria-hidden="true" focusable="false"><defs>
 <symbol id="ic-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></symbol>
 <symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></symbol>
+<symbol id="ic-pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></symbol>
 <symbol id="ic-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></symbol>
 <symbol id="ic-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></symbol>
 <symbol id="ic-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
@@ -4320,6 +4337,11 @@ function wpChipHtml(ref, dk, mode, cellKey){
   const delOut = (ck && !(item.derived && item.due))
     ? `<button type="button" class="wp-chip-del" title="${wpIsScheduledRef(ref) ? "Remove from this slot" : "Delete this task"}" onclick="wpChipRemove(event,'${ref}','${ck}')"><svg class="ic"><use href="#ic-close"/></svg></button>`
     : "";
+  // v301: a pencil per chip. The words can be fixed where they are read; before this a typo
+  // meant deleting the task and typing it again.
+  const editOut = ck
+    ? `<button type="button" class="wp-chip-edit" title="Change the wording" aria-label="Change the wording of ${wpEsc(item.title)}" onclick="wpChipEdit(event,'${ref}')"><svg class="ic"><use href="#ic-pencil"/></svg></button>`
+    : "";
   // v89: a chip is also a drop target for its own cell — dropping a chip from the SAME cell
   // onto it reorders (above/below depending on which half you drop on). A drop from another
   // cell isn't handled here: it bubbles to the <td> and takes the normal v82 move path.
@@ -4329,7 +4351,7 @@ function wpChipHtml(ref, dk, mode, cellKey){
       ondragover="wpChipDragOver(event,'${ck}')" ondragleave="wpChipDragLeave(event)" ondrop="wpChipDrop(event,'${ck}','${ref}')">
     <span class="wp-chip-grip" aria-hidden="true">⠿</span>
     <input type="checkbox" ${done?"checked":""} onchange="wpToggleDoneRef('${ref}',this.checked,'${dk}')">
-    <span class="wp-chip-title">${emoji}${wpEsc(item.title)}</span>${done?"":wpWaitBtnHtml(ref,dk,held)}${noteOut}${linkOut}${delOut}</label>`;
+    <span class="wp-chip-title">${emoji}${wpEsc(item.title)}</span>${done?"":wpWaitBtnHtml(ref,dk,held)}${noteOut}${linkOut}${editOut}${delOut}</label>`;
 }
 
 /* ===== v70: RICH NOTES ===== */
@@ -7730,6 +7752,84 @@ async function wpSkipThisWeek(ref, cellKey){
 }
 // The ✕ on a grid chip. Scheduled task → ask (skip this week / remove entirely). One-off →
 // exactly what "Remove from grid" always did: off the grid, still in its list.
+/* =====================================================================
+   v301: FIX THE WORDS WHERE THEY ARE
+   Ash: "I need to be able to edit these, right now I can't. If I make a typo or need to
+   change something I have to delete it and start again."
+
+   The pencil on a chip turns its words into a box. Enter or clicking away saves; Escape
+   puts the old words back. Nothing new is stored: the name is changed where that task
+   already lives, so every other place that shows it follows —
+     • a one-off (Project / Buffer): the week's own list, saved the way typing in the list is;
+     • a recurring or training task: its list, so every week reads the same;
+     • a project step: the step on its board (stepLink), put back if the board refuses it.
+   An empty box changes nothing — a task is never left without a name.
+   ===================================================================== */
+function wpChipEdit(ev, ref){
+  const btn = ev && ev.currentTarget;
+  if(ev){ try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){} }
+  const chip = btn && btn.closest ? btn.closest(".wp-cellchip") : null;
+  const item = wpResolveRef(ref);
+  if(!chip || !item) return;
+  const span = chip.querySelector(".wp-chip-title");
+  if(!span) return;                       // already being edited
+  const inp = document.createElement("input");
+  inp.type = "text";
+  inp.className = "wp-chip-in";
+  inp.maxLength = 200;
+  inp.value = String(item.title||"");
+  inp.setAttribute("aria-label", "Task wording");
+  chip.draggable = false;                 // or the box drags the chip instead of selecting text
+  chip.classList.add("wp-chip-editing");
+  span.replaceWith(inp);
+  inp.focus(); inp.select();
+  let settled = false;
+  const finish = (save)=>{
+    if(settled) return;
+    settled = true;
+    const next = wpCleanTitle(inp.value);
+    if(save && next && next !== String(item.title||"")){ wpChipRename(ref, next); return; }
+    inp.replaceWith(span);                // nothing to change: put the words back as they were
+    chip.draggable = true;
+    chip.classList.remove("wp-chip-editing");
+  };
+  inp.onkeydown = (e)=>{
+    if(e.key === "Enter"){ e.preventDefault(); finish(true); }
+    else if(e.key === "Escape"){ e.preventDefault(); finish(false); }
+  };
+  inp.onblur = ()=>finish(true);
+}
+function wpCleanTitle(v){ return String(v==null?"":v).replace(/\s+/g," ").trim().slice(0,200); }
+async function wpChipRename(ref, next){
+  if(!wpPlan) return;
+  const source = String(ref).split(":")[0];
+  wpSyncFromDom();                        // keep anything else half-typed on the page
+  const item = wpResolveRef(ref);
+  next = wpCleanTitle(next);
+  if(!item || !next){ renderWeeklyPlan(); return; }
+  const old = String(item.title||"");
+  if(next === old){ renderWeeklyPlan(); return; }
+  if(item.derived){
+    // a project step: its name lives on the board. On screen first, then told to the board.
+    const f = wpStepFor(item);
+    if(!f){ renderWeeklyPlan(); return; }
+    f.step.title = next;
+    wpStepsSync(); renderWeeklyPlan();
+    try{ await wpStepLink(f.project.id, f.step.id, { title: next }); }
+    catch(e){
+      f.step.title = old;                 // the board refused it: the old words come back
+      wpStepsSync(); renderWeeklyPlan();
+      wpToast("That change was not saved, so the old wording is back. Check your connection and try again.");
+    }
+    return;
+  }
+  item.title = next;
+  renderWeeklyPlan();
+  if(source === "training") await wpSaveTraining();
+  else if(source === "recurring") await wpSaveDefaults();
+  else await wpSaveSection(source);
+}
+
 async function wpChipRemove(ev, ref, cellKey){
   if(ev){ try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){} }
   if(!wpPlan || !ref) return;

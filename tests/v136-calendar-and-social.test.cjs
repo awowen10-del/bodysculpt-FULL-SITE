@@ -161,7 +161,8 @@ async function runIg(env, url, responder, seed) {
   // v253 added the fourth: { weeklyDelete } — delete a job everywhere, and its Undo
   // v276 added the fifth: { waiting } — one record on the waiting list, which is not a plan
   // v290 added the sixth: { worked } — one record on the worked list (done for today), not a plan
-  assert.strictEqual(storeWrites.length, 6, "there are exactly SIX places that write to the store");
+  // v301 added the seventh: { weeklyRename } — one job's wording, and nothing else about it
+  assert.strictEqual(storeWrites.length, 7, "there are exactly SEVEN places that write to the store");
   for (const w of storeWrites) assert.ok(/method: "POST"/.test(w), "…all POSTs");
   /* v152 added the second, when the daily check-in moved here from the weekly page's Today
      modal. Two named payloads, each built by one function that can express nothing else:
@@ -170,8 +171,8 @@ async function runIg(env, url, responder, seed) {
      Every store READ still goes through jget(url) with no options, checked above. */
   const bodies = storeWrites.map((w) => /JSON\.stringify\(\{ ([a-zA-Z]+)[:,]/.exec(w))
     .map((m) => (m ? m[1] : "")).sort();
-  assert.deepStrictEqual(bodies, ["checkin", "waiting", "weeklyCancel", "weeklyDelete", "weeklyTick", "worked"],
-    "…and their bodies can only ever be these six named payloads");
+  assert.deepStrictEqual(bodies, ["checkin", "waiting", "weeklyCancel", "weeklyDelete", "weeklyRename", "weeklyTick", "worked"],
+    "…and their bodies can only ever be these seven named payloads");
   // Scoped to the write bodies themselves. Scanning the whole script for these names finds
   // innocent ones — `week: 8` is a Gmail tier cap, not a KPI week — and a test that cries
   // wolf about its own page is worse than no test.
@@ -210,7 +211,9 @@ async function runIg(env, url, responder, seed) {
      stepLink route, which can change only a step's date and day, never its title or board. */
   /* v253 made it four: "delete everywhere" on a project step is the board's own soft delete
      (del:true, the step kept) and false is its Undo — one boolean on one step. */
-  assert.strictEqual(projWrites.length, 4, "there are exactly FOUR places that write to the projects store");
+  /* v301 made it five: "edit" on a project step fixes its wording — the same stepLink route,
+     carrying only the one step's title. */
+  assert.strictEqual(projWrites.length, 5, "there are exactly FIVE places that write to the projects store");
   for (const w of projWrites) {
     assert.ok(/method: "POST"/.test(w), "…all POSTs");
     assert.ok(/JSON\.stringify\(\{ stepLink:/.test(w), "…and every body can only ever be { stepLink }");
@@ -221,8 +224,8 @@ async function runIg(env, url, responder, seed) {
   // order-independent: which of the two comes first in the file is not the guarantee
   const shapes = projWrites.map((w) => fieldsOf(w).sort().join(",")).sort();
   assert.deepStrictEqual(shapes,
-    ["check,done,id,projectId,stepId", "done,projectId,stepId", "projectId,stepId", "del,projectId,stepId"].sort(),
-    "between them: finishing a step, ticking one item on its checklist, and (v251) cancel's date change — and nothing else");
+    ["check,done,id,projectId,stepId", "done,projectId,stepId", "projectId,stepId", "del,projectId,stepId", "projectId,stepId,title"].sort(),
+    "between them: finishing a step, ticking one item on its checklist, (v251) cancel's date change, and (v301) the step's wording — and nothing else");
   /* v251: cancel's write carries a `link` built in tlCancelStep, and that link may hold a
      step's date and its day in the week — what "move it to Thursday" or "not today" means —
      and nothing else. Its title, notes, board and stage stay out of reach. */
@@ -233,8 +236,10 @@ async function runIg(env, url, responder, seed) {
     for (const k of linkKeys) assert.ok(["due", "week", "day", "slot"].includes(k), "cancel's link only carries a date and a day: " + k);
     assert.ok(!/link\.(?!due\b)[a-zA-Z]+ =/.test(m[1]), "…and nothing else is added to it afterwards");
   }
+  // v301: a step's title may travel, in exactly ONE write, with nothing beside it but the ids
+  assert.strictEqual(projWrites.filter((w) => /\btitle\s*:/.test(w)).length, 1, "only the edit's write carries a title");
   for (const w of projWrites) {
-    for (const payload of ["project", "week", "day", "slot", "columns", "steps", "canvas", "archived", "title", "notes"]) {
+    for (const payload of ["project", "week", "day", "slot", "columns", "steps", "canvas", "archived", "notes"]) {
       assert.ok(!new RegExp("\\b" + payload + "\\s*:").test(w),
         "no projects write on the daily page can carry " + payload);
     }

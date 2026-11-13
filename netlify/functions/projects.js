@@ -11,7 +11,7 @@
 //   POST ?upload=1&name=&mime=   raw bytes in the body (4 MB cap) -> { file:{id,name,mime,size} }
 //   POST { project:{…} }  save one project, whole. The page always holds the whole project,
 //                         so a partial write can never half-erase a board.
-//   POST { stepLink:{ projectId, stepId, done?, due?, week?, day?, slot?, check?, addCheck?, delCheck?, del? } }
+//   POST { stepLink:{ projectId, stepId, done?, title?, due?, week?, day?, slot?, check?, addCheck?, delCheck?, del? } }
 //                         v214: the weekly plan's door.
 //         The WEEKLY page calls this, and it is deliberately the narrowest thing that could
 //         work: it can tick one step off, and it can note which week and day that step has
@@ -26,7 +26,7 @@
 //         only, in the To do stage. Adds; never edits or removes anything.
 //
 // There is no delete route. Archiving a project and flagging a step are ordinary saves.
-import { cleanProject, listProjects, readProject, writeProject, readFile, writeFile,
+import { cleanProject, listProjects, readProject, writeProject, readFile, writeFile, applyStepTitle,
          applyStepDone, applyStepDue, applyStepWeek, applyStepDel, applyStepCheck, applyAddStep, applyStepAddCheck, applyStepDelCheck,
          newId, clip, json, CAP, MIMES } from "../lib/projects.js";
 
@@ -102,6 +102,8 @@ export default async (req) => {
       if ("done" in body.stepLink) changed = !!applyStepDone(project, sid, body.stepLink.done) || changed;
       // v253: deleted (true) or put back (false) — and a deleted step takes nothing else
       if ("del" in body.stepLink) changed = !!applyStepDel(project, sid, body.stepLink.del) || changed;
+      // v301: the step's wording, fixed from the weekly planner or the daily page
+      if ("title" in body.stepLink) changed = !!applyStepTitle(project, sid, body.stepLink.title) || changed;
       if ("due" in body.stepLink) changed = !!applyStepDue(project, sid, body.stepLink.due) || changed;
       if ("week" in body.stepLink) changed = !!applyStepWeek(project, sid, body.stepLink.week, body.stepLink.day, body.stepLink.slot) || changed;
       // v218: { check: { id, done } } — one checklist item, ticked from the weekly plan

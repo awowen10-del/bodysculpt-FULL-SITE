@@ -270,7 +270,8 @@ const world = () => ({
     const before = m.get("proj-p_ghl");
     // (v227: the due date IS reachable now — it is what puts a step on a day — so it is not
     // in this list; tests/v227 covers it)
-    const r = await link({ title: "HACKED", notes: "HACKED", urgency: "critical",
+    // (v301: and so is the step's title; tests/v301 covers it)
+    const r = await link({ notes: "HACKED", urgency: "critical",
       col: "done", tags: ["x"], files: [], name: "HACKED", columns: [], steps: [], canvas: [] });
     assert.strictEqual((await r.json()).unchanged, true, "everything else it might carry changes nothing");
     assert.strictEqual(m.get("proj-p_ghl"), before, "…and does not even write");
