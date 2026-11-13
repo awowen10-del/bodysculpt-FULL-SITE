@@ -55,6 +55,9 @@ export const SEED = () => ({
 // project itself, its tasks and its dates stay in the Projects store and are worked through
 // that function's own narrow doors.
 const PROJ_ID = /^[A-Za-z0-9_-]{1,40}$/;
+// v300: a plan's notes are where Ash dumps his ideas and writes up the final plan, so they get
+// room: 20,000 characters, not 2,000.
+export const NOTES_MAX = 20000;
 
 export function cleanItem(raw) {
   const r = raw || {};
@@ -64,7 +67,7 @@ export function cleanItem(raw) {
   const end = isDay(r.end) && r.end >= r.start ? r.end : r.start;
   const prep = Math.max(0, Math.min(26, Math.round(Number(r.prepWeeks) || 0)));
   return { id: clip(String(r.id || ""), 40) || newId(), cat, title, start: r.start, end,
-    fixed: !!r.fixed, yearly: !!r.yearly, prepWeeks: prep, notes: clip(String(r.notes || ""), 2000),
+    fixed: !!r.fixed, yearly: !!r.yearly, prepWeeks: prep, notes: clip(String(r.notes || ""), NOTES_MAX),
     projectId: PROJ_ID.test(String(r.projectId || "")) ? String(r.projectId) : "",
     del: !!r.del };
 }
@@ -87,6 +90,8 @@ export async function applyOp(body) {
     const i = plan.items.findIndex((x) => x.id === item.id);
     // a save that doesn't mention the project (an older page, a form without it) keeps the link
     if (i >= 0 && !("projectId" in (body.item || {}))) item.projectId = plan.items[i].projectId || "";
+    // v300: the same for notes. The dates form no longer carries them, so it can never wipe them.
+    if (i >= 0 && !("notes" in (body.item || {}))) item.notes = plan.items[i].notes || "";
     if (i >= 0) plan.items[i] = item; else plan.items.push(item);
   } else if (body.op === "delItem") {
     const it = plan.items.find((x) => x.id === body.id);
@@ -108,6 +113,13 @@ export async function applyOp(body) {
     const pid = String(body.projectId || "");
     if (pid && !PROJ_ID.test(pid)) return { error: "That project could not be linked" };
     it.projectId = pid;
+  } else if (body.op === "noteItem") {
+    // v300: the notes and nothing else. `was` is what the page started from: if the notes have
+    // changed since (another tab, another laptop), the save is refused rather than writing over them.
+    const it = plan.items.find((x) => x.id === body.id && !x.del);
+    if (!it) return { error: "That plan is no longer here" };
+    if ("was" in body && String(body.was || "") !== (it.notes || "")) return { error: "These notes were changed somewhere else. Copy what you wrote, then open them again." };
+    it.notes = clip(String(body.notes || ""), NOTES_MAX);
   } else if (body.op === "linkProject") {
     if (!/^[A-Za-z0-9_-]{1,40}$/.test(String(body.id || "")) || !CATS.includes(body.cat)) return { error: "That project could not be added to the calendar" };
     plan.links = { ...plan.links, [body.id]: body.cat };

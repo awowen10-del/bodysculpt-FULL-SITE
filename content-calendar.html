@@ -545,6 +545,21 @@
   .cc-fold[open] > summary .ic{transform:none;}
   .cc-fold > .cc-db,.cc-fold > .cc-steps{margin-top:8px;}
   .cc-more{border-top:1px solid var(--line);padding-top:6px;}
+  /* v300: a plan's notes. A preview in the drawer, and a big box to write in. */
+  .cc-notew{display:flex;flex-direction:column;gap:12px;}
+  .cc-note{font:inherit;text-align:left;width:100%;box-sizing:border-box;background:var(--card-2);border:1px solid transparent;border-radius:var(--r-md);padding:11px 12px;cursor:pointer;color:var(--ink);display:flex;flex-direction:column;gap:8px;transition:border-color var(--tap);}
+  .cc-note:hover{border-color:var(--line);}
+  .cc-note p{margin:0;font-size:13.5px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;max-height:7.5em;overflow:hidden;}
+  .cc-note p.none{color:var(--ink-dim);}
+  .cc-note span{font-size:12.5px;font-weight:700;color:var(--orange);}
+  .cc-pop{position:fixed;inset:0;z-index:68;display:grid;place-items:center;padding:24px;box-sizing:border-box;background:color-mix(in srgb,var(--ink-strong) 45%,transparent);}
+  .cc-popc{width:min(920px,100%);height:min(820px,100%);background:var(--card);border-radius:var(--r-lg);box-shadow:var(--shadow-lift);display:flex;flex-direction:column;overflow:hidden;}
+  .cc-popc textarea{flex:1 1 auto;min-height:0;width:100%;box-sizing:border-box;border:0;resize:none;font:inherit;font-size:16px;line-height:1.6;color:var(--ink-strong);background:var(--card);padding:16px 18px;}
+  .cc-popc textarea:focus,.cc-popc textarea:focus-visible{outline:none;box-shadow:none;}
+  .cc-popf{display:flex;align-items:center;gap:12px;padding:12px 18px;border-top:1px solid var(--line);}
+  .cc-popf p{margin:0;font-size:13px;color:var(--ink-dim);min-width:0;}
+  .cc-popf p.bad{color:var(--red);}
+  .cc-popf .cc-btn.go{margin-left:auto;}
   .cc-sugg{background:rgba(var(--orange-rgb),.06);border-radius:var(--r-md);padding:12px;display:flex;flex-direction:column;gap:10px;}
   .cc-sugg b{display:block;color:var(--ink-strong);font-size:14px;}
   .cc-sugg small{display:block;color:var(--ink-dim);font-size:12px;margin-top:2px;}
@@ -1185,7 +1200,7 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
     var sub = fmtRange(o.start, o.end) + (it.fixed ? " · every year" : "") + (it.prepWeeks && o.prep > today ? " · start preparing " + fmt(o.prep) : "");
     panel = { itemId: it.id, projId: it.projectId || "", open: {}, showDone: false };
     var pj = projOf(it);
-    show(it.title, sub, '<div id="ccProj">' + projHtml(it) + "</div>" +
+    show(it.title, sub, '<div class="cc-notew" id="ccNote">' + noteHtml(it) + '</div><div id="ccProj">' + projHtml(it) + "</div>" +
       '<details class="cc-fold cc-more"' + (pj ? "" : " open") + "><summary>" + icon("ic-chevron") + "Dates and details</summary>" + formHtml(it, false) + "</details>");
     drawer = it;
     if (pj) refreshProj(pj.id);
@@ -1411,16 +1426,96 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
       '<div class="cc-two"><label class="cc-f">Starts<input type="date" name="start" required value="' + ccEsc(it.start) + '"></label><label class="cc-f">Ends<input type="date" name="end" required value="' + ccEsc(it.end) + '"></label></div>' +
       '<label class="cc-chk"><input type="checkbox" name="fixed"' + (it.fixed ? " checked" : "") + "><span>Non-negotiable<small>Comes back every year on the same dates, with a run-up to prepare.</small></span></label>" +
       '<label class="cc-f">Weeks to prepare<input type="number" name="prepWeeks" min="0" max="26" value="' + (it.prepWeeks || 0) + '"></label>' +
-      '<label class="cc-f">Notes<textarea name="notes" maxlength="2000">' + ccEsc(it.notes || "") + "</textarea></label>" +
+      // v300: a plan that exists keeps its notes in their own big box (noteHtml), saved on their own
+      (isNew ? '<label class="cc-f">Notes<textarea name="notes" maxlength="20000">' + ccEsc(it.notes || "") + "</textarea></label>" : "") +
       '<div class="cc-acts"><button type="submit" class="cc-btn go">Save</button>' + (isNew ? "" : '<button type="button" class="cc-btn del" data-act="del" data-id="' + ccEsc(it.id) + '">Delete</button>') + "</div></form>";
     return body;
   }
   function submitForm(form) {
     var e = form.elements, fixed = e.fixed.checked;
     var item = { id: drawer.id || "", cat: e.cat.value, title: e.title.value, start: e.start.value, end: e.end.value < e.start.value ? e.start.value : e.end.value,
-      fixed: fixed, yearly: fixed, prepWeeks: Number(e.prepWeeks.value) || 0, notes: e.notes.value };
+      fixed: fixed, yearly: fixed, prepWeeks: Number(e.prepWeeks.value) || 0 };
+    if (e.notes) item.notes = e.notes.value;   // v300: only a new plan's form has notes; otherwise the server keeps them
     send({ op: "saveItem", item: item }, "Saved").then(function (ok) { if (ok) shut(); });
   }
+
+  /* ---------- v300: a plan's notes, in a box big enough to think in ----------
+     Ash: "this is where all my brain dumping and finalised ideas go, so can we make this bigger?
+     maybe even a popup box?" The notes sit at the top of the plan's drawer as a preview. Click
+     and they open in a big box. They save by themselves when he stops typing and when he closes
+     it, through their own narrow door (noteItem), so the dates form can never write over them
+     and a stale box is refused instead of wiping newer notes. */
+  var note = null;   // the open box { id, saved, timer, busy }
+  function noteHtml(it) {
+    return '<div class="cc-sec">Notes</div><button type="button" class="cc-note" data-act="notes" data-id="' + ccEsc(it.id) + '">' +
+      (it.notes ? "<p>" + ccEsc(it.notes) + "</p><span>Open notes</span>" : '<p class="none">Nothing written yet. Ideas and the final plan go here.</p><span>Write notes</span>') + "</button>";
+  }
+  function drawNote(id) {
+    var box = $("ccNote"), it = live().filter(function (x) { return x.id === id; })[0];
+    if (box && it && panel && panel.itemId === id) box.innerHTML = noteHtml(it);
+  }
+  function noteSay(msg, bad) { var s = $("ccNoteSay"); if (s) { s.textContent = msg; s.className = bad ? "bad" : ""; } }
+  function openNotes(id) {
+    var it = live().filter(function (x) { return x.id === id; })[0]; if (!it || note) return;
+    note = { id: id, saved: it.notes || "", timer: 0, busy: null };
+    var pop = document.createElement("div");
+    pop.className = "cc-pop"; pop.id = "ccPop";
+    pop.innerHTML = '<div class="cc-popc" role="dialog" aria-modal="true" aria-labelledby="ccPopH"><div class="cc-dh"><div><h2 id="ccPopH">' + ccEsc(it.title) + " notes</h2></div>" +
+      '<button type="button" class="cc-x" data-act="notesdone" aria-label="Close">' + icon("ic-close") + "</button></div>" +
+      '<textarea id="ccNoteTa" maxlength="20000" aria-labelledby="ccPopH" placeholder="Dump your ideas here. It saves by itself."></textarea>' +
+      '<div class="cc-popf"><p id="ccNoteSay" role="status"></p><button type="button" class="cc-btn del" id="ccNoteDrop" data-act="notesdrop" hidden>Close without saving</button>' +
+      '<button type="button" class="cc-btn go" data-act="notesdone">Done</button></div></div>';
+    document.body.appendChild(pop);
+    var ta = $("ccNoteTa"); ta.value = note.saved; ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length); ta.scrollTop = ta.scrollHeight;
+  }
+  function saveNotes() {
+    var n = note, ta = $("ccNoteTa");
+    if (!n || !ta) return Promise.resolve(true);
+    if (n.busy) return n.busy.then(function () { return note === n ? saveNotes() : true; });
+    clearTimeout(n.timer);
+    var v = ta.value;
+    if (v === n.saved) return Promise.resolve(true);
+    noteSay("Saving…");
+    n.busy = fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op: "noteItem", id: n.id, notes: v, was: n.saved }) })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        n.busy = null;
+        if (!res.ok || !res.j || !res.j.plan) { noteSay((res.j && res.j.error) || "That didn't save. Try again.", true); return false; }
+        plan = res.j.plan;
+        var st = plan.items.filter(function (x) { return x.id === n.id; })[0];
+        n.saved = st ? (st.notes || "") : v;
+        if (note === n) noteSay($("ccNoteTa").value === n.saved ? "Saved" : "");
+        drawNote(n.id);
+        return true;
+      }).catch(function () { n.busy = null; noteSay("That didn't save. Check your connection and try again.", true); return false; });
+    return n.busy;
+  }
+  function dropNotes() {
+    if (!note) return;
+    clearTimeout(note.timer); note = null;
+    var p = $("ccPop"); if (p) p.parentNode.removeChild(p);
+    var b = document.querySelector('.cc-drawer.open [data-act="notes"]'); if (b) b.focus();
+  }
+  // Closing saves first. If the save fails the box stays, with the words still in it.
+  function closeNotes() {
+    var n = note; if (!n) return;
+    saveNotes().then(function (ok) {
+      if (note !== n) return;
+      if (ok) dropNotes(); else if ($("ccNoteDrop")) $("ccNoteDrop").hidden = false;
+    });
+  }
+  document.addEventListener("input", function (ev) {
+    if (!note || ev.target.id !== "ccNoteTa") return;
+    noteSay(""); clearTimeout(note.timer); note.timer = setTimeout(saveNotes, 1200);
+  });
+  // a click on the dark surround closes it, but not a text selection that was dragged out there
+  var popDown = false;
+  document.addEventListener("mousedown", function (ev) { popDown = ev.target.id === "ccPop"; });
+  window.addEventListener("beforeunload", function (ev) {
+    var ta = $("ccNoteTa");
+    if (note && ta && ta.value !== note.saved) { ev.preventDefault(); ev.returnValue = ""; }
+  });
 
   /* ---------- saving ---------- */
   function toast(msg, undo) {
@@ -1440,10 +1535,14 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
 
   /* ---------- wiring ---------- */
   document.addEventListener("click", function (ev) {
+    if (ev.target.id === "ccPop") { if (popDown) closeNotes(); return; }
     var b = ev.target.closest ? ev.target.closest("[data-act]") : null;
     if (!b) return;
     var a = b.getAttribute("data-act"), k = b.getAttribute("data-k"), wk = b.getAttribute("data-wk"), id = b.getAttribute("data-id");
     if (a === "shut") shut();
+    else if (a === "notes") openNotes(id);
+    else if (a === "notesdone") closeNotes();
+    else if (a === "notesdrop") dropNotes();
     else if (a === "row") openRow(k);
     else if (a === "week") openWeek(k, wk);
     else if (a === "month") openMonth(b.getAttribute("data-ym"));
@@ -1542,7 +1641,7 @@ function ccEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, functi
   document.addEventListener("toggle", function (ev) {
     if (ev.target && ev.target.id === "ccDoneFold" && panel) panel.showDone = ev.target.open;
   }, true);
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape") shut(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") { if (note) closeNotes(); else shut(); } });
   document.addEventListener("mousemove", function (e) {
     var t = e.target.closest ? e.target.closest("[data-tip]") : null, tip = $("ccTip");
     if (!t) { tip.hidden = true; return; }
