@@ -1471,6 +1471,16 @@
   .tl-row.late{background:rgba(var(--red-rgb),.04);box-shadow:inset 3px 0 0 var(--red);}
   .tl-row.running{border-color:transparent;background:rgba(var(--orange-rgb),.06);box-shadow:inset 3px 0 0 var(--orange);}
   .tl-row.done .tl-t{color:var(--ink-faint);}
+  /* v305: a project block from the weekly plan — the project's name, its steps under it */
+  .tl-block{margin:6px 0 4px;}
+  .tl-block + .tl-row::before{display:none;}
+  .tl-bh{display:flex;align-items:center;gap:10px;padding:8px 0 4px;border-top:1px solid var(--line);}
+  .tl-list > .tl-block:first-child .tl-bh{border-top:0;padding-top:0;}
+  .tl-bh-n{flex:1;min-width:0;font-size:13px;font-weight:800;letter-spacing:.2px;color:var(--ink-strong);}
+  .tl-bh-w{font-size:12px;font-weight:600;color:var(--ink-faint);}
+  .tl-bh-run{font-size:11px;font-weight:700;color:var(--orange);}
+  .tl-block .tl-row{padding-left:24px;}
+  .tl-block.done .tl-bh-n{color:var(--ink-faint);}
   .tl-a,.tl-more{color:var(--ink-faint);font-weight:600;}
   .tl-a:hover,.tl-more:hover{background:var(--card);border-color:var(--line);color:var(--ink);}
   .fm-tick{width:22px;height:22px;border-radius:7px;border:1.5px solid rgba(var(--ink-faint-rgb),.45);
@@ -4129,9 +4139,9 @@ function fmBuildQueue(includeParked) {
     });
   });
   late.sort((a, b) => b.late - a.late);
-  // v230: the order the Today list reads in — what is already late, then the plan in band
-  // order, then what is dated today and was never planned
-  const all = late.concat(out, due);
+  // v305: the plan first, in band order (a project's steps as one block), then what is late,
+  // then what is dated today and was never planned. (v230 put the late ones first.)
+  const all = out.concat(late, due);
   return includeParked ? all : all.filter((j) => !parked.has(j.key) && !wtFor(j));
 }
 function fmDaysLate(due, today) {
@@ -4375,6 +4385,41 @@ function tlRowHtml(j, isParked) {
   if (open) h += tlDetailHtml(j);
   return h + "</div>";
 }
+/* v305: ONE PROJECT PER BLOCK, ON THE DAILY PAGE TOO. A plan row that is a project step
+   says which project (tgt.p) and which cell it came from, so the steps of one project in one
+   time block are gathered under a heading where the first of them sat. Nothing is stored. */
+function tlSegments(live) {
+  const segs = [], at = {};
+  live.forEach((j) => {
+    const pid = j.source === "plan" && j.tgt && j.tgt.p && j.cellKey ? j.tgt.p : "";
+    if (!pid) { segs.push({ job: j, done: !!j.done }); return; }
+    const k = j.cellKey + "|" + pid;
+    if (!at[k]) {
+      const f = j.step;
+      at[k] = { block: true, key: "blk:" + k, cellKey: j.cellKey, when: j.when,
+        name: (f && f.project && f.project.name) || j.from || "Project", jobs: [] };
+      segs.push(at[k]);
+    }
+    at[k].jobs.push(j);
+  });
+  segs.forEach((g) => { if (g.block) g.done = g.jobs.every((j) => j.done); });
+  return segs;
+}
+function tlBlockHtml(g) {
+  const n = g.jobs.length, nDone = g.jobs.filter((j) => j.done).length;
+  const run = ftTimer && ftTimer.jobKey === g.key ? ftTimer : null;
+  const jobs = g.jobs.filter((j) => !j.done).concat(g.jobs.filter((j) => j.done));
+  return '<div class="tl-block' + (g.done ? " done" : "") + '" data-hkey="' + esc(g.key) + '" data-htitle="' + esc(g.name) + '">' +
+    '<div class="tl-bh"><span class="tl-bh-n">' + esc(g.name) + '</span>' +
+      '<span class="tl-bh-w">' + esc((g.when ? g.when + " · " : "") + nDone + " of " + n + " done") + '</span>' +
+      (run && !run.finished ? '<span class="tl-bh-run">' + (run.pausedRemaining != null ? "Paused" : "Running") + '</span>' : "") +
+      (!g.done && !run ? '<button type="button" class="tl-a" data-tl="hfocus" aria-expanded="' + (tlFocusPick === g.key) + '">Focus</button>' : "") +
+    '</div>' +
+    (tlFocusPick === g.key && !g.done && !run ? '<div class="tl-sub">' + FT_PRESETS.map((m) =>
+      '<button type="button" class="tl-min" data-tl="hmin" data-min="' + m + '">' + m + " min</button>").join("") + "</div>" : "") +
+    jobs.map((j) => tlRowHtml(j, false)).join("") +
+  "</div>";
+}
 function renderTodayList() {
   if (typeof renderDayStats === "function") renderDayStats();
   const body = $("tlBody"), sub = $("tlSub");
@@ -4392,12 +4437,15 @@ function renderTodayList() {
       "</div>";
     return;
   }
-  // done sinks to the bottom, otherwise the order is the order they come in
-  const order = live.filter((j) => !j.done).concat(live.filter((j) => j.done));
+  // done sinks to the bottom, otherwise the order is the order they come in.
+  // v305: a project's steps in one time block of the plan sit under the project's name, and
+  // sink together only when every one of them is done.
+  const segs = tlSegments(live);
+  const order = segs.filter((g) => !g.done).concat(segs.filter((g) => g.done));
   // v233: how far through the day, at a glance
   body.innerHTML = tlUndoHtml() + wkUndoHtml() + wtBarHtml() + '<div class="tl-prog" role="progressbar" aria-label="Done today" aria-valuemin="0" aria-valuemax="' + live.length +
       '" aria-valuenow="' + done + '"><i style="width:' + (live.length ? Math.round(done / live.length * 100) : 0) + '%"></i></div>' +
-    (live.length ? '<div class="tl-list">' + order.map((j) => tlRowHtml(j, false)).join("") + "</div>"
+    (live.length ? '<div class="tl-list">' + order.map((g) => g.block ? tlBlockHtml(g) : tlRowHtml(g.job, false)).join("") + "</div>"
       : '<div class="wt-none">Nothing else on your list today.</div>') +
     wtSectionHtml(waiting) +
     (parked.length
@@ -4453,6 +4501,13 @@ async function tlClick(e) {
   if (act === "undo-del") return tlUndoGo();      // v253: the bar is not a row
   if (act === "undo-wk") return wkUndoGo();       // v290
   if (act.startsWith("wt-")) return wtClick(act, el);   // v276: the waiting rows and their panel
+  // v305: Focus on a project heading starts the timer named after the project
+  if (act === "hfocus" || act === "hmin") {
+    const h = el.closest("[data-hkey]");
+    if (!h) return;
+    if (act === "hfocus") { tlFocusPick = tlFocusPick === h.dataset.hkey ? "" : h.dataset.hkey; renderTodayList(); return; }
+    tlFocusPick = ""; ftStart(Number(el.dataset.min), { key: h.dataset.hkey, title: h.dataset.htitle }); return;
+  }
   const rowEl = el.closest("[data-key]");
   const j = rowEl ? tlFind(rowEl.dataset.key) : null;
   if (!j) return;

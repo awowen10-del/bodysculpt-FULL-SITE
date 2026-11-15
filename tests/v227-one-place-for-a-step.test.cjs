@@ -85,10 +85,10 @@ const stepOf = (projects, id) => projects[0].steps.find((s) => s.id === id);
       "a step with no date and no plan is not on the week");
     assert.ok(ctx.wpProjItemById("ps-s_ads").derived, "the week's item is derived from the step, not stored");
 
-    // the Anytime row is drawn above the time rows, and only because something is in it
+    // the Anytime row is drawn only because something is in it (v306: under 5 – 8, so the day opens on 6 – 9)
     const html = ctx.document.getElementById("wpBody").innerHTML;
     assert.ok(/class="wp-grid-any"[\s\S]*?>Anytime</.test(html), "the grid has an Anytime row");
-    assert.ok(html.indexOf("wp-grid-any") < html.indexOf('data-cell="6-9:'), "…at the top");
+    assert.ok(html.indexOf("wp-grid-any") > html.indexOf('data-cell="5-8:') && html.indexOf("wp-grid-any") < html.indexOf('data-cell="notes:'), "…under the last time block, above Notes");
 
     // the daily page is told WHICH step, not an address in the plan
     const ag = lastAgenda(posts);

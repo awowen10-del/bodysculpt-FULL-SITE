@@ -1397,6 +1397,21 @@ export default async (req) => {
         }
         incoming.cellOrder = clean;
       }
+      // v304: how long each job takes this week — { ref: halfHours }, 2..12 (one half hour is
+      // the default and is never stored). Same ref shape as cellOrder; per week only.
+      // v305: and a project block's, keyed "pblock:<projectId>-<slot>-<day>"
+      if ("lengths" in incoming) {
+        const REF_RE = /^(?:(?:project|buffer|recurring|training):[A-Za-z0-9_-]{1,40}|pblock:[A-Za-z0-9_-]{1,40})$/;
+        const raw = incoming.lengths;
+        const clean = {};
+        if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+          for (const ref of Object.keys(raw).slice(0, 200)) {
+            const n = Math.round(Number(raw[ref]));
+            if (REF_RE.test(ref) && n > 1 && n <= 12) clean[ref] = n;
+          }
+        }
+        incoming.lengths = clean;
+      }
       const merged = { ...existing, ...incoming, lastUpdated: new Date().toISOString() };
       await store.set(key, JSON.stringify(merged));
       return Response.json({ ok:true, plan: merged });

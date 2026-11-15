@@ -25,7 +25,8 @@ function bodyOf(name) {
 // Run the real wpListBox with stand-ins for what it calls.
 const src = [
   "const WP_HIDE_DONE_KEY='k';", "let wpHideDone=false;",
-  bodyOf("wpDoneCount"), bodyOf("wpHideDoneBtnHtml"), bodyOf("wpListBox"),
+  "const wpProjects={list:[]}; const wpProjAccent=()=>'orange'; const wpEsc=s=>String(s);",
+  bodyOf("wpDoneCount"), bodyOf("wpHideDoneBtnHtml"), bodyOf("wpProjGroupedRows"), bodyOf("wpListBox"),
   "return { list: wpListBox, set: v => { wpHideDone = v; } };",
 ].join("\n");
 const done = new Set(["a", "c"]);

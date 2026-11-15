@@ -125,7 +125,7 @@ const js = WEEKLY.slice(WEEKLY.indexOf("<script>", WEEKLY.indexOf("</style>")) +
   /* ============ 4. it reads as a wall, not as a task ============ */
   assert.ok(/const appts = rk === "notes" \? "" : wpCalChipsHtml\(dk, rk\);/.test(WEEKLY),
     "appointments are drawn per cell, and the Notes row is left alone");
-  assert.ok(/<div class="wp-cellwrap">\$\{appts\}\$\{chips/.test(WEEKLY),
+  assert.ok(/<div class="wp-cellwrap(?:\$\{timed\})?">(?:\$\{pad\})?\$\{appts\}\$\{chips/.test(WEEKLY),
     "…ABOVE the tasks: you should see the wall before the space");
   const style = styleOf(WEEKLY);
   assert.ok(/\.wp-appt\{[\s\S]{0,320}?cursor:default/.test(style), "an appointment cannot be picked up");

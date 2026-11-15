@@ -56,7 +56,8 @@ const WEEK = "2026-03-16"; // a Monday inside NAV_WEEKS
     assert.ok(chipAnchor.slice(0, 200).includes('rel="noopener noreferrer"'), "chip link noopener noreferrer");
 
     // r2's chip (no link) renders no anchor: its cell markup contains none
-    const r2Cell = html.split('data-tb="6-9:tue"')[0].slice(-600); // chip markup precedes its cell textarea
+    // v304: a chip carries more markup now (its length), so read the whole cell rather than a fixed tail
+    const r2Cell = html.split('data-cell="6-9:tue"')[1].split('data-tb="6-9:tue"')[0]; // chip markup precedes its cell textarea
     assert.ok(r2Cell.includes("Scorecard"), "sanity: looking at r2's cell");
     assert.ok(!r2Cell.includes("wp-chip-link"), "chip without link renders no ↗");
   }

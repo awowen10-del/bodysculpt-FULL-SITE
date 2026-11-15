@@ -95,9 +95,9 @@ function bodyOf(js, name) {
 
     let q = run();
     assert.deepStrictEqual(q.map((j) => j.title),
-      ["Should have been last week", "Should have been Monday",
-       "Team huddle", "Build the tag map", "Point the website forms at GoHighLevel", "Already finished"],
-      "v230: the overdue first (oldest first), then the plan's blocks in band order, then the things dated today that never got planned");
+      ["Team huddle", "Build the tag map", "Should have been last week", "Should have been Monday",
+       "Point the website forms at GoHighLevel", "Already finished"],
+      "v305: the plan's blocks in band order first, then the overdue (oldest first), then the things dated today that never got planned");
     // v227: overdue says how late
     assert.strictEqual(q.find((j) => j.title === "Should have been Monday").when, "2 days late", "an overdue step says how late it is");
     assert.strictEqual(q.find((j) => j.title === "Should have been last week").late, 7, "…in days");
@@ -178,7 +178,8 @@ function bodyOf(js, name) {
       "the One Thing leads the list");
     const list = bodyOf(JS, "renderTodayList");
     assert.ok(/done \+ " of " \+ live\.length \+ " done"/.test(list), "the header says how many are done");
-    assert.ok(/live\.filter\(\(j\) => !j\.done\)\.concat\(live\.filter\(\(j\) => j\.done\)\)/.test(list),
+    // v305: rows come in groups now (a project's steps under one heading); a group sinks when it is done
+    assert.ok(/segs\.filter\(\(g\) => !g\.done\)\.concat\(segs\.filter\(\(g\) => g\.done\)\)/.test(list),
       "done rows sink to the bottom rather than vanishing");
     assert.ok(/Parked \(" \+ parked\.length \+ "\)/.test(list), "parked jobs fold into one line at the foot");
     assert.ok(/Nothing is planned for today\./.test(list) && /has not been opened since it last changed/.test(list),

@@ -225,8 +225,8 @@ function bootPage(storage, opts) {
       "const wtBackJob = (r) => r, wtBarHtml = () => '', wtSectionHtml = () => '', wtPanelHtml = () => '';\n" +
       // v290's done-for-today has its own test
       "const wkToday = () => [], wkUndoHtml = () => '', wkSays = () => '', tlStepOf = () => null;\n" +
-      ["tlJobs", "tlWhere", "tlDetailHtml", "tlRowHtml", "renderTodayList"].map((n) => {
-        const args = { tlJobs: "", tlWhere: "j", tlDetailHtml: "j", tlRowHtml: "j, isParked", renderTodayList: "" }[n];
+      ["tlJobs", "tlWhere", "tlDetailHtml", "tlRowHtml", "tlSegments", "tlBlockHtml", "renderTodayList"].map((n) => {
+        const args = { tlJobs: "", tlWhere: "j", tlDetailHtml: "j", tlRowHtml: "j, isParked", tlSegments: "live", tlBlockHtml: "g", renderTodayList: "" }[n];
         return "function " + n + "(" + args + ")" + bodyOf(DJS, n);
       }).join("\n") +
       "\nconst tlFind = () => null;\nreturn { renderTodayList, setPick: (k) => { tlFocusPick = k; } };")(
