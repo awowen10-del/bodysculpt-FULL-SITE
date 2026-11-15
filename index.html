@@ -1112,6 +1112,13 @@
   .wp-chip-wait{background:transparent;border:none;color:var(--ink-faint);line-height:1;padding:0;cursor:pointer;
     width:0;overflow:hidden;opacity:0;flex:0 0 auto;}
   .wp-chip-wait .ic{width:12px;height:12px;}
+  /* v303: "Next week" on an undone Project/Buffer row — shows when the row is hovered */
+  .wp-nextwk{display:none;align-items:center;gap:3px;flex:0 0 auto;background:var(--card-2);border:1px solid var(--line);
+    border-radius:999px;padding:2px 8px;font-family:inherit;font-size:11px;font-weight:600;color:var(--ink-dim);cursor:pointer;white-space:nowrap;}
+  .wp-nextwk .ic{width:11px;height:11px;}
+  .wp-drag-row:hover .wp-nextwk,.wp-nextwk:focus-visible{display:inline-flex;}
+  .wp-nextwk:hover{color:var(--ink);border-color:var(--ink-faint);}
+  @media (hover:none){ .wp-nextwk{display:inline-flex;} }
   .wp-cellchip:hover .wp-chip-wait,.wp-drag-row:hover .wp-chip-wait{width:16px;padding:0 2px;opacity:.65;}
   .wp-chip-wait:hover{color:var(--ink);opacity:1;}
   .wp-chip-wait.on,.wp-cellchip:hover .wp-chip-wait.on,.wp-drag-row:hover .wp-chip-wait.on{width:16px;padding:0 2px;opacity:1;color:var(--ink-dim);}
@@ -4168,6 +4175,7 @@ function wpDragRow(source, it){
     ${nameIn}
     ${placed?`<span class="wp-txt-tag">${placed}</span>`:""}
     ${done?"":wpWaitBtnHtml(ref,"",held)}
+    ${done?"":wpNextWeekBtnHtml(source, it)}
     ${it.source==="monthly-project"?`<span class="wp-txt-tag wp-from-monthly" title="Pushed from the Monthly plan${it.sourceYm?(" ("+it.sourceYm+")"):""}">↳ Monthly</span>`:""}
     ${it.source==="project-step"?`<a class="wp-txt-tag wp-from-project" href="/projects.html#board" title="Pulled from the project &quot;${wpEsc(it.sourceProjectName||"")}&quot; — ticking this off marks it done on the board">↳ ${wpEsc(it.sourceProjectName||"Project")}</a>`:""}
     ${it.source==="project-step"?wpStepNoteBtnHtml(it,false):""}
@@ -6822,6 +6830,7 @@ function wpOverdueHtml(){
       <a class="wp-txt-tag wp-from-project" href="/projects.html#board">↳ ${wpEsc(it.sourceProjectName||"Project")}</a>
       <span class="wp-od-late">${wpEsc(wpProjDueLabel(it.due).text)} · ${late} day${late===1?"":"s"} late</span>
       ${wpWaitBtnHtml(ref,"",null)}
+      ${wpNextWeekBtnHtml("project", it)}
       ${wpStepNoteBtnHtml(it, false)}
     </div>`;
   }).join("");
@@ -7041,23 +7050,72 @@ async function wpCarryDrop(ev){
   wpDragRef = null; wpDragFrom = null;
   if(!ref) return;
   const [source, id] = ref.split(":");
-  if(source !== "project" && source !== "buffer") return; // recurring not allowed in the tray
+  await wpCarryItem(source, id);
+}
+// v303: the move itself, shared by the drop and the "Next week" button on a row. Returns the
+// tray item it made, or null if the task can't go in the tray.
+async function wpCarryItem(source, id){
+  if(source !== "project" && source !== "buffer") return null; // recurring not allowed in the tray
+  if(!wpPlan) return null;
   wpSyncFromDom();
   const arr = source==="project" ? wpPlan.projectItems : wpPlan.bufferItems;
-  const i = arr.findIndex(x=>x.id===id);
-  if(i<0) return;
+  const i = (arr||[]).findIndex(x=>x.id===id);
+  if(i<0) return null;
   const it = arr[i];
-  if(!String(it.title||"").trim()) return; // ignore empty rows
-  if(it.derived) return;   // v227: a project step is carried by its due date, not by the tray
+  if(!String(it.title||"").trim()) return null; // ignore empty rows
+  if(it.derived) return null;   // v227: a project step is carried by its due date, not by the tray
+  const ref = wpItemRef(source, id);
   // unplace from the grid if placed
   const key = wpPlacementOf(ref);
   if(key) wpPlan.placements[key] = (wpPlan.placements[key]||[]).filter(r=>r!==ref);
   // move out of its list, into the tray
   arr.splice(i,1);
   wpPlan.carryItems = wpPlan.carryItems || [];
-  wpPlan.carryItems.push({ id: wpUid(), title: String(it.title), source });
+  const ci = { id: wpUid(), title: String(it.title), source };
+  wpPlan.carryItems.push(ci);
   await wpSaveSection("carry");
   renderWeeklyPlan();
+  return ci;
+}
+
+/* v303: NEXT WEEK, ONE CLICK. Ash: "it would be good if there was a little button next to the
+   job on the buffer that would just move it there automatically so I don't have to drag it
+   all away. Also, on the projects that haven't been done, just a 'move back a week' button."
+   Two kinds of row, two meanings of "next week", both already in the page:
+     • a Buffer task (or a plain Project task typed into this week): exactly the drag into
+       "Carrying forward to next week" — Finish week then takes it over, as it always has.
+     • a project step: it is on its day because of the step on its board, so the step itself
+       moves seven days on (same day, same time block) through wpStepMoveToDate — the board,
+       the daily page and this grid all follow. Overdue steps get it too: they go to their
+       weekday in the week after the one on screen. A step pulled into the list with no day goes
+       into next week's list. Each has its Undo on the confirmation. */
+function wpNextWeekBtnHtml(source, it){
+  if(source !== "project" && source !== "buffer") return "";
+  if(!String(it.title||"").trim()) return "";
+  if(it.derived && it.source !== "project-step") return "";
+  const step = !!it.derived;
+  const label = step ? "Move to the same day next week (on its board too)" : "Carry to next week";
+  return `<button type="button" class="wp-nextwk" title="${wpEsc(label)}" aria-label="${wpEsc(label)}: ${wpEsc(it.title)}"
+    onclick="${step ? `wpStepToNextWeek('${wpEsc(it.id)}')` : `wpCarryFromRow('${source}','${wpEsc(it.id)}')`}">Next week<svg class="ic"><use href="#ic-arrow-right"/></svg></button>`;
+}
+async function wpCarryFromRow(source, id){
+  const ci = await wpCarryItem(source, id);
+  if(!ci) return;
+  wpToastUndo('"' + ci.title.slice(0, 40) + '" is carrying forward — Finish week takes it over', ()=>wpCarryReturn(ci.id));
+}
+async function wpStepToNextWeek(itemId){
+  const item = wpProjItemById(itemId);
+  const f = wpStepFor(item);
+  if(!f) return;
+  const st = f.step, on = wpStepDateOf(st);
+  // the same weekday in the week after the one on screen — for this week's steps that is seven
+  // days on; for a step weeks overdue it is still next week, never another date in the past
+  if(on) return wpStepMoveToDate(itemId, wpDateOfDay(wpNextWeekEnding(wpWeekEnding), wpDayOfYmd(on)));
+  // in this week's list but on no day: into next week's list, still on no day
+  const was = { week: st.week||"", day: st.day||"", slot: st.slot||"" };
+  if(await wpStepLinkWrite(f.project, st, { week: wpNextWeekEnding(wpWeekEnding), day:"", slot:"" })){
+    wpToastUndo('"' + String(st.title||"Step").slice(0, 40) + '" moved to next week', ()=>wpStepLinkWrite(f.project, st, was));
+  }
 }
 
 // Send a chip back from the tray to its original list.
