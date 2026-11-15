@@ -3847,8 +3847,21 @@ function wpLenStart(e, ref, cellKey){
   if(!chip || !wpBlockHalves(slot)) return;
   chip.draggable = false;
   chip.classList.add("wp-resizing");
+  // v306.2: while it is being pulled, its block keeps its size and the job hangs down over the
+  // next one, as it will once it is let go, rather than stretching its own row
+  const box = chip.parentElement;
+  if(box && box.classList.contains("wp-cellchips") && !box.classList.contains("wp-spill")){
+    box.style.height = box.getBoundingClientRect().height + "px";
+    box.classList.add("wp-spill");
+  }
   try { e.currentTarget.setPointerCapture(e.pointerId); } catch(_){}
-  wpLenDrag = { ref, chip, max, y: e.clientY, start: wpShownLen(ref, slot), n: wpShownLen(ref, slot) };
+  const nb = wpNextBand(slot);
+  wpLenDrag = { ref, chip, max, y: e.clientY, start: wpShownLen(ref, slot), n: wpShownLen(ref, slot),
+    slot, td: chip.closest("td[data-cell]"), gap: nb ? nb.gap : 0, before: 0 };
+  // how much of its own block is taken above this job, so the line it crosses is known
+  { let t = 0; const units = []; for(const c of (box ? box.children : [])){ if(c === chip) break; units.push(c); }
+    units.forEach(c=>{ t += Math.max(1, Math.round((c.getBoundingClientRect().height + 4) / WP_HALF_PX)); });
+    wpLenDrag.before = t; }
 }
 function wpLenMove(e){
   const d = wpLenDrag; if(!d) return;
@@ -3856,7 +3869,16 @@ function wpLenMove(e){
   const n = Math.max(1, Math.min(d.max, d.start + Math.round((e.clientY - d.y) / WP_HALF_PX)));
   if(n === d.n) return;
   d.n = n;
-  d.chip.style.height = (n * WP_HALF_PX - 4) + "px";
+  // inside its own block a half hour is a fixed height; past the end of the block it is
+  // measured from the line, so 6 to 11 reaches 11 on the next block's scale
+  const halves = wpBlockHalves(d.slot), inOwn = Math.max(0, halves - d.before);
+  let h = n * WP_HALF_PX - 4;
+  if(n > inOwn && d.td){
+    const top = d.chip.getBoundingClientRect().top, line = d.td.getBoundingClientRect().bottom;
+    const past = Math.max(0, n - inOwn - d.gap);
+    h = Math.max(h, (line - top) + past * WP_HALF_PX + 2);
+  }
+  d.chip.style.height = h + "px";
   d.chip.classList.toggle("wp-len-1", n === 1);
   let tag = d.chip.querySelector(".wp-chip-mins");
   if(!tag && n > 1){
@@ -3874,6 +3896,7 @@ function wpLenEnd(e){
   d.chip.draggable = true;
   d.chip.classList.remove("wp-resizing");
   if(wpSetLen(d.ref, d.n)){ renderWeeklyPlan(); wpSaveSection("timeBlocks"); }
+  else renderWeeklyPlan();   // put the block back as it was drawn
 }
 function wpValidRef(ref){
   if(typeof ref !== "string") return null;
