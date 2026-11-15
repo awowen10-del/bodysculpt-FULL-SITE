@@ -4841,12 +4841,16 @@ function wpSpillLayout(){
   document.querySelectorAll("td[data-full]").forEach(td=>{
     const chips = [...td.querySelectorAll(".wp-cellchips > .wp-cellchip, .wp-cellchips > .wp-pblock")];
     const last = chips[chips.length-1];
-    if(!last || last.classList.contains("open")) return;
+    if(!last) return;
     // a full block has no room for its notes box; one with words in it keeps it
     const ta = td.querySelector("textarea");
     if(ta && !ta.value.trim()) ta.style.display = "none";
     const gap = (td.getBoundingClientRect().bottom - 6) - last.getBoundingClientRect().bottom;
-    if(gap > 1) last.style.height = Math.round(last.getBoundingClientRect().height + gap) + "px";
+    // an opened block keeps filling its slot, and still grows if its steps need more room
+    if(gap > 1){
+      const h = Math.round(last.getBoundingClientRect().height + gap) + "px";
+      if(last.classList.contains("open")) last.style.minHeight = h; else last.style.height = h;
+    }
   });
 }
 
