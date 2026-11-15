@@ -954,6 +954,8 @@
   /* v89: drop-above / drop-below indicator while reordering inside a cell */
   .wp-cellchip.wp-chip-over-top{box-shadow:inset 0 2px 0 0 var(--orange);}
   .wp-cellchip.wp-chip-over-bot{box-shadow:inset 0 -2px 0 0 var(--orange);}
+  .wp-pblock.wp-chip-over-top{box-shadow:inset 0 2px 0 0 var(--orange);}
+  .wp-pblock.wp-chip-over-bot{box-shadow:inset 0 -2px 0 0 var(--orange);}
   /* RECURRING — texty list, click the name to place */
   .wp-txt-row{display:flex;align-items:center;gap:8px;padding:5px 2px;border-bottom:1px solid rgba(var(--lift-rgb),.04);}
   .wp-txt-row:last-of-type{border-bottom:none;}
@@ -4902,7 +4904,8 @@ function wpBlockHtml(u, dk, cellKey){
   const style = (halves && !open) ? ` style="height:${len * WP_HALF_PX - 4}px;${colFill}"` : (halves ? ` style="min-height:${len * WP_HALF_PX - 4}px;${colFill}"` : (colFill ? ` style="${colFill}"` : ""));
   const sizeCls = halves ? (" wp-sized" + (len === 1 ? " wp-len-1" : "") + (len >= 3 ? " wp-big" : "") + (len >= 6 ? " wp-huge" : "")) : "";
   return `<div class="wp-pblock wp-pb-${acc}${u.hidden?" wp-is-hidden":""}${open?" open":""}${n && nDone===n?" wp-pb-alldone":""}${sizeCls}" draggable="true" data-pblock="${pidJs}"${style}
-      ondragstart="wpChipDragStart(event,'pblock:${pidJs}','${cellKey}')" ondragend="wpDragEnd(event)">
+      ondragstart="wpChipDragStart(event,'pblock:${pidJs}','${cellKey}')" ondragend="wpDragEnd(event)"
+      ondragover="wpChipDragOver(event,'${cellKey}')" ondragleave="wpChipDragLeave(event)" ondrop="wpChipDrop(event,'${cellKey}','pblock:${pidJs}')">
     <div class="wp-pb-head" role="button" tabindex="0" aria-expanded="${open}" onclick="wpBlockToggle('${cellKey}','${pidJs}')"
       onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();wpBlockToggle('${cellKey}','${pidJs}')}">
       <svg class="ic wp-pb-arrow" aria-hidden="true"><use href="#ic-chevron"/></svg>
@@ -8418,9 +8421,8 @@ function wpChipDropBefore(ev){
 // Only a drag that STARTED in this cell is a reorder; anything else must fall through to the
 // cell's own drop handler (the v82 move prompt).
 function wpChipIsReorder(cellKey){
-  // v305: a block or a step out of a block does not reorder loose chips
-  if(wpDragRef && /^pblock:/.test(wpDragRef)) return false;
-  { const it = wpDragRef && wpResolveRef(wpDragRef); if(wpIsStepItem(it)) return false; }
+  // v305: a step pulled out of a block is a move, not a reorder (v308.1: a whole block reorders)
+  { const it = wpDragRef && !/^pblock:/.test(wpDragRef) && wpResolveRef(wpDragRef); if(wpIsStepItem(it)) return false; }
   return !!(wpDragRef && wpDragFrom && wpDragFrom === cellKey);
 }
 function wpChipDragOver(ev, cellKey){
@@ -8454,14 +8456,23 @@ async function wpChipDrop(ev, cellKey, targetRef){
 // self-healing: whatever the schedule/exceptions produce next render is simply sorted by it,
 // and anything unknown falls to the end in its derived order.
 async function wpReorderInCell(cellKey, dragRef, targetRef, before){
-  if(!wpPlan || !wpValidCellKey(cellKey) || !wpValidRef(dragRef)) return;
-  const cur = (wpEffectivePlacements()[cellKey] || []).slice();
-  const from = cur.indexOf(dragRef);
-  if(from < 0) return;                               // not in this cell — nothing to reorder
-  cur.splice(from, 1);
-  let to = cur.indexOf(targetRef);
+  if(!wpPlan || !wpValidCellKey(cellKey)) return;
+  const all = (wpEffectivePlacements()[cellKey] || []).slice();
+  // v308.1: a project block is its steps, moved together. A ref here can be "pblock:<id>".
+  const groupOf = (ref)=>{
+    if(/^pblock:/.test(String(ref))){
+      const pid = String(ref).slice(7);
+      return all.filter(r=>{ const it = wpResolveRef(r); return wpIsStepItem(it) && it.sourceProjectId === pid; });
+    }
+    return wpValidRef(ref) && all.includes(ref) ? [ref] : [];
+  };
+  const moving = groupOf(dragRef);
+  if(!moving.length) return;                         // not in this cell — nothing to reorder
+  const cur = all.filter(r=>!moving.includes(r));
+  const target = groupOf(targetRef).filter(r=>cur.includes(r));
+  let to = target.length ? cur.indexOf(before ? target[0] : target[target.length-1]) : -1;
   if(to < 0) to = cur.length; else if(!before) to = to + 1;
-  cur.splice(to, 0, dragRef);
+  cur.splice(to, 0, ...moving);
   if(cur.join("|") === (wpEffectivePlacements()[cellKey]||[]).join("|")) return;   // no change
   wpSyncFromDom();
   wpCellOrderMap()[cellKey] = cur.slice(0, WP_CELLORDER_MAX);
