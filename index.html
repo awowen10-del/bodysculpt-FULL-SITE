@@ -4738,6 +4738,19 @@ function wpSpillLayout(){
     }
     pad.style.height = (carry * WP_HALF_PX) + "px";
   });
+  // v307.1: Ash: "I'm trying to drag the coaching block down to the bottom of that block to cover
+  // 5-8." A row is as tall as its busiest day, so a block whose jobs take all of its hours is
+  // stretched to the bottom of its row — full looks full.
+  document.querySelectorAll("td[data-full]").forEach(td=>{
+    const chips = [...td.querySelectorAll(".wp-cellchips > .wp-cellchip, .wp-cellchips > .wp-pblock")];
+    const last = chips[chips.length-1];
+    if(!last || last.classList.contains("open")) return;
+    // a full block has no room for its notes box; one with words in it keeps it
+    const ta = td.querySelector("textarea");
+    if(ta && !ta.value.trim()) ta.style.display = "none";
+    const gap = (td.getBoundingClientRect().bottom - 6) - last.getBoundingClientRect().bottom;
+    if(gap > 1) last.style.height = Math.round(last.getBoundingClientRect().height + gap) + "px";
+  });
 }
 
 let wpOpenBlocks = new Set();   // "<cellKey>|<projectId>" of blocks opened this session
@@ -5710,12 +5723,14 @@ function renderWeeklyPlan(){
       // drawn. The sums are still made — they decide how a job runs on into the next block.
       void fillCls; void fillTip;
       const fill = "";
-      const timed = halves ? ` wp-timed" style="min-height:${halves * WP_HALF_PX + 30}px` : "";
+      const timed = halves ? ` wp-timed" style="min-height:${halves * WP_HALF_PX + 14}px` : "";
       // v306: the room at the top taken by a job running on from the block above, and a block
       // whose jobs run on lets them hang down into the next one rather than growing its row
       const pad = halves ? `<div class="wp-spillpad" data-carry="${fl.carryIn}"></div>` : "";
       const chipsStyle = fl.spill ? ` wp-spill" style="height:${halves * WP_HALF_PX}px` : "";
-      return `<td class="wp-daycell" data-cell="${key}" ondragover="wpCellDragOver(event)" ondragleave="wpCellDragLeave(event)" ondrop="wpCellDrop(event,'${rk}','${dk}')"><div class="wp-cellwrap${timed}">${pad}${appts}${chips?`<div class="wp-cellchips${chipsStyle}">${chips}</div>`:""}<textarea data-tb="${key}" onblur="wpSaveSection('timeBlocks')">${wpEsc(txt)}</textarea></div>${(fill || twoProj) ? `<div class="wp-cell-tags">${fill}${twoProj}</div>` : ""}${quickAdd}</td>`;
+      // v307.1: a block its jobs fill exactly is covered to its bottom edge (see wpSpillLayout)
+      const fullAttr = (halves && used >= halves && !fl.spill) ? ` data-full="1"` : "";
+      return `<td class="wp-daycell" data-cell="${key}"${fullAttr} ondragover="wpCellDragOver(event)" ondragleave="wpCellDragLeave(event)" ondrop="wpCellDrop(event,'${rk}','${dk}')"><div class="wp-cellwrap${timed}">${pad}${appts}${chips?`<div class="wp-cellchips${chipsStyle}">${chips}</div>`:""}<textarea data-tb="${key}" onblur="wpSaveSection('timeBlocks')">${wpEsc(txt)}</textarea></div>${(fill || twoProj) ? `<div class="wp-cell-tags">${fill}${twoProj}</div>` : ""}${quickAdd}</td>`;
     }).join("");
     return `<tr class="${notesRow}"><td class="wp-rowlabel">${rlbl}</td>${cells}</tr>`;
   });   // v306: kept as rows, so Anytime can go in under 5 – 8
