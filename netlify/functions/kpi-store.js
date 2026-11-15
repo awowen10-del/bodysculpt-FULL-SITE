@@ -1412,6 +1412,22 @@ export default async (req) => {
         }
         incoming.lengths = clean;
       }
+      // v307: jobs hidden from the grid this week — { "<slot>:<day>|<ref>": 1 }. Per week only.
+      if ("hidden" in incoming) {
+        const REF_RE = /^(?:(?:project|buffer|recurring|training):[A-Za-z0-9_-]{1,40}|pblock:[A-Za-z0-9_-]{1,40})$/;
+        const raw = incoming.hidden;
+        const clean = {};
+        if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+          for (const key of Object.keys(raw).slice(0, 300)) {
+            const cut = key.indexOf("|");
+            if (cut < 0 || !raw[key]) continue;
+            const parts = key.slice(0, cut).split(":");
+            if (parts.length !== 2 || !/^[A-Za-z0-9._-]{1,12}$/.test(parts[0]) || !VALID_DAY_KEYS.includes(parts[1])) continue;
+            if (REF_RE.test(key.slice(cut + 1))) clean[key] = 1;
+          }
+        }
+        incoming.hidden = clean;
+      }
       const merged = { ...existing, ...incoming, lastUpdated: new Date().toISOString() };
       await store.set(key, JSON.stringify(merged));
       return Response.json({ ok:true, plan: merged });

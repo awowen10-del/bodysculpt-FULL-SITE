@@ -59,7 +59,7 @@ assert.deepStrictEqual(env.wpCleanLengths({ "buffer:a": 3, "buffer:b": 1, "x:y":
   { "buffer:a": 3, "recurring:r": 2 });
 
 // it saves with the grid, and the store keeps it clean
-assert.ok(/timeBlocks: \[[^\]]*"lengths"\]/.test(HTML), "the grid's save carries lengths");
+assert.ok(/timeBlocks: \[[^\]]*"lengths"[^\]]*\]/.test(HTML), "the grid's save carries lengths");
 assert.ok(/lengths: wpCleanLengths\(plan\.lengths\)/.test(HTML), "a loaded week cleans its lengths");
 assert.ok(/if \("lengths" in incoming\)/.test(STORE), "the store whitelists lengths");
 

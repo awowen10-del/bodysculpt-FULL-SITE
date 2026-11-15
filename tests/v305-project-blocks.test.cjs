@@ -90,5 +90,18 @@ const fn = (n) => fnOf(HTML, n);
   assert.ok(/ftStart\(Number\(el\.dataset\.min\), \{ key: h\.dataset\.hkey, title: h\.dataset\.htitle \}\)/.test(DAILY),
     "…and its timer is named after the project");
 
+  // ---------- v307: hide one job from the grid, kept on the week ----------
+  const STORE = fs.readFileSync(path.join(__dirname, "..", "netlify", "functions", "kpi-store.js"), "utf8");
+  const clean = new Function(`
+    const WP_ANY = "any";
+    const WP_TIME_ROWS = [["6-9",""],["10-12",""],["1-3",""],["5-8",""],["notes",""]];
+    const WP_DAYS = [["mon"],["tue"],["wed"],["thu"],["fri"],["sat"],["sun"]];
+    ${fn("wpValidCellKey")} ${fn("wpValidRef")} ${fn("wpCleanHidden")} return wpCleanHidden;`)();
+  assert.deepStrictEqual(clean({ "10-12:mon|pblock:p_bf": 1, "6-9:tue|buffer:b1": true, "bad|buffer:b1": 1, "6-9:tue|x:y": 1, "1-3:wed|buffer:b2": 0 }),
+    { "10-12:mon|pblock:p_bf": 1, "6-9:tue|buffer:b1": 1 }, "a hidden block or job is kept; junk is dropped");
+  assert.ok(/"lengths","hidden"\]/.test(HTML), "hidden saves with the grid");
+  assert.ok(/if \("hidden" in incoming\)/.test(STORE), "the store whitelists hidden");
+  assert.ok(/hideOut = ck \? wpHideBtnHtml\(ck, ref, isHid, item\.title\)/.test(HTML), "every placed job has its eye");
+
   console.log("v305 project blocks: all assertions passed");
 })().catch((e) => { console.error(e); process.exit(1); });

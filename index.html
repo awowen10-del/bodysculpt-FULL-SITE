@@ -1090,6 +1090,14 @@
     cursor:pointer;padding:0 1px;flex:none;opacity:0;transition:opacity .12s,color .12s;}
   .wp-cellchip:hover .wp-chip-del{opacity:.65;}
   .wp-chip-del:hover{color:var(--red);opacity:1;}
+  /* v307: the eye on a job — hide it from the grid without deleting it */
+  .wp-chip-hide{background:transparent;border:none;color:var(--ink-faint);line-height:0;
+    cursor:pointer;padding:0 1px;flex:none;opacity:0;transition:opacity .12s,color .12s;}
+  .wp-chip-hide .ic{width:13px;height:13px;}
+  .wp-cellchip:hover .wp-chip-hide,.wp-pblock:hover .wp-chip-hide,.wp-pblock:hover .wp-pb-head .wp-chip-del{opacity:.65;}
+  .wp-chip-hide:hover,.wp-chip-hide:focus-visible{color:var(--ink);opacity:1;}
+  .wp-is-hidden{opacity:.4;border-style:dashed;}
+  .wp-is-hidden .wp-chip-hide{opacity:.9;}
   /* v301: the pencil on a placed chip. Quiet until the chip is hovered, like the ✕ beside it.
      Pressing it turns the words into a box you can type in. */
   .wp-chip-edit{background:transparent;border:none;color:var(--ink-faint);line-height:0;
@@ -1149,7 +1157,7 @@
     color:var(--on-accent);padding:8px 16px;margin-right:6px;}
   .wp-wt-sec{font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;border:1px solid var(--line);border-radius:var(--r-pill);
     background:transparent;color:var(--ink-dim);padding:7px 14px;margin-right:6px;}
-  @media (hover:none){ .wp-chip-del,.wp-chip-edit{opacity:.55;} }   /* touch: no hover to reveal it */
+  @media (hover:none){ .wp-chip-del,.wp-chip-edit,.wp-chip-hide{opacity:.55;} }   /* touch: no hover to reveal it */
   /* v82: the little "this week / whole schedule" question — same navy/orange language as
      the Today modal, just small and centred. Backdrop or Cancel or Esc = no change. */
   .wp-ask-overlay{position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;
@@ -1405,6 +1413,19 @@
   .wp-cellchip.wp-sized:not(.wp-len-1) span.wp-chip-title{order:9;flex:1 0 100%;white-space:normal;overflow:hidden;
     display:-webkit-box;-webkit-box-orient:vertical;}
   .wp-cellchip.wp-sized .wp-chip-mins{margin-left:auto;}
+  /* v307: a long job says what it is in the middle of itself, bigger the longer it is */
+  .wp-cellchip.wp-sized.wp-big span.wp-chip-title{position:absolute;left:10px;right:10px;top:50%;transform:translateY(-50%);
+    text-align:center;font-size:14px;font-weight:700;line-height:1.3;pointer-events:none;}
+  .wp-cellchip.wp-sized.wp-huge span.wp-chip-title{font-size:17px;}
+  .wp-cellchip.wp-sized.wp-big .wp-chip-mins{position:absolute;top:5px;right:7px;}
+  .wp-pblock.wp-big:not(.open){display:flex;align-items:center;}
+  .wp-pblock.wp-big:not(.open) .wp-pb-head{flex:1;justify-content:center;flex-wrap:wrap;row-gap:2px;}
+  .wp-pblock.wp-big:not(.open) .wp-pb-name{font-size:14px;flex:0 1 auto;}
+  .wp-pblock.wp-huge:not(.open) .wp-pb-name{font-size:17px;}
+  .wp-pblock.wp-big:not(.open) .wp-pb-head .wp-chip-mins{position:absolute;top:5px;right:7px;}
+  .wp-pblock.wp-big:not(.open) .wp-pb-head .wp-chip-hide,.wp-pblock.wp-big:not(.open) .wp-pb-head .wp-chip-del{position:absolute;top:5px;}
+  .wp-pblock.wp-big:not(.open) .wp-pb-head .wp-chip-hide{left:8px;}
+  .wp-pblock.wp-big:not(.open) .wp-pb-head .wp-chip-del{left:26px;}
   .wp-cellwrap.wp-timed textarea{min-height:24px;}
   .wp-chip-len{position:absolute;left:0;right:0;bottom:-3px;height:9px;cursor:ns-resize;touch-action:none;
     display:flex;align-items:center;justify-content:center;}
@@ -1423,7 +1444,7 @@
   .wp-pblock.wp-pb-alldone{opacity:.6;}
   .wp-pb-head{display:flex;align-items:center;gap:6px;padding:4px 7px;cursor:pointer;user-select:none;}
   .wp-pb-name{flex:0 1 auto;min-width:0;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .wp-pb-sub{flex:1 1 auto;min-width:0;font-size:10.5px;font-weight:600;color:var(--ink-faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .wp-pb-sub{flex:1 1 0;min-width:0;font-size:10.5px;font-weight:600;color:var(--ink-faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .wp-pb-arrow{flex:none;width:12px;height:12px;color:var(--ink-dim);transform:rotate(-90deg);transition:transform .12s;}
   .wp-pblock.open .wp-pb-arrow{transform:none;}
   .wp-pb-head .wp-chip-del,.wp-pb-head .wp-chip-mins{flex:none;}
@@ -4137,6 +4158,8 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
     cellOrder: wpCleanCellOrder(plan.cellOrder),
     // v304: how long each job takes this week, in half hours. Per week, never seeded.
     lengths: wpCleanLengths(plan.lengths),
+    // v307: jobs hidden from the grid this week, { "<cell>|<ref>": 1 }. Per week, never seeded.
+    hidden: wpCleanHidden(plan.hidden),
     carryItems: Array.isArray(plan.carryItems) ? plan.carryItems.filter(x=>x&&x.title&&(x.source==="project"||x.source==="buffer")).map(x=>({id:x.id||wpUid(),title:String(x.title),source:x.source})) : [],
     lastUpdated: plan.lastUpdated || ""
   };
@@ -4597,6 +4620,44 @@ function wpToggleGridHideDone(){
   try { localStorage.setItem(WP_GRID_HIDE_KEY, wpGridHideDone ? "1" : "0"); } catch(e){}
   renderWeeklyPlan();
 }
+/* v307: HIDE ONE JOB. Ash: "I did the Black Friday Offers last week but it's still visible on
+   this week. I don't want to delete it, I just want to hide it off the grid." The eye on a job
+   or a project block hides that one from that block, this week. It is a note on the week
+   (wpPlan.hidden = { "<cell>|<ref>": 1 }), so the job itself, its board and its tick are
+   untouched. "Show hidden" on the header brings them back, faded, each with its eye to undo. */
+let wpShowHidden = false;
+function wpHiddenMap(plan){
+  const p = plan || wpPlan;
+  if(!p) return {};
+  if(!p.hidden || typeof p.hidden !== "object" || Array.isArray(p.hidden)) p.hidden = {};
+  return p.hidden;
+}
+function wpHideKey(cellKey, ref){ return cellKey + "|" + ref; }
+function wpIsHiddenAt(cellKey, ref){ return !!wpHiddenMap()[wpHideKey(cellKey, ref)]; }
+function wpCleanHidden(raw){
+  const out = {};
+  if(!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  Object.keys(raw).slice(0, 300).forEach(k=>{
+    const cut = k.indexOf("|");
+    if(cut < 0 || !raw[k]) return;
+    const cell = wpValidCellKey(k.slice(0, cut)), ref = k.slice(cut + 1);
+    if(cell && (wpValidRef(ref) || /^pblock:[A-Za-z0-9_-]{1,40}$/.test(ref))) out[cell + "|" + ref] = 1;
+  });
+  return out;
+}
+function wpToggleHidden(ev, cellKey, ref){
+  if(ev){ try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){} }
+  if(!wpPlan) return;
+  const map = wpHiddenMap(), k = wpHideKey(cellKey, ref);
+  if(map[k]) delete map[k]; else map[k] = 1;
+  renderWeeklyPlan();
+  wpSaveSection("timeBlocks");
+}
+function wpToggleShowHidden(){ wpShowHidden = !wpShowHidden; renderWeeklyPlan(); }
+function wpHideBtnHtml(cellKey, ref, hidden, name){
+  return `<button type="button" class="wp-chip-hide" title="${hidden ? "Show this on the grid again" : "Hide this from the grid (it is not deleted)"}"
+    aria-label="${hidden ? "Show" : "Hide"} ${wpEsc(name||"this job")}" onclick="wpToggleHidden(event,'${cellKey}','${ref}')"><svg class="ic"><use href="#${hidden ? "ic-eye" : "ic-eye-off"}"/></svg></button>`;
+}
 function wpRefDoneOn(ref, dk){
   const it = wpResolveRef(ref);
   if(!it) return false;
@@ -4604,8 +4665,12 @@ function wpRefDoneOn(ref, dk){
   return !!wpIsDone(String(ref).split(":")[0], it, dk);
 }
 // what a cell shows: its units, less anything finished when the eye is shut
-function wpGridUnits(refs, dk){
-  const units = wpCellUnits(refs);
+function wpGridUnits(refs, dk, cellKey){
+  let units = wpCellUnits(refs);
+  if(cellKey){
+    units.forEach(u=>{ u.hidden = wpIsHiddenAt(cellKey, u.kind === "block" ? "pblock:" + u.pid : u.ref); });
+    if(!wpShowHidden) units = units.filter(u=>!u.hidden);
+  }
   if(!wpGridHideDone) return units;
   return units.filter(u=>u.kind === "block" ? u.steps.some(x=>!x.it.done) : !wpRefDoneOn(u.ref, dk));
 }
@@ -4619,6 +4684,14 @@ function wpUnitsLen(units, key){
   }, 0);
 }
 function wpGridHideBtnHtml(placements, visDays){
+  // v307: how many are hidden one by one on the days on screen, and the way to see them
+  const vis = new Set(visDays.map(d=>d[0]));
+  const nHid = Object.keys(wpHiddenMap()).filter(k=>vis.has(k.split("|")[0].split(":")[1])).length;
+  const hidBtn = (nHid || wpShowHidden) ? `<button class="wp-loc-btn wp-eye-btn${wpShowHidden?" on":""}" title="${wpShowHidden ? "Hide them again" : "Show the jobs you hid"}" aria-pressed="${wpShowHidden}"
+    onclick="wpToggleShowHidden()"><svg class="ic"><use href="#${wpShowHidden ? "ic-eye-off" : "ic-eye"}"/></svg> ${wpShowHidden ? "Hide hidden" : "Show hidden"}${nHid ? ` <span class="wp-eye-n">${nHid}</span>` : ""}</button>` : "";
+  return hidBtn + wpGridHideDoneBtnHtml(placements, visDays);
+}
+function wpGridHideDoneBtnHtml(placements, visDays){
   let n = 0;
   visDays.forEach(([dk])=>Object.keys(placements||{}).forEach(k=>{
     if(k.split(":")[1] !== dk) return;
@@ -4717,14 +4790,15 @@ function wpBlockHtml(u, dk, cellKey){
     : "";
   // a block is as tall as its length while it is shut; open, it grows to show its steps
   const style = (halves && !open) ? ` style="height:${len * WP_HALF_PX - 4}px"` : (halves ? ` style="min-height:${len * WP_HALF_PX - 4}px"` : "");
-  const sizeCls = halves ? (" wp-sized" + (len === 1 ? " wp-len-1" : "")) : "";
-  return `<div class="wp-pblock wp-pb-${acc}${open?" open":""}${n && nDone===n?" wp-pb-alldone":""}${sizeCls}" draggable="true" data-pblock="${pidJs}"${style}
+  const sizeCls = halves ? (" wp-sized" + (len === 1 ? " wp-len-1" : "") + (len >= 3 ? " wp-big" : "") + (len >= 6 ? " wp-huge" : "")) : "";
+  return `<div class="wp-pblock wp-pb-${acc}${u.hidden?" wp-is-hidden":""}${open?" open":""}${n && nDone===n?" wp-pb-alldone":""}${sizeCls}" draggable="true" data-pblock="${pidJs}"${style}
       ondragstart="wpChipDragStart(event,'pblock:${pidJs}','${cellKey}')" ondragend="wpDragEnd(event)">
     <div class="wp-pb-head" role="button" tabindex="0" aria-expanded="${open}" onclick="wpBlockToggle('${cellKey}','${pidJs}')"
       onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();wpBlockToggle('${cellKey}','${pidJs}')}">
       <svg class="ic wp-pb-arrow" aria-hidden="true"><use href="#ic-chevron"/></svg>
       <span class="wp-pb-name">${wpEsc(u.name)}</span><span class="wp-pb-sub">${n} step${n===1?"":"s"}${nDone?` · ${nDone} done`:""}</span>
       ${halves && len > 1 ? `<span class="wp-chip-mins">${wpFmtHalves(len)}</span>` : ""}
+      ${wpHideBtnHtml(cellKey, "pblock:" + pidJs, !!u.hidden, u.name)}
       <button type="button" class="wp-chip-del" title="Take these steps off the week" aria-label="Take the ${wpEsc(u.name)} steps off the week"
         onclick="event.stopPropagation();wpBlockRemove('${cellKey}','${pidJs}')"><svg class="ic"><use href="#ic-close"/></svg></button>
     </div>
@@ -4819,7 +4893,7 @@ function wpChipHtml(ref, dk, mode, cellKey){
   const slot = ck ? ck.split(":")[0] : "";
   const sized = !!wpBlockHalves(slot);
   const len = sized ? wpShownLen(ref, slot) : 1;
-  const sizeCls = sized ? (" wp-sized" + (len === 1 ? " wp-len-1" : "")) : "";
+  const sizeCls = sized ? (" wp-sized" + (len === 1 ? " wp-len-1" : "") + (len >= 3 ? " wp-big" : "") + (len >= 6 ? " wp-huge" : "")) : "";
   // (sizes are inline, not CSS variables: every var() on this page must come from the palette)
   const sizeStyle = sized ? ` style="height:${len * WP_HALF_PX - 4}px"` : "";
   const clamp = (sized && len > 1) ? ` style="-webkit-line-clamp:${len * 2 - 2}"` : "";
@@ -4828,12 +4902,15 @@ function wpChipHtml(ref, dk, mode, cellKey){
         onpointerdown="wpLenStart(event,'${ref}','${ck}')" onpointermove="wpLenMove(event)" onpointerup="wpLenEnd(event)" onpointercancel="wpLenEnd(event)"
         onclick="event.preventDefault();event.stopPropagation()"></span>`
     : "";
-  return `<label class="wp-cellchip${done?" wp-done":""}${recCls}${held?" wp-waiting":""}${sizeCls}" draggable="true" title="${wpEsc(item.title)}"${sizeStyle}
+  // v307: the eye — hide this one from this block, this week
+  const isHid = !!(ck && ck.split(":")[0] !== "notes" && wpIsHiddenAt(ck, ref));
+  const hideOut = ck ? wpHideBtnHtml(ck, ref, isHid, item.title) : "";
+  return `<label class="wp-cellchip${done?" wp-done":""}${recCls}${held?" wp-waiting":""}${sizeCls}${isHid?" wp-is-hidden":""}" draggable="true" title="${wpEsc(item.title)}"${sizeStyle}
       ondragstart="wpChipDragStart(event,'${ref}','${ck}')" ondragend="wpDragEnd(event)"
       ondragover="wpChipDragOver(event,'${ck}')" ondragleave="wpChipDragLeave(event)" ondrop="wpChipDrop(event,'${ck}','${ref}')">
     <span class="wp-chip-grip" aria-hidden="true">⠿</span>
     <input type="checkbox" ${done?"checked":""} onchange="wpToggleDoneRef('${ref}',this.checked,'${dk}')">
-    <span class="wp-chip-title"${clamp}>${emoji}${wpEsc(item.title)}</span>${done?"":wpWaitBtnHtml(ref,dk,held)}${noteOut}${linkOut}${editOut}${delOut}${lenOut}</label>`;
+    <span class="wp-chip-title"${clamp}>${emoji}${wpEsc(item.title)}</span>${done?"":wpWaitBtnHtml(ref,dk,held)}${noteOut}${linkOut}${editOut}${hideOut}${delOut}${lenOut}</label>`;
 }
 
 /* ===== v70: RICH NOTES ===== */
@@ -5595,7 +5672,7 @@ function renderWeeklyPlan(){
     let carry = 0;
     (typeof WPCAL_BANDS !== "undefined" ? WPCAL_BANDS : []).forEach(([rk])=>{
       const key = rk + ":" + dk, halves = wpBlockHalves(rk);
-      const own = wpUnitsLen(wpGridUnits(gridPlacements[key]||[], dk), key);
+      const own = wpUnitsLen(wpGridUnits(gridPlacements[key]||[], dk, key).filter(u=>!u.hidden), key);
       const used = carry + own, next = wpNextBand(rk);
       const out = used > halves && next ? Math.max(0, used - halves - next.gap) : 0;
       // spill: something hangs into the next block; ending in the gap before it is just "full"
@@ -5609,9 +5686,9 @@ function renderWeeklyPlan(){
       const key = rk+":"+dk;
       const refs = (gridPlacements[key]||[]);
       // v305: a project's steps in this slot are one block (v306: done ones hidden, if asked)
-      const units = wpGridUnits(refs, dk);
+      const units = wpGridUnits(refs, dk, key);
       const chips = units.map(u=>u.kind === "block" ? wpBlockHtml(u, dk, key) : wpChipHtml(u.ref, dk, "", key)).join("");
-      const nBlocks = units.filter(u=>u.kind === "block").length;
+      const nBlocks = units.filter(u=>u.kind === "block" && !u.hidden).length;
       const twoProj = nBlocks > 1 ? `<span class="wp-cell-2proj" title="More than one project in this slot">${nBlocks} projects</span>` : "";
       const txt = (p.timeBlocks[rk]&&p.timeBlocks[rk][dk])||"";
       // v148: what is already committed goes in FIRST, above the tasks — you should see the
@@ -5629,7 +5706,10 @@ function renderWeeklyPlan(){
       const used = fl.used;
       const fillCls = fl.over ? " wp-over" : used >= halves ? " wp-full" : "";
       const fillTip = fl.over ? "More planned than this block holds" : fl.spill ? "Full, and runs on into the next block" : "Time planned in this block";
-      const fill = (halves && used) ? `<span class="wp-cell-fill${fillCls}" title="${fillTip}">${wpFmtHalves(Math.min(used, halves))} / ${wpFmtHalves(halves)}${fl.spill ? " ↓" : ""}</span>` : "";
+      // v307: Ash did not like the time label on each block ("remove the times"), so it is not
+      // drawn. The sums are still made — they decide how a job runs on into the next block.
+      void fillCls; void fillTip;
+      const fill = "";
       const timed = halves ? ` wp-timed" style="min-height:${halves * WP_HALF_PX + 30}px` : "";
       // v306: the room at the top taken by a job running on from the block above, and a block
       // whose jobs run on lets them hang down into the next one rather than growing its row
@@ -5644,7 +5724,7 @@ function renderWeeklyPlan(){
   const anyOn = visDays.some(([dk])=>(gridPlacements[WP_ANY+":"+dk]||[]).length);
   const anyRow = anyOn ? `<tr class="wp-grid-any"><td class="wp-rowlabel">Anytime</td>${visDays.map(([dk])=>{
       const key = WP_ANY+":"+dk;
-      const chips = wpGridUnits(gridPlacements[key]||[], dk).map(u=>u.kind === "block" ? wpBlockHtml(u, dk, key) : wpChipHtml(u.ref, dk, "", key)).join("");
+      const chips = wpGridUnits(gridPlacements[key]||[], dk, key).map(u=>u.kind === "block" ? wpBlockHtml(u, dk, key) : wpChipHtml(u.ref, dk, "", key)).join("");
       return `<td class="wp-daycell" data-cell="${key}" ondragover="wpCellDragOver(event)" ondragleave="wpCellDragLeave(event)" ondrop="wpCellDrop(event,'${WP_ANY}','${dk}')"><div class="wp-cellwrap">${chips?`<div class="wp-cellchips">${chips}</div>`:""}</div></td>`;
     }).join("")}</tr>` : "";
   const gridBox = `<div class="wp-box wp-grid-box">
@@ -5976,7 +6056,7 @@ const WP_SECTION_FIELDS = {
   // section that writes it — project/buffer/carry saves leave the stored field alone).
   // v84: this week's location overrides ride the same grid save (they live in the header of
   // that grid); the DEFAULT pattern has its own key and never travels on a week's plan.
-  timeBlocks: ["timeBlocks","placements","recurringDone","trainingDone","exceptions","locations","cellOrder","lengths"],
+  timeBlocks: ["timeBlocks","placements","recurringDone","trainingDone","exceptions","locations","cellOrder","lengths","hidden"],
   review: ["review","reviewChecklist"],   // v78: the ritual checklist saves on the review path
   carry: ["carryItems","projectItems","bufferItems","placements"]
 };
