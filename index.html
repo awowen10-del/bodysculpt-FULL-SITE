@@ -920,6 +920,19 @@
   /* v117: the recurring-task notes editor — the shared rich editor, sized for a real list */
   .wp-recur-notes-ed{min-height:230px;max-height:56vh;overflow-y:auto;font-size:13.5px;line-height:1.7;}
   .wp-item-done{ opacity:.85; }
+  /* v302: Hide done — a small switch in the Project / Buffer / Training headers. The rows
+     stay in the page (saves read them); they are only not shown. */
+  .wp-hide-done .wp-drag-row.wp-item-done{display:none;}
+  .wp-hidedone{display:inline-flex;align-items:center;gap:7px;background:none;border:0;padding:3px 2px;
+    font-family:inherit;font-size:12px;font-weight:600;letter-spacing:0;color:var(--ink-faint);cursor:pointer;}
+  .wp-hidedone:hover{color:var(--ink);}
+  .wp-hidedone-sw{position:relative;width:26px;height:15px;border-radius:999px;background:var(--line);transition:background .15s;flex:0 0 auto;}
+  .wp-hidedone-sw::after{content:"";position:absolute;top:2px;left:2px;width:11px;height:11px;border-radius:50%;background:var(--card);
+    box-shadow:var(--shadow);transition:transform .15s;}
+  .wp-hidedone.on{color:var(--ink);}
+  .wp-hidedone.on .wp-hidedone-sw{background:var(--green);}
+  .wp-hidedone.on .wp-hidedone-sw::after{transform:translateX(11px);}
+  .wp-hidedone-n{font-size:11px;font-weight:700;color:var(--ink-faint);background:var(--card-2);border-radius:999px;padding:1px 7px;}
   /* placed-task chips inside a grid cell — tidy pills that match the page aesthetic */
   .wp-cellchips{display:flex;flex-direction:column;gap:4px;padding:6px 6px 4px;}
   .wp-cellchip{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;line-height:1.3;
@@ -4279,20 +4292,52 @@ function wpRecurSwitchTab(tab){
   renderWeeklyPlan();
 }
 
+/* v302: HIDE DONE. Ash, on a Sunday: "a little toggle that hides all the completed jobs ...
+   useful to see what's outstanding, and what needs to be moved over to the next week."
+   One switch shared by Project, Buffer and Training (flip it on any of the three and all
+   three follow), remembered on this computer only — it is a way of looking, not plan data.
+   The done rows are HIDDEN by CSS, never left out of the page: wpSyncFromDom and every save
+   still find each row exactly as before, so hiding can never drop or rewrite a task. The
+   calendar grid is untouched — a done job still shows, ticked, in its block. */
+const WP_HIDE_DONE_KEY = "bodysculpt:weeklyHideDone";
+let wpHideDone = (()=>{ try { return localStorage.getItem(WP_HIDE_DONE_KEY) === "1"; } catch(e){ return false; } })();
+function wpToggleHideDone(){
+  wpSyncFromDom();
+  wpHideDone = !wpHideDone;
+  try { localStorage.setItem(WP_HIDE_DONE_KEY, wpHideDone ? "1" : "0"); } catch(e){}
+  renderWeeklyPlan();
+}
+function wpDoneCount(source, items){
+  return (items||[]).filter(it=>it && it.source!=="project-worked" && wpIsDone(source, it)).length;
+}
+function wpHideDoneBtnHtml(doneN){
+  return `<button type="button" class="wp-hidedone${wpHideDone?" on":""}" aria-pressed="${wpHideDone?"true":"false"}"
+    title="${wpHideDone?"Show the jobs already done":"Hide the jobs already done — they stay on the calendar"}"
+    onclick="wpToggleHideDone()"><span class="wp-hidedone-sw" aria-hidden="true"></span>Hide done${doneN?` <span class="wp-hidedone-n">${doneN}</span>`:""}</button>`;
+}
+
 function wpListBox(title, sectionKey, source, items, addFn, addLabel){
   const rows = items.length ? items.map((it,i)=>wpItemRow(source,it,i)).join("")
     : `<div class="wp-empty">Nothing here yet.</div>`;
+  // v302: the Hide done switch, on the three one-off lists only (not Recurring)
+  const canHide = (source==="project" || source==="buffer" || source==="training");
+  const doneN = canHide ? wpDoneCount(source, items) : 0;
+  const hiding = canHide && wpHideDone;
+  const allHidden = hiding && items.length > 0 && doneN === items.length;
+  const hideBtn = canHide ? wpHideDoneBtnHtml(doneN) : "";
   // recurring/training save through their own defaults path — no per-section saved-msg span
-  const header = (sectionKey==="recurring" || sectionKey==="training")
+  const header = (sectionKey==="recurring")
     ? `<div class="wp-box-h"><span>${title}</span></div>`
-    : wpBoxHeader(title, sectionKey);
+    : (sectionKey==="training")
+      ? `<div class="wp-box-h"><span>${title}</span><span class="wp-sec-save">${hideBtn}</span></div>`
+      : wpBoxHeader(title, sectionKey, hideBtn);
   // v61: the Projects box also offers a "Pull from Monthly" dropdown next to its add button.
   // v61: a "Pull from Monthly" dropdown. v214: and a "Pull from a project" panel.
   const extraControl = (source==="project") ? (wpMonthlyPickerHtml() + wpProjectPickerHtml()) : "";
-  return `<div class="wp-box">
+  return `<div class="wp-box${hiding?" wp-hide-done":""}">
     ${header}
     <div class="wp-box-body">
-      <div>${rows}</div>
+      <div>${rows}${allHidden?`<div class="wp-empty wp-alldone">All ${doneN} done — nothing outstanding here.</div>`:""}</div>
       <div class="wp-rec-actions"><button class="wp-rec-addbtn" onclick="${addFn}">${addLabel}</button>${extraControl}</div>
     </div>
   </div>`;
