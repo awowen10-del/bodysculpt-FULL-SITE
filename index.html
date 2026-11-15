@@ -1094,9 +1094,21 @@
   .wp-chip-hide{background:transparent;border:none;color:var(--ink-faint);line-height:0;
     cursor:pointer;padding:0 1px;flex:none;opacity:0;transition:opacity .12s,color .12s;}
   .wp-chip-hide .ic{width:13px;height:13px;}
+  .wp-cellchip:not(:hover):not(.wp-is-hidden) .wp-chip-hide,
+  .wp-pblock:not(:hover):not(.wp-is-hidden) .wp-pb-head .wp-chip-hide,
+  .wp-pblock:not(:hover) .wp-pb-head .wp-chip-del{display:none;}
   .wp-cellchip:hover .wp-chip-hide,.wp-pblock:hover .wp-chip-hide,.wp-pblock:hover .wp-pb-head .wp-chip-del{opacity:.65;}
   .wp-chip-hide:hover,.wp-chip-hide:focus-visible{color:var(--ink);opacity:1;}
   .wp-is-hidden{opacity:.4;border-style:dashed;}
+  /* v308: a colour for a job — a pastel fill, its border a shade deeper */
+  .wp-chip-color{background:transparent;border:none;padding:0 1px;cursor:pointer;flex:none;line-height:0;}
+  .wp-chip-color i{display:block;width:11px;height:11px;border-radius:50%;border:1.5px solid var(--ink-faint);background:var(--card);}
+  .wp-cellchip:not(:hover) .wp-chip-color,.wp-pblock:not(:hover) .wp-pb-head .wp-chip-color{display:none;}
+  .wp-color-pop{position:fixed;z-index:1000;display:flex;gap:6px;align-items:center;padding:7px 8px;background:var(--card);
+    border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);}
+  .wp-color-pop button{width:20px;height:20px;border-radius:50%;cursor:pointer;padding:0;border:2px solid transparent;}
+  .wp-color-pop button.on{outline:2px solid var(--ink);outline-offset:1px;}
+  .wp-color-pop button.none{background:var(--card);border:1.5px dashed var(--ink-faint);}
   .wp-is-hidden .wp-chip-hide{opacity:.9;}
   /* v301: the pencil on a placed chip. Quiet until the chip is hovered, like the ✕ beside it.
      Pressing it turns the words into a box you can type in. */
@@ -1409,13 +1421,22 @@
   .wp-cellchip.wp-sized{position:relative;align-items:flex-start;padding-bottom:9px;}
   .wp-cellchip.wp-sized.wp-len-1{align-items:center;padding-bottom:5px;}
   /* a longer job has the room to say its whole name */
-  .wp-cellchip.wp-sized:not(.wp-len-1){flex-wrap:wrap;align-content:flex-start;row-gap:3px;overflow:hidden;}
-  .wp-cellchip.wp-sized:not(.wp-len-1) span.wp-chip-title{order:9;flex:1 0 100%;white-space:normal;overflow:hidden;
+  /* v307.2: a longer job reads like a short one — tick box beside the name — set in the middle
+     of its height. Its buttons and length sit in the corners, out of the name's way. */
+  .wp-chip-acts{display:contents;}
+  .wp-cellchip.wp-sized:not(.wp-len-1){flex-wrap:nowrap;align-items:center;overflow:hidden;padding:5px 7px;}
+  .wp-cellchip.wp-sized:not(.wp-len-1) span.wp-chip-title{white-space:normal;overflow:hidden;
     display:-webkit-box;-webkit-box-orient:vertical;}
   .wp-cellchip.wp-sized .wp-chip-mins{margin-left:auto;}
+  .wp-cellchip.wp-sized:not(.wp-len-1) .wp-chip-mins{position:absolute;top:5px;right:7px;}
+  .wp-cellchip.wp-sized:not(.wp-len-1):not(.wp-big) span.wp-chip-title{padding-right:30px;}
+  .wp-cellchip.wp-sized:not(.wp-len-1) .wp-chip-acts{position:absolute;right:4px;bottom:5px;display:flex;align-items:center;gap:4px;
+    background:inherit;border-radius:6px;padding:1px 3px 1px 6px;}
+  .wp-cellchip.wp-sized:not(.wp-len-1):not(:hover) .wp-chip-acts{background:transparent;}
   /* v307: a long job says what it is in the middle of itself, bigger the longer it is */
-  .wp-cellchip.wp-sized.wp-big span.wp-chip-title{position:absolute;left:10px;right:10px;top:50%;transform:translateY(-50%);
-    text-align:center;font-size:14px;font-weight:700;line-height:1.3;pointer-events:none;}
+  .wp-cellchip.wp-sized.wp-big{justify-content:center;gap:8px;}
+  .wp-cellchip.wp-sized.wp-big span.wp-chip-title{flex:0 1 auto;font-size:14px;font-weight:700;line-height:1.3;}
+  .wp-cellchip.wp-sized.wp-big .wp-chip-grip{position:absolute;left:7px;top:7px;}
   .wp-cellchip.wp-sized.wp-huge span.wp-chip-title{font-size:17px;}
   .wp-cellchip.wp-sized.wp-big .wp-chip-mins{position:absolute;top:5px;right:7px;}
   .wp-pblock.wp-big:not(.open){display:flex;align-items:center;}
@@ -4160,6 +4181,8 @@ async function loadWeeklyPlan(explicitWeek, preloadedPlan){
     lengths: wpCleanLengths(plan.lengths),
     // v307: jobs hidden from the grid this week, { "<cell>|<ref>": 1 }. Per week, never seeded.
     hidden: wpCleanHidden(plan.hidden),
+    // v308: a colour per job this week, { ref: "peach" | … | "" }
+    colors: wpCleanColors(plan.colors),
     carryItems: Array.isArray(plan.carryItems) ? plan.carryItems.filter(x=>x&&x.title&&(x.source==="project"||x.source==="buffer")).map(x=>({id:x.id||wpUid(),title:String(x.title),source:x.source})) : [],
     lastUpdated: plan.lastUpdated || ""
   };
@@ -4658,6 +4681,78 @@ function wpHideBtnHtml(cellKey, ref, hidden, name){
   return `<button type="button" class="wp-chip-hide" title="${hidden ? "Show this on the grid again" : "Hide this from the grid (it is not deleted)"}"
     aria-label="${hidden ? "Show" : "Hide"} ${wpEsc(name||"this job")}" onclick="wpToggleHidden(event,'${cellKey}','${ref}')"><svg class="ic"><use href="#${hidden ? "ic-eye" : "ic-eye-off"}"/></svg></button>`;
 }
+/* v308: A COLOUR FOR A JOB. Ash: "how about changing the colour of the larger blocks and being
+   able to choose what colour, to add a bit of flavour? Pastel colours I like." A dot on each job
+   opens six pastels. The choice is kept on the week (wpPlan.colors = { ref: name }); a recurring
+   or training job's colour is also remembered on this computer, so it keeps it next week. */
+const WP_PASTELS = [
+  ["peach",    "#FDE4D3", "#E9A97F"],
+  ["mint",     "#D9F2E6", "#7FC6A6"],
+  ["sky",      "#DCEBFB", "#82B1E3"],
+  ["lavender", "#E9E1FB", "#A994E0"],
+  ["butter",   "#FBF2CC", "#DDBF55"],
+  ["rose",     "#FBE0E8", "#E39AB0"],
+];
+const WP_COLOR_KEY = "wp.jobColors";
+function wpColorsMap(plan){
+  const p = plan || wpPlan;
+  if(!p) return {};
+  if(!p.colors || typeof p.colors !== "object" || Array.isArray(p.colors)) p.colors = {};
+  return p.colors;
+}
+function wpRememberedColors(){ try { const m = JSON.parse(localStorage.getItem(WP_COLOR_KEY) || "{}"); return (m && typeof m === "object") ? m : {}; } catch(e){ return {}; } }
+function wpColorOf(ref){
+  const c = wpColorsMap()[ref];
+  if(c !== undefined) return WP_PASTELS.find(x=>x[0]===c) || null;   // "" = chosen none this week
+  const src = String(ref).split(":")[0];
+  if(src === "recurring" || src === "training"){ const r = wpRememberedColors()[ref]; return WP_PASTELS.find(x=>x[0]===r) || null; }
+  return null;
+}
+function wpColorStyle(ref){ const c = wpColorOf(ref); return c ? `background:${c[1]};border-color:${c[2]};border-left-color:${c[2]};` : ""; }
+function wpCleanColors(raw){
+  const out = {};
+  if(!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  Object.keys(raw).slice(0, 300).forEach(ref=>{
+    const v = raw[ref];
+    if((wpValidRef(ref) || /^pblock:[A-Za-z0-9_-]{1,40}$/.test(ref)) && (v === "" || WP_PASTELS.some(x=>x[0]===v))) out[ref] = v;
+  });
+  return out;
+}
+function wpColorBtnHtml(ref, name){
+  const c = wpColorOf(ref);
+  return `<button type="button" class="wp-chip-color" title="Colour" aria-label="Choose a colour for ${wpEsc(name||"this job")}"
+    onclick="wpOpenColor(event,'${ref}')"><i${c ? ` style="background:${c[1]};border-color:${c[2]}"` : ""}></i></button>`;
+}
+function wpCloseColor(){ const el = document.getElementById("wpColorPop"); if(el) el.remove(); document.removeEventListener("mousedown", wpColorAway, true); }
+function wpColorAway(e){ const el = document.getElementById("wpColorPop"); if(el && !el.contains(e.target)) wpCloseColor(); }
+function wpOpenColor(ev, ref){
+  if(ev){ try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){} }
+  wpCloseColor();
+  const cur = wpColorOf(ref), r = ev.currentTarget.getBoundingClientRect();
+  const pop = document.createElement("div");
+  pop.id = "wpColorPop"; pop.className = "wp-color-pop"; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Choose a colour");
+  pop.innerHTML = WP_PASTELS.map(([k, bg, bd])=>`<button type="button" class="${cur && cur[0]===k ? "on" : ""}" title="${k}" aria-label="${k}"
+      style="background:${bg};border-color:${bd}" onclick="wpSetColor('${ref}','${k}')"></button>`).join("") +
+    `<button type="button" class="none${cur ? "" : " on"}" title="No colour" aria-label="No colour" onclick="wpSetColor('${ref}','')"></button>`;
+  document.body.appendChild(pop);
+  const w = pop.getBoundingClientRect().width;
+  pop.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left - w / 2)) + "px";
+  pop.style.top = (r.bottom + 6) + "px";
+  setTimeout(()=>document.addEventListener("mousedown", wpColorAway, true), 0);
+}
+function wpSetColor(ref, key){
+  wpCloseColor();
+  if(!wpPlan) return;
+  wpColorsMap()[ref] = key;
+  const src = String(ref).split(":")[0];
+  if(src === "recurring" || src === "training"){
+    const m = wpRememberedColors();
+    if(key) m[ref] = key; else delete m[ref];
+    try { localStorage.setItem(WP_COLOR_KEY, JSON.stringify(m)); } catch(e){}
+  }
+  renderWeeklyPlan();
+  wpSaveSection("timeBlocks");
+}
 function wpRefDoneOn(ref, dk){
   const it = wpResolveRef(ref);
   if(!it) return false;
@@ -4802,7 +4897,9 @@ function wpBlockHtml(u, dk, cellKey){
         onclick="event.preventDefault();event.stopPropagation()"></span>`
     : "";
   // a block is as tall as its length while it is shut; open, it grows to show its steps
-  const style = (halves && !open) ? ` style="height:${len * WP_HALF_PX - 4}px"` : (halves ? ` style="min-height:${len * WP_HALF_PX - 4}px"` : "");
+  const colStyle = wpColorStyle("pblock:" + u.pid);   // v308: a block's colour fills it; its project colour stays on the left edge
+  const colFill = colStyle.replace(/border-left-color:[^;]*;/, "").replace(/border-color:([^;]*);/, "border-top-color:$1;border-right-color:$1;border-bottom-color:$1;");
+  const style = (halves && !open) ? ` style="height:${len * WP_HALF_PX - 4}px;${colFill}"` : (halves ? ` style="min-height:${len * WP_HALF_PX - 4}px;${colFill}"` : (colFill ? ` style="${colFill}"` : ""));
   const sizeCls = halves ? (" wp-sized" + (len === 1 ? " wp-len-1" : "") + (len >= 3 ? " wp-big" : "") + (len >= 6 ? " wp-huge" : "")) : "";
   return `<div class="wp-pblock wp-pb-${acc}${u.hidden?" wp-is-hidden":""}${open?" open":""}${n && nDone===n?" wp-pb-alldone":""}${sizeCls}" draggable="true" data-pblock="${pidJs}"${style}
       ondragstart="wpChipDragStart(event,'pblock:${pidJs}','${cellKey}')" ondragend="wpDragEnd(event)">
@@ -4811,7 +4908,7 @@ function wpBlockHtml(u, dk, cellKey){
       <svg class="ic wp-pb-arrow" aria-hidden="true"><use href="#ic-chevron"/></svg>
       <span class="wp-pb-name">${wpEsc(u.name)}</span><span class="wp-pb-sub">${n} step${n===1?"":"s"}${nDone?` · ${nDone} done`:""}</span>
       ${halves && len > 1 ? `<span class="wp-chip-mins">${wpFmtHalves(len)}</span>` : ""}
-      ${wpHideBtnHtml(cellKey, "pblock:" + pidJs, !!u.hidden, u.name)}
+      ${wpColorBtnHtml("pblock:" + pidJs, u.name)}${wpHideBtnHtml(cellKey, "pblock:" + pidJs, !!u.hidden, u.name)}
       <button type="button" class="wp-chip-del" title="Take these steps off the week" aria-label="Take the ${wpEsc(u.name)} steps off the week"
         onclick="event.stopPropagation();wpBlockRemove('${cellKey}','${pidJs}')"><svg class="ic"><use href="#ic-close"/></svg></button>
     </div>
@@ -4908,7 +5005,8 @@ function wpChipHtml(ref, dk, mode, cellKey){
   const len = sized ? wpShownLen(ref, slot) : 1;
   const sizeCls = sized ? (" wp-sized" + (len === 1 ? " wp-len-1" : "") + (len >= 3 ? " wp-big" : "") + (len >= 6 ? " wp-huge" : "")) : "";
   // (sizes are inline, not CSS variables: every var() on this page must come from the palette)
-  const sizeStyle = sized ? ` style="height:${len * WP_HALF_PX - 4}px"` : "";
+  const colStyle = ck ? wpColorStyle(ref) : "";   // v308
+  const sizeStyle = (sized || colStyle) ? ` style="${sized ? `height:${len * WP_HALF_PX - 4}px;` : ""}${colStyle}"` : "";
   const clamp = (sized && len > 1) ? ` style="-webkit-line-clamp:${len * 2 - 2}"` : "";
   const lenOut = sized
     ? `${len > 1 ? `<span class="wp-chip-mins">${wpFmtHalves(len)}</span>` : ""}<span class="wp-chip-len" title="Drag to make this job longer or shorter (30 minutes a step)"
@@ -4923,7 +5021,7 @@ function wpChipHtml(ref, dk, mode, cellKey){
       ondragover="wpChipDragOver(event,'${ck}')" ondragleave="wpChipDragLeave(event)" ondrop="wpChipDrop(event,'${ck}','${ref}')">
     <span class="wp-chip-grip" aria-hidden="true">⠿</span>
     <input type="checkbox" ${done?"checked":""} onchange="wpToggleDoneRef('${ref}',this.checked,'${dk}')">
-    <span class="wp-chip-title"${clamp}>${emoji}${wpEsc(item.title)}</span>${done?"":wpWaitBtnHtml(ref,dk,held)}${noteOut}${linkOut}${editOut}${hideOut}${delOut}${lenOut}</label>`;
+    <span class="wp-chip-title"${clamp}>${emoji}${wpEsc(item.title)}</span><span class="wp-chip-acts">${ck ? wpColorBtnHtml(ref, item.title) : ""}${done?"":wpWaitBtnHtml(ref,dk,held)}${noteOut}${linkOut}${editOut}${hideOut}${delOut}</span>${lenOut}</label>`;
 }
 
 /* ===== v70: RICH NOTES ===== */
@@ -6071,7 +6169,7 @@ const WP_SECTION_FIELDS = {
   // section that writes it — project/buffer/carry saves leave the stored field alone).
   // v84: this week's location overrides ride the same grid save (they live in the header of
   // that grid); the DEFAULT pattern has its own key and never travels on a week's plan.
-  timeBlocks: ["timeBlocks","placements","recurringDone","trainingDone","exceptions","locations","cellOrder","lengths","hidden"],
+  timeBlocks: ["timeBlocks","placements","recurringDone","trainingDone","exceptions","locations","cellOrder","lengths","hidden","colors"],
   review: ["review","reviewChecklist"],   // v78: the ritual checklist saves on the review path
   carry: ["carryItems","projectItems","bufferItems","placements"]
 };

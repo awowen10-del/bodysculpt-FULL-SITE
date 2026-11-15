@@ -1428,6 +1428,19 @@ export default async (req) => {
         }
         incoming.hidden = clean;
       }
+      // v308: a colour per job this week — { ref: one of six pastel names, or "" for none }
+      if ("colors" in incoming) {
+        const REF_RE = /^(?:(?:project|buffer|recurring|training):[A-Za-z0-9_-]{1,40}|pblock:[A-Za-z0-9_-]{1,40})$/;
+        const OK = ["", "peach", "mint", "sky", "lavender", "butter", "rose"];
+        const raw = incoming.colors;
+        const clean = {};
+        if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+          for (const ref of Object.keys(raw).slice(0, 300)) {
+            if (REF_RE.test(ref) && OK.includes(raw[ref])) clean[ref] = raw[ref];
+          }
+        }
+        incoming.colors = clean;
+      }
       const merged = { ...existing, ...incoming, lastUpdated: new Date().toISOString() };
       await store.set(key, JSON.stringify(merged));
       return Response.json({ ok:true, plan: merged });

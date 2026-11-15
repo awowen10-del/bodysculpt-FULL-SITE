@@ -226,7 +226,7 @@ const row = (title, kind, tgt) => ({ title, kind, done: false, tgt });
   {
     const chip = WEEKLY.slice(WEEKLY.indexOf("function wpChipHtml("), WEEKLY.indexOf("/* ===== v70: RICH NOTES"));
     assert.ok(/class="wp-chip-edit" title="Change the wording"/.test(chip) && /onclick="wpChipEdit\(event,'\$\{ref\}'\)"/.test(chip), "every placed chip has a pencil");
-    assert.ok(/\$\{linkOut\}\$\{editOut\}(?:\$\{hideOut\})?\$\{delOut\}(?:\$\{lenOut\})?<\/label>/.test(chip), "…sitting just before the ✕");
+    assert.ok(/\$\{linkOut\}\$\{editOut\}(?:\$\{hideOut\})?\$\{delOut\}(?:<\/span>)?(?:\$\{lenOut\})?<\/label>/.test(chip), "…sitting just before the ✕");
     assert.ok(/<symbol id="ic-pencil"/.test(WEEKLY), "the pencil is in the icon sheet");
     const edit = "function wpChipEdit(ev, ref)" + bodyOf(WEEKLY, "wpChipEdit");
     assert.ok(/chip\.draggable = false;/.test(edit), "the chip stops being draggable while its words are a box");

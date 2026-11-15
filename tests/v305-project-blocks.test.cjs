@@ -99,7 +99,8 @@ const fn = (n) => fnOf(HTML, n);
     ${fn("wpValidCellKey")} ${fn("wpValidRef")} ${fn("wpCleanHidden")} return wpCleanHidden;`)();
   assert.deepStrictEqual(clean({ "10-12:mon|pblock:p_bf": 1, "6-9:tue|buffer:b1": true, "bad|buffer:b1": 1, "6-9:tue|x:y": 1, "1-3:wed|buffer:b2": 0 }),
     { "10-12:mon|pblock:p_bf": 1, "6-9:tue|buffer:b1": 1 }, "a hidden block or job is kept; junk is dropped");
-  assert.ok(/"lengths","hidden"\]/.test(HTML), "hidden saves with the grid");
+  assert.ok(/"lengths","hidden","colors"\]/.test(HTML), "hidden and colours save with the grid");
+  assert.ok(/if \("colors" in incoming\)/.test(STORE), "the store whitelists colours");
   assert.ok(/if \("hidden" in incoming\)/.test(STORE), "the store whitelists hidden");
   assert.ok(/hideOut = ck \? wpHideBtnHtml\(ck, ref, isHid, item\.title\)/.test(HTML), "every placed job has its eye");
 
