@@ -1978,6 +1978,27 @@
   .wp-cellchip.wp-recur{background:var(--card);border-left-color:var(--teal);}
   .wp-cellchip.wp-train{background:var(--card);border-left-color:var(--green);}
   .wp-cellchip input:checked{background:var(--green);border-color:var(--green);}
+  /* v310: done is green everywhere — a job, a project's step, a finished project's name */
+  .wp-pb-row input:checked,.wp-pb-tick{background:var(--green);border-color:var(--green);}
+  /* v310: the job's grip is as wide as a block's arrow, so every tick and name lines up */
+  .wp-chip-grip{width:12px;text-align:center;}
+  .wp-cell-2proj{display:inline-flex;align-items:center;gap:3px;}
+  .wp-cell-2proj .ic{width:11px;height:11px;}
+  /* v310: THE 1-DAY VIEW — a readable width, empty slots small, what is done folded away */
+  table.wp-grid.wp-cols-1{max-width:1000px;}
+  table.wp-grid.wp-cols-1 .wp-dayhead-in{justify-content:flex-start;padding-left:4px;}
+  .wp-cellwrap.wp-slot-empty{min-height:44px;}
+  .wp-cellwrap.wp-slot-empty textarea{min-height:34px;}
+  .wp-rowwarn{margin-top:6px;white-space:normal;}
+  .wp-rowwarn .wp-cell-2proj{position:static;}
+  .wp-donefold{margin:2px 6px 4px;}
+  .wp-donefold > summary{list-style:none;display:inline-flex;align-items:center;gap:4px;cursor:pointer;
+    font-size:11px;font-weight:700;color:var(--ink-faint);padding:3px 4px;border-radius:var(--r-sm);}
+  .wp-donefold > summary::-webkit-details-marker{display:none;}
+  .wp-donefold > summary:hover{color:var(--ink-dim);background:var(--card-2);}
+  .wp-donefold > summary .ic{width:11px;height:11px;transform:rotate(-90deg);transition:transform .12s;}
+  .wp-donefold[open] > summary .ic{transform:none;}
+  .wp-donefold-list{display:flex;flex-direction:column;gap:4px;padding-top:4px;}
   .wp-cellchip:hover{border-color:var(--ink-faint);}
   table.wp-grid th.wp-dayhead.wp-dayhead-today{background:rgba(var(--info-rgb),.08);box-shadow:inset 0 -2px 0 var(--info);}
   table.wp-grid th.wp-dayhead.wp-dayhead-today:hover{background:rgba(var(--info-rgb),.12);}
@@ -4776,13 +4797,22 @@ function wpGridUnits(refs, dk, cellKey){
   if(!wpGridHideDone) return units;
   return units.filter(u=>u.kind === "block" ? u.steps.some(x=>!x.it.done) : !wpRefDoneOn(u.ref, dk));
 }
-// how much of a block a cell's units take, in half hours
+// v310: finished — every step of a block ticked, or the job itself ticked
+function wpUnitDone(u, dk){
+  return u.kind === "block" ? (u.steps.length > 0 && u.steps.every(x=>x.it.done)) : wpRefDoneOn(u.ref, dk);
+}
+// v310: the 1-day view folds finished things away at the bottom of each slot
+const wpDoneFoldsOpen = new Set();
+function wpDoneFoldOn(){ return wpDayCount === 1; }
+// how much of a block a cell's units take, in half hours.
+// v310: something finished takes one line, not its hours — the time is free again.
 function wpUnitsLen(units, key){
-  const slot = String(key).split(":")[0];
+  const [slot, dk] = String(key).split(":");
   return units.reduce((t,u)=>{
-    if(u.kind === "block") return t + Math.min(wpLenOf(wpBlockLenKey(u.pid, key)), wpSpanMax(slot));
+    if(u.kind === "block") return t + (wpUnitDone(u, dk) ? 1 : Math.min(wpLenOf(wpBlockLenKey(u.pid, key)), wpSpanMax(slot)));
     const it = wpResolveRef(u.ref);
-    return t + (it && it.source !== "project-worked" ? wpShownLen(u.ref, slot) : 0);
+    if(!it || it.source === "project-worked") return t;
+    return t + (wpRefDoneOn(u.ref, dk) ? 1 : wpShownLen(u.ref, slot));
   }, 0);
 }
 function wpGridHideBtnHtml(placements, visDays){
@@ -4850,7 +4880,9 @@ function wpSpillLayout(){
     // a full block has no room for its notes box; one with words in it keeps it
     const ta = td.querySelector("textarea");
     if(ta && !ta.value.trim()) ta.style.display = "none";
-    const gap = (td.getBoundingClientRect().bottom - 6) - last.getBoundingClientRect().bottom;
+    const fold = td.querySelector(".wp-donefold");   // v310: stop above the Done fold
+    const floor = fold ? fold.getBoundingClientRect().top - 4 : td.getBoundingClientRect().bottom - 6;
+    const gap = floor - last.getBoundingClientRect().bottom;
     // an opened block keeps filling its slot, and still grows if its steps need more room
     if(gap > 1){
       const h = Math.round(last.getBoundingClientRect().height + gap) + "px";
@@ -4892,7 +4924,8 @@ function wpBlockHtml(u, dk, cellKey){
   const slot = String(cellKey).split(":")[0];
   const halves = wpBlockHalves(slot);
   const lk = wpBlockLenKey(u.pid, cellKey);
-  const len = halves ? Math.min(wpLenOf(lk), wpSpanMax(slot)) : 1;
+  const allDone = n > 0 && nDone === n;   // v310: finished blocks shrink to one line
+  const len = (halves && !allDone) ? Math.min(wpLenOf(lk), wpSpanMax(slot)) : 1;
   const pidJs = wpEsc(u.pid);
   // done sinks to the bottom; otherwise the order the board gives
   const rows = u.steps.filter(x=>!x.it.done).concat(u.steps.filter(x=>x.it.done)).map(({ref, it})=>{
@@ -4902,7 +4935,7 @@ function wpBlockHtml(u, dk, cellKey){
       <input type="checkbox" ${it.done?"checked":""} aria-label="Done: ${wpEsc(it.title)}" onclick="event.stopPropagation()" onchange="wpToggleDoneRef('${ref}',this.checked,'${dk}')">
       <span class="wp-pb-t">${wpEsc(it.title)}</span>${due?`<span class="wp-pb-due${due.late&&!it.done?" late":""}">${wpEsc(due.text)}</span>`:""}${wpStepNoteBtnHtml(it, true)}</div>`;
   }).join("");
-  const handle = halves
+  const handle = (halves && !allDone)
     ? `<span class="wp-chip-len" title="Drag to make this block longer or shorter (30 minutes a step)"
         onpointerdown="wpLenStart(event,'${lk}','${cellKey}')" onpointermove="wpLenMove(event)" onpointerup="wpLenEnd(event)" onpointercancel="wpLenEnd(event)"
         onclick="event.preventDefault();event.stopPropagation()"></span>`
@@ -4928,6 +4961,7 @@ function wpBlockHtml(u, dk, cellKey){
     ${open ? "" : handle}
   </div>`;
 }
+function wpDoneFoldToggle(key, open){ if(open) wpDoneFoldsOpen.add(key); else wpDoneFoldsOpen.delete(key); }
 function wpBlockToggle(cellKey, pid){
   const k = cellKey + "|" + pid;
   if(wpOpenBlocks.has(k)) wpOpenBlocks.delete(k); else wpOpenBlocks.add(k);
@@ -5014,13 +5048,13 @@ function wpChipHtml(ref, dk, mode, cellKey){
   // v304: in a timed block the job is as tall as it is long, and its bottom edge drags
   const slot = ck ? ck.split(":")[0] : "";
   const sized = !!wpBlockHalves(slot);
-  const len = sized ? wpShownLen(ref, slot) : 1;
+  const len = (sized && !done) ? wpShownLen(ref, slot) : 1;   // v310: a finished job is one line
   const sizeCls = sized ? (" wp-sized" + (len === 1 ? " wp-len-1" : "") + (len >= 3 ? " wp-big" : "") + (len >= 6 ? " wp-huge" : "")) : "";
   // (sizes are inline, not CSS variables: every var() on this page must come from the palette)
   const colStyle = ck ? wpColorStyle(ref) : "";   // v308
   const sizeStyle = (sized || colStyle) ? ` style="${sized ? `height:${len * WP_HALF_PX - 4}px;` : ""}${colStyle}"` : "";
   const clamp = (sized && len > 1) ? ` style="-webkit-line-clamp:${len * 2 - 2}"` : "";
-  const lenOut = sized
+  const lenOut = (sized && !done)
     ? `${len > 1 ? `<span class="wp-chip-mins">${wpFmtHalves(len)}</span>` : ""}<span class="wp-chip-len" title="Drag to make this job longer or shorter (30 minutes a step)"
         onpointerdown="wpLenStart(event,'${ref}','${ck}')" onpointermove="wpLenMove(event)" onpointerup="wpLenEnd(event)" onpointercancel="wpLenEnd(event)"
         onclick="event.preventDefault();event.stopPropagation()"></span>`
@@ -5795,7 +5829,7 @@ function renderWeeklyPlan(){
     let carry = 0;
     (typeof WPCAL_BANDS !== "undefined" ? WPCAL_BANDS : []).forEach(([rk])=>{
       const key = rk + ":" + dk, halves = wpBlockHalves(rk);
-      const own = wpUnitsLen(wpGridUnits(gridPlacements[key]||[], dk, key).filter(u=>!u.hidden), key);
+      const own = wpUnitsLen(wpGridUnits(gridPlacements[key]||[], dk, key).filter(u=>!u.hidden && !(wpDoneFoldOn() && wpUnitDone(u, dk))), key);
       const used = carry + own, next = wpNextBand(rk);
       const out = used > halves && next ? Math.max(0, used - halves - next.gap) : 0;
       // spill: something hangs into the next block; ending in the gap before it is just "full"
@@ -5803,6 +5837,7 @@ function renderWeeklyPlan(){
       carry = out;
     });
   });
+  const rowWarn = {};   // v310: the 1-day view's "2 projects", shown by the slot's time
   const gridBody = WP_TIME_ROWS.map(([rk,rlbl])=>{
     const notesRow = rk==="notes" ? " wp-grid-notes" : "";
     const cells = visDays.map(([dk,dlbl])=>{
@@ -5810,9 +5845,19 @@ function renderWeeklyPlan(){
       const refs = (gridPlacements[key]||[]);
       // v305: a project's steps in this slot are one block (v306: done ones hidden, if asked)
       const units = wpGridUnits(refs, dk, key);
-      const chips = units.map(u=>u.kind === "block" ? wpBlockHtml(u, dk, key) : wpChipHtml(u.ref, dk, "", key)).join("");
-      const nBlocks = units.filter(u=>u.kind === "block" && !u.hidden).length;
-      const twoProj = nBlocks > 1 ? `<span class="wp-cell-2proj" title="More than one project in this slot">${nBlocks} projects</span>` : "";
+      const unitHtml = (u)=>u.kind === "block" ? wpBlockHtml(u, dk, key) : wpChipHtml(u.ref, dk, "", key);
+      // v310: the 1-day view puts what is left first and folds what is done under it
+      const fold = wpDoneFoldOn() && rk !== "notes";
+      const doneUnits = fold ? units.filter(u=>wpUnitDone(u, dk)) : [];
+      const chips = units.filter(u=>!doneUnits.includes(u)).map(unitHtml).join("");
+      const doneFold = doneUnits.length
+        ? `<details class="wp-donefold"${wpDoneFoldsOpen.has(key)?" open":""} ontoggle="wpDoneFoldToggle('${key}',this.open)"><summary><svg class="ic" aria-hidden="true"><use href="#ic-chevron"/></svg>Done (${doneUnits.length})</summary><div class="wp-donefold-list">${doneUnits.map(unitHtml).join("")}</div></details>`
+        : "";
+      // v310: "2 projects" is a warning about the slot, so it sits by the slot's time in the
+      // 1-day view, and carries a warning sign everywhere
+      const nBlocks = units.filter(u=>u.kind === "block" && !u.hidden && !wpUnitDone(u, dk)).length;   // a finished project is not a second one
+      const twoProj = nBlocks > 1 ? `<span class="wp-cell-2proj" title="More than one project in this slot"><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg>${nBlocks} projects</span>` : "";
+      if(fold && twoProj) rowWarn[rk] = twoProj;
       const txt = (p.timeBlocks[rk]&&p.timeBlocks[rk][dk])||"";
       // v148: what is already committed goes in FIRST, above the tasks — you should see the
       // wall before you see the space. It is display only: it never enters placements.
@@ -5833,16 +5878,19 @@ function renderWeeklyPlan(){
       // drawn. The sums are still made — they decide how a job runs on into the next block.
       void fillCls; void fillTip;
       const fill = "";
-      const timed = halves ? ` wp-timed" style="min-height:${halves * WP_HALF_PX + 14}px` : "";
+      // v310: in the 1-day view an empty slot shrinks to one line instead of holding its hours
+      // (one whose jobs are all done counts as empty: they are folded into "Done" at the top)
+      const emptySlot = wpDayCount === 1 && units.length === doneUnits.length && !appts && !txt.trim() && !fl.carryIn;
+      const timed = emptySlot ? ` wp-slot-empty` : halves ? ` wp-timed" style="min-height:${halves * WP_HALF_PX + 14}px` : "";
       // v306: the room at the top taken by a job running on from the block above, and a block
       // whose jobs run on lets them hang down into the next one rather than growing its row
       const pad = halves ? `<div class="wp-spillpad" data-carry="${fl.carryIn}"></div>` : "";
       const chipsStyle = fl.spill ? ` wp-spill" style="height:${halves * WP_HALF_PX}px` : "";
       // v307.1: a block its jobs fill exactly is covered to its bottom edge (see wpSpillLayout)
       const fullAttr = (halves && used >= halves && !fl.spill) ? ` data-full="1"` : "";
-      return `<td class="wp-daycell" data-cell="${key}"${fullAttr} ondragover="wpCellDragOver(event)" ondragleave="wpCellDragLeave(event)" ondrop="wpCellDrop(event,'${rk}','${dk}')"><div class="wp-cellwrap${timed}">${pad}${appts}${chips?`<div class="wp-cellchips${chipsStyle}">${chips}</div>`:""}<textarea data-tb="${key}" onblur="wpSaveSection('timeBlocks')">${wpEsc(txt)}</textarea></div>${(fill || twoProj) ? `<div class="wp-cell-tags">${fill}${twoProj}</div>` : ""}${quickAdd}</td>`;
+      return `<td class="wp-daycell" data-cell="${key}"${fullAttr} ondragover="wpCellDragOver(event)" ondragleave="wpCellDragLeave(event)" ondrop="wpCellDrop(event,'${rk}','${dk}')"><div class="wp-cellwrap${timed}">${pad}${appts}${chips?`<div class="wp-cellchips${chipsStyle}">${chips}</div>`:""}${doneFold}<textarea data-tb="${key}" onblur="wpSaveSection('timeBlocks')">${wpEsc(txt)}</textarea></div>${(fill || (twoProj && !fold)) ? `<div class="wp-cell-tags">${fill}${fold ? "" : twoProj}</div>` : ""}${quickAdd}</td>`;
     }).join("");
-    return `<tr class="${notesRow}"><td class="wp-rowlabel">${rlbl}</td>${cells}</tr>`;
+    return `<tr class="${notesRow}"><td class="wp-rowlabel">${rlbl}${rowWarn[rk] ? `<div class="wp-rowwarn">${rowWarn[rk]}</div>` : ""}</td>${cells}</tr>`;
   });   // v306: kept as rows, so Anytime can go in under 5 – 8
   // v227: Anytime — a project step with a day and no time yet. Drawn only when one exists,
   // so a week without any looks exactly as it always has. Drag a chip down to give it a time.
