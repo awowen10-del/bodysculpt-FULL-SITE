@@ -1466,7 +1466,8 @@
   .wp-pblock.wp-pb-red{border-left-color:var(--red);}
   .wp-pblock.wp-pb-alldone{opacity:.6;}
   /* v309: every step ticked, so the project's name is ticked too — the same box a job uses */
-  .wp-pb-tick{flex:none;position:relative;width:14px;height:14px;border-radius:4px;background:var(--orange);border:1.5px solid var(--orange);box-sizing:border-box;}
+  /* inside the name, so a big block that wraps its header never splits the tick from the name */
+  .wp-pb-tick{display:inline-block;vertical-align:-2px;margin-right:6px;position:relative;width:14px;height:14px;border-radius:4px;background:var(--orange);border:1.5px solid var(--orange);box-sizing:border-box;}
   .wp-pb-tick::after{content:"✓";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--on-accent);font-size:10px;font-weight:900;line-height:1;}
   .wp-pblock.wp-pb-alldone .wp-pb-name{text-decoration:line-through;}
   .wp-pb-head{display:flex;align-items:center;gap:6px;padding:4px 7px;cursor:pointer;user-select:none;}
@@ -4917,7 +4918,7 @@ function wpBlockHtml(u, dk, cellKey){
     <div class="wp-pb-head" role="button" tabindex="0" aria-expanded="${open}" onclick="wpBlockToggle('${cellKey}','${pidJs}')"
       onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();wpBlockToggle('${cellKey}','${pidJs}')}">
       <svg class="ic wp-pb-arrow" aria-hidden="true"><use href="#ic-chevron"/></svg>
-      ${n && nDone===n ? `<span class="wp-pb-tick" role="img" aria-label="All steps done"></span>` : ""}<span class="wp-pb-name">${wpEsc(u.name)}</span><span class="wp-pb-sub">${n} step${n===1?"":"s"}${nDone?` · ${nDone} done`:""}</span>
+      <span class="wp-pb-name">${n && nDone===n ? `<span class="wp-pb-tick" role="img" aria-label="All steps done"></span>` : ""}${wpEsc(u.name)}</span><span class="wp-pb-sub">${n} step${n===1?"":"s"}${nDone?` · ${nDone} done`:""}</span>
       ${halves && len > 1 ? `<span class="wp-chip-mins">${wpFmtHalves(len)}</span>` : ""}
       ${wpColorBtnHtml("pblock:" + pidJs, u.name)}${wpHideBtnHtml(cellKey, "pblock:" + pidJs, !!u.hidden, u.name)}
       <button type="button" class="wp-chip-del" title="Take these steps off the week" aria-label="Take the ${wpEsc(u.name)} steps off the week"

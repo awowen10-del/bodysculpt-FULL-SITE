@@ -34,7 +34,7 @@ assert.ok(!some.includes("wp-pb-alldone"), "and is not marked all done");
 
 const all = render(block([true, true]), "mon", "10-12:mon");
 assert.ok(all.includes('class="wp-pb-tick"'), "every step ticked: the name gets a tick");
-assert.ok(all.indexOf("wp-pb-tick") < all.indexOf("wp-pb-name"), "the tick sits before the name");
+assert.ok(/class="wp-pb-name"><span class="wp-pb-tick"[^>]*><\/span>Money straight</.test(all), "the tick sits inside the name, in front of it, so they never split");
 assert.ok(all.includes("wp-pb-alldone"), "and the block is marked all done");
 assert.ok(/\.wp-pblock\.wp-pb-alldone \.wp-pb-name\{text-decoration:line-through;\}/.test(HTML), "the name is struck through");
 
