@@ -46,7 +46,7 @@ assert.ok(/const chips = units\.map\(unitHtml\)\.join\(""\);/.test(R), "every jo
 assert.ok(/emptySlot = wpDayCount === 1 && !units\.length/.test(R), "only a truly empty slot shrinks in the 1-day view");
 assert.ok(/rowWarn\[rk\]/.test(R) && /wp-rowwarn/.test(R), "\"2 projects\" sits by the slot's time in the 1-day view");
 assert.ok(/!wpUnitDone\(u, dk\)\)\.length/.test(R), "a finished project is not counted as a second project");
-assert.ok(/table\.wp-grid\.wp-cols-1\{max-width:1000px;\}/.test(HTML), "the 1-day view keeps to a readable width");
+assert.ok(!/table\.wp-grid\.wp-cols-1\{max-width/.test(HTML), "the 1-day view fills the box, all the way to the right");
 assert.ok(/\.wp-pb-row input:checked,\.wp-pb-tick\{background:var\(--green\)/.test(HTML), "done is green everywhere");
 assert.ok(/\.wp-chip-grip\{width:12px;/.test(HTML), "the grip is as wide as a block's arrow, so ticks line up");
 
