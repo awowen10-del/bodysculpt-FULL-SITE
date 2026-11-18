@@ -1,4 +1,4 @@
-// v310 — the 1-day view: what is left first, finished things folded away, empty slots small.
+// v310 — the 1-day view: a readable width, empty slots small. (v310.1: done is never folded away.)
 // Finished jobs and blocks take one line, not their hours, in every view.
 //
 // Ash, of the 1-day view: "are you happy with how this calendar looks?" — the finished work
@@ -40,9 +40,10 @@ assert.strictEqual(env.wpUnitsLen([block([false, true])], "10-12:wed"), 5, "an u
 
 // the grid: the fold, the shrink, the warning by the time
 const R = fn("renderWeeklyPlan");
-assert.ok(/class="wp-donefold"/.test(R) && /Done \(\$\{doneUnits\.length\}\)/.test(R), "the 1-day view folds finished things into Done (n)");
-assert.ok(/function wpDoneFoldOn\(\)\{ return wpDayCount === 1; \}/.test(HTML), "only in the 1-day view");
-assert.ok(/emptySlot = wpDayCount === 1 && units\.length === doneUnits\.length/.test(R), "an empty (or all-done) slot shrinks in the 1-day view");
+// v310.1: Ash: "I like to see what I've achieved in a day" — done is never folded away
+assert.ok(!/donefold/i.test(HTML), "no Done fold: finished jobs stay where they are, ticked");
+assert.ok(/const chips = units\.map\(unitHtml\)\.join\(""\);/.test(R), "every job in a slot is drawn, done or not");
+assert.ok(/emptySlot = wpDayCount === 1 && !units\.length/.test(R), "only a truly empty slot shrinks in the 1-day view");
 assert.ok(/rowWarn\[rk\]/.test(R) && /wp-rowwarn/.test(R), "\"2 projects\" sits by the slot's time in the 1-day view");
 assert.ok(/!wpUnitDone\(u, dk\)\)\.length/.test(R), "a finished project is not counted as a second project");
 assert.ok(/table\.wp-grid\.wp-cols-1\{max-width:1000px;\}/.test(HTML), "the 1-day view keeps to a readable width");
