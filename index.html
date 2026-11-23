@@ -1981,6 +1981,26 @@
   .wp-pb-row input:checked,.wp-pb-tick{background:var(--green);border-color:var(--green);}
   /* v310: the job's grip is as wide as a block's arrow, so every tick and name lines up */
   .wp-chip-grip{width:12px;text-align:center;}
+  /* v311: a block with steps looks just like a job — grip, tick box, name — with its arrow on the right */
+  .wp-pb-head{gap:6px;padding:5px 7px;}
+  .wp-pb-head .wp-chip-grip{color:var(--ink-faint);font-size:10px;line-height:1;flex:none;user-select:none;opacity:.5;}
+  .wp-pblock:hover .wp-pb-head .wp-chip-grip{opacity:.9;}
+  .wp-pb-name{font-weight:600;flex:1 1 auto;}
+  .wp-pb-check{appearance:none;-webkit-appearance:none;width:14px;height:14px;flex:none;margin:1px 0 0;
+    border:1.5px solid var(--ink-faint);border-radius:4px;background:transparent;cursor:pointer;position:relative;transition:all .12s;}
+  .wp-pb-check:hover{border-color:var(--orange);}
+  .wp-pb-check:checked{background:var(--green);border-color:var(--green);}
+  .wp-pb-check:checked::after{content:"✓";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--on-accent);font-size:10px;font-weight:900;line-height:1;}
+  .wp-pb-toggle{flex:none;margin-left:auto;display:flex;align-items:center;justify-content:center;width:18px;height:14px;border-radius:4px;color:var(--ink-dim);}
+  .wp-pblock.wp-sized:not(.open):not(.wp-big) .wp-pb-head{height:100%;box-sizing:border-box;padding-top:0;padding-bottom:0;}
+  .wp-pb-toggle:hover{background:var(--card-2);color:var(--ink);}
+  .wp-pb-toggle .wp-pb-arrow{transform:none;}
+  .wp-pblock.open .wp-pb-toggle .wp-pb-arrow{transform:rotate(180deg);}
+  .wp-pblock.wp-big:not(.open) .wp-pb-head .wp-pb-name{flex:0 1 auto;font-weight:700;}
+  .wp-pblock.wp-big:not(.open) .wp-pb-head .wp-chip-grip{position:absolute;left:7px;top:7px;}
+  .wp-pblock.wp-big:not(.open) .wp-pb-head .wp-pb-toggle{position:absolute;right:7px;bottom:5px;}
+  .wp-pblock.wp-big:not(.open) .wp-pb-head .wp-chip-del{left:auto;top:auto;right:30px;bottom:5px;}
+  .wp-pblock.wp-big:not(.open) .wp-pb-head .wp-chip-hide{left:auto;top:auto;right:50px;bottom:5px;}
   .wp-cell-2proj{display:inline-flex;align-items:center;gap:3px;}
   .wp-cell-2proj .ic{width:11px;height:11px;}
   /* v310: THE 1-DAY VIEW — empty slots small. (v310.2: full width again — Ash: "Calendar isn't
@@ -4936,16 +4956,25 @@ function wpBlockHtml(u, dk, cellKey){
       ondragover="wpChipDragOver(event,'${cellKey}')" ondragleave="wpChipDragLeave(event)" ondrop="wpChipDrop(event,'${cellKey}','pblock:${pidJs}')">
     <div class="wp-pb-head" role="button" tabindex="0" aria-expanded="${open}" onclick="wpBlockToggle('${cellKey}','${pidJs}')"
       onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();wpBlockToggle('${cellKey}','${pidJs}')}">
-      <svg class="ic wp-pb-arrow" aria-hidden="true"><use href="#ic-chevron"/></svg>
-      <span class="wp-pb-name">${n && nDone===n ? `<span class="wp-pb-tick" role="img" aria-label="All steps done"></span>` : ""}${wpEsc(u.name)}</span><span class="wp-pb-sub">${n} step${n===1?"":"s"}${nDone?` · ${nDone} done`:""}</span>
+      <span class="wp-chip-grip" aria-hidden="true">⠿</span>
+      <input type="checkbox" class="wp-pb-check" ${n && nDone===n ? "checked" : ""} aria-label="Done: every step of ${wpEsc(u.name)}"
+        onclick="event.stopPropagation()" onchange="wpBlockTickAll('${cellKey}','${pidJs}',this.checked,'${dk}')">
+      <span class="wp-pb-name">${wpEsc(u.name)}</span>
       ${halves && len > 1 ? `<span class="wp-chip-mins">${wpFmtHalves(len)}</span>` : ""}
       ${wpColorBtnHtml("pblock:" + pidJs, u.name)}${wpHideBtnHtml(cellKey, "pblock:" + pidJs, !!u.hidden, u.name)}
       <button type="button" class="wp-chip-del" title="Take these steps off the week" aria-label="Take the ${wpEsc(u.name)} steps off the week"
         onclick="event.stopPropagation();wpBlockRemove('${cellKey}','${pidJs}')"><svg class="ic"><use href="#ic-close"/></svg></button>
+      <span class="wp-pb-toggle" title="${open ? "Hide the steps" : `Show the ${n} step${n===1?"":"s"}`}"><svg class="ic wp-pb-arrow" aria-hidden="true"><use href="#ic-chevron"/></svg></span>
     </div>
     ${open ? `<div class="wp-pb-steps">${rows}${slot !== WP_ANY ? `<button type="button" class="wp-pb-add" onclick="event.stopPropagation();wpBlockAddStep('${cellKey}','${pidJs}')">+ step</button>` : ""}</div>` : ""}
     ${open ? "" : handle}
   </div>`;
+}
+// v311: the block's own tick box ticks (or unticks) every step in it, one after another
+async function wpBlockTickAll(cellKey, pid, checked, dk){
+  const steps = wpBlockSteps(pid, cellKey).filter(x=>!!x.it.done !== checked);
+  for(const x of steps) await wpToggleDoneRef(x.ref, checked, dk);
+  renderWeeklyPlan();
 }
 function wpBlockToggle(cellKey, pid){
   const k = cellKey + "|" + pid;
