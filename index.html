@@ -4793,14 +4793,14 @@ function wpUnitDone(u, dk){
   return u.kind === "block" ? (u.steps.length > 0 && u.steps.every(x=>x.it.done)) : wpRefDoneOn(u.ref, dk);
 }
 // how much of a block a cell's units take, in half hours.
-// v310: something finished takes one line, not its hours — the time is free again.
+// v310.4: something finished keeps its hours, so a ticked job looks the same size as before.
 function wpUnitsLen(units, key){
   const [slot, dk] = String(key).split(":");
   return units.reduce((t,u)=>{
-    if(u.kind === "block") return t + (wpUnitDone(u, dk) ? 1 : Math.min(wpLenOf(wpBlockLenKey(u.pid, key)), wpSpanMax(slot)));
+    if(u.kind === "block") return t + Math.min(wpLenOf(wpBlockLenKey(u.pid, key)), wpSpanMax(slot));
     const it = wpResolveRef(u.ref);
     if(!it || it.source === "project-worked") return t;
-    return t + (wpRefDoneOn(u.ref, dk) ? 1 : wpShownLen(u.ref, slot));
+    return t + wpShownLen(u.ref, slot);
   }, 0);
 }
 function wpGridHideBtnHtml(placements, visDays){
@@ -4910,8 +4910,8 @@ function wpBlockHtml(u, dk, cellKey){
   const slot = String(cellKey).split(":")[0];
   const halves = wpBlockHalves(slot);
   const lk = wpBlockLenKey(u.pid, cellKey);
-  const allDone = n > 0 && nDone === n;   // v310: finished blocks shrink to one line
-  const len = (halves && !allDone) ? Math.min(wpLenOf(lk), wpSpanMax(slot)) : 1;
+  const allDone = n > 0 && nDone === n;   // v310.4: finished blocks keep their size (no resize handle)
+  const len = halves ? Math.min(wpLenOf(lk), wpSpanMax(slot)) : 1;   // v310.4: ticked blocks keep their size
   const pidJs = wpEsc(u.pid);
   // done sinks to the bottom; otherwise the order the board gives
   const rows = u.steps.filter(x=>!x.it.done).concat(u.steps.filter(x=>x.it.done)).map(({ref, it})=>{
@@ -5033,7 +5033,7 @@ function wpChipHtml(ref, dk, mode, cellKey){
   // v304: in a timed block the job is as tall as it is long, and its bottom edge drags
   const slot = ck ? ck.split(":")[0] : "";
   const sized = !!wpBlockHalves(slot);
-  const len = (sized && !done) ? wpShownLen(ref, slot) : 1;   // v310: a finished job is one line
+  const len = sized ? wpShownLen(ref, slot) : 1;   // v310.4: a finished job keeps its size
   const sizeCls = sized ? (" wp-sized" + (len === 1 ? " wp-len-1" : "") + (len >= 3 ? " wp-big" : "") + (len >= 6 ? " wp-huge" : "")) : "";
   // (sizes are inline, not CSS variables: every var() on this page must come from the palette)
   const colStyle = ck ? wpColorStyle(ref) : "";   // v308
