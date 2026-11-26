@@ -35,6 +35,17 @@ const path = require("path");
   const bare = m.cardBody({ name: "Sam", address: [], personal: "", mentions: [] });
   assert.ok(/Address: NOT ON GHL/.test(bare) && /Nothing in the coaches' shift notes yet/.test(bare), "says what's missing, never guesses");
 
+  // Slack's escaping is undone; another Jodie is not this Jodie
+  const more = m.checklistLines([post(1795400000, "Grace Terry", ["> Jodie Gould was back with her mum", "> Jodie G. has been ill", "> PBs from Dale, Kelly and Jodie", "> jodie wane"])]);
+  const mine = m.mentionsOf(more, "Jodie", "Wane").map((x) => x.text);
+  assert.deepEqual(mine.sort(), ["PBs from Dale, Kelly and Jodie", "jodie wane"].sort(), mine.join(" | "));
+  assert.ok(!more.some((x) => /&gt;|^>/.test(x.text)));
+
+  // new starters: the first run only learns who is there; after that, anyone new gets a card
+  assert.deepEqual(m.newStarters(["a", "b"], null), { make: [], seed: true });
+  assert.deepEqual(m.newStarters(["a", "b", "c"], ["a", "b"]), { make: ["c"], seed: false });
+  assert.deepEqual(m.newStarters(["a"], ["a", "b"]), { make: [], seed: false });
+
   // the tick rule: either side ticked -> both ticked, then the pair is closed
   assert.equal(m.decide(false, false), "wait");
   assert.equal(m.decide(true, false), "complete-ghl");

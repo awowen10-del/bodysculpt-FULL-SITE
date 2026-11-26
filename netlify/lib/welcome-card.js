@@ -56,6 +56,8 @@ export function addressLines(c) {
   return lines;
 }
 
+export const unescapeSlack = (t) => String(t || "").replace(/&gt;/g, ">").replace(/&lt;/g, "<").replace(/&amp;/g, "&");
+
 /* Every line of a checklist post as plain text, with who posted it and when. Pure. */
 export function checklistLines(messages) {
   const out = [];
@@ -70,7 +72,7 @@ export function checklistLines(messages) {
     const coach = (all.match(/\*([^*\n]+)\*\s+•/) || [])[1] || "";
     const day = new Date(Number(m.ts) * 1000).toISOString().slice(0, 10);
     for (const line of all.split("\n")) {
-      const l = line.replace(/^>\s?/, "").replace(/:[a-z_]+:/g, "").replace(/[*_]/g, "").trim();
+      const l = unescapeSlack(line).replace(/^>\s?/, "").replace(/:[a-z_]+:/g, "").replace(/[*_]/g, "").trim();
       if (l) out.push({ day, coach, text: l });
     }
   }
@@ -85,7 +87,14 @@ export function mentionsOf(lines, first, last) {
   const fullRe = l ? new RegExp("\\b" + esc(f) + "\\s+" + esc(l) + "\\b", "i") : null;
   const firstRe = new RegExp("\\b" + esc(f) + "\\b", "i");
   const seen = new Set();
-  return lines.filter((x) => firstRe.test(x.text) && !/^(Post-Shift Checklist|Anyone at risk|Any )/i.test(x.text))
+  // "Jodie Gould" or "Jodie G." is a different Jodie when we know this one is Jodie Wane
+  const someoneElse = (t) => {
+    if (!l) return false;
+    const re = new RegExp("\\b" + esc(f) + "\\s+([A-Z][a-z]*\\.?)", "g"); let mm, anyOther = false, anyOurs = false;
+    while ((mm = re.exec(t))) { const nx = mm[1].replace(".", ""); if (l.toLowerCase().startsWith(nx.toLowerCase())) anyOurs = true; else if (nx.length === 1 || /^[A-Z][a-z]+$/.test(nx) && !/^(And|Was|Is|Has|Had|Did|Came|Back|Said|Smashed|Loved|Loving|Got|Hit|Did)$/.test(nx)) anyOther = true; }
+    return anyOther && !anyOurs;
+  };
+  return lines.filter((x) => firstRe.test(x.text) && !/^(Post-Shift Checklist|Anyone at risk|Any )/i.test(x.text) && !someoneElse(x.text))
     .map((x) => ({ ...x, full: !!(fullRe && fullRe.test(x.text)) }))
     .filter((x) => { const k = x.text.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; })
     .sort((a, b) => (b.full - a.full) || b.day.localeCompare(a.day))
@@ -106,6 +115,19 @@ export function cardBody({ name, address, personal, mentions, link }) {
   }
   if (link) { lines.push(""); lines.push("GHL: " + link); }
   return lines.join("\n");
+}
+
+/* GHL sometimes has a first name only. The onboarding tracker's TeamUp list has the full name,
+   keyed by GHL contact id. Public read, the same key the tracker page itself uses. */
+const TRACKER_DB = "https://wxqnfvvgzqnibrgklbri.supabase.co/rest/v1/bodysculpt?key=eq.attendance-teamup&select=members:value->members";
+const TRACKER_KEY = "sb_publishable_4m2hMzluKnsnGtEaddJ7bw_0jHrti6a";
+export async function trackerName(contactId) {
+  try {
+    const r = await fetch(TRACKER_DB, { headers: { apikey: TRACKER_KEY, Authorization: "Bearer " + TRACKER_KEY } });
+    const rows = await r.json();
+    const m = ((rows[0] && rows[0].members) || []).find((x) => x && x.id === contactId);
+    return m && /\s/.test(String(m.name || "").trim()) ? String(m.name).trim() : "";
+  } catch { return ""; }
 }
 
 /* ---------- Slack: the coaches' checklist posts ---------- */
@@ -161,16 +183,18 @@ export async function ensureProject() {
 }
 
 /* ---------- 1. make the card ---------- */
-export async function makeCard(contactId, { dryRun = false, now = Date.now() } = {}) {
+export async function makeCard(contactId, { dryRun = false, now = Date.now(), posts = null } = {}) {
   const links = await readLinks();
   const recent = Object.values(links).find((x) => x.contactId === contactId && now - Date.parse(x.createdAt) < 60 * 86400000);
   if (recent && !dryRun) return { ok: true, skipped: "already has a card from the last 60 days", stepId: recent.stepId };
 
   const { contact: c } = await ghl("GET", "/contacts/" + contactId);
   if (!c) throw new Error("No such GHL contact " + contactId);
-  const name = fullName(c);
+  let first = (c.firstName || "").trim(), last = (c.lastName || "").trim();
+  if (!last) { const tn = await trackerName(contactId); if (tn) { const parts = tn.split(/\s+/); first = first || parts[0]; last = parts.slice(1).join(" "); } }
+  const name = fullName({ firstName: first, lastName: last, email: c.email });
   let mentions = [], slackError = "";
-  try { mentions = mentionsOf(checklistLines(await readChecklistPosts(now)), (c.firstName || "").trim(), (c.lastName || "").trim()); }
+  try { mentions = mentionsOf(checklistLines(posts || await readChecklistPosts(now)), first, last); }
   catch (e) { slackError = e.message; }
   const personal = await personalNote(name, mentions).catch(() => "");
   const body = cardBody({ name, address: addressLines(c), personal, mentions, link: contactLink(contactId) });
@@ -192,6 +216,48 @@ export async function makeCard(contactId, { dryRun = false, now = Date.now() } =
   links[step.id] = { stepId: step.id, contactId, taskId, name, createdAt: new Date(now).toISOString(), closed: false };
   await writeLinks(links);
   return { ok: true, title, stepId: step.id, taskId, slackError };
+}
+
+/* ---------- 1b. who has just started. ----------
+   The 5-minute run looks at everyone GHL tags `member start` (the Member journey's own tag)
+   and makes a card for anyone who wasn't tagged last time. The first run only learns who is
+   already there, so nobody who joined weeks ago gets a card. Someone who leaves loses the tag
+   (the Cancelled workflow), so if they come back they get a new card. Pure. */
+export function newStarters(current, seen) {
+  if (!Array.isArray(seen)) return { make: [], seed: true };
+  const was = new Set(seen);
+  return { make: current.filter((id) => !was.has(id)), seed: false };
+}
+export const SEEN_KEY = "welcome-card-seen";
+export const PER_RUN = 2;     // a card is a Slack read and a Claude call; a scheduled run has ~30s
+async function taggedStarters() {
+  const ids = [];
+  for (let page = 1; page <= 10; page++) {
+    const r = await ghl("POST", "/contacts/search", { locationId: env("GHL_LOCATION_ID"), page, pageLimit: 100,
+      filters: [{ field: "tags", operator: "contains", value: ["member start"] }] });
+    const cs = r.contacts || [];
+    ids.push(...cs.map((c) => c.id));
+    if (cs.length < 100) break;
+  }
+  return ids;
+}
+export async function cardsForNewStarters(now = Date.now()) {
+  const current = await taggedStarters();
+  let seen = null; try { seen = await store().get(SEEN_KEY, { type: "json" }); } catch { seen = null; }
+  const { make, seed } = newStarters(current, seen && seen.ids);
+  const done = [], errors = [];
+  if (!seed && make.length) {
+    const posts = await readChecklistPosts(now).catch(() => []);
+    for (const id of make.slice(0, PER_RUN)) {
+      try { const r = await makeCard(id, { now, posts }); done.push(id + ": " + (r.title || r.skipped)); }
+      catch (e) { errors.push(id + ": " + e.message); }
+    }
+  }
+  // remember: everyone tagged now, except the new ones this run didn't reach (they go next run)
+  const later = new Set(seed ? [] : make.slice(PER_RUN));
+  const errored = new Set(errors.map((x) => x.split(":")[0]));
+  await store().setJSON(SEEN_KEY, { ids: current.filter((id) => !later.has(id) && !errored.has(id)), at: new Date(now).toISOString() });
+  return { tagged: current.length, seeded: seed, made: done, waiting: later.size, errors };
 }
 
 /* ---------- 2. keep the ticks matched. decide() is pure. ---------- */
