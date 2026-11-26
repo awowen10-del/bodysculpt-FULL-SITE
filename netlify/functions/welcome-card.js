@@ -8,7 +8,8 @@
 // The password gate lets this one address through (gate.js), so it checks its own key and
 // answers 404 to anyone without it.
 import { makeCard, readLinks, PROJECT_ID } from "../lib/welcome-card.js";
-import { readProject } from "../lib/projects.js";
+import { readProject, listProjects } from "../lib/projects.js";
+import { getStore } from "@netlify/blobs";
 
 const json = (o, s = 200) => Response.json(o, { status: s });
 export default async (req) => {
@@ -20,7 +21,11 @@ export default async (req) => {
   if (req.method === "GET" && url.searchParams.get("status") === "1") {
     const links = await readLinks(), p = await readProject(PROJECT_ID);
     const steps = Object.fromEntries(((p && p.steps) || []).map((x) => [x.id, x]));
-    return json({ ok: true, cards: Object.values(links).map((l) => ({ name: l.name, contactId: l.contactId, closed: !!l.closed,
+    const all = await getStore({ name: "bodysculpt-kpi", consistency: "strong" }).list({ prefix: "proj-" });
+    const listed = await listProjects();
+    const diag = { projectKeys: (all.blobs || []).length, listed: listed.length, inList: listed.some((x) => x.id === PROJECT_ID),
+      project: p ? { name: p.name, status: p.status, archived: p.archived, steps: (p.steps || []).length, cols: (p.columns || []).map((c) => c.id), keys: Object.keys(p) } : null };
+    return json({ ok: true, diag, cards: Object.values(links).map((l) => ({ name: l.name, contactId: l.contactId, closed: !!l.closed,
       closedWhy: l.closedWhy || "", dashboardDone: !!(steps[l.stepId] && steps[l.stepId].done), createdAt: l.createdAt })) });
   }
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
