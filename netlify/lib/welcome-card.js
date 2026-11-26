@@ -172,7 +172,7 @@ export async function personalNote(name, mentions) {
   });
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error("Claude " + r.status + ": " + JSON.stringify(d).slice(0, 200));
-  const text = String((d.content && d.content[0] && d.content[0].text) || "").trim();
+  const text = String(((d.content || []).find((b) => b && b.type === "text") || {}).text || "").trim();
   return !text || /^NONE\b/.test(text) ? "" : text;
 }
 
