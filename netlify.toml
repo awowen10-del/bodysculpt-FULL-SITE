@@ -153,3 +153,12 @@
 # Reads GoHighLevel, Instagram and Meta side by side. The paid-plan maximum.
 [functions."marketing-calendar"]
   timeout = 26
+
+# v312: the welcome card. GHL calls welcome-card on 'member start' (Slack read + one Claude
+# call, so it gets the 26s); welcome-card-sync keeps the GHL task and the dashboard job ticked
+# together, every 5 minutes.
+[functions."welcome-card"]
+  timeout = 26
+
+[functions."welcome-card-sync"]
+  schedule = "*/5 * * * *"
