@@ -46,6 +46,13 @@ const path = require("path");
   assert.deepEqual(m.newStarters(["a", "b", "c"], ["a", "b"]), { make: ["c"], seed: false });
   assert.deepEqual(m.newStarters(["a"], ["a", "b"]), { make: [], seed: false });
 
+  // tracker side: the journey item on the member (by email, then name), or the card's own Card sent
+  const ret = [{ name: "Jodie Wane", email: "J@x.com", completed: ["welcome_card"] }, { name: "Sam Lee", email: "", completed: [] }];
+  assert.equal(m.trackerDone({ email: "j@x.com", name: "Other" }, ret), true);
+  assert.equal(m.trackerDone({ email: "", name: "sam  lee" }, ret), false);
+  assert.equal(m.trackerDone({ email: "", name: "Sam Lee", sent: { by: "Dan" } }, ret), true);
+  assert.equal(m.trackerDone({ email: "nobody@x.com", name: "Nobody" }, ret), false);
+
   // the tick rule: either side ticked -> both ticked, then the pair is closed
   assert.equal(m.decide(false, false), "wait");
   assert.equal(m.decide(true, false), "complete-ghl");

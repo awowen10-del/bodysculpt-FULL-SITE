@@ -5,24 +5,22 @@
 // AND something personal about them scraped from Slack (post-shift notes from coaches)."
 //
 // HOW IT RUNS
-//   1. GHL's Member journey workflow (tag `member start`) calls welcome-card-background with
-//      the contact id. That function reads the contact (name, address), reads the coaches'
-//      Post-Shift Checklist posts in Slack for anything about them, makes ONE GHL task
-//      (assigned to Ash) and ONE job on the dashboard's "Welcome cards" project, and writes the
-//      pair to the link record below.
-//   2. welcome-card-sync runs every 5 minutes. For every open pair: ticked on the dashboard ->
-//      completed in GHL; completed in GHL -> ticked on the dashboard. Once both are done the
-//      pair is closed and never read again.
+//   v312.10, Ash: "I meant to have it on the Onboarding dashboard, the one the team have access
+//   to." So the job is the onboarding tracker's own day-0 "Welcome card" (Cards & gifts to
+//   send), and this code lives here only because this site holds the Slack and Claude keys.
+//   1. Every 5 minutes (welcome-card-sync) anyone newly tagged `member start` in GHL gets a
+//      card: name, address, a personal line from the coaches' Post-Shift Checklist posts.
+//      It makes ONE GHL task (assigned to Ash) and writes the card to the tracker's Supabase
+//      row 'welcome-cards', which the tracker shows inside the Welcome card job.
+//   2. The same run keeps the ticks matched. Done in the tracker (the journey item, or the
+//      card's own "Card sent" for someone not on the member list) -> GHL task completed.
+//      GHL task completed -> card.ghlDone, and the tracker ticks its own job when it next loads.
 //
-// STORES: the dashboard job lives in the Projects store (proj-welcomecards) and is written only
-// through projects.js's own functions. The link record is its own store, so nothing here can
-// reach the weekly/monthly data.
+// STORES: the tracker's 'welcome-cards' row (written here and by the tracker's Card sent
+// button) and its 'retention' row (READ only, never written from here). The "who was tagged
+// last time" list is this site's own blob.
 import { getStore } from "@netlify/blobs";
-import { readProject, writeProject, applyAddStep, applyStepDone, applyStepDue, defaultColumns, cleanProject, nowIso } from "./projects.js";
 
-export const PROJECT_ID = "welcomecards";
-export const PROJECT_NAME = "Welcome cards";
-export const LINKS_KEY = "welcome-card-links";
 export const ASH_GHL_USER = "JDb3t1lKcxPLjclX2WXd";
 export const GENERAL_CHANNEL = "C05H1U54JKU";       // #general, where the checklist posts land
 export const LOOK_BACK_DAYS = 120;                  // a 6-week challenge and then some
@@ -32,8 +30,30 @@ const SHIFT_RE = /post[- ]?shift checklist/i;
 const env = (k) => String(process.env[k] || "").trim();
 
 const store = () => getStore({ name: "bodysculpt-welcome-cards", consistency: "strong" });
-export async function readLinks() { try { return (await store().get(LINKS_KEY, { type: "json" })) || {}; } catch { return {}; } }
-export async function writeLinks(v) { await store().setJSON(LINKS_KEY, v); }
+
+/* ---------- the onboarding tracker's rows (Supabase, the same public key its page uses) ---------- */
+const DB = "https://wxqnfvvgzqnibrgklbri.supabase.co/rest/v1/bodysculpt";
+const DB_KEY = "sb_publishable_4m2hMzluKnsnGtEaddJ7bw_0jHrti6a";
+const dbHeaders = { apikey: DB_KEY, Authorization: "Bearer " + DB_KEY, "Content-Type": "application/json" };
+export const CARDS_ROW = "welcome-cards";
+export async function readRow(key, select = "value") {
+  const r = await fetch(`${DB}?key=eq.${encodeURIComponent(key)}&select=${select}`, { headers: dbHeaders });
+  if (!r.ok) throw new Error("tracker read " + key + " " + r.status);
+  const rows = await r.json();
+  return rows[0] || null;
+}
+export async function readCards() { const r = await readRow(CARDS_ROW); return (r && r.value && r.value.cards) ? r.value : { cards: {} }; }
+export async function writeCards(v) {
+  const r = await fetch(DB + "?on_conflict=key", { method: "POST", headers: { ...dbHeaders, Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify({ key: CARDS_ROW, value: v, updated_at: new Date().toISOString() }) });
+  if (!r.ok) throw new Error("tracker write " + r.status + " " + (await r.text()).slice(0, 200));
+}
+/* Patch some cards without losing a Card sent the tracker wrote a moment ago. */
+export async function patchCards(fn) {
+  const v = await readCards();
+  fn(v.cards);
+  await writeCards(v);
+}
 
 /* ---------- GHL ---------- */
 const ghlHeaders = () => ({ Authorization: "Bearer " + env("GHL_API_KEY"), Version: "2021-07-28", Accept: "application/json",
@@ -119,13 +139,10 @@ export function cardBody({ name, address, personal, mentions, link }) {
 
 /* GHL sometimes has a first name only. The onboarding tracker's TeamUp list has the full name,
    keyed by GHL contact id. Public read, the same key the tracker page itself uses. */
-const TRACKER_DB = "https://wxqnfvvgzqnibrgklbri.supabase.co/rest/v1/bodysculpt?key=eq.attendance-teamup&select=members:value->members";
-const TRACKER_KEY = "sb_publishable_4m2hMzluKnsnGtEaddJ7bw_0jHrti6a";
 export async function trackerName(contactId) {
   try {
-    const r = await fetch(TRACKER_DB, { headers: { apikey: TRACKER_KEY, Authorization: "Bearer " + TRACKER_KEY } });
-    const rows = await r.json();
-    const m = ((rows[0] && rows[0].members) || []).find((x) => x && x.id === contactId);
+    const row = await readRow("attendance-teamup", "members:value->members");
+    const m = ((row && row.members) || []).find((x) => x && x.id === contactId);
     return m && /\s/.test(String(m.name || "").trim()) ? String(m.name).trim() : "";
   } catch { return ""; }
 }
@@ -178,21 +195,10 @@ export async function personalNote(name, mentions) {
   return !text || /^NONE\b/.test(text) ? "" : text;
 }
 
-/* ---------- the dashboard job ---------- */
-export async function ensureProject() {
-  let p = await readProject(PROJECT_ID);
-  if (!p) {
-    p = cleanProject({ id: PROJECT_ID, name: PROJECT_NAME, summary: "One job per new member. Ticking here ticks the GHL task too, and the other way round.",
-      status: "active", accent: "orange", columns: defaultColumns(), steps: [], canvas: [], archived: false, createdAt: nowIso() });
-  }
-  return p;
-}
-
 /* ---------- 1. make the card ---------- */
 export async function makeCard(contactId, { dryRun = false, now = Date.now(), posts = null, force = false } = {}) {
-  const links = await readLinks();
-  const recent = Object.values(links).find((x) => x.contactId === contactId && now - Date.parse(x.createdAt) < 60 * 86400000);
-  if (recent && !dryRun && !force) return { ok: true, skipped: "already has a card from the last 60 days", stepId: recent.stepId };
+  const existing = (await readCards()).cards[contactId];
+  if (existing && now - Date.parse(existing.createdAt) < 60 * 86400000 && !dryRun && !force) return { ok: true, skipped: "already has a card from the last 60 days" };
 
   const { contact: c } = await ghl("GET", "/contacts/" + contactId);
   if (!c) throw new Error("No such GHL contact " + contactId);
@@ -213,16 +219,11 @@ export async function makeCard(contactId, { dryRun = false, now = Date.now(), po
   const taskId = (t.task && (t.task.id || t.task._id)) || t.id;
   if (!taskId) throw new Error("GHL made no task: " + JSON.stringify(t).slice(0, 200));
 
-  const p = await ensureProject();
-  const step = applyAddStep(p, title);
-  step.notes = body;
-  step.tags = ["welcome card"];
-  applyStepDue(p, step.id, new Date(now).toISOString().slice(0, 10));
-  await writeProject(p);
-
-  links[step.id] = { stepId: step.id, contactId, taskId, name, createdAt: new Date(now).toISOString(), closed: false };
-  await writeLinks(links);
-  return { ok: true, title, stepId: step.id, taskId, slackError };
+  const card = { contactId, taskId, name, email: String(c.email || "").trim().toLowerCase(), address: addressLines(c),
+    personal, mentions: mentions.slice(0, 4).map((m) => ({ text: m.text, coach: m.coach, day: m.day })),
+    createdAt: new Date(now).toISOString(), ghlDone: false, sent: null, closed: false };
+  await patchCards((cards) => { cards[contactId] = card; });
+  return { ok: true, title, taskId, slackError };
 }
 
 /* ---------- 1b. who has just started. ----------
@@ -274,30 +275,35 @@ export function decide(stepDone, ghlDone) {
   if (ghlDone) return "tick-dashboard";
   return "wait";
 }
+/* Is this card's job done in the tracker? The journey item on the member (matched by email,
+   then name), or the card's own Card sent. Pure. */
+export function trackerDone(card, retention) {
+  if (card.sent) return true;
+  const norm = (x) => String(x || "").trim().toLowerCase().replace(/\s+/g, " ");
+  const m = (retention || []).find((r) => r && ((card.email && norm(r.email) === card.email) || norm(r.name) === norm(card.name)));
+  return !!(m && (m.completed || []).includes("welcome_card"));
+}
 export async function syncCards() {
-  const links = await readLinks();
-  const open = Object.values(links).filter((x) => !x.closed);
+  const v = await readCards();
+  const open = Object.values(v.cards).filter((x) => x && !x.closed);
   if (!open.length) return { ok: true, open: 0 };
-  const p = await readProject(PROJECT_ID);
-  if (!p) return { ok: false, error: "no Welcome cards project" };
-  const out = { ok: true, open: open.length, ghlCompleted: [], dashTicked: [], closed: [], errors: [] };
-  let projChanged = false, linksChanged = false;
-  for (const l of open) {
+  const retRow = await readRow("retention");
+  const retention = (retRow && Array.isArray(retRow.value)) ? retRow.value : [];
+  const out = { ok: true, open: open.length, ghlCompleted: [], trackerTicked: [], closed: [], errors: [] };
+  const changes = {};
+  for (const card of open) {
     try {
-      const step = (p.steps || []).find((s) => s.id === l.stepId);
-      const stepDone = !!(step && step.done);
-      const stepGone = !step || step.del;
-      const t = await ghl("GET", `/contacts/${l.contactId}/tasks/${l.taskId}`).catch((e) => (/404/.test(e.message) ? { gone: true } : Promise.reject(e)));
+      const t = await ghl("GET", `/contacts/${card.contactId}/tasks/${card.taskId}`).catch((e) => (/404/.test(e.message) ? { gone: true } : Promise.reject(e)));
       const task = t.task || t;
       const ghlDone = !t.gone && task.completed === true;
-      if (stepGone || t.gone) { l.closed = true; l.closedWhy = stepGone ? "job deleted on dashboard" : "task deleted in GHL"; linksChanged = true; out.closed.push(l.name); continue; }
-      const what = decide(stepDone, ghlDone);
-      if (what === "complete-ghl") { await ghl("PUT", `/contacts/${l.contactId}/tasks/${l.taskId}/completed`, { completed: true }); out.ghlCompleted.push(l.name); }
-      if (what === "tick-dashboard") { applyStepDone(p, l.stepId, true); projChanged = true; out.dashTicked.push(l.name); }
-      if (what !== "wait") { l.closed = true; l.closedAt = new Date().toISOString(); linksChanged = true; out.closed.push(l.name); }
-    } catch (e) { out.errors.push(l.name + ": " + e.message); }
+      const what = t.gone ? "gone" : decide(trackerDone(card, retention), ghlDone);
+      if (what === "complete-ghl") { await ghl("PUT", `/contacts/${card.contactId}/tasks/${card.taskId}/completed`, { completed: true }); out.ghlCompleted.push(card.name); changes[card.contactId] = { ghlDone: true, closed: true }; }
+      if (what === "tick-dashboard") { out.trackerTicked.push(card.name); changes[card.contactId] = { ghlDone: true, closed: true }; }
+      if (what === "close") changes[card.contactId] = { ghlDone: true, closed: true };
+      if (what === "gone") changes[card.contactId] = { closed: true, closedWhy: "task deleted in GHL" };
+      if (changes[card.contactId] && changes[card.contactId].closed) out.closed.push(card.name);
+    } catch (e) { out.errors.push(card.name + ": " + e.message); }
   }
-  if (projChanged) await writeProject(p);
-  if (linksChanged) await writeLinks(links);
+  if (Object.keys(changes).length) await patchCards((cards) => { for (const [id, ch] of Object.entries(changes)) if (cards[id]) Object.assign(cards[id], ch); });
   return out;
 }
