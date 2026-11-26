@@ -30,7 +30,7 @@ export default async (req) => {
   if (!/^[A-Za-z0-9]{10,40}$/.test(contactId)) return json({ error: "Need contact_id", keys: Object.keys(body) }, 400);
   const dryRun = body.dry_run === true || body.dry_run === "true" || url.searchParams.get("dry") === "1";
   try {
-    const out = await makeCard(contactId, { dryRun });
+    const out = await makeCard(contactId, { dryRun, force: body.force === true });
     console.log("[welcome-card] " + JSON.stringify({ contactId, ...out, body: undefined }));
     return json(out);
   } catch (e) {

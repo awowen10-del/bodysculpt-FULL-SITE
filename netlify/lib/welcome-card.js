@@ -189,10 +189,10 @@ export async function ensureProject() {
 }
 
 /* ---------- 1. make the card ---------- */
-export async function makeCard(contactId, { dryRun = false, now = Date.now(), posts = null } = {}) {
+export async function makeCard(contactId, { dryRun = false, now = Date.now(), posts = null, force = false } = {}) {
   const links = await readLinks();
   const recent = Object.values(links).find((x) => x.contactId === contactId && now - Date.parse(x.createdAt) < 60 * 86400000);
-  if (recent && !dryRun) return { ok: true, skipped: "already has a card from the last 60 days", stepId: recent.stepId };
+  if (recent && !dryRun && !force) return { ok: true, skipped: "already has a card from the last 60 days", stepId: recent.stepId };
 
   const { contact: c } = await ghl("GET", "/contacts/" + contactId);
   if (!c) throw new Error("No such GHL contact " + contactId);
