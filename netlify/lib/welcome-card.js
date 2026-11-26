@@ -160,7 +160,7 @@ export async function personalNote(name, mentions) {
     method: "POST",
     headers: { "x-api-key": env("ANTHROPIC_API_KEY"), "anthropic-version": "2023-06-01", "content-type": "application/json" },
     body: JSON.stringify({
-      model: "claude-sonnet-5-5", max_tokens: 200,
+      model: "claude-sonnet-5-5", max_tokens: 4000, output_config: { effort: "low" },   // room to think, then answer
       system: "You help a gym owner write a handwritten welcome card to a new member. From the coaches' shift notes, "
         + "pick the ONE most personal thing about this person (family, job, a goal, a win, something they mentioned). "
         + "Use only what the notes say, never add anything. Write it as a short plain note to the owner, one or two sentences, "
