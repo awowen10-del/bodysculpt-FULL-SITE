@@ -162,12 +162,14 @@ export async function personalNote(name, mentions) {
       system: "You help a gym owner write a handwritten welcome card to a new member. From the coaches' shift notes, "
         + "pick the ONE most personal thing about this person (family, job, a goal, a win, something they mentioned). "
         + "Use only what the notes say, never add anything. Write it as a short plain note to the owner, one or two sentences, "
-        + "UK English, no dashes. If a note only uses the first name and it may be someone else, start with \"Check it's them:\". "
+        + "UK English, no dashes. This goes on a happy welcome card, so leave out anything sad or private "
+        + "(break-ups, illness, grief, money worries, wanting to cancel). If a note only uses the first name and it may be someone else, start with \"Check it's them:\". "
         + "If nothing in the notes is personal (only attendance or admin), reply with exactly: NONE",
       messages: [{ role: "user", content: `New member: ${name}\n\nCoaches' notes that mention them:\n${notes}` }],
     }),
   });
   const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error("Claude " + r.status + ": " + JSON.stringify(d).slice(0, 200));
   const text = String((d.content && d.content[0] && d.content[0].text) || "").trim();
   return !text || /^NONE\b/.test(text) ? "" : text;
 }
@@ -196,10 +198,11 @@ export async function makeCard(contactId, { dryRun = false, now = Date.now(), po
   let mentions = [], slackError = "";
   try { mentions = mentionsOf(checklistLines(posts || await readChecklistPosts(now)), first, last); }
   catch (e) { slackError = e.message; }
-  const personal = await personalNote(name, mentions).catch(() => "");
+  let noteError = "";
+  const personal = await personalNote(name, mentions).catch((e) => { noteError = e.message; return ""; });
   const body = cardBody({ name, address: addressLines(c), personal, mentions, link: contactLink(contactId) });
   const title = "Send welcome card: " + name;
-  if (dryRun) return { ok: true, dryRun: true, title, body, slackError };
+  if (dryRun) return { ok: true, dryRun: true, title, body, slackError, noteError };
 
   const due = new Date(now + 2 * 86400000);
   const t = await ghl("POST", `/contacts/${contactId}/tasks`, { title, body, dueDate: due.toISOString(), completed: false, assignedTo: ASH_GHL_USER });
