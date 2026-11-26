@@ -150,6 +150,7 @@ export async function readChecklistPosts(nowMs = Date.now()) {
   return msgs;
 }
 
+let lastNoteRaw = "";
 /* One warm, true detail for the card, from what the coaches wrote. Never invents. */
 export async function personalNote(name, mentions) {
   if (!mentions.length) return "";
@@ -172,6 +173,7 @@ export async function personalNote(name, mentions) {
   });
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error("Claude " + r.status + ": " + JSON.stringify(d).slice(0, 200));
+  lastNoteRaw = JSON.stringify(d.content || d).slice(0, 600);
   const text = String(((d.content || []).find((b) => b && b.type === "text") || {}).text || "").trim();
   return !text || /^NONE\b/.test(text) ? "" : text;
 }
@@ -204,7 +206,7 @@ export async function makeCard(contactId, { dryRun = false, now = Date.now(), po
   const personal = await personalNote(name, mentions).catch((e) => { noteError = e.message; return ""; });
   const body = cardBody({ name, address: addressLines(c), personal, mentions, link: contactLink(contactId) });
   const title = "Send welcome card: " + name;
-  if (dryRun) return { ok: true, dryRun: true, title, body, slackError, noteError };
+  if (dryRun) return { ok: true, dryRun: true, title, body, slackError, noteError, noteRaw: lastNoteRaw, mentionCount: mentions.length };
 
   const due = new Date(now + 2 * 86400000);
   const t = await ghl("POST", `/contacts/${contactId}/tasks`, { title, body, dueDate: due.toISOString(), completed: false, assignedTo: ASH_GHL_USER });
