@@ -152,7 +152,8 @@ export async function readChecklistPosts(nowMs = Date.now()) {
 
 /* One warm, true detail for the card, from what the coaches wrote. Never invents. */
 export async function personalNote(name, mentions) {
-  if (!mentions.length || !env("ANTHROPIC_API_KEY")) return "";
+  if (!mentions.length) return "";
+  if (!env("ANTHROPIC_API_KEY")) throw new Error("ANTHROPIC_API_KEY not set");
   const notes = mentions.map((m) => `[${m.day}, ${m.coach || "coach"}${m.full ? ", full name used" : ", first name only"}] ${m.text}`).join("\n");
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -164,7 +165,8 @@ export async function personalNote(name, mentions) {
         + "Use only what the notes say, never add anything. Write it as a short plain note to the owner, one or two sentences, "
         + "UK English, no dashes. This goes on a happy welcome card, so leave out anything sad or private "
         + "(break-ups, illness, grief, money worries, wanting to cancel). If a note only uses the first name and it may be someone else, start with \"Check it's them:\". "
-        + "If nothing in the notes is personal (only attendance or admin), reply with exactly: NONE",
+        + "A training win counts (a PB, a lift they did well, coming back stronger). "
+        + "Only if the notes have nothing usable at all (just a name, attendance or admin), reply with exactly: NONE",
       messages: [{ role: "user", content: `New member: ${name}\n\nCoaches' notes that mention them:\n${notes}` }],
     }),
   });
