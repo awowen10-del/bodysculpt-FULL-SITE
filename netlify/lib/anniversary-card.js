@@ -198,18 +198,31 @@ export async function syncCards() {
   if (!open.length) return { ok: true, open: 0 };
   const retRow = await readRow("retention");
   const retention = (retRow && Array.isArray(retRow.value)) ? retRow.value : [];
-  const out = { ok: true, open: open.length, ghlCompleted: [], trackerTicked: [], closed: [], errors: [] };
   const changes = {};
+  const out = { ok: true, open: open.length, ghlCompleted: [], trackerTicked: [], closed: [], errors: [] };
   for (const card of open) {
     try {
+      // v314.1: no address when the card was made? GHL may have one now (address-sync copies them from TeamUp)
+      if (!(card.address || []).length) {
+        const { contact: c } = await ghl("GET", "/contacts/" + card.contactId).catch(() => ({}));
+        const address = c ? addressLines(c) : [];
+        if (address.length) {
+          const body = taskBody({ ...card, address, link: contactLink(card.contactId) });
+          const cur = await ghl("GET", `/contacts/${card.contactId}/tasks/${card.taskId}`).catch(() => ({}));
+          const ct = cur.task || cur;
+          if (ct && ct.title && !ct.completed) await ghl("PUT", `/contacts/${card.contactId}/tasks/${card.taskId}`, { title: ct.title, body, dueDate: ct.dueDate, completed: false, assignedTo: ct.assignedTo || ASH_GHL_USER }).catch(() => null);
+          changes[card.contactId] = { ...(changes[card.contactId] || {}), address };
+          out.addressAdded = (out.addressAdded || []).concat(card.name);
+        }
+      }
       const t = await ghl("GET", `/contacts/${card.contactId}/tasks/${card.taskId}`).catch((e) => (/404/.test(e.message) ? { gone: true } : Promise.reject(e)));
       const task = t.task || t;
       const ghlDone = !t.gone && task.completed === true;
       const what = t.gone ? "gone" : decide(trackerDone(card, retention), ghlDone);
-      if (what === "complete-ghl") { await ghl("PUT", `/contacts/${card.contactId}/tasks/${card.taskId}/completed`, { completed: true }); out.ghlCompleted.push(card.name); changes[card.contactId] = { ghlDone: true, closed: true }; }
-      if (what === "tick-dashboard") { out.trackerTicked.push(card.name); changes[card.contactId] = { ghlDone: true, closed: true }; }
-      if (what === "close") changes[card.contactId] = { ghlDone: true, closed: true };
-      if (what === "gone") changes[card.contactId] = { closed: true, closedWhy: "task deleted in GHL" };
+      if (what === "complete-ghl") { await ghl("PUT", `/contacts/${card.contactId}/tasks/${card.taskId}/completed`, { completed: true }); out.ghlCompleted.push(card.name); changes[card.contactId] = { ...(changes[card.contactId] || {}), ghlDone: true, closed: true }; }
+      if (what === "tick-dashboard") { out.trackerTicked.push(card.name); changes[card.contactId] = { ...(changes[card.contactId] || {}), ghlDone: true, closed: true }; }
+      if (what === "close") changes[card.contactId] = { ...(changes[card.contactId] || {}), ghlDone: true, closed: true };
+      if (what === "gone") changes[card.contactId] = { ...(changes[card.contactId] || {}), closed: true, closedWhy: "task deleted in GHL" };
       if (changes[card.contactId] && changes[card.contactId].closed) out.closed.push(card.name);
     } catch (e) { out.errors.push(card.name + ": " + e.message); }
   }
